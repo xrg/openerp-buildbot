@@ -13,15 +13,15 @@ function populatedropdown(monthfrom, yearfrom, monthto, yearto){
     
     for (var m=0; m<12; m++){
         monthfrom.options[m] = new Option(monthtext[m],m);
-        monthfrom.options[today.getMonth()] = new Option(monthtext[today.getMonth()],today.getMonth());
         monthto.options[m] = new Option(monthtext[m],m);
-        monthto.options[today.getMonth()] = new Option(monthtext[today.getMonth()], today.getMonth(), true, true)}
     var thisyear=today.getFullYear()
     for (var y=0; y<5; y++){
     yearfrom.options[y] = new Option(thisyear, thisyear)
     yearto.options[y] = new Option(thisyear, thisyear)
     thisyear-=1
     }
+    monthfrom.options[0] = new Option('January',0, true, true);
+    monthto.options[today.getMonth()] = new Option(monthtext[today.getMonth()], today.getMonth(), true, true)}
     yearfrom.options[0]=new Option(today.getFullYear(), today.getFullYear(), true, true)
     yearto.options[0]=new Option(today.getFullYear(), today.getFullYear(), true, true)
 }
@@ -54,7 +54,7 @@ function getBugGraph()
     var yrfrom = yearfrom.options[yearfrom.selectedIndex].value;
     var monto = (monthto.selectedIndex + 1).toString();
     var yrto = yearto.options[yearto.selectedIndex].value;
-
+    
     if(monfrom.length == 1){monfrom = '0'+monfrom}
     if(monto.length==1){monto = '0'+monto}
     
