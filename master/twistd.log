@@ -100,3 +100,1211 @@
 2009/06/01 10:46 +0530 [Broker,0,127.0.1.1] Buildslave testslave attached to buildbot-full
 2009/06/01 10:46 +0530 [-] maybeStartBuild <Builder 'buildbot-full' at 41801992>: [] [<SlaveBuilder builder=buildbot-full slave=testslave>]
 2009/06/01 11:40 +0530 [HTTPChannel,0,127.0.0.1] 127.0.0.1 - - [01/Jun/2009:06:10:45 +0000] "GET /favicon.ico HTTP/1.1" 404 165 "-" "Mozilla/5.0 (X11; U; Linux x86_64; en-US; rv:1.9.0.7) Gecko/2009030423 Ubuntu/8.04 (hardy) Firefox/3.0.7"
+2009/06/01 14:20 +0530 [-] Received SIGTERM, shutting down.
+2009/06/01 14:20 +0530 [-] unable to save changes
+2009/06/01 14:20 +0530 [-] Unhandled Error
+	Traceback (most recent call last):
+	  File "/usr/lib/python2.5/site-packages/twisted/internet/defer.py", line 107, in maybeDeferred
+	    result = f(*args, **kw)
+	  File "/usr/lib/python2.5/site-packages/twisted/application/service.py", line 241, in stopService
+	    l.append(defer.maybeDeferred(service.stopService))
+	  File "/usr/lib/python2.5/site-packages/twisted/internet/defer.py", line 107, in maybeDeferred
+	    result = f(*args, **kw)
+	  File "/usr/lib/python2.5/site-packages/buildbot/changes/changes.py", line 276, in stopService
+	    self.saveYourself()
+	--- <exception caught here> ---
+	  File "/usr/lib/python2.5/site-packages/buildbot/changes/changes.py", line 265, in saveYourself
+	    dump(self, open(tmpfilename, "wb"))
+	exceptions.IOError: [Errno 2] No such file or directory: '/home/tiny/buildbot/master/changes.pck.tmp'
+	
+2009/06/01 14:20 +0530 [-] stop called-------
+2009/06/01 14:20 +0530 [-] unable to save builder buildbot-full
+2009/06/01 14:20 +0530 [-] Unhandled Error
+	Traceback (most recent call last):
+	  File "/usr/lib/python2.5/site-packages/twisted/internet/defer.py", line 107, in maybeDeferred
+	    result = f(*args, **kw)
+	  File "/usr/lib/python2.5/site-packages/twisted/application/service.py", line 241, in stopService
+	    l.append(defer.maybeDeferred(service.stopService))
+	  File "/usr/lib/python2.5/site-packages/twisted/internet/defer.py", line 107, in maybeDeferred
+	    result = f(*args, **kw)
+	  File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 204, in stopService
+	    b.builder_status.saveYourself()
+	--- <exception caught here> ---
+	  File "/usr/lib/python2.5/site-packages/buildbot/status/builder.py", line 1381, in saveYourself
+	    dump(self, open(tmpfilename, "wb"), -1)
+	exceptions.IOError: [Errno 2] No such file or directory: '/home/tiny/buildbot/master/full/builder.tmp'
+	
+2009/06/01 14:20 +0530 [-] (Port 9989 Closed)
+2009/06/01 14:20 +0530 [-] Stopping factory <twisted.spread.pb.PBServerFactory instance at 0xff77a0>
+2009/06/01 14:20 +0530 [-] (Port 8010 Closed)
+2009/06/01 14:20 +0530 [-] Stopping factory <twisted.web.server.Site instance at 0x149c830>
+2009/06/01 14:20 +0530 [Broker,0,127.0.1.1] <Builder 'buildbot-full' at 41801992>.detached testslave
+2009/06/01 14:20 +0530 [Broker,0,127.0.1.1] Buildslave testslave detached from buildbot-full
+2009/06/01 14:20 +0530 [Broker,0,127.0.1.1] <BuildSlave 'testslave', current builders: buildbot-full> removing <SlaveBuilder builder=buildbot-full slave=testslave>
+2009/06/01 14:20 +0530 [Broker,0,127.0.1.1] BuildSlave.detached(testslave)
+2009/06/01 14:20 +0530 [-] Main loop terminated.
+2009/06/01 14:20 +0530 [-] Failed to unlink PID file:
+2009/06/01 14:20 +0530 [-] Unhandled Error
+	Traceback (most recent call last):
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 379, in run
+	    runApp(config)
+	  File "/usr/lib/python2.5/site-packages/twisted/scripts/twistd.py", line 23, in runApp
+	    _SomeApplicationRunner(config).run()
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 158, in run
+	    self.postApplication()
+	  File "/usr/lib/python2.5/site-packages/twisted/scripts/_twistd_unix.py", line 215, in postApplication
+	    removePID(self.config['pidfile'])
+	--- <exception caught here> ---
+	  File "/usr/lib/python2.5/site-packages/twisted/scripts/_twistd_unix.py", line 91, in removePID
+	    os.unlink(pidfile)
+	exceptions.OSError: [Errno 2] No such file or directory: '/home/tiny/buildbot/master/twistd.pid'
+	
+2009/06/01 14:20 +0530 [-] Server Shut Down.
+2009/06/01 14:20 +0530 [-] Log opened.
+2009/06/01 14:20 +0530 [-] twistd 2.5.0 (/usr/bin/python 2.5.2) starting up
+2009/06/01 14:20 +0530 [-] reactor class: <class 'twisted.internet.selectreactor.SelectReactor'>
+2009/06/01 14:20 +0530 [-] Loading buildbot.tac...
+2009/06/01 14:20 +0530 [-] Traceback (most recent call last):
+2009/06/01 14:20 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 218, in getApplication
+2009/06/01 14:20 +0530 [-]     application = service.loadApplication(filename, style, passphrase)
+2009/06/01 14:20 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/application/service.py", line 341, in loadApplication
+2009/06/01 14:20 +0530 [-]     application = sob.loadValueFromFile(filename, 'application', passphrase)
+2009/06/01 14:20 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/persisted/sob.py", line 215, in loadValueFromFile
+2009/06/01 14:20 +0530 [-]     exec fileObj in d, d
+2009/06/01 14:20 +0530 [-]   File "buildbot.tac", line 9, in <module>
+2009/06/01 14:20 +0530 [-]     BuildMaster(basedir, configfile).setServiceParent(application)
+2009/06/01 14:20 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 370, in __init__
+2009/06/01 14:20 +0530 [-]     self.status = Status(self.botmaster, self.basedir)
+2009/06/01 14:20 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/status/builder.py", line 1779, in __init__
+2009/06/01 14:20 +0530 [-]     assert os.path.isdir(basedir)
+2009/06/01 14:20 +0530 [-] AssertionError
+2009/06/01 14:20 +0530 [-] Failed to load application: 
+2009/06/01 14:20 +0530 [-] Unhandled Error
+	Traceback (most recent call last):
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 379, in run
+	    runApp(config)
+	  File "/usr/lib/python2.5/site-packages/twisted/scripts/twistd.py", line 23, in runApp
+	    _SomeApplicationRunner(config).run()
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 157, in run
+	    self.application = self.createOrGetApplication()
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 207, in createOrGetApplication
+	    application = getApplication(self.config, passphrase)
+	--- <exception caught here> ---
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 218, in getApplication
+	    application = service.loadApplication(filename, style, passphrase)
+	  File "/usr/lib/python2.5/site-packages/twisted/application/service.py", line 341, in loadApplication
+	    application = sob.loadValueFromFile(filename, 'application', passphrase)
+	  File "/usr/lib/python2.5/site-packages/twisted/persisted/sob.py", line 215, in loadValueFromFile
+	    exec fileObj in d, d
+	  File "buildbot.tac", line 9, in <module>
+	    BuildMaster(basedir, configfile).setServiceParent(application)
+	  File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 370, in __init__
+	    self.status = Status(self.botmaster, self.basedir)
+	  File "/usr/lib/python2.5/site-packages/buildbot/status/builder.py", line 1779, in __init__
+	    assert os.path.isdir(basedir)
+	exceptions.AssertionError: 
+	
+2009/06/01 14:20 +0530 [-] 
+2009/06/01 14:22 +0530 [-] Log opened.
+2009/06/01 14:22 +0530 [-] twistd 2.5.0 (/usr/bin/python 2.5.2) starting up
+2009/06/01 14:22 +0530 [-] reactor class: <class 'twisted.internet.selectreactor.SelectReactor'>
+2009/06/01 14:22 +0530 [-] Loading buildbot.tac...
+2009/06/01 14:22 +0530 [-] Traceback (most recent call last):
+2009/06/01 14:22 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 218, in getApplication
+2009/06/01 14:22 +0530 [-]     application = service.loadApplication(filename, style, passphrase)
+2009/06/01 14:22 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/application/service.py", line 341, in loadApplication
+2009/06/01 14:22 +0530 [-]     application = sob.loadValueFromFile(filename, 'application', passphrase)
+2009/06/01 14:22 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/persisted/sob.py", line 215, in loadValueFromFile
+2009/06/01 14:22 +0530 [-]     exec fileObj in d, d
+2009/06/01 14:22 +0530 [-]   File "buildbot.tac", line 9, in <module>
+2009/06/01 14:22 +0530 [-]     BuildMaster(basedir, configfile).setServiceParent(application)
+2009/06/01 14:22 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 370, in __init__
+2009/06/01 14:22 +0530 [-]     self.status = Status(self.botmaster, self.basedir)
+2009/06/01 14:22 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/status/builder.py", line 1779, in __init__
+2009/06/01 14:22 +0530 [-]     assert os.path.isdir(basedir)
+2009/06/01 14:22 +0530 [-] AssertionError
+2009/06/01 14:22 +0530 [-] Failed to load application: 
+2009/06/01 14:22 +0530 [-] Unhandled Error
+	Traceback (most recent call last):
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 379, in run
+	    runApp(config)
+	  File "/usr/lib/python2.5/site-packages/twisted/scripts/twistd.py", line 23, in runApp
+	    _SomeApplicationRunner(config).run()
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 157, in run
+	    self.application = self.createOrGetApplication()
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 207, in createOrGetApplication
+	    application = getApplication(self.config, passphrase)
+	--- <exception caught here> ---
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 218, in getApplication
+	    application = service.loadApplication(filename, style, passphrase)
+	  File "/usr/lib/python2.5/site-packages/twisted/application/service.py", line 341, in loadApplication
+	    application = sob.loadValueFromFile(filename, 'application', passphrase)
+	  File "/usr/lib/python2.5/site-packages/twisted/persisted/sob.py", line 215, in loadValueFromFile
+	    exec fileObj in d, d
+	  File "buildbot.tac", line 9, in <module>
+	    BuildMaster(basedir, configfile).setServiceParent(application)
+	  File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 370, in __init__
+	    self.status = Status(self.botmaster, self.basedir)
+	  File "/usr/lib/python2.5/site-packages/buildbot/status/builder.py", line 1779, in __init__
+	    assert os.path.isdir(basedir)
+	exceptions.AssertionError: 
+	
+2009/06/01 14:22 +0530 [-] 
+2009/06/01 14:23 +0530 [-] Log opened.
+2009/06/01 14:23 +0530 [-] twistd 2.5.0 (/usr/bin/python 2.5.2) starting up
+2009/06/01 14:23 +0530 [-] reactor class: <class 'twisted.internet.selectreactor.SelectReactor'>
+2009/06/01 14:23 +0530 [-] Loading buildbot.tac...
+2009/06/01 14:23 +0530 [-] Traceback (most recent call last):
+2009/06/01 14:23 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 218, in getApplication
+2009/06/01 14:23 +0530 [-]     application = service.loadApplication(filename, style, passphrase)
+2009/06/01 14:23 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/application/service.py", line 341, in loadApplication
+2009/06/01 14:23 +0530 [-]     application = sob.loadValueFromFile(filename, 'application', passphrase)
+2009/06/01 14:23 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/persisted/sob.py", line 215, in loadValueFromFile
+2009/06/01 14:23 +0530 [-]     exec fileObj in d, d
+2009/06/01 14:23 +0530 [-]   File "buildbot.tac", line 9, in <module>
+2009/06/01 14:23 +0530 [-]     BuildMaster(basedir, configfile).setServiceParent(application)
+2009/06/01 14:23 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 370, in __init__
+2009/06/01 14:23 +0530 [-]     self.status = Status(self.botmaster, self.basedir)
+2009/06/01 14:23 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/status/builder.py", line 1779, in __init__
+2009/06/01 14:23 +0530 [-]     assert os.path.isdir(basedir)
+2009/06/01 14:23 +0530 [-] AssertionError
+2009/06/01 14:23 +0530 [-] Failed to load application: 
+2009/06/01 14:23 +0530 [-] Unhandled Error
+	Traceback (most recent call last):
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 379, in run
+	    runApp(config)
+	  File "/usr/lib/python2.5/site-packages/twisted/scripts/twistd.py", line 23, in runApp
+	    _SomeApplicationRunner(config).run()
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 157, in run
+	    self.application = self.createOrGetApplication()
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 207, in createOrGetApplication
+	    application = getApplication(self.config, passphrase)
+	--- <exception caught here> ---
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 218, in getApplication
+	    application = service.loadApplication(filename, style, passphrase)
+	  File "/usr/lib/python2.5/site-packages/twisted/application/service.py", line 341, in loadApplication
+	    application = sob.loadValueFromFile(filename, 'application', passphrase)
+	  File "/usr/lib/python2.5/site-packages/twisted/persisted/sob.py", line 215, in loadValueFromFile
+	    exec fileObj in d, d
+	  File "buildbot.tac", line 9, in <module>
+	    BuildMaster(basedir, configfile).setServiceParent(application)
+	  File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 370, in __init__
+	    self.status = Status(self.botmaster, self.basedir)
+	  File "/usr/lib/python2.5/site-packages/buildbot/status/builder.py", line 1779, in __init__
+	    assert os.path.isdir(basedir)
+	exceptions.AssertionError: 
+	
+2009/06/01 14:23 +0530 [-] 
+2009/06/01 14:25 +0530 [-] Log opened.
+2009/06/01 14:25 +0530 [-] twistd 2.5.0 (/usr/bin/python 2.5.2) starting up
+2009/06/01 14:25 +0530 [-] reactor class: <class 'twisted.internet.selectreactor.SelectReactor'>
+2009/06/01 14:25 +0530 [-] Loading buildbot.tac...
+2009/06/01 14:25 +0530 [-] Traceback (most recent call last):
+2009/06/01 14:25 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 218, in getApplication
+2009/06/01 14:25 +0530 [-]     application = service.loadApplication(filename, style, passphrase)
+2009/06/01 14:25 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/application/service.py", line 341, in loadApplication
+2009/06/01 14:25 +0530 [-]     application = sob.loadValueFromFile(filename, 'application', passphrase)
+2009/06/01 14:25 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/persisted/sob.py", line 215, in loadValueFromFile
+2009/06/01 14:25 +0530 [-]     exec fileObj in d, d
+2009/06/01 14:25 +0530 [-]   File "buildbot.tac", line 9, in <module>
+2009/06/01 14:25 +0530 [-]     BuildMaster(basedir, configfile).setServiceParent(application)
+2009/06/01 14:25 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 370, in __init__
+2009/06/01 14:25 +0530 [-]     self.status = Status(self.botmaster, self.basedir)
+2009/06/01 14:25 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/status/builder.py", line 1779, in __init__
+2009/06/01 14:25 +0530 [-]     assert os.path.isdir(basedir)
+2009/06/01 14:25 +0530 [-] AssertionError
+2009/06/01 14:25 +0530 [-] Failed to load application: 
+2009/06/01 14:25 +0530 [-] Unhandled Error
+	Traceback (most recent call last):
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 379, in run
+	    runApp(config)
+	  File "/usr/lib/python2.5/site-packages/twisted/scripts/twistd.py", line 23, in runApp
+	    _SomeApplicationRunner(config).run()
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 157, in run
+	    self.application = self.createOrGetApplication()
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 207, in createOrGetApplication
+	    application = getApplication(self.config, passphrase)
+	--- <exception caught here> ---
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 218, in getApplication
+	    application = service.loadApplication(filename, style, passphrase)
+	  File "/usr/lib/python2.5/site-packages/twisted/application/service.py", line 341, in loadApplication
+	    application = sob.loadValueFromFile(filename, 'application', passphrase)
+	  File "/usr/lib/python2.5/site-packages/twisted/persisted/sob.py", line 215, in loadValueFromFile
+	    exec fileObj in d, d
+	  File "buildbot.tac", line 9, in <module>
+	    BuildMaster(basedir, configfile).setServiceParent(application)
+	  File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 370, in __init__
+	    self.status = Status(self.botmaster, self.basedir)
+	  File "/usr/lib/python2.5/site-packages/buildbot/status/builder.py", line 1779, in __init__
+	    assert os.path.isdir(basedir)
+	exceptions.AssertionError: 
+	
+2009/06/01 14:25 +0530 [-] 
+2009/06/01 14:25 +0530 [-] Log opened.
+2009/06/01 14:25 +0530 [-] twistd 2.5.0 (/usr/bin/python 2.5.2) starting up
+2009/06/01 14:25 +0530 [-] reactor class: <class 'twisted.internet.selectreactor.SelectReactor'>
+2009/06/01 14:25 +0530 [-] Loading buildbot.tac...
+2009/06/01 14:25 +0530 [-] Traceback (most recent call last):
+2009/06/01 14:25 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 218, in getApplication
+2009/06/01 14:25 +0530 [-]     application = service.loadApplication(filename, style, passphrase)
+2009/06/01 14:25 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/application/service.py", line 341, in loadApplication
+2009/06/01 14:25 +0530 [-]     application = sob.loadValueFromFile(filename, 'application', passphrase)
+2009/06/01 14:25 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/persisted/sob.py", line 215, in loadValueFromFile
+2009/06/01 14:25 +0530 [-]     exec fileObj in d, d
+2009/06/01 14:25 +0530 [-]   File "buildbot.tac", line 9, in <module>
+2009/06/01 14:25 +0530 [-]     BuildMaster(basedir, configfile).setServiceParent(application)
+2009/06/01 14:25 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 370, in __init__
+2009/06/01 14:25 +0530 [-]     self.status = Status(self.botmaster, self.basedir)
+2009/06/01 14:25 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/status/builder.py", line 1779, in __init__
+2009/06/01 14:25 +0530 [-]     assert os.path.isdir(basedir)
+2009/06/01 14:25 +0530 [-] AssertionError
+2009/06/01 14:25 +0530 [-] Failed to load application: 
+2009/06/01 14:25 +0530 [-] Unhandled Error
+	Traceback (most recent call last):
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 379, in run
+	    runApp(config)
+	  File "/usr/lib/python2.5/site-packages/twisted/scripts/twistd.py", line 23, in runApp
+	    _SomeApplicationRunner(config).run()
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 157, in run
+	    self.application = self.createOrGetApplication()
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 207, in createOrGetApplication
+	    application = getApplication(self.config, passphrase)
+	--- <exception caught here> ---
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 218, in getApplication
+	    application = service.loadApplication(filename, style, passphrase)
+	  File "/usr/lib/python2.5/site-packages/twisted/application/service.py", line 341, in loadApplication
+	    application = sob.loadValueFromFile(filename, 'application', passphrase)
+	  File "/usr/lib/python2.5/site-packages/twisted/persisted/sob.py", line 215, in loadValueFromFile
+	    exec fileObj in d, d
+	  File "buildbot.tac", line 9, in <module>
+	    BuildMaster(basedir, configfile).setServiceParent(application)
+	  File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 370, in __init__
+	    self.status = Status(self.botmaster, self.basedir)
+	  File "/usr/lib/python2.5/site-packages/buildbot/status/builder.py", line 1779, in __init__
+	    assert os.path.isdir(basedir)
+	exceptions.AssertionError: 
+	
+2009/06/01 14:25 +0530 [-] 
+2009/06/01 14:36 +0530 [-] Log opened.
+2009/06/01 14:36 +0530 [-] twistd 2.5.0 (/usr/bin/python 2.5.2) starting up
+2009/06/01 14:36 +0530 [-] reactor class: <class 'twisted.internet.selectreactor.SelectReactor'>
+2009/06/01 14:36 +0530 [-] Loading buildbot.tac...
+2009/06/01 14:36 +0530 [-] Traceback (most recent call last):
+2009/06/01 14:36 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 218, in getApplication
+2009/06/01 14:36 +0530 [-]     application = service.loadApplication(filename, style, passphrase)
+2009/06/01 14:36 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/application/service.py", line 341, in loadApplication
+2009/06/01 14:36 +0530 [-]     application = sob.loadValueFromFile(filename, 'application', passphrase)
+2009/06/01 14:36 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/persisted/sob.py", line 215, in loadValueFromFile
+2009/06/01 14:36 +0530 [-]     exec fileObj in d, d
+2009/06/01 14:36 +0530 [-]   File "buildbot.tac", line 9, in <module>
+2009/06/01 14:36 +0530 [-]     BuildMaster(basedir, configfile).setServiceParent(application)
+2009/06/01 14:36 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 370, in __init__
+2009/06/01 14:36 +0530 [-]     self.status = Status(self.botmaster, self.basedir)
+2009/06/01 14:36 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/status/builder.py", line 1779, in __init__
+2009/06/01 14:36 +0530 [-]     assert os.path.isdir(basedir)
+2009/06/01 14:36 +0530 [-] AssertionError
+2009/06/01 14:36 +0530 [-] Failed to load application: 
+2009/06/01 14:36 +0530 [-] Unhandled Error
+	Traceback (most recent call last):
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 379, in run
+	    runApp(config)
+	  File "/usr/lib/python2.5/site-packages/twisted/scripts/twistd.py", line 23, in runApp
+	    _SomeApplicationRunner(config).run()
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 157, in run
+	    self.application = self.createOrGetApplication()
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 207, in createOrGetApplication
+	    application = getApplication(self.config, passphrase)
+	--- <exception caught here> ---
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 218, in getApplication
+	    application = service.loadApplication(filename, style, passphrase)
+	  File "/usr/lib/python2.5/site-packages/twisted/application/service.py", line 341, in loadApplication
+	    application = sob.loadValueFromFile(filename, 'application', passphrase)
+	  File "/usr/lib/python2.5/site-packages/twisted/persisted/sob.py", line 215, in loadValueFromFile
+	    exec fileObj in d, d
+	  File "buildbot.tac", line 9, in <module>
+	    BuildMaster(basedir, configfile).setServiceParent(application)
+	  File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 370, in __init__
+	    self.status = Status(self.botmaster, self.basedir)
+	  File "/usr/lib/python2.5/site-packages/buildbot/status/builder.py", line 1779, in __init__
+	    assert os.path.isdir(basedir)
+	exceptions.AssertionError: 
+	
+2009/06/01 14:36 +0530 [-] 
+2009/06/01 14:36 +0530 [-] Log opened.
+2009/06/01 14:36 +0530 [-] twistd 2.5.0 (/usr/bin/python 2.5.2) starting up
+2009/06/01 14:36 +0530 [-] reactor class: <class 'twisted.internet.selectreactor.SelectReactor'>
+2009/06/01 14:36 +0530 [-] Loading buildbot.tac...
+2009/06/01 14:36 +0530 [-] Traceback (most recent call last):
+2009/06/01 14:36 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 218, in getApplication
+2009/06/01 14:36 +0530 [-]     application = service.loadApplication(filename, style, passphrase)
+2009/06/01 14:36 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/application/service.py", line 341, in loadApplication
+2009/06/01 14:36 +0530 [-]     application = sob.loadValueFromFile(filename, 'application', passphrase)
+2009/06/01 14:36 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/persisted/sob.py", line 215, in loadValueFromFile
+2009/06/01 14:36 +0530 [-]     exec fileObj in d, d
+2009/06/01 14:36 +0530 [-]   File "buildbot.tac", line 9, in <module>
+2009/06/01 14:36 +0530 [-]     BuildMaster(basedir, configfile).setServiceParent(application)
+2009/06/01 14:36 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 370, in __init__
+2009/06/01 14:36 +0530 [-]     self.status = Status(self.botmaster, self.basedir)
+2009/06/01 14:36 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/status/builder.py", line 1779, in __init__
+2009/06/01 14:36 +0530 [-]     assert os.path.isdir(basedir)
+2009/06/01 14:36 +0530 [-] AssertionError
+2009/06/01 14:36 +0530 [-] Failed to load application: 
+2009/06/01 14:36 +0530 [-] Unhandled Error
+	Traceback (most recent call last):
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 379, in run
+	    runApp(config)
+	  File "/usr/lib/python2.5/site-packages/twisted/scripts/twistd.py", line 23, in runApp
+	    _SomeApplicationRunner(config).run()
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 157, in run
+	    self.application = self.createOrGetApplication()
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 207, in createOrGetApplication
+	    application = getApplication(self.config, passphrase)
+	--- <exception caught here> ---
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 218, in getApplication
+	    application = service.loadApplication(filename, style, passphrase)
+	  File "/usr/lib/python2.5/site-packages/twisted/application/service.py", line 341, in loadApplication
+	    application = sob.loadValueFromFile(filename, 'application', passphrase)
+	  File "/usr/lib/python2.5/site-packages/twisted/persisted/sob.py", line 215, in loadValueFromFile
+	    exec fileObj in d, d
+	  File "buildbot.tac", line 9, in <module>
+	    BuildMaster(basedir, configfile).setServiceParent(application)
+	  File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 370, in __init__
+	    self.status = Status(self.botmaster, self.basedir)
+	  File "/usr/lib/python2.5/site-packages/buildbot/status/builder.py", line 1779, in __init__
+	    assert os.path.isdir(basedir)
+	exceptions.AssertionError: 
+	
+2009/06/01 14:36 +0530 [-] 
+2009/06/01 14:37 +0530 [-] Log opened.
+2009/06/01 14:37 +0530 [-] twistd 2.5.0 (/usr/bin/python 2.5.2) starting up
+2009/06/01 14:37 +0530 [-] reactor class: <class 'twisted.internet.selectreactor.SelectReactor'>
+2009/06/01 14:37 +0530 [-] Loading buildbot.tac...
+2009/06/01 14:37 +0530 [-] Traceback (most recent call last):
+2009/06/01 14:37 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 218, in getApplication
+2009/06/01 14:37 +0530 [-]     application = service.loadApplication(filename, style, passphrase)
+2009/06/01 14:37 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/application/service.py", line 341, in loadApplication
+2009/06/01 14:37 +0530 [-]     application = sob.loadValueFromFile(filename, 'application', passphrase)
+2009/06/01 14:37 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/persisted/sob.py", line 215, in loadValueFromFile
+2009/06/01 14:37 +0530 [-]     exec fileObj in d, d
+2009/06/01 14:37 +0530 [-]   File "buildbot.tac", line 9, in <module>
+2009/06/01 14:37 +0530 [-]     BuildMaster(basedir, configfile).setServiceParent(application)
+2009/06/01 14:37 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 370, in __init__
+2009/06/01 14:37 +0530 [-]     self.status = Status(self.botmaster, self.basedir)
+2009/06/01 14:37 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/status/builder.py", line 1779, in __init__
+2009/06/01 14:37 +0530 [-]     assert os.path.isdir(basedir)
+2009/06/01 14:37 +0530 [-] AssertionError
+2009/06/01 14:37 +0530 [-] Failed to load application: 
+2009/06/01 14:37 +0530 [-] Unhandled Error
+	Traceback (most recent call last):
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 379, in run
+	    runApp(config)
+	  File "/usr/lib/python2.5/site-packages/twisted/scripts/twistd.py", line 23, in runApp
+	    _SomeApplicationRunner(config).run()
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 157, in run
+	    self.application = self.createOrGetApplication()
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 207, in createOrGetApplication
+	    application = getApplication(self.config, passphrase)
+	--- <exception caught here> ---
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 218, in getApplication
+	    application = service.loadApplication(filename, style, passphrase)
+	  File "/usr/lib/python2.5/site-packages/twisted/application/service.py", line 341, in loadApplication
+	    application = sob.loadValueFromFile(filename, 'application', passphrase)
+	  File "/usr/lib/python2.5/site-packages/twisted/persisted/sob.py", line 215, in loadValueFromFile
+	    exec fileObj in d, d
+	  File "buildbot.tac", line 9, in <module>
+	    BuildMaster(basedir, configfile).setServiceParent(application)
+	  File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 370, in __init__
+	    self.status = Status(self.botmaster, self.basedir)
+	  File "/usr/lib/python2.5/site-packages/buildbot/status/builder.py", line 1779, in __init__
+	    assert os.path.isdir(basedir)
+	exceptions.AssertionError: 
+	
+2009/06/01 14:37 +0530 [-] 
+2009/06/01 14:45 +0530 [-] Log opened.
+2009/06/01 14:45 +0530 [-] twistd 2.5.0 (/usr/bin/python 2.5.2) starting up
+2009/06/01 14:45 +0530 [-] reactor class: <class 'twisted.internet.selectreactor.SelectReactor'>
+2009/06/01 14:45 +0530 [-] Loading buildbot.tac...
+2009/06/01 14:45 +0530 [-] Traceback (most recent call last):
+2009/06/01 14:45 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 218, in getApplication
+2009/06/01 14:45 +0530 [-]     application = service.loadApplication(filename, style, passphrase)
+2009/06/01 14:45 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/application/service.py", line 341, in loadApplication
+2009/06/01 14:45 +0530 [-]     application = sob.loadValueFromFile(filename, 'application', passphrase)
+2009/06/01 14:45 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/persisted/sob.py", line 215, in loadValueFromFile
+2009/06/01 14:45 +0530 [-]     exec fileObj in d, d
+2009/06/01 14:45 +0530 [-]   File "buildbot.tac", line 9, in <module>
+2009/06/01 14:45 +0530 [-]     BuildMaster(basedir, configfile).setServiceParent(application)
+2009/06/01 14:45 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 370, in __init__
+2009/06/01 14:45 +0530 [-]     self.status = Status(self.botmaster, self.basedir)
+2009/06/01 14:45 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/status/builder.py", line 1779, in __init__
+2009/06/01 14:45 +0530 [-]     assert os.path.isdir(basedir)
+2009/06/01 14:45 +0530 [-] AssertionError
+2009/06/01 14:45 +0530 [-] Failed to load application: 
+2009/06/01 14:45 +0530 [-] Unhandled Error
+	Traceback (most recent call last):
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 379, in run
+	    runApp(config)
+	  File "/usr/lib/python2.5/site-packages/twisted/scripts/twistd.py", line 23, in runApp
+	    _SomeApplicationRunner(config).run()
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 157, in run
+	    self.application = self.createOrGetApplication()
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 207, in createOrGetApplication
+	    application = getApplication(self.config, passphrase)
+	--- <exception caught here> ---
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 218, in getApplication
+	    application = service.loadApplication(filename, style, passphrase)
+	  File "/usr/lib/python2.5/site-packages/twisted/application/service.py", line 341, in loadApplication
+	    application = sob.loadValueFromFile(filename, 'application', passphrase)
+	  File "/usr/lib/python2.5/site-packages/twisted/persisted/sob.py", line 215, in loadValueFromFile
+	    exec fileObj in d, d
+	  File "buildbot.tac", line 9, in <module>
+	    BuildMaster(basedir, configfile).setServiceParent(application)
+	  File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 370, in __init__
+	    self.status = Status(self.botmaster, self.basedir)
+	  File "/usr/lib/python2.5/site-packages/buildbot/status/builder.py", line 1779, in __init__
+	    assert os.path.isdir(basedir)
+	exceptions.AssertionError: 
+	
+2009/06/01 14:45 +0530 [-] 
+2009/06/01 14:46 +0530 [-] Log opened.
+2009/06/01 14:46 +0530 [-] twistd 2.5.0 (/usr/bin/python 2.5.2) starting up
+2009/06/01 14:46 +0530 [-] reactor class: <class 'twisted.internet.selectreactor.SelectReactor'>
+2009/06/01 14:46 +0530 [-] Loading buildbot.tac...
+2009/06/01 14:46 +0530 [-] Traceback (most recent call last):
+2009/06/01 14:46 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 218, in getApplication
+2009/06/01 14:46 +0530 [-]     application = service.loadApplication(filename, style, passphrase)
+2009/06/01 14:46 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/application/service.py", line 341, in loadApplication
+2009/06/01 14:46 +0530 [-]     application = sob.loadValueFromFile(filename, 'application', passphrase)
+2009/06/01 14:46 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/persisted/sob.py", line 215, in loadValueFromFile
+2009/06/01 14:46 +0530 [-]     exec fileObj in d, d
+2009/06/01 14:46 +0530 [-]   File "buildbot.tac", line 3, in <module>
+2009/06/01 14:46 +0530 [-]     from buildbot.master import BuildMaster
+2009/06/01 14:46 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 23, in <module>
+2009/06/01 14:46 +0530 [-]     from buildbot.process.builder import Builder, IDLE
+2009/06/01 14:46 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/process/builder.py", line 11, in <module>
+2009/06/01 14:46 +0530 [-]     from buildbot.process import base
+2009/06/01 14:46 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/process/base.py", line 11, in <module>
+2009/06/01 14:46 +0530 [-]     from buildbot.status.builder import SUCCESS, WARNINGS, FAILURE, EXCEPTION
+2009/06/01 14:46 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/status/builder.py", line 1780
+2009/06/01 14:46 +0530 [-]      assert os.path.isdir(basedir)OA
+2009/06/01 14:46 +0530 [-]                                    ^
+2009/06/01 14:46 +0530 [-]  SyntaxError: invalid syntax
+2009/06/01 14:46 +0530 [-] Failed to load application: invalid syntax (builder.py, line 1780)
+2009/06/01 14:46 +0530 [-] Unhandled Error
+	Traceback (most recent call last):
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 379, in run
+	    runApp(config)
+	  File "/usr/lib/python2.5/site-packages/twisted/scripts/twistd.py", line 23, in runApp
+	    _SomeApplicationRunner(config).run()
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 157, in run
+	    self.application = self.createOrGetApplication()
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 207, in createOrGetApplication
+	    application = getApplication(self.config, passphrase)
+	--- <exception caught here> ---
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 218, in getApplication
+	    application = service.loadApplication(filename, style, passphrase)
+	  File "/usr/lib/python2.5/site-packages/twisted/application/service.py", line 341, in loadApplication
+	    application = sob.loadValueFromFile(filename, 'application', passphrase)
+	  File "/usr/lib/python2.5/site-packages/twisted/persisted/sob.py", line 215, in loadValueFromFile
+	    exec fileObj in d, d
+	  File "buildbot.tac", line 3, in <module>
+	    from buildbot.master import BuildMaster
+	  File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 23, in <module>
+	    from buildbot.process.builder import Builder, IDLE
+	  File "/usr/lib/python2.5/site-packages/buildbot/process/builder.py", line 11, in <module>
+	    from buildbot.process import base
+	  File "/usr/lib/python2.5/site-packages/buildbot/process/base.py", line 11, in <module>
+	    from buildbot.status.builder import SUCCESS, WARNINGS, FAILURE, EXCEPTION
+	exceptions.SyntaxError: invalid syntax (builder.py, line 1780)
+	
+2009/06/01 14:46 +0530 [-] 
+2009/06/01 14:47 +0530 [-] Log opened.
+2009/06/01 14:47 +0530 [-] twistd 2.5.0 (/usr/bin/python 2.5.2) starting up
+2009/06/01 14:47 +0530 [-] reactor class: <class 'twisted.internet.selectreactor.SelectReactor'>
+2009/06/01 14:47 +0530 [-] Loading buildbot.tac...
+2009/06/01 14:47 +0530 [-] Traceback (most recent call last):
+2009/06/01 14:47 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 218, in getApplication
+2009/06/01 14:47 +0530 [-]     application = service.loadApplication(filename, style, passphrase)
+2009/06/01 14:47 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/application/service.py", line 341, in loadApplication
+2009/06/01 14:47 +0530 [-]     application = sob.loadValueFromFile(filename, 'application', passphrase)
+2009/06/01 14:47 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/persisted/sob.py", line 215, in loadValueFromFile
+2009/06/01 14:47 +0530 [-]     exec fileObj in d, d
+2009/06/01 14:47 +0530 [-]   File "buildbot.tac", line 3, in <module>
+2009/06/01 14:47 +0530 [-]     from buildbot.master import BuildMaster
+2009/06/01 14:47 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 23, in <module>
+2009/06/01 14:47 +0530 [-]     from buildbot.process.builder import Builder, IDLE
+2009/06/01 14:47 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/process/builder.py", line 11, in <module>
+2009/06/01 14:47 +0530 [-]     from buildbot.process import base
+2009/06/01 14:47 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/process/base.py", line 11, in <module>
+2009/06/01 14:47 +0530 [-]     from buildbot.status.builder import SUCCESS, WARNINGS, FAILURE, EXCEPTION
+2009/06/01 14:47 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/status/builder.py", line 1780
+2009/06/01 14:47 +0530 [-]      assert os.path.isdir(basedir)OA
+2009/06/01 14:47 +0530 [-]                                    ^
+2009/06/01 14:47 +0530 [-]  SyntaxError: invalid syntax
+2009/06/01 14:47 +0530 [-] Failed to load application: invalid syntax (builder.py, line 1780)
+2009/06/01 14:47 +0530 [-] Unhandled Error
+	Traceback (most recent call last):
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 379, in run
+	    runApp(config)
+	  File "/usr/lib/python2.5/site-packages/twisted/scripts/twistd.py", line 23, in runApp
+	    _SomeApplicationRunner(config).run()
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 157, in run
+	    self.application = self.createOrGetApplication()
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 207, in createOrGetApplication
+	    application = getApplication(self.config, passphrase)
+	--- <exception caught here> ---
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 218, in getApplication
+	    application = service.loadApplication(filename, style, passphrase)
+	  File "/usr/lib/python2.5/site-packages/twisted/application/service.py", line 341, in loadApplication
+	    application = sob.loadValueFromFile(filename, 'application', passphrase)
+	  File "/usr/lib/python2.5/site-packages/twisted/persisted/sob.py", line 215, in loadValueFromFile
+	    exec fileObj in d, d
+	  File "buildbot.tac", line 3, in <module>
+	    from buildbot.master import BuildMaster
+	  File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 23, in <module>
+	    from buildbot.process.builder import Builder, IDLE
+	  File "/usr/lib/python2.5/site-packages/buildbot/process/builder.py", line 11, in <module>
+	    from buildbot.process import base
+	  File "/usr/lib/python2.5/site-packages/buildbot/process/base.py", line 11, in <module>
+	    from buildbot.status.builder import SUCCESS, WARNINGS, FAILURE, EXCEPTION
+	exceptions.SyntaxError: invalid syntax (builder.py, line 1780)
+	
+2009/06/01 14:47 +0530 [-] 
+2009/06/01 14:47 +0530 [-] Log opened.
+2009/06/01 14:47 +0530 [-] twistd 2.5.0 (/usr/bin/python 2.5.2) starting up
+2009/06/01 14:47 +0530 [-] reactor class: <class 'twisted.internet.selectreactor.SelectReactor'>
+2009/06/01 14:47 +0530 [-] Loading buildbot.tac...
+2009/06/01 14:47 +0530 [-] Traceback (most recent call last):
+2009/06/01 14:47 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 218, in getApplication
+2009/06/01 14:47 +0530 [-]     application = service.loadApplication(filename, style, passphrase)
+2009/06/01 14:47 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/application/service.py", line 341, in loadApplication
+2009/06/01 14:47 +0530 [-]     application = sob.loadValueFromFile(filename, 'application', passphrase)
+2009/06/01 14:47 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/persisted/sob.py", line 215, in loadValueFromFile
+2009/06/01 14:47 +0530 [-]     exec fileObj in d, d
+2009/06/01 14:47 +0530 [-]   File "buildbot.tac", line 3, in <module>
+2009/06/01 14:47 +0530 [-]     from buildbot.master import BuildMaster
+2009/06/01 14:47 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 23, in <module>
+2009/06/01 14:47 +0530 [-]     from buildbot.process.builder import Builder, IDLE
+2009/06/01 14:47 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/process/builder.py", line 11, in <module>
+2009/06/01 14:47 +0530 [-]     from buildbot.process import base
+2009/06/01 14:47 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/process/base.py", line 11, in <module>
+2009/06/01 14:47 +0530 [-]     from buildbot.status.builder import SUCCESS, WARNINGS, FAILURE, EXCEPTION
+2009/06/01 14:47 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/status/builder.py", line 1780
+2009/06/01 14:47 +0530 [-]      assert os.path.isdir(basedir)OA
+2009/06/01 14:47 +0530 [-]                                    ^
+2009/06/01 14:47 +0530 [-]  SyntaxError: invalid syntax
+2009/06/01 14:47 +0530 [-] Failed to load application: invalid syntax (builder.py, line 1780)
+2009/06/01 14:47 +0530 [-] Unhandled Error
+	Traceback (most recent call last):
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 379, in run
+	    runApp(config)
+	  File "/usr/lib/python2.5/site-packages/twisted/scripts/twistd.py", line 23, in runApp
+	    _SomeApplicationRunner(config).run()
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 157, in run
+	    self.application = self.createOrGetApplication()
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 207, in createOrGetApplication
+	    application = getApplication(self.config, passphrase)
+	--- <exception caught here> ---
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 218, in getApplication
+	    application = service.loadApplication(filename, style, passphrase)
+	  File "/usr/lib/python2.5/site-packages/twisted/application/service.py", line 341, in loadApplication
+	    application = sob.loadValueFromFile(filename, 'application', passphrase)
+	  File "/usr/lib/python2.5/site-packages/twisted/persisted/sob.py", line 215, in loadValueFromFile
+	    exec fileObj in d, d
+	  File "buildbot.tac", line 3, in <module>
+	    from buildbot.master import BuildMaster
+	  File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 23, in <module>
+	    from buildbot.process.builder import Builder, IDLE
+	  File "/usr/lib/python2.5/site-packages/buildbot/process/builder.py", line 11, in <module>
+	    from buildbot.process import base
+	  File "/usr/lib/python2.5/site-packages/buildbot/process/base.py", line 11, in <module>
+	    from buildbot.status.builder import SUCCESS, WARNINGS, FAILURE, EXCEPTION
+	exceptions.SyntaxError: invalid syntax (builder.py, line 1780)
+	
+2009/06/01 14:47 +0530 [-] 
+2009/06/01 14:49 +0530 [-] Log opened.
+2009/06/01 14:49 +0530 [-] twistd 2.5.0 (/usr/bin/python 2.5.2) starting up
+2009/06/01 14:49 +0530 [-] reactor class: <class 'twisted.internet.selectreactor.SelectReactor'>
+2009/06/01 14:49 +0530 [-] Loading buildbot.tac...
+2009/06/01 14:49 +0530 [-] Traceback (most recent call last):
+2009/06/01 14:49 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 218, in getApplication
+2009/06/01 14:49 +0530 [-]     application = service.loadApplication(filename, style, passphrase)
+2009/06/01 14:49 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/application/service.py", line 341, in loadApplication
+2009/06/01 14:49 +0530 [-]     application = sob.loadValueFromFile(filename, 'application', passphrase)
+2009/06/01 14:49 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/persisted/sob.py", line 215, in loadValueFromFile
+2009/06/01 14:49 +0530 [-]     exec fileObj in d, d
+2009/06/01 14:49 +0530 [-]   File "buildbot.tac", line 3, in <module>
+2009/06/01 14:49 +0530 [-]     from buildbot.master import BuildMaster
+2009/06/01 14:49 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 23, in <module>
+2009/06/01 14:49 +0530 [-]     from buildbot.process.builder import Builder, IDLE
+2009/06/01 14:49 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/process/builder.py", line 11, in <module>
+2009/06/01 14:49 +0530 [-]     from buildbot.process import base
+2009/06/01 14:49 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/process/base.py", line 11, in <module>
+2009/06/01 14:49 +0530 [-]     from buildbot.status.builder import SUCCESS, WARNINGS, FAILURE, EXCEPTION
+2009/06/01 14:49 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/status/builder.py", line 1780
+2009/06/01 14:49 +0530 [-]      assert os.path.isdir(basedir)OA
+2009/06/01 14:49 +0530 [-]                                    ^
+2009/06/01 14:49 +0530 [-]  SyntaxError: invalid syntax
+2009/06/01 14:49 +0530 [-] Failed to load application: invalid syntax (builder.py, line 1780)
+2009/06/01 14:49 +0530 [-] Unhandled Error
+	Traceback (most recent call last):
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 379, in run
+	    runApp(config)
+	  File "/usr/lib/python2.5/site-packages/twisted/scripts/twistd.py", line 23, in runApp
+	    _SomeApplicationRunner(config).run()
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 157, in run
+	    self.application = self.createOrGetApplication()
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 207, in createOrGetApplication
+	    application = getApplication(self.config, passphrase)
+	--- <exception caught here> ---
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 218, in getApplication
+	    application = service.loadApplication(filename, style, passphrase)
+	  File "/usr/lib/python2.5/site-packages/twisted/application/service.py", line 341, in loadApplication
+	    application = sob.loadValueFromFile(filename, 'application', passphrase)
+	  File "/usr/lib/python2.5/site-packages/twisted/persisted/sob.py", line 215, in loadValueFromFile
+	    exec fileObj in d, d
+	  File "buildbot.tac", line 3, in <module>
+	    from buildbot.master import BuildMaster
+	  File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 23, in <module>
+	    from buildbot.process.builder import Builder, IDLE
+	  File "/usr/lib/python2.5/site-packages/buildbot/process/builder.py", line 11, in <module>
+	    from buildbot.process import base
+	  File "/usr/lib/python2.5/site-packages/buildbot/process/base.py", line 11, in <module>
+	    from buildbot.status.builder import SUCCESS, WARNINGS, FAILURE, EXCEPTION
+	exceptions.SyntaxError: invalid syntax (builder.py, line 1780)
+	
+2009/06/01 14:49 +0530 [-] 
+2009/06/01 14:50 +0530 [-] Log opened.
+2009/06/01 14:50 +0530 [-] twistd 2.5.0 (/usr/bin/python 2.5.2) starting up
+2009/06/01 14:50 +0530 [-] reactor class: <class 'twisted.internet.selectreactor.SelectReactor'>
+2009/06/01 14:50 +0530 [-] Loading buildbot.tac...
+2009/06/01 14:50 +0530 [-] Traceback (most recent call last):
+2009/06/01 14:50 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 218, in getApplication
+2009/06/01 14:50 +0530 [-]     application = service.loadApplication(filename, style, passphrase)
+2009/06/01 14:50 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/application/service.py", line 341, in loadApplication
+2009/06/01 14:50 +0530 [-]     application = sob.loadValueFromFile(filename, 'application', passphrase)
+2009/06/01 14:50 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/persisted/sob.py", line 215, in loadValueFromFile
+2009/06/01 14:50 +0530 [-]     exec fileObj in d, d
+2009/06/01 14:50 +0530 [-]   File "buildbot.tac", line 3, in <module>
+2009/06/01 14:50 +0530 [-]     from buildbot.master import BuildMaster
+2009/06/01 14:50 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 23, in <module>
+2009/06/01 14:50 +0530 [-]     from buildbot.process.builder import Builder, IDLE
+2009/06/01 14:50 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/process/builder.py", line 11, in <module>
+2009/06/01 14:50 +0530 [-]     from buildbot.process import base
+2009/06/01 14:50 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/process/base.py", line 11, in <module>
+2009/06/01 14:50 +0530 [-]     from buildbot.status.builder import SUCCESS, WARNINGS, FAILURE, EXCEPTION
+2009/06/01 14:50 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/status/builder.py", line 1780
+2009/06/01 14:50 +0530 [-]      assert os.path.isdir(basedir)OA
+2009/06/01 14:50 +0530 [-]                                    ^
+2009/06/01 14:50 +0530 [-]  SyntaxError: invalid syntax
+2009/06/01 14:50 +0530 [-] Failed to load application: invalid syntax (builder.py, line 1780)
+2009/06/01 14:50 +0530 [-] Unhandled Error
+	Traceback (most recent call last):
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 379, in run
+	    runApp(config)
+	  File "/usr/lib/python2.5/site-packages/twisted/scripts/twistd.py", line 23, in runApp
+	    _SomeApplicationRunner(config).run()
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 157, in run
+	    self.application = self.createOrGetApplication()
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 207, in createOrGetApplication
+	    application = getApplication(self.config, passphrase)
+	--- <exception caught here> ---
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 218, in getApplication
+	    application = service.loadApplication(filename, style, passphrase)
+	  File "/usr/lib/python2.5/site-packages/twisted/application/service.py", line 341, in loadApplication
+	    application = sob.loadValueFromFile(filename, 'application', passphrase)
+	  File "/usr/lib/python2.5/site-packages/twisted/persisted/sob.py", line 215, in loadValueFromFile
+	    exec fileObj in d, d
+	  File "buildbot.tac", line 3, in <module>
+	    from buildbot.master import BuildMaster
+	  File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 23, in <module>
+	    from buildbot.process.builder import Builder, IDLE
+	  File "/usr/lib/python2.5/site-packages/buildbot/process/builder.py", line 11, in <module>
+	    from buildbot.process import base
+	  File "/usr/lib/python2.5/site-packages/buildbot/process/base.py", line 11, in <module>
+	    from buildbot.status.builder import SUCCESS, WARNINGS, FAILURE, EXCEPTION
+	exceptions.SyntaxError: invalid syntax (builder.py, line 1780)
+	
+2009/06/01 14:50 +0530 [-] 
+2009/06/01 14:51 +0530 [-] Log opened.
+2009/06/01 14:51 +0530 [-] twistd 2.5.0 (/usr/bin/python 2.5.2) starting up
+2009/06/01 14:51 +0530 [-] reactor class: <class 'twisted.internet.selectreactor.SelectReactor'>
+2009/06/01 14:51 +0530 [-] Loading buildbot.tac...
+2009/06/01 14:51 +0530 [-] Traceback (most recent call last):
+2009/06/01 14:51 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 218, in getApplication
+2009/06/01 14:51 +0530 [-]     application = service.loadApplication(filename, style, passphrase)
+2009/06/01 14:51 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/application/service.py", line 341, in loadApplication
+2009/06/01 14:51 +0530 [-]     application = sob.loadValueFromFile(filename, 'application', passphrase)
+2009/06/01 14:51 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/persisted/sob.py", line 215, in loadValueFromFile
+2009/06/01 14:51 +0530 [-]     exec fileObj in d, d
+2009/06/01 14:51 +0530 [-]   File "buildbot.tac", line 3, in <module>
+2009/06/01 14:51 +0530 [-]     from buildbot.master import BuildMaster
+2009/06/01 14:51 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 23, in <module>
+2009/06/01 14:51 +0530 [-]     from buildbot.process.builder import Builder, IDLE
+2009/06/01 14:51 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/process/builder.py", line 11, in <module>
+2009/06/01 14:51 +0530 [-]     from buildbot.process import base
+2009/06/01 14:51 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/process/base.py", line 11, in <module>
+2009/06/01 14:51 +0530 [-]     from buildbot.status.builder import SUCCESS, WARNINGS, FAILURE, EXCEPTION
+2009/06/01 14:51 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/status/builder.py", line 1779
+2009/06/01 14:51 +0530 [-]      assert os.path.isdir(basedir)OA
+2009/06/01 14:51 +0530 [-]                                    ^
+2009/06/01 14:51 +0530 [-]  SyntaxError: invalid syntax
+2009/06/01 14:51 +0530 [-] Failed to load application: invalid syntax (builder.py, line 1779)
+2009/06/01 14:51 +0530 [-] Unhandled Error
+	Traceback (most recent call last):
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 379, in run
+	    runApp(config)
+	  File "/usr/lib/python2.5/site-packages/twisted/scripts/twistd.py", line 23, in runApp
+	    _SomeApplicationRunner(config).run()
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 157, in run
+	    self.application = self.createOrGetApplication()
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 207, in createOrGetApplication
+	    application = getApplication(self.config, passphrase)
+	--- <exception caught here> ---
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 218, in getApplication
+	    application = service.loadApplication(filename, style, passphrase)
+	  File "/usr/lib/python2.5/site-packages/twisted/application/service.py", line 341, in loadApplication
+	    application = sob.loadValueFromFile(filename, 'application', passphrase)
+	  File "/usr/lib/python2.5/site-packages/twisted/persisted/sob.py", line 215, in loadValueFromFile
+	    exec fileObj in d, d
+	  File "buildbot.tac", line 3, in <module>
+	    from buildbot.master import BuildMaster
+	  File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 23, in <module>
+	    from buildbot.process.builder import Builder, IDLE
+	  File "/usr/lib/python2.5/site-packages/buildbot/process/builder.py", line 11, in <module>
+	    from buildbot.process import base
+	  File "/usr/lib/python2.5/site-packages/buildbot/process/base.py", line 11, in <module>
+	    from buildbot.status.builder import SUCCESS, WARNINGS, FAILURE, EXCEPTION
+	exceptions.SyntaxError: invalid syntax (builder.py, line 1779)
+	
+2009/06/01 14:51 +0530 [-] 
+2009/06/01 14:52 +0530 [-] Log opened.
+2009/06/01 14:52 +0530 [-] twistd 2.5.0 (/usr/bin/python 2.5.2) starting up
+2009/06/01 14:52 +0530 [-] reactor class: <class 'twisted.internet.selectreactor.SelectReactor'>
+2009/06/01 14:52 +0530 [-] Loading buildbot.tac...
+2009/06/01 14:52 +0530 [-] Traceback (most recent call last):
+2009/06/01 14:52 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 218, in getApplication
+2009/06/01 14:52 +0530 [-]     application = service.loadApplication(filename, style, passphrase)
+2009/06/01 14:52 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/application/service.py", line 341, in loadApplication
+2009/06/01 14:52 +0530 [-]     application = sob.loadValueFromFile(filename, 'application', passphrase)
+2009/06/01 14:52 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/persisted/sob.py", line 215, in loadValueFromFile
+2009/06/01 14:52 +0530 [-]     exec fileObj in d, d
+2009/06/01 14:52 +0530 [-]   File "buildbot.tac", line 3, in <module>
+2009/06/01 14:52 +0530 [-]     from buildbot.master import BuildMaster
+2009/06/01 14:52 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 23, in <module>
+2009/06/01 14:52 +0530 [-]     from buildbot.process.builder import Builder, IDLE
+2009/06/01 14:52 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/process/builder.py", line 11, in <module>
+2009/06/01 14:52 +0530 [-]     from buildbot.process import base
+2009/06/01 14:52 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/process/base.py", line 11, in <module>
+2009/06/01 14:52 +0530 [-]     from buildbot.status.builder import SUCCESS, WARNINGS, FAILURE, EXCEPTION
+2009/06/01 14:52 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/status/builder.py", line 1779
+2009/06/01 14:52 +0530 [-]      assert os.path.isdir(basedir)OA
+2009/06/01 14:52 +0530 [-]                                    ^
+2009/06/01 14:52 +0530 [-]  SyntaxError: invalid syntax
+2009/06/01 14:52 +0530 [-] Failed to load application: invalid syntax (builder.py, line 1779)
+2009/06/01 14:52 +0530 [-] Unhandled Error
+	Traceback (most recent call last):
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 379, in run
+	    runApp(config)
+	  File "/usr/lib/python2.5/site-packages/twisted/scripts/twistd.py", line 23, in runApp
+	    _SomeApplicationRunner(config).run()
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 157, in run
+	    self.application = self.createOrGetApplication()
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 207, in createOrGetApplication
+	    application = getApplication(self.config, passphrase)
+	--- <exception caught here> ---
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 218, in getApplication
+	    application = service.loadApplication(filename, style, passphrase)
+	  File "/usr/lib/python2.5/site-packages/twisted/application/service.py", line 341, in loadApplication
+	    application = sob.loadValueFromFile(filename, 'application', passphrase)
+	  File "/usr/lib/python2.5/site-packages/twisted/persisted/sob.py", line 215, in loadValueFromFile
+	    exec fileObj in d, d
+	  File "buildbot.tac", line 3, in <module>
+	    from buildbot.master import BuildMaster
+	  File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 23, in <module>
+	    from buildbot.process.builder import Builder, IDLE
+	  File "/usr/lib/python2.5/site-packages/buildbot/process/builder.py", line 11, in <module>
+	    from buildbot.process import base
+	  File "/usr/lib/python2.5/site-packages/buildbot/process/base.py", line 11, in <module>
+	    from buildbot.status.builder import SUCCESS, WARNINGS, FAILURE, EXCEPTION
+	exceptions.SyntaxError: invalid syntax (builder.py, line 1779)
+	
+2009/06/01 14:52 +0530 [-] 
+2009/06/01 14:53 +0530 [-] Log opened.
+2009/06/01 14:53 +0530 [-] twistd 2.5.0 (/usr/bin/python 2.5.2) starting up
+2009/06/01 14:53 +0530 [-] reactor class: <class 'twisted.internet.selectreactor.SelectReactor'>
+2009/06/01 14:53 +0530 [-] Loading buildbot.tac...
+2009/06/01 14:53 +0530 [-] Traceback (most recent call last):
+2009/06/01 14:53 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 218, in getApplication
+2009/06/01 14:53 +0530 [-]     application = service.loadApplication(filename, style, passphrase)
+2009/06/01 14:53 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/application/service.py", line 341, in loadApplication
+2009/06/01 14:53 +0530 [-]     application = sob.loadValueFromFile(filename, 'application', passphrase)
+2009/06/01 14:53 +0530 [-]   File "/usr/lib/python2.5/site-packages/twisted/persisted/sob.py", line 215, in loadValueFromFile
+2009/06/01 14:53 +0530 [-]     exec fileObj in d, d
+2009/06/01 14:53 +0530 [-]   File "buildbot.tac", line 3, in <module>
+2009/06/01 14:53 +0530 [-]     from buildbot.master import BuildMaster
+2009/06/01 14:53 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 23, in <module>
+2009/06/01 14:53 +0530 [-]     from buildbot.process.builder import Builder, IDLE
+2009/06/01 14:53 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/process/builder.py", line 11, in <module>
+2009/06/01 14:53 +0530 [-]     from buildbot.process import base
+2009/06/01 14:53 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/process/base.py", line 11, in <module>
+2009/06/01 14:53 +0530 [-]     from buildbot.status.builder import SUCCESS, WARNINGS, FAILURE, EXCEPTION
+2009/06/01 14:53 +0530 [-]   File "/usr/lib/python2.5/site-packages/buildbot/status/builder.py", line 1779
+2009/06/01 14:53 +0530 [-]      assert os.path.isdir(basedir)OA
+2009/06/01 14:53 +0530 [-]                                    ^
+2009/06/01 14:53 +0530 [-]  SyntaxError: invalid syntax
+2009/06/01 14:53 +0530 [-] Failed to load application: invalid syntax (builder.py, line 1779)
+2009/06/01 14:53 +0530 [-] Unhandled Error
+	Traceback (most recent call last):
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 379, in run
+	    runApp(config)
+	  File "/usr/lib/python2.5/site-packages/twisted/scripts/twistd.py", line 23, in runApp
+	    _SomeApplicationRunner(config).run()
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 157, in run
+	    self.application = self.createOrGetApplication()
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 207, in createOrGetApplication
+	    application = getApplication(self.config, passphrase)
+	--- <exception caught here> ---
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 218, in getApplication
+	    application = service.loadApplication(filename, style, passphrase)
+	  File "/usr/lib/python2.5/site-packages/twisted/application/service.py", line 341, in loadApplication
+	    application = sob.loadValueFromFile(filename, 'application', passphrase)
+	  File "/usr/lib/python2.5/site-packages/twisted/persisted/sob.py", line 215, in loadValueFromFile
+	    exec fileObj in d, d
+	  File "buildbot.tac", line 3, in <module>
+	    from buildbot.master import BuildMaster
+	  File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 23, in <module>
+	    from buildbot.process.builder import Builder, IDLE
+	  File "/usr/lib/python2.5/site-packages/buildbot/process/builder.py", line 11, in <module>
+	    from buildbot.process import base
+	  File "/usr/lib/python2.5/site-packages/buildbot/process/base.py", line 11, in <module>
+	    from buildbot.status.builder import SUCCESS, WARNINGS, FAILURE, EXCEPTION
+	exceptions.SyntaxError: invalid syntax (builder.py, line 1779)
+	
+2009/06/01 14:53 +0530 [-] 
+2009/06/01 14:57 +0530 [-] Log opened.
+2009/06/01 14:57 +0530 [-] twistd 2.5.0 (/usr/bin/python 2.5.2) starting up
+2009/06/01 14:57 +0530 [-] reactor class: <class 'twisted.internet.selectreactor.SelectReactor'>
+2009/06/01 14:57 +0530 [-] Loading buildbot.tac...
+2009/06/01 14:57 +0530 [-] Loaded.
+2009/06/01 14:57 +0530 [-] loading configuration from /home/tiny/buildbot/master/master.cfg
+2009/06/01 14:57 +0530 [-] pppppp--------- change changepw None
+2009/06/01 14:57 +0530 [-] source-------bzr--------- https://code.launchpad.net/openobject-server/pap-etree-trunk None None
+2009/06/01 14:57 +0530 [-] ---is buildstep---- <buildbot.steps.source.Bzr instance at 0x145c0e0>
+2009/06/01 14:57 +0530 [-] ---is buildstep---- <buildbot.steps.shell.Compile instance at 0x145c488>
+2009/06/01 14:57 +0530 [-] adding new builder buildbot-full for category None
+2009/06/01 14:57 +0530 [-] trying to load status pickle from /home/tiny/buildbot/master/full/builder
+2009/06/01 14:57 +0530 [-] added builder buildbot-full in category None
+2009/06/01 14:57 +0530 [-] adding IStatusReceiver <WebStatus on port tcp:8010 at 0x145c560>
+2009/06/01 14:57 +0530 [-] twisted.web.server.Site starting on 8010
+2009/06/01 14:57 +0530 [-] Starting factory <twisted.web.server.Site instance at 0x145fea8>
+2009/06/01 14:57 +0530 [-] WebStatus using (/home/tiny/buildbot/master/public_html)
+2009/06/01 14:57 +0530 [-] start called-------
+2009/06/01 14:57 +0530 [-] in poller.......... https://code.launchpad.net/openobject-server/pap-etree-trunk 600
+2009/06/01 14:57 +0530 [-] start service in pb called------- <buildbot.changes.bzr_buildbot.BzrPoller instance at 0x27a1680>
+2009/06/01 14:57 +0530 [-] twisted.spread.pb.PBServerFactory starting on 9989
+2009/06/01 14:57 +0530 [-] Starting factory <twisted.spread.pb.PBServerFactory instance at 0xf36e18>
+2009/06/01 14:57 +0530 [-] BuildMaster listening on port tcp:9989:interface=pap
+2009/06/01 14:57 +0530 [-] configuration update started
+2009/06/01 14:57 +0530 [-] configuration update complete
+2009/06/01 14:57 +0530 [-] maybeStartBuild <Builder 'buildbot-full' at 41549696>: [] []
+2009/06/01 14:58 +0530 [-] Received SIGTERM, shutting down.
+2009/06/01 14:58 +0530 [-] stop called-------
+2009/06/01 14:58 +0530 [-] (Port 9989 Closed)
+2009/06/01 14:58 +0530 [-] Stopping factory <twisted.spread.pb.PBServerFactory instance at 0xf36e18>
+2009/06/01 14:58 +0530 [-] (Port 8010 Closed)
+2009/06/01 14:58 +0530 [-] Stopping factory <twisted.web.server.Site instance at 0x145fea8>
+2009/06/01 14:58 +0530 [-] Main loop terminated.
+2009/06/01 14:58 +0530 [-] Server Shut Down.
+2009/06/01 16:14 +0530 [-] Log opened.
+2009/06/01 16:14 +0530 [-] twistd 2.5.0 (/usr/bin/python 2.5.2) starting up
+2009/06/01 16:14 +0530 [-] reactor class: <class 'twisted.internet.selectreactor.SelectReactor'>
+2009/06/01 16:14 +0530 [-] Loading buildbot.tac...
+2009/06/01 16:14 +0530 [-] Loaded.
+2009/06/01 16:14 +0530 [-] loading configuration from /home/tiny/buildbot/master/master.cfg
+2009/06/01 16:14 +0530 [-] pppppp--------- change changepw None
+2009/06/01 16:14 +0530 [-] in scheduler ----------- test_scheduler None
+2009/06/01 16:14 +0530 [-] in scheduler --------- test_scheduler None 120 ['buildbot-full'] None ['buildbot-full']
+2009/06/01 16:14 +0530 [-] in scheduler ----------- all None
+2009/06/01 16:14 +0530 [-] in scheduler --------- all None 120 ['buildbot-full'] None ['buildbot-full']
+2009/06/01 16:14 +0530 [-] source-------bzr--------- https://code.launchpad.net/openobject-server/pap-etree-trunk None None
+2009/06/01 16:14 +0530 [-] ---is buildstep---- <buildbot.steps.source.Bzr instance at 0x1425c20>
+2009/06/01 16:14 +0530 [-] ---is buildstep---- <buildbot.steps.shell.Compile instance at 0x1425f80>
+2009/06/01 16:14 +0530 [-] adding new builder buildbot-full for category None
+2009/06/01 16:14 +0530 [-] trying to load status pickle from /home/tiny/buildbot/master/full/builder
+2009/06/01 16:14 +0530 [-] added builder buildbot-full in category None
+2009/06/01 16:14 +0530 [-] adding IStatusReceiver <WebStatus on port tcp:8010 at 0x151e128>
+2009/06/01 16:14 +0530 [-] BuildMaster listening on port tcp:9989:interface=pap
+2009/06/01 16:14 +0530 [-] configuration update started
+2009/06/01 16:14 +0530 [-] Unhandled error in Deferred:
+2009/06/01 16:14 +0530 [-] Unhandled Error
+	Traceback (most recent call last):
+	  File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 693, in <lambda>
+	    d.addCallback(lambda res: self.loadConfig_status(status))
+	  File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 846, in loadConfig_status
+	    d.addCallback(addNewOnes)
+	  File "/usr/lib/python2.5/site-packages/twisted/internet/defer.py", line 191, in addCallback
+	    callbackKeywords=kw)
+	  File "/usr/lib/python2.5/site-packages/twisted/internet/defer.py", line 182, in addCallbacks
+	    self._runCallbacks()
+	--- <exception caught here> ---
+	  File "/usr/lib/python2.5/site-packages/twisted/internet/defer.py", line 317, in _runCallbacks
+	    self.result = callback(self.result, *args, **kw)
+	  File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 843, in addNewOnes
+	    s.setServiceParent(self)
+	  File "/usr/lib/python2.5/site-packages/buildbot/status/web/baseweb.py", line 417, in setServiceParent
+	    service.MultiService.setServiceParent(self, parent)
+	  File "/usr/lib/python2.5/site-packages/twisted/application/service.py", line 148, in setServiceParent
+	    self.parent.addService(self)
+	  File "/usr/lib/python2.5/site-packages/twisted/application/service.py", line 259, in addService
+	    service.privilegedStartService()
+	  File "/usr/lib/python2.5/site-packages/twisted/application/service.py", line 228, in privilegedStartService
+	    service.privilegedStartService()
+	  File "/usr/lib/python2.5/site-packages/twisted/application/internet.py", line 68, in privilegedStartService
+	    self._port = self._getPort()
+	  File "/usr/lib/python2.5/site-packages/twisted/application/internet.py", line 86, in _getPort
+	    return getattr(reactor, 'listen'+self.method)(*self.args, **self.kwargs)
+	  File "/usr/lib/python2.5/site-packages/twisted/internet/posixbase.py", line 467, in listenTCP
+	    p.startListening()
+	  File "/usr/lib/python2.5/site-packages/twisted/internet/tcp.py", line 733, in startListening
+	    raise CannotListenError, (self.interface, self.port, le)
+	twisted.internet.error.CannotListenError: Couldn't listen on any:8010: (98, 'Address already in use').
+	
+2009/06/01 16:14 +0530 [-] Received SIGTERM, shutting down.
+2009/06/01 16:14 +0530 [-] Main loop terminated.
+2009/06/01 16:14 +0530 [-] Server Shut Down.
+2009/06/01 16:14 +0530 [-] Log opened.
+2009/06/01 16:14 +0530 [-] twistd 2.5.0 (/usr/bin/python 2.5.2) starting up
+2009/06/01 16:14 +0530 [-] reactor class: <class 'twisted.internet.selectreactor.SelectReactor'>
+2009/06/01 16:14 +0530 [-] Loading buildbot.tac...
+2009/06/01 16:14 +0530 [-] Loaded.
+2009/06/01 16:14 +0530 [-] loading configuration from /home/tiny/buildbot/master/master.cfg
+2009/06/01 16:14 +0530 [-] pppppp--------- change changepw None
+2009/06/01 16:14 +0530 [-] in scheduler ----------- test_scheduler None
+2009/06/01 16:14 +0530 [-] in scheduler --------- test_scheduler None 120 ['buildbot-full'] None ['buildbot-full']
+2009/06/01 16:14 +0530 [-] in scheduler ----------- all None
+2009/06/01 16:14 +0530 [-] in scheduler --------- all None 120 ['buildbot-full'] None ['buildbot-full']
+2009/06/01 16:14 +0530 [-] source-------bzr--------- https://code.launchpad.net/openobject-server/pap-etree-trunk None None
+2009/06/01 16:14 +0530 [-] ---is buildstep---- <buildbot.steps.source.Bzr instance at 0x1425c20>
+2009/06/01 16:14 +0530 [-] ---is buildstep---- <buildbot.steps.shell.Compile instance at 0x1425f80>
+2009/06/01 16:14 +0530 [-] adding new builder buildbot-full for category None
+2009/06/01 16:14 +0530 [-] trying to load status pickle from /home/tiny/buildbot/master/full/builder
+2009/06/01 16:14 +0530 [-] added builder buildbot-full in category None
+2009/06/01 16:14 +0530 [-] adding IStatusReceiver <WebStatus on port tcp:8010 at 0x151e128>
+2009/06/01 16:14 +0530 [-] BuildMaster listening on port tcp:9989:interface=pap
+2009/06/01 16:14 +0530 [-] configuration update started
+2009/06/01 16:14 +0530 [-] Unhandled error in Deferred:
+2009/06/01 16:14 +0530 [-] Unhandled Error
+	Traceback (most recent call last):
+	  File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 693, in <lambda>
+	    d.addCallback(lambda res: self.loadConfig_status(status))
+	  File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 846, in loadConfig_status
+	    d.addCallback(addNewOnes)
+	  File "/usr/lib/python2.5/site-packages/twisted/internet/defer.py", line 191, in addCallback
+	    callbackKeywords=kw)
+	  File "/usr/lib/python2.5/site-packages/twisted/internet/defer.py", line 182, in addCallbacks
+	    self._runCallbacks()
+	--- <exception caught here> ---
+	  File "/usr/lib/python2.5/site-packages/twisted/internet/defer.py", line 317, in _runCallbacks
+	    self.result = callback(self.result, *args, **kw)
+	  File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 843, in addNewOnes
+	    s.setServiceParent(self)
+	  File "/usr/lib/python2.5/site-packages/buildbot/status/web/baseweb.py", line 417, in setServiceParent
+	    service.MultiService.setServiceParent(self, parent)
+	  File "/usr/lib/python2.5/site-packages/twisted/application/service.py", line 148, in setServiceParent
+	    self.parent.addService(self)
+	  File "/usr/lib/python2.5/site-packages/twisted/application/service.py", line 259, in addService
+	    service.privilegedStartService()
+	  File "/usr/lib/python2.5/site-packages/twisted/application/service.py", line 228, in privilegedStartService
+	    service.privilegedStartService()
+	  File "/usr/lib/python2.5/site-packages/twisted/application/internet.py", line 68, in privilegedStartService
+	    self._port = self._getPort()
+	  File "/usr/lib/python2.5/site-packages/twisted/application/internet.py", line 86, in _getPort
+	    return getattr(reactor, 'listen'+self.method)(*self.args, **self.kwargs)
+	  File "/usr/lib/python2.5/site-packages/twisted/internet/posixbase.py", line 467, in listenTCP
+	    p.startListening()
+	  File "/usr/lib/python2.5/site-packages/twisted/internet/tcp.py", line 733, in startListening
+	    raise CannotListenError, (self.interface, self.port, le)
+	twisted.internet.error.CannotListenError: Couldn't listen on any:8010: (98, 'Address already in use').
+	
+2009/06/01 16:14 +0530 [-] Received SIGTERM, shutting down.
+2009/06/01 16:14 +0530 [-] Main loop terminated.
+2009/06/01 16:14 +0530 [-] Server Shut Down.
+2009/06/01 16:22 +0530 [-] Log opened.
+2009/06/01 16:22 +0530 [-] twistd 2.5.0 (/usr/bin/python 2.5.2) starting up
+2009/06/01 16:22 +0530 [-] reactor class: <class 'twisted.internet.selectreactor.SelectReactor'>
+2009/06/01 16:22 +0530 [-] Loading buildbot.tac...
+2009/06/01 16:22 +0530 [-] Loaded.
+2009/06/01 16:22 +0530 [-] loading configuration from /home/tiny/buildbot/master/master.cfg
+2009/06/01 16:22 +0530 [-] error while parsing config file
+2009/06/01 16:22 +0530 [-] error during loadConfig
+2009/06/01 16:22 +0530 [-] Unhandled Error
+	Traceback (most recent call last):
+	  File "/usr/lib/python2.5/site-packages/twisted/scripts/_twistd_unix.py", line 183, in startApplication
+	    app.startApplication(application, not config['no_save'])
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 400, in startApplication
+	    service.IService(application).startService()
+	  File "/usr/lib/python2.5/site-packages/twisted/application/service.py", line 233, in startService
+	    service.startService()
+	  File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 407, in startService
+	    self.loadTheConfigFile()
+	--- <exception caught here> ---
+	  File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 462, in loadTheConfigFile
+	    self.loadConfig(f)
+	  File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 480, in loadConfig
+	    exec f in localDict
+	exceptions.SyntaxError: EOL while scanning single-quoted string (master.cfg, line 74)
+	
+2009/06/01 16:22 +0530 [-] The new config file is unusable, so I'll ignore it.
+2009/06/01 16:22 +0530 [-] I will keep using the previous config file instead.
+2009/06/01 16:22 +0530 [-] Received SIGTERM, shutting down.
+2009/06/01 16:22 +0530 [-] Main loop terminated.
+2009/06/01 16:22 +0530 [-] Server Shut Down.
+2009/06/01 16:22 +0530 [-] Log opened.
+2009/06/01 16:22 +0530 [-] twistd 2.5.0 (/usr/bin/python 2.5.2) starting up
+2009/06/01 16:22 +0530 [-] reactor class: <class 'twisted.internet.selectreactor.SelectReactor'>
+2009/06/01 16:22 +0530 [-] Loading buildbot.tac...
+2009/06/01 16:22 +0530 [-] Loaded.
+2009/06/01 16:22 +0530 [-] loading configuration from /home/tiny/buildbot/master/master.cfg
+2009/06/01 16:22 +0530 [-] error while parsing config file
+2009/06/01 16:22 +0530 [-] error during loadConfig
+2009/06/01 16:22 +0530 [-] Unhandled Error
+	Traceback (most recent call last):
+	  File "/usr/lib/python2.5/site-packages/twisted/scripts/_twistd_unix.py", line 183, in startApplication
+	    app.startApplication(application, not config['no_save'])
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 400, in startApplication
+	    service.IService(application).startService()
+	  File "/usr/lib/python2.5/site-packages/twisted/application/service.py", line 233, in startService
+	    service.startService()
+	  File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 407, in startService
+	    self.loadTheConfigFile()
+	--- <exception caught here> ---
+	  File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 462, in loadTheConfigFile
+	    self.loadConfig(f)
+	  File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 480, in loadConfig
+	    exec f in localDict
+	exceptions.SyntaxError: EOL while scanning single-quoted string (master.cfg, line 74)
+	
+2009/06/01 16:22 +0530 [-] The new config file is unusable, so I'll ignore it.
+2009/06/01 16:22 +0530 [-] I will keep using the previous config file instead.
+2009/06/01 16:23 +0530 [-] Received SIGTERM, shutting down.
+2009/06/01 16:23 +0530 [-] Main loop terminated.
+2009/06/01 16:23 +0530 [-] Server Shut Down.
+2009/06/01 16:23 +0530 [-] Log opened.
+2009/06/01 16:23 +0530 [-] twistd 2.5.0 (/usr/bin/python 2.5.2) starting up
+2009/06/01 16:23 +0530 [-] reactor class: <class 'twisted.internet.selectreactor.SelectReactor'>
+2009/06/01 16:23 +0530 [-] Loading buildbot.tac...
+2009/06/01 16:23 +0530 [-] Loaded.
+2009/06/01 16:23 +0530 [-] loading configuration from /home/tiny/buildbot/master/master.cfg
+2009/06/01 16:23 +0530 [-] error while parsing config file
+2009/06/01 16:23 +0530 [-] error during loadConfig
+2009/06/01 16:23 +0530 [-] Unhandled Error
+	Traceback (most recent call last):
+	  File "/usr/lib/python2.5/site-packages/twisted/scripts/_twistd_unix.py", line 183, in startApplication
+	    app.startApplication(application, not config['no_save'])
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 400, in startApplication
+	    service.IService(application).startService()
+	  File "/usr/lib/python2.5/site-packages/twisted/application/service.py", line 233, in startService
+	    service.startService()
+	  File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 407, in startService
+	    self.loadTheConfigFile()
+	--- <exception caught here> ---
+	  File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 462, in loadTheConfigFile
+	    self.loadConfig(f)
+	  File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 480, in loadConfig
+	    exec f in localDict
+	exceptions.SyntaxError: EOL while scanning single-quoted string (master.cfg, line 74)
+	
+2009/06/01 16:23 +0530 [-] The new config file is unusable, so I'll ignore it.
+2009/06/01 16:23 +0530 [-] I will keep using the previous config file instead.
+2009/06/01 16:24 +0530 [-] Received SIGTERM, shutting down.
+2009/06/01 16:24 +0530 [-] Main loop terminated.
+2009/06/01 16:24 +0530 [-] Server Shut Down.
+2009/06/01 16:24 +0530 [-] Log opened.
+2009/06/01 16:24 +0530 [-] twistd 2.5.0 (/usr/bin/python 2.5.2) starting up
+2009/06/01 16:24 +0530 [-] reactor class: <class 'twisted.internet.selectreactor.SelectReactor'>
+2009/06/01 16:24 +0530 [-] Loading buildbot.tac...
+2009/06/01 16:24 +0530 [-] Loaded.
+2009/06/01 16:24 +0530 [-] loading configuration from /home/tiny/buildbot/master/master.cfg
+2009/06/01 16:24 +0530 [-] pppppp--------- change changepw None
+2009/06/01 16:24 +0530 [-] in pprint scheduler --------- test_scheduler https://code.launchpad.net/~pap-openerp/openerp-buildbot 180 ['buildbot-full'] None ['buildbot-full']
+2009/06/01 16:24 +0530 [-] source-------bzr--------- https://code.launchpad.net/openobject-server/pap-etree-trunk None None
+2009/06/01 16:24 +0530 [-] ---is buildstep---- <buildbot.steps.source.Bzr instance at 0x1425a28>
+2009/06/01 16:24 +0530 [-] ---is buildstep---- <buildbot.steps.shell.Compile instance at 0x14259e0>
+2009/06/01 16:24 +0530 [-] adding new builder buildbot-full for category None
+2009/06/01 16:24 +0530 [-] trying to load status pickle from /home/tiny/buildbot/master/full/builder
+2009/06/01 16:24 +0530 [-] added builder buildbot-full in category None
+2009/06/01 16:24 +0530 [-] adding IStatusReceiver <WebStatus on port tcp:8010 at 0x1428c68>
+2009/06/01 16:24 +0530 [-] twisted.web.server.Site starting on 8010
+2009/06/01 16:24 +0530 [-] Starting factory <twisted.web.server.Site instance at 0x1425d88>
+2009/06/01 16:24 +0530 [-] WebStatus using (/home/tiny/buildbot/master/public_html)
+2009/06/01 16:24 +0530 [-] start called-------
+2009/06/01 16:24 +0530 [-] in poller.......... https://code.launchpad.net/~pap-openerp/openerp-buildbot/openerp-buildbot 600
+2009/06/01 16:24 +0530 [-] start service in pb called------- <buildbot.changes.bzr_buildbot.BzrPoller instance at 0x16757e8>
+2009/06/01 16:24 +0530 [-] twisted.spread.pb.PBServerFactory starting on 9989
+2009/06/01 16:24 +0530 [-] Starting factory <twisted.spread.pb.PBServerFactory instance at 0xff77e8>
+2009/06/01 16:24 +0530 [-] BuildMaster listening on port tcp:9989:interface=pap
+2009/06/01 16:24 +0530 [-] configuration update started
+2009/06/01 16:24 +0530 [-] configuration update complete
+2009/06/01 16:24 +0530 [-] maybeStartBuild <Builder 'buildbot-full' at 23548344>: [] []
+2009/06/01 16:24 +0530 [-] Received SIGTERM, shutting down.
+2009/06/01 16:24 +0530 [-] stop called-------
+2009/06/01 16:24 +0530 [-] (Port 9989 Closed)
+2009/06/01 16:24 +0530 [-] Stopping factory <twisted.spread.pb.PBServerFactory instance at 0xff77e8>
+2009/06/01 16:24 +0530 [-] (Port 8010 Closed)
+2009/06/01 16:24 +0530 [-] Stopping factory <twisted.web.server.Site instance at 0x1425d88>
+2009/06/01 16:24 +0530 [-] Main loop terminated.
+2009/06/01 16:24 +0530 [-] Server Shut Down.
+2009/06/01 16:56 +0530 [-] Log opened.
+2009/06/01 16:56 +0530 [-] twistd 2.5.0 (/usr/bin/python 2.5.2) starting up
+2009/06/01 16:56 +0530 [-] reactor class: <class 'twisted.internet.selectreactor.SelectReactor'>
+2009/06/01 16:56 +0530 [-] Loading buildbot.tac...
+2009/06/01 16:56 +0530 [-] Loaded.
+2009/06/01 16:56 +0530 [-] loading configuration from /home/tiny/buildbot/master/master.cfg
+2009/06/01 16:56 +0530 [-] pppppp--------- change changepw None
+2009/06/01 16:56 +0530 [-] in pprint scheduler --------- test_scheduler https://code.launchpad.net/~pap-openerp/openerp-buildbot 180 ['buildbot-full'] None ['buildbot-full']
+2009/06/01 16:56 +0530 [-] source-------bzr--------- https://code.launchpad.net/openobject-server/pap-etree-trunk None None
+2009/06/01 16:56 +0530 [-] ---is buildstep---- <buildbot.steps.source.Bzr instance at 0x14283b0>
+2009/06/01 16:56 +0530 [-] ---is buildstep---- <buildbot.steps.shell.Compile instance at 0x1425950>
+2009/06/01 16:56 +0530 [-] Warning: some Builders have no Schedulers to drive them: ['buildbot_builder']
+2009/06/01 16:56 +0530 [-] adding new builder buildbot-full for category None
+2009/06/01 16:56 +0530 [-] trying to load status pickle from /home/tiny/buildbot/master/full/builder
+2009/06/01 16:56 +0530 [-] no saved status pickle, creating a new one
+2009/06/01 16:56 +0530 [-] added builder buildbot-full in category None
+2009/06/01 16:56 +0530 [-] adding new builder buildbot_builder for category None
+2009/06/01 16:56 +0530 [-] trying to load status pickle from /home/tiny/buildbot/master/full_test/builder
+2009/06/01 16:56 +0530 [-] no saved status pickle, creating a new one
+2009/06/01 16:56 +0530 [-] added builder buildbot_builder in category None
+2009/06/01 16:56 +0530 [-] adding IStatusReceiver <WebStatus on port tcp:8010 at 0x151e758>
+2009/06/01 16:56 +0530 [-] twisted.web.server.Site starting on 8010
+2009/06/01 16:56 +0530 [-] Starting factory <twisted.web.server.Site instance at 0x14257e8>
+2009/06/01 16:56 +0530 [-] WebStatus using (/home/tiny/buildbot/master/public_html)
+2009/06/01 16:56 +0530 [-] start called-------
+2009/06/01 16:56 +0530 [-] in poller.......... https://code.launchpad.net/~pap-openerp/openerp-buildbot/openerp-buildbot 600
+2009/06/01 16:56 +0530 [-] start service in pb called------- <buildbot.changes.bzr_buildbot.BzrPoller instance at 0x1667c68>
+2009/06/01 16:56 +0530 [-] twisted.spread.pb.PBServerFactory starting on 9989
+2009/06/01 16:56 +0530 [-] Starting factory <twisted.spread.pb.PBServerFactory instance at 0xff77e8>
+2009/06/01 16:56 +0530 [-] BuildMaster listening on port tcp:9989:interface=pap
+2009/06/01 16:56 +0530 [-] configuration update started
+2009/06/01 16:56 +0530 [-] configuration update complete
+2009/06/01 16:56 +0530 [-] maybeStartBuild <Builder 'buildbot-full' at 23381776>: [] []
+2009/06/01 16:56 +0530 [-] maybeStartBuild <Builder 'buildbot_builder' at 23491792>: [] []
+2009/06/01 16:57 +0530 [Broker,0,127.0.1.1] Got slaveinfo from 'testslave'
+2009/06/01 16:57 +0530 [Broker,0,127.0.1.1] bot attached
+2009/06/01 16:57 +0530 [Broker,0,127.0.1.1] <BuildSlave 'testslave', current builders: buildbot-full,buildbot_builder> adding <SlaveBuilder builder=buildbot-full slave=testslave>
+2009/06/01 16:57 +0530 [Broker,0,127.0.1.1] Buildslave testslave attached to buildbot-full
+2009/06/01 16:57 +0530 [Broker,0,127.0.1.1] <BuildSlave 'testslave', current builders: buildbot-full,buildbot_builder> adding <SlaveBuilder builder=buildbot_builder slave=testslave>
+2009/06/01 16:57 +0530 [Broker,0,127.0.1.1] Buildslave testslave attached to buildbot_builder
+2009/06/01 16:57 +0530 [-] maybeStartBuild <Builder 'buildbot-full' at 23381776>: [] [<SlaveBuilder builder=buildbot-full slave=testslave>]
+2009/06/01 16:57 +0530 [-] maybeStartBuild <Builder 'buildbot_builder' at 23491792>: [] [<SlaveBuilder builder=buildbot_builder slave=testslave>]
+2009/06/01 16:57 +0530 [HTTPChannel,0,127.0.0.1] 127.0.0.1 - - [01/Jun/2009:11:27:21 +0000] "GET /builders/buildbot-full HTTP/1.1" 200 776 "http://localhost:8010/waterfall?last_time=1243848610" "Mozilla/5.0 (X11; U; Linux x86_64; en-US; rv:1.9.0.7) Gecko/2009030423 Ubuntu/8.04 (hardy) Firefox/3.0.7"
+2009/06/01 16:57 +0530 [HTTPChannel,0,127.0.0.1] 127.0.0.1 - - [01/Jun/2009:11:27:21 +0000] "GET /buildbot.css HTTP/1.1" 304 - "http://localhost:8010/builders/buildbot-full" "Mozilla/5.0 (X11; U; Linux x86_64; en-US; rv:1.9.0.7) Gecko/2009030423 Ubuntu/8.04 (hardy) Firefox/3.0.7"
+2009/06/01 16:57 +0530 [HTTPChannel,0,127.0.0.1] 127.0.0.1 - - [01/Jun/2009:11:27:27 +0000] "GET /waterfall?last_time=1243848610 HTTP/1.1" 200 1519 "http://localhost:8010/waterfall" "Mozilla/5.0 (X11; U; Linux x86_64; en-US; rv:1.9.0.7) Gecko/2009030423 Ubuntu/8.04 (hardy) Firefox/3.0.7"
+2009/06/01 16:57 +0530 [HTTPChannel,0,127.0.0.1] 127.0.0.1 - - [01/Jun/2009:11:27:33 +0000] "GET /one_box_per_builder HTTP/1.1" 200 677 "http://localhost:8010/" "Mozilla/5.0 (X11; U; Linux x86_64; en-US; rv:1.9.0.7) Gecko/2009030423 Ubuntu/8.04 (hardy) Firefox/3.0.7"
+2009/06/01 16:57 +0530 [HTTPChannel,0,127.0.0.1] 127.0.0.1 - - [01/Jun/2009:11:27:45 +0000] "GET /one_line_per_build HTTP/1.1" 200 414 "http://localhost:8010/" "Mozilla/5.0 (X11; U; Linux x86_64; en-US; rv:1.9.0.7) Gecko/2009030423 Ubuntu/8.04 (hardy) Firefox/3.0.7"
+2009/06/01 16:57 +0530 [HTTPChannel,0,127.0.0.1] 127.0.0.1 - - [01/Jun/2009:11:27:52 +0000] "GET /buildslaves HTTP/1.1" 200 764 "http://localhost:8010/" "Mozilla/5.0 (X11; U; Linux x86_64; en-US; rv:1.9.0.7) Gecko/2009030423 Ubuntu/8.04 (hardy) Firefox/3.0.7"
+2009/06/01 16:58 +0530 [HTTPChannel,0,127.0.0.1] 127.0.0.1 - - [01/Jun/2009:11:28:01 +0000] "GET /changes HTTP/1.1" 200 413 "http://localhost:8010/" "Mozilla/5.0 (X11; U; Linux x86_64; en-US; rv:1.9.0.7) Gecko/2009030423 Ubuntu/8.04 (hardy) Firefox/3.0.7"
+2009/06/01 16:58 +0530 [HTTPChannel,0,127.0.0.1] 127.0.0.1 - - [01/Jun/2009:11:28:04 +0000] "GET /about HTTP/1.1" 200 919 "http://localhost:8010/" "Mozilla/5.0 (X11; U; Linux x86_64; en-US; rv:1.9.0.7) Gecko/2009030423 Ubuntu/8.04 (hardy) Firefox/3.0.7"
+2009/06/01 16:58 +0530 [HTTPChannel,0,127.0.0.1] 127.0.0.1 - - [01/Jun/2009:11:28:09 +0000] "GET /waterfall HTTP/1.1" 200 2538 "http://localhost:8010/" "Mozilla/5.0 (X11; U; Linux x86_64; en-US; rv:1.9.0.7) Gecko/2009030423 Ubuntu/8.04 (hardy) Firefox/3.0.7"
+2009/06/01 16:58 +0530 [HTTPChannel,0,127.0.0.1] 127.0.0.1 - - [01/Jun/2009:11:28:19 +0000] "GET /builders/buildbot-full HTTP/1.1" 200 776 "http://localhost:8010/waterfall" "Mozilla/5.0 (X11; U; Linux x86_64; en-US; rv:1.9.0.7) Gecko/2009030423 Ubuntu/8.04 (hardy) Firefox/3.0.7"
+2009/06/01 16:58 +0530 [HTTPChannel,0,127.0.0.1] 127.0.0.1 - - [01/Jun/2009:11:28:22 +0000] "GET /builders/buildbot_builder HTTP/1.1" 200 782 "http://localhost:8010/waterfall" "Mozilla/5.0 (X11; U; Linux x86_64; en-US; rv:1.9.0.7) Gecko/2009030423 Ubuntu/8.04 (hardy) Firefox/3.0.7"
+2009/06/01 16:58 +0530 [HTTPChannel,0,127.0.0.1] 127.0.0.1 - - [01/Jun/2009:11:28:24 +0000] "GET /waterfall HTTP/1.1" 200 2538 "http://localhost:8010/" "Mozilla/5.0 (X11; U; Linux x86_64; en-US; rv:1.9.0.7) Gecko/2009030423 Ubuntu/8.04 (hardy) Firefox/3.0.7"
