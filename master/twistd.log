@@ -1,0 +1,102 @@
+2009/06/01 10:39 +0530 [-] Log opened.
+2009/06/01 10:39 +0530 [-] twistd 2.5.0 (/usr/bin/python 2.5.2) starting up
+2009/06/01 10:39 +0530 [-] reactor class: <class 'twisted.internet.selectreactor.SelectReactor'>
+2009/06/01 10:39 +0530 [-] Loading buildbot.tac...
+2009/06/01 10:39 +0530 [-] Loaded.
+2009/06/01 10:39 +0530 [-] loading configuration from /home/tiny/buildbot/master/master.cfg
+2009/06/01 10:39 +0530 [-] pppppp--------- change changepw 9989
+2009/06/01 10:39 +0530 [-] error while parsing config file
+2009/06/01 10:39 +0530 [-] error during loadConfig
+2009/06/01 10:39 +0530 [-] Unhandled Error
+	Traceback (most recent call last):
+	  File "/usr/lib/python2.5/site-packages/twisted/scripts/_twistd_unix.py", line 183, in startApplication
+	    app.startApplication(application, not config['no_save'])
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 400, in startApplication
+	    service.IService(application).startService()
+	  File "/usr/lib/python2.5/site-packages/twisted/application/service.py", line 233, in startService
+	    service.startService()
+	  File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 407, in startService
+	    self.loadTheConfigFile()
+	--- <exception caught here> ---
+	  File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 462, in loadTheConfigFile
+	    self.loadConfig(f)
+	  File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 480, in loadConfig
+	    exec f in localDict
+	  File "/home/tiny/buildbot/master/master.cfg", line 45, in <module>
+	    c['change_source'] = PBChangeSource(user="change", passwd="changepw", port=9989)
+	  File "/usr/lib/python2.5/site-packages/buildbot/changes/pb.py", line 80, in __init__
+	    assert port == None
+	exceptions.AssertionError: 
+	
+2009/06/01 10:39 +0530 [-] The new config file is unusable, so I'll ignore it.
+2009/06/01 10:39 +0530 [-] I will keep using the previous config file instead.
+2009/06/01 10:39 +0530 [-] Received SIGTERM, shutting down.
+2009/06/01 10:39 +0530 [-] Main loop terminated.
+2009/06/01 10:39 +0530 [-] Server Shut Down.
+2009/06/01 10:39 +0530 [-] Log opened.
+2009/06/01 10:39 +0530 [-] twistd 2.5.0 (/usr/bin/python 2.5.2) starting up
+2009/06/01 10:39 +0530 [-] reactor class: <class 'twisted.internet.selectreactor.SelectReactor'>
+2009/06/01 10:39 +0530 [-] Loading buildbot.tac...
+2009/06/01 10:39 +0530 [-] Loaded.
+2009/06/01 10:39 +0530 [-] loading configuration from /home/tiny/buildbot/master/master.cfg
+2009/06/01 10:39 +0530 [-] pppppp--------- change changepw 9989
+2009/06/01 10:39 +0530 [-] error while parsing config file
+2009/06/01 10:39 +0530 [-] error during loadConfig
+2009/06/01 10:39 +0530 [-] Unhandled Error
+	Traceback (most recent call last):
+	  File "/usr/lib/python2.5/site-packages/twisted/scripts/_twistd_unix.py", line 183, in startApplication
+	    app.startApplication(application, not config['no_save'])
+	  File "/usr/lib/python2.5/site-packages/twisted/application/app.py", line 400, in startApplication
+	    service.IService(application).startService()
+	  File "/usr/lib/python2.5/site-packages/twisted/application/service.py", line 233, in startService
+	    service.startService()
+	  File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 407, in startService
+	    self.loadTheConfigFile()
+	--- <exception caught here> ---
+	  File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 462, in loadTheConfigFile
+	    self.loadConfig(f)
+	  File "/usr/lib/python2.5/site-packages/buildbot/master.py", line 480, in loadConfig
+	    exec f in localDict
+	  File "/home/tiny/buildbot/master/master.cfg", line 45, in <module>
+	    c['change_source'] = PBChangeSource(user="change", passwd="changepw", port='9989')
+	  File "/usr/lib/python2.5/site-packages/buildbot/changes/pb.py", line 80, in __init__
+	    assert port == None
+	exceptions.AssertionError: 
+	
+2009/06/01 10:39 +0530 [-] The new config file is unusable, so I'll ignore it.
+2009/06/01 10:39 +0530 [-] I will keep using the previous config file instead.
+2009/06/01 10:41 +0530 [-] Received SIGTERM, shutting down.
+2009/06/01 10:41 +0530 [-] Main loop terminated.
+2009/06/01 10:41 +0530 [-] Server Shut Down.
+2009/06/01 10:41 +0530 [-] Log opened.
+2009/06/01 10:41 +0530 [-] twistd 2.5.0 (/usr/bin/python 2.5.2) starting up
+2009/06/01 10:41 +0530 [-] reactor class: <class 'twisted.internet.selectreactor.SelectReactor'>
+2009/06/01 10:41 +0530 [-] Loading buildbot.tac...
+2009/06/01 10:41 +0530 [-] Loaded.
+2009/06/01 10:41 +0530 [-] loading configuration from /home/tiny/buildbot/master/master.cfg
+2009/06/01 10:41 +0530 [-] pppppp--------- change changepw None
+2009/06/01 10:41 +0530 [-] source-------bzr--------- https://code.launchpad.net/openobject-server/pap-etree-trunk None None
+2009/06/01 10:41 +0530 [-] ---is buildstep---- <buildbot.steps.source.Bzr instance at 0x12c4830>
+2009/06/01 10:41 +0530 [-] ---is buildstep---- <buildbot.steps.shell.Compile instance at 0x1417c20>
+2009/06/01 10:41 +0530 [-] adding new builder buildbot-full for category None
+2009/06/01 10:41 +0530 [-] trying to load status pickle from /home/tiny/buildbot/master/full/builder
+2009/06/01 10:41 +0530 [-] added builder buildbot-full in category None
+2009/06/01 10:41 +0530 [-] adding IStatusReceiver <WebStatus on port tcp:8010 at 0x13fbb90>
+2009/06/01 10:41 +0530 [-] twisted.web.server.Site starting on 8010
+2009/06/01 10:41 +0530 [-] Starting factory <twisted.web.server.Site instance at 0x149c830>
+2009/06/01 10:41 +0530 [-] WebStatus using (/home/tiny/buildbot/master/public_html)
+2009/06/01 10:41 +0530 [-] start called-------
+2009/06/01 10:41 +0530 [-] in poller.......... https://code.launchpad.net/openobject-server/pap-etree-trunk 600
+2009/06/01 10:41 +0530 [-] start service in pb called------- <buildbot.changes.bzr_buildbot.BzrPoller instance at 0x27ddf38>
+2009/06/01 10:41 +0530 [-] twisted.spread.pb.PBServerFactory starting on 9989
+2009/06/01 10:41 +0530 [-] Starting factory <twisted.spread.pb.PBServerFactory instance at 0xff77a0>
+2009/06/01 10:41 +0530 [-] BuildMaster listening on port tcp:9989:interface=pap
+2009/06/01 10:41 +0530 [-] configuration update started
+2009/06/01 10:41 +0530 [-] configuration update complete
+2009/06/01 10:41 +0530 [-] maybeStartBuild <Builder 'buildbot-full' at 41801992>: [] []
+2009/06/01 10:46 +0530 [Broker,0,127.0.1.1] Got slaveinfo from 'testslave'
+2009/06/01 10:46 +0530 [Broker,0,127.0.1.1] bot attached
+2009/06/01 10:46 +0530 [Broker,0,127.0.1.1] <BuildSlave 'testslave', current builders: buildbot-full> adding <SlaveBuilder builder=buildbot-full slave=testslave>
+2009/06/01 10:46 +0530 [Broker,0,127.0.1.1] Buildslave testslave attached to buildbot-full
+2009/06/01 10:46 +0530 [-] maybeStartBuild <Builder 'buildbot-full' at 41801992>: [] [<SlaveBuilder builder=buildbot-full slave=testslave>]
+2009/06/01 11:40 +0530 [HTTPChannel,0,127.0.0.1] 127.0.0.1 - - [01/Jun/2009:06:10:45 +0000] "GET /favicon.ico HTTP/1.1" 404 165 "-" "Mozilla/5.0 (X11; U; Linux x86_64; en-US; rv:1.9.0.7) Gecko/2009030423 Ubuntu/8.04 (hardy) Firefox/3.0.7"
