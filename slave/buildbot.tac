@@ -2,8 +2,8 @@
 from twisted.application import service
 from buildbot.slave.bot import BuildSlave
 
-basedir = r'/home/tiny/buildbot/slave'
-buildmaster_host = 'pap'
+basedir = r'/home/tiny/buildbot/openerp-buildbot/slave'
+buildmaster_host = 'localhost'
 port = 9989
 slavename = 'testslave'
 passwd = 'pap'
