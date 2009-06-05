@@ -8,7 +8,7 @@ S'changemaster'
 p4
 sS'basedir'
 p5
-S'/home/tiny/buildbot/openerp-buildbot/master'
+S'/home/tiny/buildbot/test_buildbot/master'
 p6
 sS'changes'
 p7
