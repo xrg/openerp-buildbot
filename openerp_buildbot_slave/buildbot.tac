@@ -47,6 +47,62 @@ class SlavePyFlakes(SlaveShellCommand):
 registerSlaveCommand("pyflakes", SlavePyFlakes, command_version)
 
 
+class CheckQuality(Command):  
+
+    def finished(self, signal=None, rc=0):
+        log.msg("command finished with signal %s, exit code %s" % (rc))        
+        if sig is not None:
+            rc = -1        
+        d = self.deferred 
+        self.deferred = None       
+        if d:
+            d.callback(rc)
+        else:
+            log.msg("Hey, command %s finished twice" % self)
+
+    def failed(self, why):
+        log.msg("  wait command failed [%s]" % self.stepId)
+        d = self.deferred
+        self.deferred = None
+        if d:
+            d.errback(why)
+        else:
+            log.msg("Hey, command %s finished twice" % self)
+        
+    def _startCommand(self):
+        log.msg("CheckQuality._startCommand")
+        import xmlrpclib
+        args = self.args            
+        assert args['dbname'] is not None                  
+        assert args['port'] is not None
+        assert args['modules'] is not None
+        port = self.args.get('port',8069)
+        host = 'localhost'
+        uri = 'http://' + host + ':' + str(port)
+        conn = xmlrpclib.ServerProxy(uri + '/xmlrpc/object')
+        qualityresult = []
+        for module in args['modules']:
+            qualityresult = connector.execute(args['dbname'], 1, 'admin','wiz.quality.check','check_quality',module)
+            msg = "Quality for the module : '%s'" %(module)
+            log.msg(" " + msg)
+            self.sendStatus({'header': msg})
+            self.sendStatus({'log': (module, qualityresult)})
+        self.finished(None, 0) 
+
+    def start(self):
+        self.deferred = defer.Deferred()
+        try:
+            self._startCommand()
+        except:
+            log.msg("error in CheckQuality._startCommand")
+            log.err()
+            # pretend it was a shell error
+            self.deferred.errback(AbandonChain(-1))
+        
+        return self.deferred
+
+registerSlaveCommand("check-quality", CheckQuality, command_version)
+
 class CreateDB(Command):
 
     def finished(self, signal=None, rc=0):
@@ -104,11 +160,34 @@ class CreateDB(Command):
             log.err()
             # pretend it was a shell error
             self.deferred.errback(AbandonChain(-1))
-        self.deferred.addCallbacks(self.finished, self.failed)                   
+                          
         return self.deferred
     
 registerSlaveCommand("create-db", CreateDB, command_version)
 
+class SlaveMakeLink(SlaveShellCommand):
+    def start(self):
+        args = self.args                              
+        assert args['workdir'] is not None
+        assert args['addonsdir'] is not None                
+        workdir = os.path.join(self.builder.basedir, args['workdir'])
+        addonsdir = os.path.join(self.builder.basedir, args['addonsdir'])        
+        commandline = ["ln","-f","-s",workdir,"-t",addonsdir]
+        c = ShellCommand(self.builder, commandline,
+                         workdir, environ=None,
+                         timeout=args.get('timeout', None),
+                         sendStdout=args.get('want_stdout', True),
+                         sendStderr=args.get('want_stderr', True),
+                         sendRC=True,
+                         initialStdin=args.get('initial_stdin'),
+                         keepStdinOpen=args.get('keep_stdin_open'),
+                         logfiles={'log detail':'openerp.log'},
+                         )
+        self.command = c
+        d = self.command.start()
+        return d
+
+registerSlaveCommand("make-link", SlaveMakeLink, command_version)
 
 class SlaveStartServer(SlaveShellCommand):
 
