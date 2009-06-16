@@ -53,17 +53,22 @@ class CreateDB(Command):
         log.msg("command finished with signal %s, exit code %s" % (rc))        
         if sig is not None:
             rc = -1        
-        d = self.deferred        
+        d = self.deferred 
+        self.deferred = None       
         if d:
-            d.callback(None, rc)
+            d.callback(rc)
         else:
             log.msg("Hey, command %s finished twice" % self)
         
 
     def failed(self, why):
         log.msg("  wait command failed [%s]" % self.stepId)
-        self.sendStatus({'rc': 1})
-        self.deferred.callback(0)
+        d = self.deferred
+        self.deferred = None
+        if d:
+            d.errback(why)
+        else:
+            log.msg("Hey, command %s finished twice" % self)
 
     def _startCommand(self):
         log.msg("CreateDB._startCommand")
@@ -87,7 +92,8 @@ class CreateDB(Command):
         else:
             msg = " '%s' Database can not create" %(dbname)
         self.sendStatus({'header': msg})
-        log.msg(msg)        
+        log.msg(msg)       
+        self.finished(None, 0) 
 
     def start(self):
         self.deferred = defer.Deferred()                
@@ -163,7 +169,8 @@ class SlaveStartServer(SlaveShellCommand):
            
         fp_config.close()
         os.chmod(os.path.join(workdir,'.openerp_serverrc'),0777)
-        # Make script to start, stop, restart server auto
+
+        # Make daemon script to start, stop, restart server auto
         if os.path.isfile(os.path.join(workdir,'openerp-server')):
             os.remove(os.path.join(workdir,'openerp-server'))
         fp = open(os.path.join(workdir,'openerp-server'),'w')        
@@ -184,18 +191,18 @@ fi
 
 case "$1" in
 start)
-echo " ---`date +\"%D-%H:%M:%S\"`--- Starting OpenERP Server daemon ..." >> $TINYLOG
+echo " ---`date +\"%D-%H:%M:%S\"`--- Starting OpenERP Server daemon ..." 
 echo "Starting OpenERP Server daemon ..."
 
 if ! start-stop-daemon --start --quiet --background   --pidfile $TINYPID --make-pidfile --exec $TINYPATH/openerp-server.py -- --config=$TINYCONFIG; then
-echo " ---`date +\"%D-%H:%M:%S\"`--- ERROR Starting OpenERP Server daemons ..." >> $TINYLOG
+echo " ---`date +\"%D-%H:%M:%S\"`--- ERROR Starting OpenERP Server daemons ..." 
 exit 1
 fi
-echo " ---`date +\"%D-%H:%M:%S\"`--- OpenERP Server daemon is started ..." >> $TINYLOG
+echo " ---`date +\"%D-%H:%M:%S\"`--- OpenERP Server daemon is started ..." 
 
 ;;
 stop)
-echo " ---`date +\"%D-%H:%M:%S\"`--- Stopping OpenERP Server daemon ..." >> $TINYLOG
+echo " ---`date +\"%D-%H:%M:%S\"`--- Stopping OpenERP Server daemon ..." 
 
 start-stop-daemon --stop --quiet --pidfile $TINYPID
 # Wait a little and remove stale PID file
@@ -207,7 +214,7 @@ then
 rm -f $TINYPID
 fi
 
-echo " ---`date +\"%D-%H:%M:%S\"`--- OpenERP Server daemon stopped ..." >> $TINYLOG
+echo " ---`date +\"%D-%H:%M:%S\"`--- OpenERP Server daemon stopped ..." 
 echo "OpenERP Server daemon stopped ..."
 ;;
 restart|force-reload)
@@ -216,7 +223,7 @@ sleep 1
 $0 start
 ;;
 *)
-echo " ---`date +\"%D-%H:%M:%S\"`--- Usage: /etc/init.d/openerp-server {start|stop|reload|restart|force-reload}" >> $TINYLOG
+echo " ---`date +\"%D-%H:%M:%S\"`--- Usage: /etc/init.d/openerp-server {start|stop|reload|restart|force-reload}" 
 exit 1 
 ;;
 esac
