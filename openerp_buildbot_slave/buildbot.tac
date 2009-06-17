@@ -47,68 +47,12 @@ class SlavePyFlakes(SlaveShellCommand):
 registerSlaveCommand("pyflakes", SlavePyFlakes, command_version)
 
 
-class CheckQuality(Command):  
-
-    def finished(self, signal=None, rc=0):
-        log.msg("command finished with signal %s, exit code %s" % (rc))        
-        if sig is not None:
-            rc = -1        
-        d = self.deferred 
-        self.deferred = None       
-        if d:
-            d.callback(rc)
-        else:
-            log.msg("Hey, command %s finished twice" % self)
-
-    def failed(self, why):
-        log.msg("  wait command failed [%s]" % self.stepId)
-        d = self.deferred
-        self.deferred = None
-        if d:
-            d.errback(why)
-        else:
-            log.msg("Hey, command %s finished twice" % self)
-        
-    def _startCommand(self):
-        log.msg("CheckQuality._startCommand")
-        import xmlrpclib
-        args = self.args            
-        assert args['dbname'] is not None                  
-        assert args['port'] is not None
-        assert args['modules'] is not None
-        port = self.args.get('port',8069)
-        host = 'localhost'
-        uri = 'http://' + host + ':' + str(port)
-        conn = xmlrpclib.ServerProxy(uri + '/xmlrpc/object')
-        qualityresult = []
-        for module in args['modules']:
-            qualityresult = connector.execute(args['dbname'], 1, 'admin','wiz.quality.check','check_quality',module)
-            msg = "Quality for the module : '%s'" %(module)
-            log.msg(" " + msg)
-            self.sendStatus({'header': msg})
-            self.sendStatus({'log': (module, qualityresult)})
-        self.finished(None, 0) 
-
-    def start(self):
-        self.deferred = defer.Deferred()
-        try:
-            self._startCommand()
-        except:
-            log.msg("error in CheckQuality._startCommand")
-            log.err()
-            # pretend it was a shell error
-            self.deferred.errback(AbandonChain(-1))
-        
-        return self.deferred
-
-registerSlaveCommand("check-quality", CheckQuality, command_version)
-
 class CreateDB(Command):
 
     def finished(self, signal=None, rc=0):
-        log.msg("command finished with signal %s, exit code %s" % (rc))        
-        if sig is not None:
-            rc = -1        
+        log.msg("command finished with signal %s, exit code %s" % (signal,rc))        
+        if signal is not None:
+            rc = 0        
         d = self.deferred 
         self.deferred = None       
         if d:
@@ -133,23 +77,29 @@ class CreateDB(Command):
         host = 'localhost'
         uri = 'http://' + host + ':' + str(port)
         log.msg("Server : " + uri)
-        conn = xmlrpclib.ServerProxy(uri + '/db')        
-        ls_db = conn.list()        
+        conn = xmlrpclib.ServerProxy(uri + '/xmlrpc/db')        
+        ls_db = conn.list() 
         dbname = self.args.get('dbname','test')
         lang = self.args.get('lang','en_us')
         demo = self.args.get('demo',True)
         if dbname in ls_db:
-            conn.drop('admin',dbname)
-            msg = " '%s' Database is drop\n" %(dbname)
+            try:
+                conn.drop('admin',dbname)
+                msg = " '%s' Database is dropped\n" %(dbname)
+            except:
+                msg = " '%s' Database cannot be dropped. It is being accessed by other users.\n" %(dbname)
+                self.finished(None, -1) 
             self.sendStatus({'header': msg})
-        db = conn.create('admin',dbname,demo,lang)
-        if db:
-            msg = " '%s' Database is created" %(dbname)
-        else:
-            msg = " '%s' Database can not create" %(dbname)
-        self.sendStatus({'header': msg})
-        log.msg(msg)       
-        self.finished(None, 0) 
+            log.msg(msg)
+        else:    
+            db = conn.create('admin',dbname,demo,lang)
+            if db:
+                msg = " '%s' Database is created and wait for 30 seconds." %(dbname)
+            else:
+                msg = " '%s' Database is not created" %(dbname)
+            self.sendStatus({'header': msg})
+            log.msg(msg)       
+            reactor.callLater(30, self.finished)
 
     def start(self):
         self.deferred = defer.Deferred()                
@@ -160,34 +110,10 @@ class CreateDB(Command):
             log.err()
             # pretend it was a shell error
             self.deferred.errback(AbandonChain(-1))
-                          
         return self.deferred
     
 registerSlaveCommand("create-db", CreateDB, command_version)
 
-class SlaveMakeLink(SlaveShellCommand):
-    def start(self):
-        args = self.args                              
-        assert args['workdir'] is not None
-        assert args['addonsdir'] is not None                
-        workdir = os.path.join(self.builder.basedir, args['workdir'])
-        addonsdir = os.path.join(self.builder.basedir, args['addonsdir'])        
-        commandline = ["ln","-f","-s",workdir,"-t",addonsdir]
-        c = ShellCommand(self.builder, commandline,
-                         workdir, environ=None,
-                         timeout=args.get('timeout', None),
-                         sendStdout=args.get('want_stdout', True),
-                         sendStderr=args.get('want_stderr', True),
-                         sendRC=True,
-                         initialStdin=args.get('initial_stdin'),
-                         keepStdinOpen=args.get('keep_stdin_open'),
-                         logfiles={'log detail':'openerp.log'},
-                         )
-        self.command = c
-        d = self.command.start()
-        return d
-
-registerSlaveCommand("make-link", SlaveMakeLink, command_version)
 
 class SlaveStartServer(SlaveShellCommand):
 
@@ -212,29 +138,29 @@ class SlaveStartServer(SlaveShellCommand):
         
         fp_config = open(os.path.join(workdir,'.openerp_serverrc'),'w')        
         fp_config.write('[options]\n')
-        fp_config.write('without_demo = False\n')
+        fp_config.write('without_demo=False\n')
         if args.get('netport',8070):
-            fp_config.write('netport = %s\n'%(args.get('netport',8070)))
-        fp_config.write('secure = False\n')
-        fp_config.write('smtp_user = False\n')
-        fp_config.write('demo = {}\n')
-        fp_config.write('syslog = False\n')
-        fp_config.write('logfile = openerp\n')
-        fp_config.write('cache_timeout = 100000\n')
+            fp_config.write('netport=%s\n'%(args.get('netport',8070)))
+        fp_config.write('secure=False\n')
+        fp_config.write('smtp_user=False\n')
+        fp_config.write('demo={}\n')
+        fp_config.write('syslog=False\n')
+        fp_config.write('logfile=/home/tiny/Desktop/openerp.log\n')
+        fp_config.write('cache_timeout=100000\n')
         if args.get('netport',8069):
-            fp_config.write('port =  %s\n'%(args.get('port',8069)))
-        fp_config.write('reportgz = False\n')
-        fp_config.write('secure_pkey_file = server.pkey\n')        
-        fp_config.write('log_level = info\n')
-        fp_config.write('admin_passwd = admin\n')
-        fp_config.write('assert_exit_level = warn\n')
-        fp_config.write('root_path = %s\n'%(workdir))
+            fp_config.write('port=%s\n'%(args.get('port',8069)))
+        fp_config.write('reportgz=False\n')
+        fp_config.write('secure_pkey_file=server.pkey\n')        
+        fp_config.write('log_level=info\n')
+        fp_config.write('admin_passwd=admin\n')
+        fp_config.write('assert_exit_level=warn\n')
+        fp_config.write('root_path=%s\n'%(workdir))
         if addonsdir:
-            fp_config.write('addons_path = %s\n'%(addonsdir))
+            fp_config.write('addons_path=%s\n'%(addonsdir))
         if args['dbname']:
-            fp_config.write('db_name = %s\n' %(args['dbname']))
+            fp_config.write('db_name=%s\n' %(args['dbname']))
         if len(modules):
-            fp_config.write("i = %s\n"%(','.join(modules)))
+            fp_config.write("i=%s\n"%(','.join(modules)))
 
         fnames = []
         if len(pofiles):            
