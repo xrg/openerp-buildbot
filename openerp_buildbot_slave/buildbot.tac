@@ -2,7 +2,7 @@
 from twisted.application import service
 from buildbot.slave.bot import BuildSlave
 
-basedir =  r'/home/hmo/Office/Projects/openerp-buildbot/openerp_buildbot_slave'
+basedir =  r'/home/tiny/Desktop/bzr_buildbot/openerp_buildbot_slave'
 buildmaster_host = 'localhost'
 port = 9999
 slavename = 'openerp_bot'
@@ -21,7 +21,9 @@ from buildbot.slave.commands import Command, SlaveShellCommand, ShellCommand, Ab
 from twisted.internet import reactor, defer, task
 from twisted.python import log, failure, runtime
 import os
+
 command_version = "0.0.1"
+
 class SlavePyFlakes(SlaveShellCommand):
     def start(self):
         args = self.args
@@ -50,8 +52,8 @@ registerSlaveCommand("pyflakes", SlavePyFlakes, command_version)
 class CheckQuality(Command):
 
     def finished(self, signal=None, rc=0):
-        log.msg("command finished with signal %s, exit code %s" % (rc))
-        if sig is not None:
+        log.msg("command finished with signal %s, exit code %s" % (signal, rc))
+        if signal is not None:
             rc = -1
         d = self.deferred
         self.deferred = None
@@ -73,6 +75,9 @@ class CheckQuality(Command):
         log.msg("CheckQuality._startCommand")
         import xmlrpclib
         args = self.args
+        log.msg(args['modules'])
+        log.msg(args['dbname'])
+        log.msg(args['port'])
         assert args['dbname'] is not None
         assert args['port'] is not None
         assert args['modules'] is not None
@@ -82,7 +87,7 @@ class CheckQuality(Command):
         conn = xmlrpclib.ServerProxy(uri + '/xmlrpc/object')
         qualityresult = []
         for module in args['modules']:
-            qualityresult = connector.execute(args['dbname'], 1, 'admin','wiz.quality.check','check_quality',module)
+            qualityresult = conn.execute(args['dbname'], 1, 'admin','wizard.quality.check','check_quality',module)
             msg = "Quality for the module : '%s'" %(module)
             log.msg(" " + msg)
             self.sendStatus({'header': msg})
@@ -98,7 +103,6 @@ class CheckQuality(Command):
             log.err()
             # pretend it was a shell error
             self.deferred.errback(AbandonChain(-1))
-
         return self.deferred
 
 registerSlaveCommand("check-quality", CheckQuality, command_version)
@@ -210,6 +214,9 @@ class SlaveStartServer(SlaveShellCommand):
         modules =  args.get('modules',[])
         pofiles =  args.get('pofiles',[])
         pidfile =  args.get('pidfile',[])
+        log.msg(modules)
+        log.msg(pofiles)
+        log.msg(pidfile)
         workdir = os.path.join(self.builder.basedir, args['workdir'])
         addonsdir = os.path.join(self.builder.basedir, args['addonsdir'])
         ls_fnames = False
@@ -223,9 +230,9 @@ class SlaveStartServer(SlaveShellCommand):
         fp.write('RUN_MODE="daemons"\n')
         fp.write('TINYPATH=%s\n'%(workdir))
         if addonsdir:
-        	fp.write('ADDONSPATH=%s\n'%(addonsdir))
+        	condition += ' --addons-path=%s'%(addonsdir)
         if args['dbname']:
-        	condition += '--database=%s'%(args['dbname'])
+        	condition += ' --database=%s'%(args['dbname'])
 
         if len(pofiles):
            for pofile in pofiles:
@@ -235,8 +242,10 @@ class SlaveStartServer(SlaveShellCommand):
                ls_fnames.append(fname)
 
         if ls_fnames and len(ls_fnames):
-           condition += "--language= %s\n" %(','.join(ls_fnames))
-           condition += "--i18n-import = %s\n"%(','.join(pofiles))
+           condition += " --language=%s" %(','.join(ls_fnames))
+           condition += " --i18n-import=%s"%(','.join(pofiles))
+        if len(modules):
+           condition += " --init=%s"%(','.join(modules))
 
         fp.write('TINYPID=$TINYPATH/openerp.pid\n')
         fp.write('TINYLOG=$TINYPATH/openerp.log\n')
