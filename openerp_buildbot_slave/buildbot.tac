@@ -225,7 +225,7 @@ class SlaveStartServer(SlaveShellCommand):
         ls_fnames = False
 
         # Make daemon script to start, stop, restart server auto
-        condition = ' --root_path=%s'%(workdir)
+        condition = ''
         if os.path.isfile(os.path.join(workdir,'openerp-server')):
             os.remove(os.path.join(workdir,'openerp-server'))
         fp = open(os.path.join(workdir,'openerp-server'),'w')
