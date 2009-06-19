@@ -222,7 +222,7 @@ class SlaveStartServer(SlaveShellCommand):
         ls_fnames = False
 
         # Make daemon script to start, stop, restart server auto
-        condition = ''
+        condition = ' --root_path=%s'%(workdir)
         if os.path.isfile(os.path.join(workdir,'openerp-server')):
             os.remove(os.path.join(workdir,'openerp-server'))
         fp = open(os.path.join(workdir,'openerp-server'),'w')
@@ -230,9 +230,13 @@ class SlaveStartServer(SlaveShellCommand):
         fp.write('RUN_MODE="daemons"\n')
         fp.write('TINYPATH=%s\n'%(workdir))
         if addonsdir:
-        	condition += ' --addons-path=%s'%(addonsdir)
-        if args['dbname']:
-        	condition += ' --database=%s'%(args['dbname'])
+                condition += ' --addons-path=%s'%(addonsdir)
+        if dbname:
+                condition += ' --database=%s'%(dbname)
+        if port:
+                condition += ' --port=%d'%(port)
+        if netport:
+                condition += ' --net_port=%d'%(netport)
 
         if len(pofiles):
            for pofile in pofiles:
