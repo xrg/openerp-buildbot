@@ -144,25 +144,25 @@ class CreateDB(Command):
         demo = self.args.get('demo',True)
         flag = True
         if dbname in ls_db:
-        	flag = False
-        	try:
-        		conn.drop('admin',dbname)
-        		msg = " '%s' Database is dropped\n" %(dbname)
-        		flag = True
-        	except:
-        		msg = " '%s' Database cannot be dropped. It is being accessed by other users.\n" %(dbname)
-        		self.finished(None, -1)
-        	self.sendStatus({'header': msg})
-        	log.msg(msg)
+            flag = False
+            try:
+                conn.drop('admin',dbname)
+                msg = " '%s' Database is dropped\n" %(dbname)
+                flag = True
+            except:
+                msg = " '%s' Database cannot be dropped. It is being accessed by other users.\n" %(dbname)
+                self.finished(None, -1)
+            self.sendStatus({'header': msg})
+            log.msg(msg)
         if flag:
-        	db = conn.create('admin',dbname,demo,lang)
-        	if db:
-        		msg = " '%s' Database is created and wait for 30 seconds." %(dbname)
-        	else:
-        		msg = " '%s' Database is not created" %(dbname)
-        	self.sendStatus({'header': msg})
-        	log.msg(msg)
-        	reactor.callLater(30, self.finished)
+            db = conn.create('admin',dbname,demo,lang)
+            if db:
+                msg = " '%s' Database is created and wait for 30 seconds." %(dbname)
+            else:
+                msg = " '%s' Database is not created" %(dbname)
+            self.sendStatus({'header': msg})
+            log.msg(msg)
+            reactor.callLater(30, self.finished)
 
     def start(self):
         self.deferred = defer.Deferred()
