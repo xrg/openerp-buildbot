@@ -193,7 +193,7 @@ class SlaveMakeLink(SlaveShellCommand):
                          sendRC=True,
                          initialStdin=args.get('initial_stdin'),
                          keepStdinOpen=args.get('keep_stdin_open'),
-                         logfiles={'log detail':'openerp.log'},
+                         logfiles={'openerp-log':workdir +'/openerp.log'},
                          )
         self.command = c
         d = self.command.start()
@@ -202,6 +202,12 @@ class SlaveMakeLink(SlaveShellCommand):
 registerSlaveCommand("make-link", SlaveMakeLink, command_version)
 
 class SlaveStartServer(SlaveShellCommand):
+
+    def sendStatus(self, status):    
+        """Send a status update to the master."""
+        if self.debug:
+            log.msg("sendStatus", status)
+        self.builder.sendUpdate(status)
 
     def finished(self, sig, rc):
         if rc==-1:
@@ -228,6 +234,8 @@ class SlaveStartServer(SlaveShellCommand):
         condition = ''
         if os.path.isfile(os.path.join(workdir,'openerp-server')):
             os.remove(os.path.join(workdir,'openerp-server'))
+        #if os.path.isfile(os.path.join(workdir,'openerp.log')):
+            #os.remove(os.path.join(workdir,'openerp.log'))
         fp = open(os.path.join(workdir,'openerp-server'),'w')
         fp.write('#!/bin/sh\n')
         fp.write('RUN_MODE="daemons"\n')
@@ -318,7 +326,7 @@ exit 0
                          sendRC=True,
                          initialStdin=args.get('initial_stdin'),
                          keepStdinOpen=args.get('keep_stdin_open'),
-                         logfiles={'log detail':'openerp.log'},
+                         logfiles={'openerp-log':workdir+'/openerp.log'},
                          )
         self.command = c
         d = self.command.start()
