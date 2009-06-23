@@ -2,7 +2,7 @@
 from twisted.application import service
 from buildbot.slave.bot import BuildSlave
 
-basedir =  r'/home/hmo/Office/Projects/openerp-buildbot/openerp_buildbot_slave'
+basedir = r'/home/tiny/Desktop/openerp-buildbot/openerp_buildbot_slave'
 buildmaster_host = 'localhost'
 port = 9999
 slavename = 'openerp_bot'
@@ -75,6 +75,9 @@ class CheckQuality(Command):
         log.msg("CheckQuality._startCommand")
         import xmlrpclib
         args = self.args
+        print "---------args['modules']----",args['modules']
+        args['modules'].append('base_module_quality')
+        log.msg("before")
         log.msg(args['modules'])
         log.msg(args['dbname'])
         log.msg(args['port'])
@@ -85,13 +88,24 @@ class CheckQuality(Command):
         host = 'localhost'
         uri = 'http://' + host + ':' + str(port)
         conn = xmlrpclib.ServerProxy(uri + '/xmlrpc/object')
-        qualityresult = []
+        result = []
+        qualityresult = {}
         for module in args['modules']:
+        #for module in ['base_module_quality', 'hr']:
+            log.msg("\n\n")
+            print "---quality--for",module
             qualityresult = conn.execute(args['dbname'], 1, 'admin','wizard.quality.check','check_quality',module)
-            msg = "Quality for the module : '%s'" %(module)
-            log.msg(" " + msg)
-            self.sendStatus({'header': msg})
-            self.sendStatus({'log': (module, qualityresult)})
+            log.msg("Quality for the module : '%s'" %(module))
+            log.msg("Quality for the module : '%s'" %(qualityresult['name']))
+            log.msg(" final_score : "+str(qualityresult['final_score']))
+            for tests in qualityresult['test_ids']:
+                for attrib in tests[2]:
+                    log.msg(attrib)
+            result.append(qualityresult)
+        for item in result:
+            print "----item---",item['name']
+        self.sendStatus({'header': str(result)})
+#            self.sendStatus({'log': (module, qualityresult)})
         self.finished(None, 0)
 
     def start(self):
@@ -240,6 +254,10 @@ class SlaveStartServer(SlaveShellCommand):
         fp.write('#!/bin/sh\n')
         fp.write('RUN_MODE="daemons"\n')
         fp.write('TINYPATH=%s\n'%(workdir))
+        if args['port']:
+            condition += ' --port=%s --no-netrpc '%(args['port'])
+        if args['netport']:
+            condition += ' --net_port=%s'%(args['netport'])
         if addonsdir:
                 condition += ' --addons-path=%s'%(addonsdir)
         if dbname:
@@ -333,5 +351,4 @@ exit 0
         return d
 
 registerSlaveCommand("start-server", SlaveStartServer, command_version)
-
 
