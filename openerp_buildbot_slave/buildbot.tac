@@ -4,7 +4,7 @@ from buildbot.slave.bot import BuildSlave
 
 basedir = r'/home/nch/openERP/Extra-branch/HMOsir/openerp-buildbot/openerp_buildbot_slave'
 buildmaster_host = 'localhost'
-port = 9999
+port = 8999
 slavename = 'openerp_bot'
 passwd = 'tiny'
 keepalive = 600
@@ -198,7 +198,7 @@ class SlaveMakeLink(SlaveShellCommand):
         assert args['addonsdir'] is not None
         workdir = os.path.join(self.builder.basedir, args['workdir'])
         addonsdir = os.path.join(self.builder.basedir, args['addonsdir'])
-        commandline = ["ln","-f","-s",workdir,"-t",addonsdir]
+        commandline = ["ln","-f","-s","-t",workdir+'/*',addonsdir]
         c = ShellCommand(self.builder, commandline,
                          workdir, environ=None,
                          timeout=args.get('timeout', None),
