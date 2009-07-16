@@ -1,0 +1,152 @@
+body
+{
+	margin: 0px;
+	padding: 0px;
+	font-size: 12px;
+	font-family: Verdana, Arial, Serif, sand-serif;
+	text-align: left;
+}
+#maincontent
+{
+	width: 1004px;
+	text-align: left;
+	margin: 0px auto;
+}
+div.headerlink a
+{
+	font-family: sans-serif;
+	font-size:12px;
+	font-style:bold;
+	text-align: left;
+	color: #ffffff;
+	text-decoration: none;
+	margin-top: 1px;
+	position:relative; 
+	top:-6px;
+}
+
+div.headerlink a:link
+{
+	font-family: sans-serif;
+	font-size:12px;
+	font-style:bold;
+	text-align: left;
+	color: #ffffff;
+	text-decoration: none;
+	position:relative; 
+	top:-6px;
+}
+
+div.headerlink a:visted
+{
+	font-family: sans-serif;
+	font-size:13px;
+	font-style:bold;
+	text-align: left;
+	color: #ffffff;
+	text-decoration: none;
+	position:relative; 
+	top:-6px;
+}
+
+div.headerlink a:hover
+{
+	font-family: sans-serif;
+	font-size:12px;
+	font-style:bold;
+	text-align: left;
+	color: #ffffff;
+	text-decoration: underline;
+	position:relative; 
+	top:-6px;
+}
+
+div.headerlink a:active
+{
+	font-family:sans-serif;
+	font-size:12px;
+	font-style:bold;
+	text-align: left;
+	color: #ffffff;
+	text-decoration: underline;
+	position:relative; 
+	top:-6px;
+}
+
+.headerlinkgrey
+{
+	background-image:url(../images/gradientredbg.jpg);
+}
+
+.greycurveleft
+{
+	background-image:url(../images/redcurveleft.jpg);
+}
+
+.greyredcurve
+{
+	background-image:url(../images/greyredcurve.jpg);
+}
+
+.redline
+{
+	background-image:url(../images/redline.jpg);
+}
+
+.redcurve
+{
+	background-image:url(../images/redcurve.jpg);
+}
+
+
+a {
+color:#C64934;
+font-family:sans-serif;
+font-size:13px;
+text-decoration:none;
+}
+a:link, a:visited 
+{
+	color:#C64934;
+	text-decoration:none;
+}
+td 
+{
+	font-size:13px;
+    border: 1px solid #999;
+}
+
+
+.footertext 
+{
+	color:#666666;
+	font-size:9px;
+	text-align:left;
+}
+
+.footertext a:visited, .footertext a:link 
+{
+	color:#C64934;
+	font-size:9px;
+	text-align:left;
+	text-decoration:none;
+}
+
+table
+{
+    text-align:left;
+    border-spacing:1;
+    table-layout:1;
+    border:1;
+    overflow:auto;
+    background-color: #dedbdb; 
+    border-color:#010000 ;
+    color:#010000
+}
+th
+{
+   text-align:left;
+   border: 1px solid #999;
+   font-size:15px;
+   color:#fb0202
+}
