@@ -1,39 +1,39 @@
 td.Event, td.BuildStep, td.Activity, td.Change, td.Time, td.Builder {
-    border-top: 1px solid;
-    border-right: 1px solid;
+    border-top: 2px solid;
+    border-right: 2px solid;
 }
 
 td.box {
-       border: 1px solid;
+       border: 2px solid;
 }
 
 /* Activity states */
 .offline { 
-        background-color: red;
+        background-color: white;
 }
 .idle {
 	background-color: white;
 }
 .waiting { 
-        background-color: yellow;
+        background-color: white;
 }
 .building { 
-        background-color: yellow;
+        background-color: white;
 }
 
 /* LastBuild, BuildStep states */
 .success {
-	background-color: #72ff75;
+	background-color: white;
 }
 .failure {
-	background-color: red;
+	background-color: white;
 }
 .warnings {
-	background-color: #ff8000;
+	background-color: white;
 }
 .exception {
-	background-color: #c000c0;
+	background-color: white;
 }
 .start,.running {
-	background-color: yellow;
+	background-color: white;
 }
