@@ -4,7 +4,7 @@ body
 	padding: 0px;
 	font-size: 12px;
 	font-family: Verdana, Arial, Serif, sand-serif;
-	text-align: left;
+    color:#bd2121
 }
 #maincontent
 {
@@ -148,5 +148,10 @@ th
    text-align:left;
    border: 1px solid #999;
    font-size:15px;
-   color:#fb0202
+   color:#bd2121
+}
+.table1
+{
+    border:0px;
+    overflow:auto;
 }
