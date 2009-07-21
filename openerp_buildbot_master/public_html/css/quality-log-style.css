@@ -6,99 +6,53 @@ body
 	font-family: Verdana, Arial, Serif, sand-serif;
     color:#bd2121
 }
-#maincontent
-{
-	width: 1004px;
-	text-align: left;
-	margin: 0px auto;
-}
-div.headerlink a
-{
-	font-family: sans-serif;
-	font-size:12px;
-	font-style:bold;
-	text-align: left;
-	color: #ffffff;
-	text-decoration: none;
-	margin-top: 1px;
-	position:relative; 
-	top:-6px;
-}
 
-div.headerlink a:link
+table
 {
-	font-family: sans-serif;
-	font-size:12px;
-	font-style:bold;
-	text-align: left;
-	color: #ffffff;
-	text-decoration: none;
-	position:relative; 
-	top:-6px;
+    text-align:left;
+    border-spacing:1;
+    overflow:auto;
+    background-color: #dedbdb; 
+    border-color:#010000 ;
+    color:#010000
 }
-
-div.headerlink a:visted
+th
 {
-	font-family: sans-serif;
+   border-top: 1px solid #999;
+   border-bottom: 1px solid #999;
+   border-right: 1px solid #999;
+   font-size:15px;
+   color:#bd2121
+}
+td 
+{
+    border-bottom: 1px solid #999;
+    border-right: 1px solid #999;
 	font-size:13px;
-	font-style:bold;
-	text-align: left;
-	color: #ffffff;
-	text-decoration: none;
-	position:relative; 
-	top:-6px;
 }
-
-div.headerlink a:hover
+.table1
 {
-	font-family: sans-serif;
-	font-size:12px;
-	font-style:bold;
-	text-align: left;
-	color: #ffffff;
-	text-decoration: underline;
-	position:relative; 
-	top:-6px;
+    border-color: white;
+    overflow:auto;
+    background-color: white
 }
-
-div.headerlink a:active
+.th1 
 {
-	font-family:sans-serif;
-	font-size:12px;
-	font-style:bold;
-	text-align: left;
-	color: #ffffff;
-	text-decoration: underline;
-	position:relative; 
-	top:-6px;
+    border-color: white;
+	font-size: 15px;
+    font-style: italic;
+    padding-left: 10px;
 }
-
-.headerlinkgrey
+.td1 
 {
-	background-image:url(../images/gradientredbg.jpg);
+    border-color: white;
+    font-size: 15px;
+    font-style: italic
 }
-
-.greycurveleft
+hr
 {
-	background-image:url(../images/redcurveleft.jpg);
+   color:#bd2121
 }
-
-.greyredcurve
-{
-	background-image:url(../images/greyredcurve.jpg);
-}
-
-.redline
-{
-	background-image:url(../images/redline.jpg);
-}
-
-.redcurve
-{
-	background-image:url(../images/redcurve.jpg);
-}
-
-
 a {
 color:#C64934;
 font-family:sans-serif;
@@ -110,48 +64,4 @@ a:link, a:visited
 	color:#C64934;
 	text-decoration:none;
 }
-td 
-{
-	font-size:13px;
-    border: 1px solid #999;
-}
 
-
-.footertext 
-{
-	color:#666666;
-	font-size:9px;
-	text-align:left;
-}
-
-.footertext a:visited, .footertext a:link 
-{
-	color:#C64934;
-	font-size:9px;
-	text-align:left;
-	text-decoration:none;
-}
-
-table
-{
-    text-align:left;
-    border-spacing:1;
-    table-layout:1;
-    border:1;
-    overflow:auto;
-    background-color: #dedbdb; 
-    border-color:#010000 ;
-    color:#010000
-}
-th
-{
-   text-align:left;
-   border: 1px solid #999;
-   font-size:15px;
-   color:#bd2121
-}
-.table1
-{
-    border:0px;
-    overflow:auto;
-}
