@@ -1,17 +1,624 @@
-body
+
+
+* {
+	margin: 0;
+	padding: 0;
+}
+
+/*body {
+	margin: 0px 0;
+	background: #FFFFFF;
+	font: normal small "Trebuchet MS", Arial, Helvetica, sans-serif;
+	color: #666666;
+}*/
+
+h1, h2, h3 {
+	color: #333333;
+}
+
+h3 {
+	font-size: 1.3em;
+	padding:0 0 0 30px;
+}
+
+p, blockquote, ul, ol {
+	margin-bottom: 1.5em;
+	line-height: 1.65em;
+	text-align: justify;
+}
+
+blockquote {
+	margin-left: 2em;
+	margin-right: 2em;
+	font-style: italic;
+}
+
+div.ul {
+	margin-left: 0.2em;
+}
+
+div.ul a {
+	text-align:left;
+}
+
+ul {
+	margin-left: 0.2em;
+}
+ol {
+	margin-left: 3em;
+}
+
+a {
+	text-decoration: underline;
+	color: #808080;
+}
+
+a:hover {
+	text-decoration: none;
+	color: #808080;
+}
+
+img {
+	border: none;
+}
+
+img.left {
+	float: left;
+	margin: 5px 20px 0 0;
+}
+
+img.right {
+	float: right;
+	margin: 5px 0 0 20px;
+}
+
+/* Boxed Style */
+
+.boxed {
+	width:300px;
+}
+
+.boxed .title {
+	background: #CA0A05 url(../images/img06.gif) repeat-x;
+}
+
+.boxed .title h2 {
+	height: 28px;
+	padding: 12px 0 0 0;
+	text-transform: uppercase;
+	font-size: 1em;
+	text-align: center;
+	color: #FFFFFF;
+	
+}
+
+.boxed .content {	
+	padding-left:10px;
+	padding-right:10px;
+	padding-top:10px;
+	border-top: 1px solid #FFFFFF;
+	background: url(../images/img07.gif) repeat-x;
+}
+
+.boxed .content a
 {
-	margin: 0px;
-	padding: 0px;
-	font-size: 12px;
-	font-family: Verdana, Arial, Serif, sand-serif;
+	text-align: left;
+}
+
+.boxed .content1 {
+	padding-left:10px;
+	padding-right:10px;
+	padding-top:10px;
+	border-top: 1px solid #FFFFFF;
+	background: url(../images/img07.gif) repeat-x;
+}
+
+/* Post */
+
+.post .title {
+	background: #CA0A05 url(../images/img06.gif) repeat-x;
+	font-size: 1em;
+	text-transform: uppercase;
+	color: #FFFFFF;
+}
+
+.post .title h2 {
+	height: 28px;
+	padding: 12px 0 0 0;
+	text-transform: uppercase;
+	font-size: 1em;
+	text-align: center;
+	color: #FFFFFF;
+}
+
+.post .date {
+	margin-top: -25px;
+	padding-bottom: 10px;
+	padding-right: 20px;
+	text-align: right;
+	font-size: x-small;
+	color: #FFFFFF;
+}
+
+.post .meta {
+	clear: both;
+}
+
+.post .meta p {
+	margin: 0;
+	padding: 10px 20px 40px 20px;
+	border-top: 1px dotted #CCCCCC;
+	line-height: normal;
+	font-size: x-small;
+}
+
+.post .story {
+	padding-left:10px;
+	padding-right:10px;
+	padding-top:10px;
+	border-top: 1px solid #FFFFFF;
+	background: url(../images/img07.gif) repeat-x;
+}
+
+/* Header */
+
+#header {
+	width: 980px;
+	height: 71px;
+	margin: 0 auto;
+/*	padding: 20px 20px 0 20px;*/
+	padding:0px 1px 1px 0;
+	background: #ffffff url(../images/img01_98opx.jpg) no-repeat;
+}
+
+/* Header > Logo */
+
+#logo {
+	float: left;
+	width: 340px;
+	height: 50px;
+	padding-top:10px;
+}
+
+#logo h1 {
+	float: left;
+	margin: 0;
+	padding: 50px 0 0 0;
+	font-size: 2.6em;
+}
+
+#logo h2 {
+	float: left;
+	margin-top: -5px;
+	font-size: 1em;
+}
+
+#logo a {
+	text-decoration: none;
+	color: #000000;
+}
+
+/* Header > Menu */
+
+#menu {
+	float: right;
+	padding-right:15px;
+}
+
+#menu ul {
+	margin: 0;
+	padding-top: 0px;
+	list-style: none;
+}
+
+#menu li {
+	display: inline;
+}
+
+#menu a {
+	display: block;
+	float: left;
+	width: 120px;
+	height: 30px;
+	/**margin-left: 2px;*/
+	padding-top: 10px;
+	background: url(../images/img03.gif) no-repeat;
+	text-decoration: none;
+	text-align: center;
+	font-weight: bold;
+	color: #ffffff;
+}
+
+#menu a:hover {
+	background-image: url(../images/img04.gif);
+	color: black;
+}
+
+#menu .active a {
+	background-image: url(../images/img05.gif);
+}
+#content1 {
+	width: 980px;
+	margin: 0 auto;
+	padding: 10px;
+	border-top: 1px solid #FFFFFF;
+}
+
+
+
+
+/* Content */
+
+#content {
+	width: 980px;
+	/*margin: 0 auto;
+	padding: 20px 20px 0 20px;**/
+	padding-top:10px;
+	padding-left:10px;
+	background: url(../images/img2_width_990px.png) no-repeat;
+	border-top: 1px solid #FFFFFF;
+}
+
+/* Content > Main */
+
+#main {
+	float: left;
+	width: 350px;
+	padding-left: 10px;
+}
+
+#main2 {
+	float: left;
+	width: 235px;
+	padding-left: 10px;
+}
+
+
+
+/* Content > Sidebar */
+
+#sidebar {
+	float: left;
+	
+}
+
+#sidebar .boxed .title h2 {
+	background: url(../images/img08.gif) no-repeat;
+}
+
+/* Content > Sidebar > Login */
+
+#login fieldset {
+	border: none;
+}
+
+#login legend {
+	display: none;
+}
+
+#login label {
+	display: block;
+}
+
+#login input {
+	margin-bottom: 10px;
+	padding: 2px 5px;
+	font: normal small "Trebuchet MS", Arial, Helvetica, sans-serif;
+	color: #666666;
+}
+
+#inputtext1, #inputtext2 {
+	width: 160px;
+}
+
+#inputsubmit1 {
+	margin: 0;
+	padding: 0;
+}
+
+/* Content > Sidebar > Updates*/
+
+#updates ul {
+	margin: 0;
+	list-style: none;
+}
+
+#updates h3 {
+	font-size: .8em;
+}
+
+#updates p {
+	line-height: normal;
+	font-size: .8em;
+}
+
+#updates a {
+	text-decoration: none;
+}
+
+/* Content > Sidebar2 */
+
+#sidebar2 {	
+	padding-right: 10px;
+	
+	float:right;
+}
+
+#sidebar2 .boxed .title h2 {
+	background: url(../images/img10.gif) no-repeat right top;
+}
+
+/* Content > Sidebar2 > Sponsors */
+
+#sponsors ul {
+	margin-left: 0;
+	padding-left: 0;
+	list-style: none;
+	list-style-type:none;
+	list-style-position:none;
+}
+
+#sponsors ul li a {
+	text-align:left;
+}
+
+
+/* Content > Sidebar2 > ad120x600 */
+
+#ad120x600 {
 	text-align: center;
 }
-#maincontent
-{
-	width: 1004px;
-	text-align: left;
-	margin: 0px auto;
+
+/* Footer */
+
+#footer {
+	clear: both;
+	width: 960px;
+	height: 80px;
+	margin: 0 auto;
+	padding: 20px 0;
+	background: url(../images/img02.png) no-repeat;
 }
+
+#footer p {
+	margin: 0;
+	text-align: center;
+	line-height: normal;
+	font-size: x-small;
+}
+
+#footer a {
+	text-decoration: underline;
+	color: #666666;
+}
+
+#footer a:hover {
+	text-decoration: none;
+}
+
+/* index.html */
+a.button{
+	background:url(../images/button.gif) ;
+	display:block;
+	color:#555555;
+	font-weight:bold;
+	height:30px;
+	line-height:29px;
+	margin-bottom:14px;
+	text-decoration:none;
+	width:215px;
+}
+a:hover.button{
+	color:#CA0A05;
+}
+
+/* -------------------- */
+/* CLASSES				*/
+/* -------------------- */
+    .openobject{
+		background:url(../images/action_check.gif) no-repeat 10px 8px;
+		text-indent: 34px;
+		display:block;
+	}
+	.openerp{
+		background:url(../images/action_check.gif) no-repeat 10px 8px;
+		text-indent: 34px;
+		display:block;
+	}
+	.openobjectbi{
+		background:url(../images/action_check.gif) no-repeat 10px 8px;
+		text-indent: 34px;
+		display:block;
+	}
+	.openobjectserver{
+		background:url(../images/action_check.gif) no-repeat 10px 8px;
+		text-indent: 34px;
+		display:block;
+	}
+	
+	.openobjectclient{
+		background:url(../images/action_check.gif) no-repeat 10px 8px;
+		text-indent:34px;
+		display:block;
+	}
+	.openobjectaddons{
+		background:url(../images/action_check.gif) no-repeat 10px 8px;
+		text-indent:34px;
+		display:block;
+	}
+	.openobjectwebclient{
+		background:url(../images/action_check.gif) no-repeat 10px 8px;
+		text-indent:-75px;
+		display:block;
+	}
+	.openerpserverbugs{
+		background:url(../images/action_check.gif) no-repeat 10px 8px;
+		text-indent:36px;
+		display:block;
+	}
+	.openerpclientbugs{
+		background:url(../images/action_check.gif) no-repeat 10px 8px;
+		text-indent:36px;
+		display:block;
+	}
+	.openerpaddonsbugs{
+		background:url(../images/action_check.gif) no-repeat 10px 8px;
+		text-indent:36px;
+		display:block;
+	}
+	.openerpwebclientbugs{
+		background:url(../images/action_check.gif) no-repeat 10px 8px;
+		text-indent:36px;
+		display:block;
+	}
+	.forum{
+		background:url(../images/action_check.gif) no-repeat 10px 8px;
+		text-indent:36px;
+		display:block;
+	}
+	.openerpplanet{
+		background:url(../images/action_check.gif) no-repeat 10px 8px;
+		text-indent:36px;
+		display:block;
+	}
+	.openerpdocument{
+		background:url(../images/action_check.gif) no-repeat 10px 8px;
+		text-indent:36px;
+		display:block;
+	}
+	
+
+/***********Green box**********/
+#csc {
+  background : #f4f4f4 url(../images/csc_tl.png) no-repeat;
+  width : 41em;
+  height : 62px;
+  position : relative;
+  padding : 94px 43px;
+}
+
+/* these are the other three spans. classes were used to allow multiuse on a page */
+.tr, .bl, .br {
+  position : absolute;
+  width : 39px;
+  height : 39px;  /* corner images are 40x40 */
+  display : block;
+  margin-bottom : -1px;  /* this is for IE */
+}
+
+/* change position and image: top-right */
+.tr {
+  background : transparent url(../images/csc_tr.png) no-repeat;
+  top : 0;
+  right : 0;
+}
+
+/* change position and image: bottom-left */
+.bl {
+  background : transparent url(../images/csc_bl.png) no-repeat;
+  bottom : 0;
+  left : 0;
+}
+
+/* change position and image: bottom-right */
+.br {
+  background : transparent url(../images/csc_br.png) no-repeat;
+  right : 0;
+  bottom : 0;
+}
+
+
+/* End Styles */
+/*********green box end***/
+
+
+
+/************** Header and Footer CSS **************/
+
+body {
+	margin: 0px;
+	font-family: sans-serif;
+	font-size:13px;
+	font-style:normal;
+	text-decoration: none;
+	padding: 0px;
+}
+
+#menu_header {
+background:#666666 none repeat scroll 0 0;
+height:25px;
+white-space:nowrap;
+}
+	
+#menu_header_menu {
+background:transparent url(../images/mainmenu_button.png) repeat-x scroll 0 0;
+font-weight:bold;
+padding:0 10px;
+text-align:center;
+}
+
+.footertext
+{
+	font-size:9px;
+	text-align: center;
+	color: #666666;
+}
+
+.footertext a
+{
+	font-size:12px;
+	text-align: center;
+	color: #AC0000;
+	text-decoration: none
+}
+
+.footertext a:visited, .footertext a:link
+{
+	font-size:12px;
+	text-align: center;
+	color: #C64934;
+	text-decoration: none
+}
+
+.headerlinkgrey
+{
+	background-image:url(../images/gradientredbg.jpg);
+}
+
+.greycurveleft
+{
+	background-image:url(../images/redcurveleft.jpg);
+}
+
+.greyredcurve
+{
+	background-image:url(../images/greyredcurve.jpg);
+}
+	
+.redline
+{
+	background-image:url(../images/redline.jpg);
+}
+	
+.redcurve
+{
+	background-image:url(../images/redcurve.jpg);
+}
+
+
+a {
+	text-decoration: none;
+}
+
+a.headerlink
+{
+	font-size:12px;
+	font-style:bold;
+	text-align: center;
+	color: #ffffff;
+	text-decoration: none;
+}
+
 div.headerlink a
 {
 	font-family: sans-serif;
@@ -37,10 +644,10 @@ div.headerlink a:link
 	top:-6px;
 }
 
-div.headerlink a:visted
+div.headerlink a:visited
 {
 	font-family: sans-serif;
-	font-size:13px;
+	font-size:12px;
 	font-style:bold;
 	text-align: center;
 	color: #ffffff;
@@ -73,61 +680,15 @@ div.headerlink a:active
 	top:-6px;
 }
 
-.headerlinkgrey
+.whitecurvetop
 {
-	background-image:url(../images/gradientredbg.jpg);
+	background-image:url(images/whitetop.gif);
 }
 
-.greycurveleft
+.whitecurvebottom
 {
-	background-image:url(../images/redcurveleft.jpg);
+	background-image:url(images/whitebottom.gif);
 }
 
-.greyredcurve
-{
-	background-image:url(../images/greyredcurve.jpg);
-}
-
-.redline
-{
-	background-image:url(../images/redline.jpg);
-}
-
-.redcurve
-{
-	background-image:url(../images/redcurve.jpg);
-}
-
-
-a {
-color:#C64934;
-font-family:sans-serif;
-font-size:13px;
-text-decoration:none;
-}
-a:link, a:visited 
-{
-	color:#C64934;
-	text-decoration:none;
-}
-td 
-{
-	font-size:13px;
-}
-
-
-.footertext 
-{
-	color:#666666;
-	font-size:9px;
-	text-align:center;
-}
-
-.footertext a:visited, .footertext a:link 
-{
-	color:#C64934;
-	font-size:9px;
-	text-align:center;
-	text-decoration:none;
-}
+/************** Header and Footer CSS  END**************/
 

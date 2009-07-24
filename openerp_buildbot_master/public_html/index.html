@@ -1,12 +1,15 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<!-- Open Object Template End -->
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="<?php echo $this->language; ?>" lang="<?php echo $this->language; ?>" >
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en-gb" >
 	<head>
-        <script type="text/javascript">
+		<title>OpenERP Integration Server</title>
+		<meta content="text/html; charset=iso-8859-1" http-equiv="Content-Type"/>
+		<meta content="index, follow" name="robots"/>		
+		<link rel="stylesheet" href="css/styles.css" type="text/css" />		
+		<script type="text/javascript">
 	        function getCurrBuilds()
 	        {
                 url = "one_box_per_builder"
-                frame = document.getElementById('frame')
+                frame = document.getElementById('frame_lastbuild')
                 frame.src=url;
                 frame_doc = frame.contentWindow.document;
                 lis = frame_doc.getElementsByTagName('table')
@@ -22,38 +25,26 @@
 		<!-- Open Object Css File End -->
         <title>Open Object</title>
 	</head>
-	<body onLoad="javascript:getCurrBuilds()">
-      	<!-- Main Body Start -->
-		<div id="maincontent">
-           	<!-- Header Start -->	
+	<body>
+		<center>
 			<table width="1004" border="0" cellspacing="0" cellpadding="0">
 			<tr>
-				<td width="202">
-					<a href="http://openobject.com" alt="Open Object - Free Management Solution Logo"/><img src="images/openobject.jpg" border="0"/></a>
-				</td>
-				<td width="335">
-					<div align="right"><img src="images/picture.jpg" width="242" height="68" /></div>
-				</td>
+				<td width="202"><a href="http://openobject.com" alt="Open Object - Free Management Solution Logo"/><img src="images/openobject.jpg" border="0"/></a></td>
+				<td width="335"><div align="right"><img src="images/picture.jpg" width="242" height="68" /></div></td>
 				<td width="440" align="right" valign="top">
 					<table id="Table_01" height="35" border="0" cellpadding="0" cellspacing="0">
 					<tr>
 						<td class="greycurveleft" width="23px" height="35px"></td>
 						<td width="107" class="headerlinkgrey">
-							<div class="headerlink" align="center">
-								<a href="http://openerp.com"><strong>Open  ERP</strong></a>
-							</div>
+							<div class="headerlink" align="center"><a href="http://openerp.com"><strong>Open  ERP</strong></a></div>
 						</td>
 						<td width="22px" height="35px" class="greyredcurve"></td>
 						<td width="125" height="35" class="headerlinkgrey">
-							<div class="headerlink" align="center">
-								<a href="http://ondemand.openerp.com"><strong>On Demand</strong></a>
-							</div>
+							<div class="headerlink" align="center"><a href="http://ondemand.openerp.com"><strong>On Demand</strong></a></div>
 						</td>
 						<td width="20" height="35" class="redcurve">&nbsp;</td>
 						<td width="139" height="35" class="redline">
-							<div class="headerlink" align="center">
-								<a href="http://openobject.com"><strong>Community</strong></a>
-							</div>
+							<div class="headerlink" align="center"><a href="http://openobject.com"><strong>Community</strong></a></div>
 						</td>
 						<td width="16" height="35" ><img src="images/redcurveright.jpg"/></td>
 					</tr>
@@ -61,68 +52,115 @@
 				</td>
 			</tr>
 			</table>
-			<!-- Header End -->		
 
-			<!-- Body Content Start -->
-			<div>
-				<h1>Welcome to the OpenERP Buildbot!</h1>
+			<table width="1004" border="0" cellspacing="0" cellpadding="0" id="menu_header">
+			<tr>
+				<td width="141" id="menu_header_menu" nowrap="nowrap"></td>
+				<td nowrap="nowrap" align="left" height="25px"></td>
+			</tr>
+			<tr>
+			  <td id="menu_header_menu2" nowrap="nowrap"></td>
+			  <td nowrap="nowrap" align="left"></td>
+			  </tr>
+			</table>
+			
+            <div style="clear: both;float:right;"></div>      
+			
+			<div id="content1" style="height:250px; border:medium; width:1004;">
+				<div style="float:left;">
+					<div id="story">		
+					        <div class="ul">							
+							    <a href="waterfall" title="" class="button"><span class="openobjectserver">Water Fall</span></a> 
+							    <a href="one_box_per_builder" title="" class="button"><span class="openobjectserver">Latest builds</span></a>
+							</div>
+					</div><!--csc-->
+				</div>
+				
+  				<div style="float:right;"><img src="images/graph2.png" alt=""/></div>
+			</div>
+ 
+			<div id="content">
+				<div id="sidebar">
+					<div id="login" class="boxed">
+						<div class="title">
+							<h2>Projects</h2>
+						</div>
+						<div class="content"> 
+                            <div class="ul">
+								<ul>
+							        <a href="https://launchpad.net/openobject-server" class="button"><span class="openobjectserver">OpenObject Server</span></a>							
 
-                <ul>
-                  <li>the <a href="waterfall">Waterfall Display</a> will give you a
-                  time-oriented summary of recent buildbot activity.</li>
+							        <a href="https://launchpad.net/openobject-addons" class="button"><span class="openobjectaddons">OpenObject Addons</span></a>
+							
+                                </ul>
+							</div>
+						</div>
+					</div>
+				</div>
+				
+				<div id="main">
+					<div id="welcome" class="post">
+						<div class="title"><h2>Official Branches</h2></div>
+		 
+						<div class="story">
+							<div class="ul">
+							    <ul>
+								    <a href="https://code.launchpad.net/~openerp/openobject-server/trunk" class="button"><span class="openobjectserver">OpenObject Server</span></a>
 
-                  <!--<li>The <a href="one_box_per_builder">Latest Build</a> for each builder is
-                  here.</li> --></ul>
-                <iframe id="frame"></iframe>
-                <table id="curr_builds_table"></table>
-                <table border="1" cellpadding="3" cellspacing="0" width="100%" bgcolor="#ffffcc">
-                <tr align="Center" BGCOLOR="#919C9C">
-                  <th>Source Code</th>
-                  <th>Launchpad Bugs</th>
-                  <th>Community</th>
-                </tr>
-                <tr>
-                    <td>
-                          <ul>
-                           <li><a href="https://code.launchpad.net/~openerp/openobject-server/trunk">OpenERP Server</a></li>
-                           <li><a href="https://code.launchpad.net/~openerp/openobject-client/trunk">OpenERP Client</a></li>
-                           <li><a href="https://code.launchpad.net/~openerp/openobject-addons/trunk">OpenERP addons</a></li>
-                           <li><a href="https://code.launchpad.net/~openerp/openobject-client-web/trunk">Web Client</a></li>
-                          </ul>
-                    </td>  
-                    <td>
-                         <ul>
-                             <li><a href="https://bugs.launchpad.net/openobject-server">OpenERP Server Bugs</a></li>
-                             <li><a href="https://bugs.launchpad.net/openobject-client">OpenERP Client Bugs</a></li>
-                             <li><a href="https://bugs.launchpad.net/openobject-addons">OpenERP addons Bugs</a></li>
-                             <li><a href="https://bugs.launchpad.net/openobject-client-web">Web Client Bugs</a></li>
-                        </ul>
-                      </td>
-                   <td>
-                      <ul><li><a href="http://openerp.com/forum/">Forum</a></li>
-                      <li><a href="http://openerp.com/planet/">OpenERP Planet</a></li>
-                      <li><a href="http://doc.openerp.com/book/">OpenERP Document</a></li></ul>
-                  </td>  
-                </tr>
-                </table>
-                                        
-			                </div>
-			                <!-- Body Content End -->			
-		                        <table cellspacing="0" cellpadding="5" border="0" width="1004">
-	                                <tbody><tr>
-                        	                <td bgcolor="#ffffff">
-                                	                <div class="footertext">
-                                        	                © 2001-TODAY <a href="http://tiny.be">Tiny sprl</a>. All rights reserved.<br/>
-                                                	        OpenERP and OpenObject are trademarks of the Tiny company.<br/>
-                                                        	They both are released under GPL V3.0.
-	                                                </div>
-                        	                </td>
-                                	</tr></tbody>
-	                        </table>
+								    <a href="https://code.launchpad.net/~openerp/openobject-addons/trunk" class="button"><span class="openobjectaddons">OpenObject Addons</span></a>
+								    
+								    <a href="https://code.launchpad.net/~openerp-commiter/openobject-addons/trunk-extra-addons" class="button"><span class="openobjectaddons">Extra Addons</span></a>
 
-		</div>
-		<!-- Main Body End -->	
+								    <a href="https://code.launchpad.net/~openerp-community/openobject-addons/trunk-addons-community" class="button"><span class="openobjectaddons">Community Addons</span></a>
+                                </ul>
+                            </div>    
+						</div>			
+					</div>
+				</div>			
+
+				<div id="sidebar2">
+					<div id="sponsors" class="boxed">
+						<div class="title"><h2>Teams</h2></div>
+			
+						<div class="content1">
+							<ul>
+							    <li><a href="https://launchpad.net/~openerp" class="button"><span class="openerp"> Quality Team</span></a></li>
+
+								<li><a href="https://launchpad.net/~openerp-commiter" class="button"><span class="openerp">Commiters</span></a></li>
+
+								<li><a href="https://launchpad.net/~openerp-community" class="button"><span class="openerp">Community</span></a></li>
+								
+								
+								
+							</ul>
+						</div>
+					</div>
+				</div>
+				<div style="clear: both;">&nbsp;</div>
+			</div>
+
+			<table width="1004" border="0" align="center" cellpadding="0" cellspacing="0">
+				<tr>
+					<td valign="top" align="right"><img src="images/fourmis.jpg"/></td>
+				</tr>
+			</table>
+			
+			<table border="0" width="1004" cellpadding="0" cellspacing="0">
+				<tr height="1">
+					<td width="1004" bgcolor="#D6D6D6"></td>
+				</tr>
+			</table>
+            
+			<table border="0" width="1004" cellpadding="5" cellspacing="0">
+				<tr>
+					<td bgcolor="#ffffff">
+						<div class="footertext">
+							&copy; 2001-TODAY <a href="http://tiny.be">Tiny sprl</a>. All rights reserved.<br/>
+							OpenERP and OpenObject are trademarks of the Tiny company.<br/>
+							They both are released under GPL V3.0.
+						</div>
+					</td>
+				</tr>
+			</table>
 	</body>
 </html>
-<!-- Open Object Template End -->
-
