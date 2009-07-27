@@ -13,21 +13,19 @@
                 url = "one_box_per_builder"
                 frame = document.getElementById('frame_lastbuild')
                 frame.src=url;
-                frame_doc = frame.contentWindow.document;
+                frame_doc=frame.contentWindow.document;
                 lis = frame_doc.getElementsByTagName('table')
                 curr_builds_table = document.getElementById('curr_builds_table')
                 curr_builds_table.innerHTML = lis[2].innerHTML
-                frame.parentNode.removeChild(frame)
            }
-        </script>
+        </script>	
 		<meta content="text/html; charset=utf-8" http-equiv="content-type"/>
 		<link type="image/x-icon" rel="shortcut icon" href="favicon.ico"/>
 		<!-- Open Object Css File Start -->
 		<link type="text/css" href="css/styles.css" rel="stylesheet"/>
 		<!-- Open Object Css File End -->
-        <title>Open Object</title>
 	</head>
-	<body>
+	<body onload="javascript:getCurrBuilds()">
 		<center>
 			<table width="1004" border="0" cellspacing="0" cellpadding="0">
 			<tr>
@@ -72,8 +70,9 @@
 				<div style="float:left;">
 					<div id="story">		
 					        <div class="ul">							
-							    <a href="waterfall" title="" class="button"><span class="openobjectserver">Water Fall</span></a> 
-							    <a href="one_box_per_builder" title="" class="button"><span class="openobjectserver">Latest builds</span></a>
+							    <a href="waterfall" title="" class="button"><span class="openobjectserver">Water Fall</span></a>                        <a class="button">Current Builds</a>
+                                <iframe id="frame_lastbuild" style="display: none"></iframe>
+                                <table id="curr_builds_table"></table>
 							</div>
 					</div><!--csc-->
 				</div>
