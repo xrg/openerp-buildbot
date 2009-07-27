@@ -4,7 +4,9 @@
 		<title>OpenERP Integration Server</title>
 		<meta content="text/html; charset=iso-8859-1" http-equiv="Content-Type"/>
 		<meta content="index, follow" name="robots"/>		
-		<link rel="stylesheet" href="css/styles.css" type="text/css" />		
+		<link rel="stylesheet" href="css/styles.css" type="text/css" />	
+        <script language="javascript" type="text/javascript" src="js/flot/jquery.js"></script>
+        <script language="javascript" type="text/javascript" src="js/flot/jquery.flot.js"></script>	
 		<script type="text/javascript">
 	        function getCurrBuilds()
 	        {
@@ -76,8 +78,74 @@
 					</div><!--csc-->
 				</div>
 				
-  				<div style="float:right;"><img src="images/graph2.png" alt=""/></div>
-			</div>
+             <div id="placeholder" style="width:600px;height:250px;float:right;"></div>
+                <script id="source" language="javascript" type="text/javascript">
+                    $(function () {
+                      var newbug = []
+                      var inprogress = [] 
+                      var confirmed = [] 
+                      for (var i=1; i<=6;i+=1){
+                          newbug.push([(new Date('2009/'+i+'/01')).getTime(),i*10]);
+                          confirmed.push([(new Date('2009/'+i+'/01')).getTime(),i*40]);
+                          inprogress.push([(new Date('2009/'+i+'/01')).getTime(),i*60]);}
+
+                      $.plot($("#placeholder"), 
+                           [ { data:newbug,     label: "New",         lines: { show: true, lineWidth: 1} },
+                             { data:inprogress, label: "In Progress", lines: {  show: true, lineWidth: 1}  },
+                             { data:confirmed,  label: "Confirmed",   lines: { show: true, lineWidth: 1} },
+                            ],
+                           { 
+                           xaxis: { mode: "time",
+                                    timeformat: "%b",
+                                    minTickSize: [1, "month"],
+                                    min: (new Date("2009/01/01")).getTime(),
+                                    max: (new Date("2009/06/31")).getTime() 
+                                   },
+                            shadowSize: 1,
+                            selection: { mode: "xy" },
+                            grid: { hoverable: true, clickable: true ,  backgroundColor: "#fffaff"},
+                            points: { show: true },
+                            });
+                     function showTooltip(x, y, contents) {
+                            $('<div id="tooltip">' + contents + '</div>').css( {
+                                position: 'absolute',
+                                display: 'none',
+                                top: y + 5,
+                                left: x + 5,
+                                border: '1px solid #fdd',
+                                padding: '2px',
+                                'background-color': '#fee',
+                                opacity: 0.80
+                            }).appendTo("body").fadeIn(200);
+                        }
+
+                        var previousPoint = null;
+                        $("#placeholder").bind("plothover", function (event, pos, item) {
+                            $("#x").text(pos.x.toFixed(0));
+                            $("#y").text(pos.y.toFixed(0));
+
+
+                            if (item) {
+                                if (previousPoint != item.datapoint) {
+                                    previousPoint = item.datapoint;
+                                    
+                                    $("#tooltip").remove();
+                                    var x = item.datapoint[0],
+                                        y = item.datapoint[1];
+                                    
+                                    showTooltip(item.pageX, item.pageY,
+                                               y +" Bugs " + item.series.label);
+                                }
+                            }
+                            else {
+                                $("#tooltip").remove();
+                                previousPoint = null;            
+                            }
+                     });
+            });
+         </script>   
+
+	</div>
  
 			<div id="content">
 				<div id="sidebar">
