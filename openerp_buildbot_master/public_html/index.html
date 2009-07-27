@@ -17,6 +17,24 @@
                 lis = frame_doc.getElementsByTagName('table')
                 curr_builds_table = document.getElementById('curr_builds_table')
                 curr_builds_table.innerHTML = lis[2].innerHTML
+
+                url = "GetGraphvalues";
+                frame = document.getElementById('frame_graph');
+                frame.src=url;
+                frame_doc=frame.contentWindow.document;
+                datasets=frame_doc.getElementById('datasets').innerHTML;
+                //alert(datasets);
+                datasets=eval('('+datasets+')');
+                //alert(datasets);
+                var data = [];
+                for(var item in datasets){data.push(datasets[item])}
+                //alert(data)
+                $.plot($("#placeholder"), data, { xaxis: {
+                mode: "time",
+                minTickSize: [1, "month"],
+                min: (new Date("1999/01/01")).getTime(),
+                max: (new Date("2000/01/01")).getTime()
+                 } });
            }
         </script>	
 		<meta content="text/html; charset=utf-8" http-equiv="content-type"/>
@@ -69,10 +87,12 @@
 			<div id="content1" style="height:250px; border:medium; width:1004;">
 				<div style="float:left;">
 					<div id="story">		
-					        <div class="ul">							
-							    <a href="waterfall" title="" class="button"><span class="openobjectserver">Water Fall</span></a>                        <a class="button">Current Builds</a>
+					        <div class="ul">
+                                <a class="button">Latest Builds</a>
                                 <iframe id="frame_lastbuild" style="display: none"></iframe>
-                                <table id="curr_builds_table"></table>
+                                <table id="curr_builds_table" width="300px"></table>							
+							    <a href="waterfall" title="" class="button"><span class="openobjectserver">Water Fall</span></a>                        
+                                <iframe id="frame_graph" style="display: none"></iframe>
 							</div>
 					</div><!--csc-->
 				</div>
