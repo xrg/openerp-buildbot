@@ -17,24 +17,8 @@
                 lis = frame_doc.getElementsByTagName('table')
                 curr_builds_table = document.getElementById('curr_builds_table')
                 curr_builds_table.innerHTML = lis[2].innerHTML
-
-                url = "GetGraphvalues";
-                frame = document.getElementById('frame_graph');
-                frame.src=url;
-                frame_doc=frame.contentWindow.document;
-                datasets=frame_doc.getElementById('datasets').innerHTML;
-                //alert(datasets);
-                datasets=eval('('+datasets+')');
-                //alert(datasets);
-                var data = [];
-                for(var item in datasets){data.push(datasets[item])}
-                //alert(data)
-                $.plot($("#placeholder"), data, { xaxis: {
-                mode: "time",
-                minTickSize: [1, "month"],
-                min: (new Date("1999/01/01")).getTime(),
-                max: (new Date("2000/01/01")).getTime()
-                 } });
+                populatedropdown("monthFrom", "yearFrom","monthTo","yearTo")
+                getlatestgraph()
            }
         </script>	
 		<meta content="text/html; charset=utf-8" http-equiv="content-type"/>
@@ -88,18 +72,65 @@
 				<div style="float:left;">
 					<div id="story">		
 					        <div class="ul">
+							    <a href="waterfall" title="" class="button"><span class="openobjectserver">Water Fall</span></a>                        
+
                                 <a class="button">Latest Builds</a>
                                 <iframe id="frame_lastbuild" style="display: none"></iframe>
-                                <table id="curr_builds_table" width="300px"></table>							
-							    <a href="waterfall" title="" class="button"><span class="openobjectserver">Water Fall</span></a>                        
+                                <table id="curr_builds_table" border="1" cellspacing="0" cellpadding="0" width="300px"></table>							
                                 <iframe id="frame_graph" style="display: none"></iframe>
 							</div>
 					</div><!--csc-->
 				</div>
-				
+            From:
+            <select id="monthFrom">
+            </select> 
+            <select id="yearFrom">
+            </select> 
+            To:
+            <select id="monthTo">
+            </select> 
+            <select id="yearTo">
+            </select> 
+			<button id="getlatestgraph" align='right'>Refresh Graph</button>
+            
              <div id="placeholder" style="width:600px;height:250px;float:right;"></div>
                 <script id="source" language="javascript" type="text/javascript">
-                    $(function () {
+var monthtext =         ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+                function populatedropdown(monthfrom, yearfrom, monthto, yearto){
+                    var today=new Date()
+                    
+                    var monthfrom=document.getElementById(monthfrom)
+                    var yearfrom=document.getElementById(yearfrom)
+                    var monthto=document.getElementById(monthto)
+                    var yearto=document.getElementById(yearto)
+                    
+                    for (var m=0; m<12; m++){
+                        monthfrom.options[m]=new Option(monthtext[m], monthtext[m]);
+                        monthfrom.options[today.getMonth()]=new Option(monthtext[today.getMonth()], monthtext[today.getMonth()]);
+                        monthto.options[m]=new Option(monthtext[m], monthtext[m]);
+                        monthto.options[today.getMonth()]=new Option(monthtext[today.getMonth()], monthtext[today.getMonth()], true, true)}
+                    var thisyear=today.getFullYear()
+                    for (var y=0; y<5; y++){
+                    yearfrom.options[y] = new Option(thisyear, thisyear)
+                    yearto.options[y] = new Option(thisyear, thisyear)
+                    thisyear-=1
+                    }
+                    yearfrom.options[0]=new Option(today.getFullYear(), today.getFullYear(), true, true)
+                    yearto.options[0]=new Option(today.getFullYear(), today.getFullYear(), true, true)
+                }
+                //$("#getlatestgraph").click(function () {
+                function getlatestgraph() {
+                      var monthfrom = document.getElementById("monthFrom")
+                      var yearfrom = document.getElementById("yearFrom")
+                      var monthto = document.getElementById("monthTo")
+                      var yearto = document.getElementById("yearTo")
+                      var monfrom = monthfrom.options[monthfrom.selectedIndex].value
+                      var yrfrom = yearfrom.options[yearfrom.selectedIndex].value
+                      var monto = monthto.options[monthto.selectedIndex].value
+                      var yrto = yearto.options[yearto.selectedIndex].value
+                      if  (yrto < yrfrom)
+                            alert('Please Enter the year correctly (From year < To year)')
                       var newbug = []
                       var inprogress = [] 
                       var confirmed = [] 
@@ -161,11 +192,10 @@
                                 previousPoint = null;            
                             }
                      });
-            });
+            };
          </script>   
 
 	</div>
- 
 			<div id="content">
 				<div id="sidebar">
 					<div id="login" class="boxed">
