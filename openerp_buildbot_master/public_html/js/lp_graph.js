@@ -31,18 +31,26 @@ function getCurrBuilds()
     frame_doc=frame.contentWindow.document;
     lis = frame_doc.getElementsByTagName('table')
     curr_builds_table = document.getElementById('curr_builds_table')
-    curr_builds_table.innerHTML = lis[2].innerHTML
-   // populatedropdown("monthFrom", "yearFrom","monthTo","yearTo")
-    getlatestgraph()
+    if (lis){
+        curr_builds_table.innerHTML = lis[2].innerHTML;
+        // populatedropdown("monthFrom", "yearFrom","monthTo","yearTo");
+        getlatestgraph();
+                    }
+    return 
 }
 
 function GetGraphvalues() {
     url = "GetGraphvalues";
     frame = document.getElementById('frame_graph');
-    frame.src=url;
-    frame_doc=frame.contentWindow.document;
-    datasets=frame_doc.getElementById('datasets').innerHTML;
-    return eval(datasets)    
+    label = document.getElementById('update_date');
+    frame.src = url;
+    frame_doc = frame.contentWindow.document;
+    datasets = frame_doc.getElementById('datasets');
+    last_update = frame_doc.getElementById('label');
+    if (datasets){
+        label.innerHTML = 'Last Updated : '+ last_update.innerHTML;
+        return eval(datasets.innerHTML);}    
+    return 
 }   
              
 function getlatestgraph() {

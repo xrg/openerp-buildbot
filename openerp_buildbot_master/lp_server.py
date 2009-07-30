@@ -4,12 +4,18 @@ from SimpleXMLRPCServer import SimpleXMLRPCServer
 from SimpleXMLRPCServer import SimpleXMLRPCRequestHandler
 import os
 import threading
+import pickle
+import datetime
+import time
+
 class lpServer(threading.Thread):
     host = 'localhost'
     port = 8200
-    cachedir = "/home/nch/.launchpad/cache/"
-    lp_credential_file = "/home/nch/.launchpad/lp_credential2.txt"
-    launchpad = False    
+    cachedir = ".launchpad/cache/"
+    lp_credential_file = ".launchpad/lp_credential2.txt"
+    bugs_pck = 'bugs.pck'
+    launchpad = False  
+    projects = ['openobject']  
 
     def __init__(self):
         super(lpServer, self).__init__()
@@ -32,9 +38,8 @@ class lpServer(threading.Thread):
             credentials.load(open(self.lp_credential_file))
             launchpad = Launchpad(credentials, STAGING_SERVICE_ROOT, self.cachedir)
         return launchpad
-
-    def get_lp_bugs(self, projects):  
-        import time      
+    
+    def get_lp_bugs(self, projects):
         launchpad = self.launchpad
         res = {}
         if not launchpad:
@@ -111,18 +116,25 @@ class lpServer(threading.Thread):
                         elif type == 'fixreleased':
                             fixreleased.append([year,month,val])
         datasets = [new,confirmed,inprogress,fixreleased]
-    
         return datasets
 
-    def run(self):        
-        server = SimpleXMLRPCServer((self.host, self.port))
-        server.register_introspection_functions()        
-        server.register_function(self.get_lp_bugs)
-        server.serve_forever()
-        return server
+    def save_dataset(self):
+        fp = open('bugs.pck','wb')
+        datasets = self.get_lp_bugs(self.projects)
+        last_update = datetime.datetime.now().ctime()
+        datasets = [last_update, datasets]
+        pickle.dump(datasets,fp)
+        fp.close()
+        
 
-if __name__ == '__main__':
+    def run(self): 
+        while True:                  
+            self.save_dataset()
+            time.sleep(3000)
+        return True
+
+if __name__ == '__main__':    
     lp_server = lpServer()
     lp_server.start()
-    print 'LP Server is started on %s:%s...' %(lp_server.host, lp_server.port)
+    print 'LP Server is started ....'
     
