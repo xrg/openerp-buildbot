@@ -7,20 +7,7 @@
 		<link rel="stylesheet" href="css/styles.css" type="text/css" />	
         <script language="javascript" type="text/javascript" src="js/flot/jquery.js"></script>
         <script language="javascript" type="text/javascript" src="js/flot/jquery.flot.js"></script>	
-		<script type="text/javascript">
-	        function getCurrBuilds()
-	        {
-                url = "one_box_per_builder"
-                frame = document.getElementById('frame_lastbuild')
-                frame.src=url;
-                frame_doc=frame.contentWindow.document;
-                lis = frame_doc.getElementsByTagName('table')
-                curr_builds_table = document.getElementById('curr_builds_table')
-                curr_builds_table.innerHTML = lis[2].innerHTML
-                populatedropdown("monthFrom", "yearFrom","monthTo","yearTo")
-                getlatestgraph()
-           }
-        </script>	
+        <script language="javascript" type="text/javascript" src="js/lp_graph.js"></script>
 		<meta content="text/html; charset=utf-8" http-equiv="content-type"/>
 		<link type="image/x-icon" rel="shortcut icon" href="favicon.ico"/>
 		<!-- Open Object Css File Start -->
@@ -72,16 +59,15 @@
 				<div style="float:left;">
 					<div id="story">		
 					        <div class="ul">
-							    <a href="waterfall" title="" class="button"><span class="openobjectserver">Water Fall</span></a>                        
-
                                 <a class="button">Latest Builds</a>
                                 <iframe id="frame_lastbuild" style="display: none"></iframe>
                                 <table id="curr_builds_table" border="1" cellspacing="0" cellpadding="0" width="300px"></table>							
+							    <a href="waterfall" title="" class="button"><span class="openobjectserver">Water Fall</span></a>                        
                                 <iframe id="frame_graph" style="display: none"></iframe>
 							</div>
 					</div><!--csc-->
 				</div>
-            From:
+           <!-- From:
             <select id="monthFrom">
             </select> 
             <select id="yearFrom">
@@ -91,111 +77,10 @@
             </select> 
             <select id="yearTo">
             </select> 
-			<button id="getlatestgraph" align='right'>Refresh Graph</button>
-            
+			<button onClick="javascript:getlatestgraph()" align='right'>Refresh Graph</button>-->             
              <div id="placeholder" style="width:600px;height:250px;float:right;"></div>
-                <script id="source" language="javascript" type="text/javascript">
-var monthtext =         ['January','February','March','April','May','June','July','August','September','October','November','December'];
-
-                function populatedropdown(monthfrom, yearfrom, monthto, yearto){
-                    var today=new Date()
-                    
-                    var monthfrom=document.getElementById(monthfrom)
-                    var yearfrom=document.getElementById(yearfrom)
-                    var monthto=document.getElementById(monthto)
-                    var yearto=document.getElementById(yearto)
-                    
-                    for (var m=0; m<12; m++){
-                        monthfrom.options[m]=new Option(monthtext[m], monthtext[m]);
-                        monthfrom.options[today.getMonth()]=new Option(monthtext[today.getMonth()], monthtext[today.getMonth()]);
-                        monthto.options[m]=new Option(monthtext[m], monthtext[m]);
-                        monthto.options[today.getMonth()]=new Option(monthtext[today.getMonth()], monthtext[today.getMonth()], true, true)}
-                    var thisyear=today.getFullYear()
-                    for (var y=0; y<5; y++){
-                    yearfrom.options[y] = new Option(thisyear, thisyear)
-                    yearto.options[y] = new Option(thisyear, thisyear)
-                    thisyear-=1
-                    }
-                    yearfrom.options[0]=new Option(today.getFullYear(), today.getFullYear(), true, true)
-                    yearto.options[0]=new Option(today.getFullYear(), today.getFullYear(), true, true)
-                }
-                //$("#getlatestgraph").click(function () {
-                function getlatestgraph() {
-                      var monthfrom = document.getElementById("monthFrom")
-                      var yearfrom = document.getElementById("yearFrom")
-                      var monthto = document.getElementById("monthTo")
-                      var yearto = document.getElementById("yearTo")
-                      var monfrom = monthfrom.options[monthfrom.selectedIndex].value
-                      var yrfrom = yearfrom.options[yearfrom.selectedIndex].value
-                      var monto = monthto.options[monthto.selectedIndex].value
-                      var yrto = yearto.options[yearto.selectedIndex].value
-                      if  (yrto < yrfrom)
-                            alert('Please Enter the year correctly (From year < To year)')
-                      var newbug = []
-                      var inprogress = [] 
-                      var confirmed = [] 
-                      for (var i=1; i<=6;i+=1){
-                          newbug.push([(new Date('2009/'+i+'/01')).getTime(),i*10]);
-                          confirmed.push([(new Date('2009/'+i+'/01')).getTime(),i*40]);
-                          inprogress.push([(new Date('2009/'+i+'/01')).getTime(),i*60]);}
-
-                      $.plot($("#placeholder"), 
-                           [ { data:newbug,     label: "New",         lines: { show: true, lineWidth: 1} },
-                             { data:inprogress, label: "In Progress", lines: {  show: true, lineWidth: 1}  },
-                             { data:confirmed,  label: "Confirmed",   lines: { show: true, lineWidth: 1} },
-                            ],
-                           { 
-                           xaxis: { mode: "time",
-                                    timeformat: "%b",
-                                    minTickSize: [1, "month"],
-                                    min: (new Date("2009/01/01")).getTime(),
-                                    max: (new Date("2009/06/31")).getTime() 
-                                   },
-                            shadowSize: 1,
-                            selection: { mode: "xy" },
-                            grid: { hoverable: true, clickable: true ,  backgroundColor: "#fffaff"},
-                            points: { show: true },
-                            });
-                     function showTooltip(x, y, contents) {
-                            $('<div id="tooltip">' + contents + '</div>').css( {
-                                position: 'absolute',
-                                display: 'none',
-                                top: y + 5,
-                                left: x + 5,
-                                border: '1px solid #fdd',
-                                padding: '2px',
-                                'background-color': '#fee',
-                                opacity: 0.80
-                            }).appendTo("body").fadeIn(200);
-                        }
-
-                        var previousPoint = null;
-                        $("#placeholder").bind("plothover", function (event, pos, item) {
-                            $("#x").text(pos.x.toFixed(0));
-                            $("#y").text(pos.y.toFixed(0));
-
-
-                            if (item) {
-                                if (previousPoint != item.datapoint) {
-                                    previousPoint = item.datapoint;
-                                    
-                                    $("#tooltip").remove();
-                                    var x = item.datapoint[0],
-                                        y = item.datapoint[1];
-                                    
-                                    showTooltip(item.pageX, item.pageY,
-                                               y +" Bugs " + item.series.label);
-                                }
-                            }
-                            else {
-                                $("#tooltip").remove();
-                                previousPoint = null;            
-                            }
-                     });
-            };
-         </script>   
-
 	</div>
+ 
 			<div id="content">
 				<div id="sidebar">
 					<div id="login" class="boxed">

@@ -7,8 +7,8 @@ import threading
 class lpServer(threading.Thread):
     host = 'localhost'
     port = 8200
-    cachedir = "/home/tiny/.launchpad/cache/"
-    lp_credential_file = "/home/tiny/.launchpad/lp_credential2.txt"
+    cachedir = "/home/nch/.launchpad/cache/"
+    lp_credential_file = "/home/nch/.launchpad/lp_credential2.txt"
     launchpad = False    
 
     def __init__(self):
@@ -21,9 +21,12 @@ class lpServer(threading.Thread):
                 os.makedirs(self.cachedir)
             except:
                 raise 
-        if not os.path.isfile(self.lp_credential_file):        
-            launchpad = Launchpad.get_token_and_login('openerp', STAGING_SERVICE_ROOT, self.cachedir)        
-            launchpad.credentials.save(file(self.lp_credential_file, "w"))
+        if not os.path.isfile(self.lp_credential_file): 
+            try:       
+                launchpad = Launchpad.get_token_and_login('openerp', STAGING_SERVICE_ROOT, self.cachedir)        
+                launchpad.credentials.save(file(self.lp_credential_file, "w"))
+            except:
+                print 'Service Unavailable !'
         else:        
             credentials = Credentials()
             credentials.load(open(self.lp_credential_file))
@@ -38,61 +41,77 @@ class lpServer(threading.Thread):
             return res
         if not isinstance(projects,list):
             projects = [projects]
+        
+        def store_bugs(label='',r={},month=''):                     
+            if label not in r:
+                r[label] = {}
+                r[label][str(date.year)] = {}
+                r[label][str(date.year)][month] = 0
+            else:
+                if str(date.year) not in r[label]:
+                    r[label][str(date.year)] = {}
+                    r[label][str(date.year)][month] = 0
+                else:
+                    if month not in r[label][str(date.year)]:
+                        r[label][str(date.year)][month] = 0
+                    else:
+                        r[label][str(date.year)][month] += 1
+            return r
+
+        bug_status = ['New','Confirmed','In Progress','Fix Released']
         for project in projects:
             result = {}            
             r = {}
             lp_project = launchpad.projects[project]
-            result['non-series'] = lp_project.searchTasks()            
+            result['non-series'] = lp_project.searchTasks(status=bug_status)            
             if 'series' in lp_project.lp_collections:
                 for series in lp_project.series:
-                    result[series.name] = series.searchTasks()                       
+                    result[series.name] = series.searchTasks()  
+
             for name, bugs in result.items():                                  
                for bug in bugs:
-                    if bug.status == 'New':
+                    if bug.date_created:
                         label = 'new'
                         date = bug.date_created
-                    elif bug.status == 'Confirmed':
+                        month = date.month
+                        r = store_bugs(label,r,month)    
+                    if bug.date_confirmed:
                         label = 'confirmed'
                         date = bug.date_confirmed
-                    elif bug.status == 'In Progress':
+                        month = date.month
+                        r = store_bugs(label,r,month)    
+                    if bug.date_in_progress:
                         label = 'inprogress'
                         date = bug.date_in_progress
-                    #elif bug.status == 'Fix Committed':
-                     #   date = bug.date_fix_committed
-                    #elif bug.status == 'Incomplete':
-                     #   date = bug.date_left_new
+                        month = date.month
+                        r = store_bugs(label,r,month)    
+                    if bug.date_fix_released:
+                        label = 'fixreleased'
+                        date = bug.date_fix_released
+                        month = date.month
+                        r = store_bugs(label,r,month)
                     else:
                         continue
-                    month = date.month
-                    if label not in r:
-                        r[label] = {}
-                        r[label][str(date.year)] = {}
-                        r[label][str(date.year)][month] = 1
-                        #r[label]['Total'] += 1
-                    else:
-                        if str(date.year) not in r[label]:
-                            r[label][str(date.year)] = {}
-                            r[label][str(date.year)][month] = 1
-                         #   r[label]['Total'] += 1
-                        else:
-                            if month not in r[label][str(date.year)]:
-                                r[label][str(date.year)][month] = 1
-                          #      r[label]['Total'] += 1
-                            else:
-                                r[label][str(date.year)][month] += 1
-                           #     r[label]['Total'] += 1
-        
             res[project] = r    
-        datasets={}
+        new = []
+        confirmed = []
+        inprogress = []
+        fixreleased = []
+        
         for project,types in res.items():
-            datasets[project] = {}
-            print project,types
             for type,years in types.items():  
-                print type,years
-                datasets[project][type] = []
                 for year, months in years.items():
                     for month,val in months.items():
-                        datasets[project][type].append([year,month,val]) 
+                        if type == 'new':
+                            new.append([year,month,val]) 
+                        elif type == 'confirmed':
+                            confirmed.append([year,month,val])
+                        elif type == 'inprogress':
+                            inprogress.append([year,month,val])
+                        elif type == 'fixreleased':
+                            fixreleased.append([year,month,val])
+        datasets = [new,confirmed,inprogress,fixreleased]
+    
         return datasets
 
     def run(self):        
