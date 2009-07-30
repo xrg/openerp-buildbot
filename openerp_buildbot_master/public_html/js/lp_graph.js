@@ -90,7 +90,7 @@ function getlatestgraph() {
         yaxis:{ min:0 },
         shadowSize: 1,
         selection: { mode: "xy" },
-        legend: {show: true, position: 'nw',noColumns: 3},
+        legend: {show: true, position: 'nw',noColumns: 1},
         grid: { hoverable: true, clickable: true ,  backgroundColor: "#fffaff"},
         points: { show: true },
         });
