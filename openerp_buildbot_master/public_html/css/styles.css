@@ -201,7 +201,7 @@ img.right {
 /* Header > Menu */
 
 #menu {
-	float: right;
+	float: left;
 	padding-right:15px;
 }
 
@@ -218,11 +218,11 @@ img.right {
 #menu a {
 	display: block;
 	float: left;
-	width: 120px;
-	height: 30px;
+	width: 80px;
+	height: 20px;
 	/**margin-left: 2px;*/
-	padding-top: 10px;
-	background: url(../images/img03.gif) no-repeat;
+	padding-top: 5px;
+	
 	text-decoration: none;
 	text-align: center;
 	font-weight: bold;
@@ -230,12 +230,12 @@ img.right {
 }
 
 #menu a:hover {
-	background-image: url(../images/img04.gif);
+	
 	color: black;
 }
 
 #menu .active a {
-	background-image: url(../images/img05.gif);
+	
 }
 #content1 {
 	width: 980px;
@@ -551,7 +551,7 @@ white-space:nowrap;
 }
 	
 #menu_header_menu {
-background:transparent url(../images/mainmenu_button.png) repeat-x scroll 0 0;
+background:transparent url(../images/mainmenu_button.png)  scroll 0 0;
 font-weight:bold;
 padding:0 10px;
 text-align:center;

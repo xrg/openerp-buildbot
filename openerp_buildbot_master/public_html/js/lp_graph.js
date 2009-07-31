@@ -29,10 +29,10 @@ function getCurrBuilds()
     frame = document.getElementById('frame_lastbuild')
     frame.src=url;
     frame_doc=frame.contentWindow.document;
-    lis = frame_doc.getElementsByTagName('table')
+    lis = frame_doc.getElementsByTagName('table')    
     curr_builds_table = document.getElementById('curr_builds_table')
     if (lis){
-        curr_builds_table.innerHTML = lis[2].innerHTML;
+        curr_builds_table.innerHTML = lis[3].innerHTML;
         // populatedropdown("monthFrom", "yearFrom","monthTo","yearTo");
         getlatestgraph();
                     }

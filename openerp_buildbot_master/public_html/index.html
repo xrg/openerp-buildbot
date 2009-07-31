@@ -23,7 +23,8 @@
 				<td width="440" align="right" valign="top">
 					<table id="Table_01" height="35" border="0" cellpadding="0" cellspacing="0">
 					<tr>
-						<td class="greycurveleft" width="23px" height="35px"></td>
+						<td class="greycurveleft" width="23px" height="35px">					    
+						</td>
 						<td width="107" class="headerlinkgrey">
 							<div class="headerlink" align="center"><a href="http://openerp.com"><strong>Open  ERP</strong></a></div>
 						</td>
@@ -45,7 +46,12 @@
 			<table width="1004" border="0" cellspacing="0" cellpadding="0" id="menu_header">
 			<tr>
 				<td width="141" id="menu_header_menu" nowrap="nowrap"></td>
-				<td nowrap="nowrap" align="left" height="25px"></td>
+				<td nowrap="nowrap" align="left" height="20px"><div id="menu">					            
+						            <a href="index.html" title="">Home</a>
+						            <a href="waterfall" title="">Waterfall</a>
+						            <a href="builders" title="">Builders</a>
+						            <a href="changes" title="">ChangeSources</a>					            
+				            </div></td>
 			</tr>
 			<tr>
 			  <td id="menu_header_menu2" nowrap="nowrap"></td>
@@ -57,14 +63,13 @@
 			
 			<div id="content1" style="height:250px; border:medium; width:1004;">
 				<div style="float:left;">
-					<div id="story">		
-					        <div class="ul">
-                                <a href="waterfall" title="" class="button"><span class="openobjectserver">Water Fall</span></a>                        
-                                <a class="button">Latest Builds</a>
+					<div>		
+					        <div>                                                                
                                 <iframe id="frame_lastbuild" style="display: none"></iframe>
-                                <table id="curr_builds_table" border="1" cellspacing="0" cellpadding="0" width="300px"></table>							
+                                <table id="curr_builds_table" border="1" cellspacing="0" cellpadding="0" width="300px"></table>
+                             </div>
+                             <div> 						
                                 <iframe id="frame_graph" style="display: none"></iframe>
-                                
 							</div>
                             
 					</div><!--csc-->
