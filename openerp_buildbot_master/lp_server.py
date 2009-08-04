@@ -5,7 +5,6 @@ from SimpleXMLRPCServer import SimpleXMLRPCRequestHandler
 import os
 import threading
 import pickle
-import datetime
 import time
 
 class lpServer(threading.Thread):
@@ -120,8 +119,10 @@ class lpServer(threading.Thread):
 
     def save_dataset(self):
         fp = open('bugs.pck','wb')
-        datasets = self.get_lp_bugs(self.projects)
-        last_update = datetime.datetime.now().ctime()
+        datasets = ''
+        while not datasets:
+            datasets = self.get_lp_bugs(self.projects)
+        last_update = time.strftime('%B %d %I:%M:%S %Y %Z', time.localtime(time.time()))
         datasets = [last_update, datasets]
         pickle.dump(datasets,fp)
         fp.close()
