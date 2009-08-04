@@ -117,13 +117,13 @@ class lpServer(threading.Thread):
         datasets = [new,confirmed,inprogress,fixreleased]
         return datasets
 
-    def save_dataset(self):
-        fp = open('bugs.pck','wb')
+    def save_dataset(self):        
         datasets = ''
         while not datasets:
             datasets = self.get_lp_bugs(self.projects)
         last_update = time.strftime('%B %d %I:%M:%S %Y %Z', time.localtime(time.time()))
         datasets = [last_update, datasets]
+        fp = open('bugs.pck','wb')
         pickle.dump(datasets,fp)
         fp.close()
         
