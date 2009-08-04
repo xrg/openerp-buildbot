@@ -26,7 +26,7 @@ function populatedropdown(monthfrom, yearfrom, monthto, yearto){
     yearto.options[0]=new Option(today.getFullYear(), today.getFullYear(), true, true)
 }
 
-function sendRequest()
+function getBugGraph()
 {   
     var xmlhttp;
     if (window.XMLHttpRequest)
@@ -49,7 +49,7 @@ function sendRequest()
       }
     }
                
-    var url = "bugsgraph?";
+    var url = "buggraph?";
     var monthfrom = document.getElementById("monthFrom");
     var yearfrom = document.getElementById("yearFrom");
     var monthto = document.getElementById("monthTo");

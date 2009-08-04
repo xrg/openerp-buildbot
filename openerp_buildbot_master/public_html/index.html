@@ -15,7 +15,7 @@
 		<link type="text/css" href="css/styles.css" rel="stylesheet"/>
 		<!-- Open Object Css File End -->
 	</head>
-	<body onload="javascript:populatedropdown('monthFrom','yearFrom','monthTo','yearTo');getLatestBuilds()">
+	<body onload="javascript:populatedropdown('monthFrom','yearFrom','monthTo','yearTo');getLatestBuilds();javascript:getBugGraph()">
 		<center>
 			<table width="1004" border="0" cellspacing="0" cellpadding="0">
 			<tr>
@@ -65,7 +65,8 @@
 			<div id="content1" style="height:250px; border:medium; width:1004;">
 				<div style="float:left;">
 					<div>		
-					        <div>                                                                
+					        <div>      
+					            <span> Latest Builds </span>
                                 <table id="latest_builds" border="1" cellspacing="0" cellpadding="0" width="300px"></table>
                              </div>
                             
@@ -83,12 +84,14 @@
                     </select> 
                     <select id="yearTo">
                     </select> 
-			        <button  onClick="javascript:sendRequest()" align='center'>Refresh Graph</button>
-                    <br><span id='retrivalTime'></span>
+			        <button  onClick="javascript:getBugGraph()" align='center'>Refresh Graph</button>
+                    
                     <div id="placeholder" style="width:600px;height:250px;float:right;"></div>
+                    
                </div>
+               
 	        </div>
-            
+            <br><span id='retrivalTime' style="float:right;padding-right:30px;font-size: 0.5em"></span>
             <br>
 
 			<div id="content">
