@@ -5,16 +5,17 @@
 		<meta content="text/html; charset=iso-8859-1" http-equiv="Content-Type"/>
 		<meta content="index, follow" name="robots"/>		
 		<link rel="stylesheet" href="css/styles.css" type="text/css" />	
-        <script language="javascript" type="text/javascript" src="js/flot/jquery.js"></script>
-        <script language="javascript" type="text/javascript" src="js/flot/jquery.flot.js"></script>	
         <script language="javascript" type="text/javascript" src="js/lp_graph.js"></script>
+        <script language="javascript" type="text/javascript" src="js/flot/jquery.js"></script>
+        <script language="javascript" type="text/javascript" src="js/flot/jquery.flot.js"></script>
+        <script language="javascript" type="text/javascript" src="js/latest_builds.js"></script>
 		<meta content="text/html; charset=utf-8" http-equiv="content-type"/>
 		<link type="image/x-icon" rel="shortcut icon" href="favicon.ico"/>
 		<!-- Open Object Css File Start -->
 		<link type="text/css" href="css/styles.css" rel="stylesheet"/>
 		<!-- Open Object Css File End -->
 	</head>
-	<body onload="javascript:getCurrBuilds()">
+	<body onload="javascript:populatedropdown('monthFrom','yearFrom','monthTo','yearTo');getLatestBuilds()">
 		<center>
 			<table width="1004" border="0" cellspacing="0" cellpadding="0">
 			<tr>
@@ -65,30 +66,31 @@
 				<div style="float:left;">
 					<div>		
 					        <div>                                                                
-                                <iframe id="frame_lastbuild" style="display: none"></iframe>
-                                <table id="curr_builds_table" border="1" cellspacing="0" cellpadding="0" width="300px"></table>
+                                <table id="latest_builds" border="1" cellspacing="0" cellpadding="0" width="300px"></table>
                              </div>
-                             <div> 						
-                                <iframe id="frame_graph" style="display: none"></iframe>
-							</div>
                             
 					</div><!--csc-->
 				</div>
-           <!-- From:
-            <select id="monthFrom">
-            </select> 
-            <select id="yearFrom">
-            </select> 
-            To:
-            <select id="monthTo">
-            </select> 
-            <select id="yearTo">
-            </select> 
-			<button onClick="javascript:getlatestgraph()" align='right'>Refresh Graph</button>--> 
-            <label id="update_date" align="right"></label>
-             <div id="placeholder" style="width:600px;height:250px;float:right;"></div>
-	</div>
- 
+
+                <div>
+                    From:
+                    <select id="monthFrom">
+                    </select> 
+                    <select id="yearFrom">
+                    </select> 
+                    To:
+                    <select id="monthTo">
+                    </select> 
+                    <select id="yearTo">
+                    </select> 
+			        <button  onClick="javascript:sendRequest()" align='center'>Refresh Graph</button>
+                    <br><span id='retrivalTime'></span>
+                    <div id="placeholder" style="width:600px;height:250px;float:right;"></div>
+               </div>
+	        </div>
+            
+            <br>
+
 			<div id="content">
 				<div id="sidebar">
 					<div id="login" class="boxed">

@@ -1,5 +1,8 @@
+
+
 var monthtext = ['January','February','March','April','May','June',
                    'July','August','September','October','November','December'];
+
 function populatedropdown(monthfrom, yearfrom, monthto, yearto){
     var today=new Date()
     
@@ -9,10 +12,10 @@ function populatedropdown(monthfrom, yearfrom, monthto, yearto){
     var yearto=document.getElementById(yearto)
     
     for (var m=0; m<12; m++){
-        monthfrom.options[m]=new Option(monthtext[m], monthtext[m]);
-        monthfrom.options[today.getMonth()]=new Option(monthtext[today.getMonth()], monthtext[today.getMonth()]);
-        monthto.options[m]=new Option(monthtext[m], monthtext[m]);
-        monthto.options[today.getMonth()]=new Option(monthtext[today.getMonth()], monthtext[today.getMonth()], true, true)}
+        monthfrom.options[m] = new Option(monthtext[m],m);
+        monthfrom.options[today.getMonth()] = new Option(monthtext[today.getMonth()],today.getMonth());
+        monthto.options[m] = new Option(monthtext[m],m);
+        monthto.options[today.getMonth()] = new Option(monthtext[today.getMonth()], today.getMonth(), true, true)}
     var thisyear=today.getFullYear()
     for (var y=0; y<5; y++){
     yearfrom.options[y] = new Option(thisyear, thisyear)
@@ -23,48 +26,53 @@ function populatedropdown(monthfrom, yearfrom, monthto, yearto){
     yearto.options[0]=new Option(today.getFullYear(), today.getFullYear(), true, true)
 }
 
-function getCurrBuilds()
-{
-    url = "one_box_per_builder"
-    frame = document.getElementById('frame_lastbuild')
-    frame.src=url;
-    frame_doc=frame.contentWindow.document;
-    lis = frame_doc.getElementsByTagName('table')    
-    curr_builds_table = document.getElementById('curr_builds_table')
-    if (lis){
-        curr_builds_table.innerHTML = lis[3].innerHTML;
-        // populatedropdown("monthFrom", "yearFrom","monthTo","yearTo");
-        getlatestgraph();
-                    }
-    return 
+function sendRequest()
+{   
+    var xmlhttp;
+    if (window.XMLHttpRequest)
+    {
+    xmlhttp=new XMLHttpRequest();
+    }
+    xmlhttp.onreadystatechange=function()
+    {
+    if(xmlhttp.readyState==4)
+      {
+      i = xmlhttp.responseText.indexOf("retrivalTime") + "retrivalTime/>".length
+      j = xmlhttp.responseText.indexOf('</span>',i)
+      retrivalTime = xmlhttp.responseText.substring(i,j)
+      var rt = document.getElementById("retrivalTime");
+      rt.innerHTML = "Last Updated On : " + retrivalTime 
+      i = xmlhttp.responseText.indexOf('datasets',j) + "datasets/>".length
+      j = xmlhttp.responseText.indexOf('</span>',i)
+      datasets = eval(xmlhttp.responseText.substring(i,j))
+      getlatestgraph(datasets,fromDate,toDate)
+      }
+    }
+               
+    var url = "bugsgraph?";
+    var monthfrom = document.getElementById("monthFrom");
+    var yearfrom = document.getElementById("yearFrom");
+    var monthto = document.getElementById("monthTo");
+    var yearto = document.getElementById("yearTo") ;
+    var monfrom = (monthfrom.selectedIndex + 1).toString();
+    var yrfrom = yearfrom.options[yearfrom.selectedIndex].value;
+    var monto = (monthto.selectedIndex + 1).toString();
+    var yrto = yearto.options[yearto.selectedIndex].value;
+
+    if(monfrom.length == 1){monfrom = '0'+monfrom}
+    if(monto.length==1){monto = '0'+monto}
+    
+    fromDate = yrfrom+"/"+monfrom+"/"+"01"
+    toDate =   yrto+"/"+monto+"/"+"31"
+    if((new Date(toDate)) < (new Date(fromDate))){
+        alert('Please Enter the year correctly (From Date < To Date)');return}
+    
+    parameters = 'fromDate='+fromDate+'&toDate='+toDate;
+    xmlhttp.open("GET",url+parameters,true);
+    xmlhttp.send(null);
 }
 
-function GetGraphvalues() {
-    url = "GetGraphvalues";
-    frame = document.getElementById('frame_graph');
-    label = document.getElementById('update_date');
-    frame.src = url;
-    frame_doc = frame.contentWindow.document;
-    datasets = frame_doc.getElementById('datasets');
-    last_update = frame_doc.getElementById('label');
-    if (datasets){
-        label.innerHTML = 'Last Updated : '+ last_update.innerHTML;
-        return eval(datasets.innerHTML);}    
-    return 
-}   
-             
-function getlatestgraph() {
-    //var monthfrom = document.getElementById("monthFrom")
-    //var yearfrom = document.getElementById("yearFrom")
-    //var monthto = document.getElementById("monthTo")
-    //var yearto = document.getElementById("yearTo")
-    //var monfrom = monthfrom.options[monthfrom.selectedIndex].value
-    //var yrfrom = yearfrom.options[yearfrom.selectedIndex].value
-    //var monto = monthto.options[monthto.selectedIndex].value
-    //var yrto = yearto.options[yearto.selectedIndex].value
-    //if  (yrto < yrfrom)
-      //  alert('Please Enter the year correctly (From year < To year)')
-    var data = GetGraphvalues()
+function getlatestgraph(data,fromDate,toDate) {
     var newbug = []
     var inprogress = [] 
     var confirmed = [] 
@@ -92,15 +100,15 @@ function getlatestgraph() {
        xaxis: { mode: "time",
                 timeformat: "%b%y",
                 minTickSize: [1, "month"],
-                min: (new Date("2008/01/01")).getTime(),
-                max: (new Date("2009/12/31")).getTime() 
+                min: (new Date(fromDate)).getTime(),
+                max: (new Date(toDate)).getTime() 
                },
         yaxis:{ min:0 },
         shadowSize: 1,
         selection: { mode: "xy" },
         legend: {show: true, position: 'nw',noColumns: 1},
         grid: { hoverable: true, clickable: true ,  backgroundColor: "#fffaff"},
-        points: { show: true },
+        points: { show: true }
         });
     function showTooltip(x, y, contents) {
         $('<div id="tooltip">' + contents + '</div>').css( {
