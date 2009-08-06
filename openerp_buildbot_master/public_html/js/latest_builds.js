@@ -2,6 +2,8 @@ function getLatestBuilds()
 {
     url = "latestbuilds";
     request = new XMLHttpRequest();
+    request.open("GET", url, true);
+    
     request.onreadystatechange = function()
     {
      if(request.readyState==4)
