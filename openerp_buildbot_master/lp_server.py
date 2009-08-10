@@ -21,6 +21,7 @@ class lpServer(threading.Thread):
         self.launchpad = self.get_lp()
 
     def get_lp(self):
+        launchpad = False
         if not os.path.isdir(self.cachedir):
             try:
                 os.makedirs(self.cachedir)
@@ -72,18 +73,18 @@ class lpServer(threading.Thread):
                 for series in lp_project.series:
                     result[series.name] = series.searchTasks()  
 
-            for name, bugs in result.items():                                  
+            for name, bugs in result.items():
                for bug in bugs:
                     if bug.date_created:
                         label = 'new'
                         date = bug.date_created
                         month = date.month
-                        r = store_bugs(label,r,month)    
+                        r = store_bugs(label,r,month) 
                     if bug.date_confirmed:
                         label = 'confirmed'
                         date = bug.date_confirmed
                         month = date.month
-                        r = store_bugs(label,r,month)    
+                        r = store_bugs(label,r,month)
                     if bug.date_in_progress:
                         label = 'inprogress'
                         date = bug.date_in_progress
@@ -96,12 +97,12 @@ class lpServer(threading.Thread):
                         r = store_bugs(label,r,month)
                     else:
                         continue
-            res[project] = r    
+            res[project] = r   
         new = []
         confirmed = []
         inprogress = []
         fixreleased = []
-        
+
         for project,types in res.items():
             for type,years in types.items():  
                 for year, months in years.items():

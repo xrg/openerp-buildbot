@@ -49,12 +49,13 @@ class OpenObjectMailNotifier(MailNotifier):
         self.html_body = html_body
         self.TLS = TLS
         self.mail_watcher = mail_watcher
+        self.projectName = ''
 
     def buildMessage(self, name, build, results):
         """Send an email about the result. Don't attach the patch as
         MailNotifier.buildMessage do."""
 
-        projectName = self.status.getProjectName()
+        self.projectName = self.status.getProjectName()
         ss = build.getSourceStamp()
         build_url = self.status.getURLForThing(build)
         waterfall_url = self.status.getBuildbotURL()
@@ -97,7 +98,7 @@ class OpenObjectMailNotifier(MailNotifier):
 
         self.subject = self.subject % {
             'result': res,
-            'projectName': c['projectName'],
+            'projectName': self.projectName,
             'builder': name.upper(),
             'reason': build.getReason(),
         }
@@ -188,7 +189,7 @@ Can you please recheck your commit ?<br/><br/></var>
             </body>
             </html>
             """ % (change.who[:change.who.index('<')],
-                   c['projectName'],
+                   self.projectName,
                    name,
                    urllib.quote(waterfall_url, '/:'),
                    urllib.quote(waterfall_url, '/:'),
@@ -239,7 +240,7 @@ OpenERP Quality Team
 
 Great Achievements Start With Tiny Investments !
             """ % (change.who[:change.who.index('<')],
-                   c['projectName'],
+                   self.projectName,
                    name,
                    urllib.quote(waterfall_url, '/:'),
                    build_url,
@@ -285,7 +286,7 @@ Great Achievements Start With Tiny Investments !
             if smtp_user and smtp_password:
                if self.TLS: # deliberately start tls if using TLS
                    s.ehlo()
-                   s.starttls()
+                   s.starttls() 
                    s.ehlo()
                s.login(smtp_user, smtp_password)
             s.sendmail(email_from, email_to + email_cc, msg.as_string())

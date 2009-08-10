@@ -28,20 +28,16 @@ function populatedropdown(monthfrom, yearfrom, monthto, yearto){
 
 function getBugGraph()
 {   
-    var xmlhttp;
-    if (window.XMLHttpRequest)
-    {
-    xmlhttp=new XMLHttpRequest();
-    }
+    var xmlhttp = new XMLHttpRequest();
     xmlhttp.onreadystatechange=function()
     {
     if(xmlhttp.readyState==4)
       {
       i = xmlhttp.responseText.indexOf("retrivalTime") + "retrivalTime/>".length
       j = xmlhttp.responseText.indexOf('</span>',i)
-      retrivalTime = xmlhttp.responseText.substring(i,j)
+      upTime = xmlhttp.responseText.substring(i,j)
       var rt = document.getElementById("retrivalTime");
-      rt.innerHTML = "Last Updated On : " + retrivalTime 
+      rt.innerHTML = "Last Updated On : " + upTime 
       i = xmlhttp.responseText.indexOf('datasets',j) + "datasets/>".length
       j = xmlhttp.responseText.indexOf('</span>',i)
       datasets = eval(xmlhttp.responseText.substring(i,j))
@@ -94,7 +90,7 @@ function getlatestgraph(data,fromDate,toDate) {
        [ { data:newbug,     label: "New",         lines: { show: true, lineWidth: 1} },
          { data:inprogress, label: "In Progress", lines: {  show: true, lineWidth: 1}  },
          { data:confirmed,  label: "Confirmed",   lines: { show: true, lineWidth: 1} },
-         { data:fixreleased,  label: "FixReleased",lines: { show: true, lineWidth: 1} },
+         { data:fixreleased,  label: "FixReleased",lines: { show: true, lineWidth: 1} }
         ],
        { 
        xaxis: { mode: "time",
