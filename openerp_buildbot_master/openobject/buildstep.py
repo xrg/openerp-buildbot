@@ -367,8 +367,13 @@ class InstallTranslation(LoggingBuildStep):
                 pos = io.index(line)
                 for line in io[pos:-3]:
                     traceback_log.append(line)
+                    if line.find("Exception:") != -1:
+                        index = traceback_log.index(line)
+                traceback_property = []
+                for line in traceback_log[(index+2):-1]:
+                        traceback_property.append(line)
                 self.addCompleteLog("Install-Translation : Traceback", "".join(traceback_log))
-                self.setProperty("Install-Translation : Traceback", str(io[-4]))
+                self.setProperty("Install-Translation : Traceback", "".join(traceback_property))
                 break;
                     
             elif line.find("INFO:") != -1:
@@ -494,8 +499,13 @@ class InstallModule(LoggingBuildStep):
                 pos = io.index(line)
                 for line in io[pos:-1]:
                     traceback_log.append(line)
+                    if line.find("Exception:") != -1:
+                        index = traceback_log.index(line)
+                traceback_property = []
+                for line in traceback_log[(index+2):-1]:
+                        traceback_property.append(line)
                 self.addCompleteLog("Install-Module : Traceback", "".join(traceback_log))
-                self.setProperty("Install-Module : Traceback", str(io[-2]))
+                self.setProperty("Install-Module : Traceback", "".join(traceback_property))
                 break;
             elif line.find("INFO") != -1:
                 continue                
