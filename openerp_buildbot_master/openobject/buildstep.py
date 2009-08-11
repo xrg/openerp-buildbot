@@ -253,7 +253,7 @@ class CheckQuality(LoggingBuildStep):
 
 
 class Copy(LoggingBuildStep):
-    name = 'make-link'
+    name = 'copy'
     flunkOnFailure = False
     def describe(self, done=False):
         if done:
@@ -540,6 +540,7 @@ class InstallModule(LoggingBuildStep):
 
 class OpenObjectBzr(Bzr):
     flunkOnFailure = False
+    haltOnFailure = False
     def __init__(self, repourl=None, baseURL=None,
                  defaultBranch=None,workdir=None,mode='update',alwaysUseLatest=True,timeout=20*60, retry=None,**kwargs):
         LoggingBuildStep.__init__(self, **kwargs)
