@@ -6,17 +6,20 @@ import time
 
 class logServer(threading.Thread):
     def __init__(self):
-        self.logdir = 'ChangeLogs'
+        self.logdir = 'public_html/Changelog'
         self.logfile = 'log.txt'
-        self.locations = ['https://launchpad.net/~openerp/openobject-server/trunk/','https://launchpad.net/~openerp/openobject-addons/trunk/']
+        self.locations = {
+            'openobject-server':'https://launchpad.net/~openerp/openobject-server/trunk/',
+            'openobject-addons':'https://launchpad.net/~openerp/openobject-addons/trunk/',
+            'trunk-extra-addons':'https://launchpad.net/~openerp-commiter/openobject-addons/trunk-extra-addons/',
+            'trunk-addons-community':'https://launchpad.net/~openerp-community/openobject-addons/trunk-addons-community/'}
         self.last_revno = {}
         super(logServer, self).__init__()
 
     def get_revisions(self):
         res = {}
         curr_date = datetime.now()         
-        for location in self.locations:
-            branch = location.split('/')[-3]
+        for branch, location in self.locations.items():            
             b = Branch.open_containing(location)[0]
             current_revision = b.revno()
             if branch not in self.last_revno:
@@ -41,8 +44,8 @@ class logServer(threading.Thread):
                         if log_month not in summaries[log_year]:
                             summaries[log_year][log_month] = []
                     msg = rev.get_summary()
-                    app_authors = rev.get_apparent_authors()
-                    ass_bugs = [bug[0] for bug in rev.iter_bugs()]
+                    app_authors = [rev.get_apparent_author()] #rev.get_apparent_authors()
+                    ass_bugs = [] #[bug[0] for bug in rev.iter_bugs()]
                     summaries[log_year][log_month].append((msg,ass_bugs,app_authors))
                 else:
                     continue
@@ -57,7 +60,7 @@ class logServer(threading.Thread):
                     except:
                         raise   
                     fp = open(os.path.join(file_path,self.logfile),'w')
-                    fp.write('Change Log for the month of %s\n'%(datetime(int(year),int(month),1).strftime('%B/%Y')))
+                    fp.write('Change Log of %s for the month of %s\n'%(branch, datetime(int(year),int(month),1).strftime('%B/%Y')))
                     fp.write('======================================\n')
                     for value in values:
                         ass_bugs = ''
