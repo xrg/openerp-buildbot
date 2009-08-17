@@ -63,7 +63,8 @@ class lpServer(threading.Thread):
                         r[label][str(date.year)][month] += 1
             return r
 
-        bug_status = ['New','Confirmed','In Progress','Fix Released']
+        bug_status = ['New','Confirmed','In Progress','Fix Released','Invalid','Incomplete']
+       
         for project in projects:
             result = {}            
             r = {}
@@ -95,6 +96,16 @@ class lpServer(threading.Thread):
                         date = bug.date_fix_released
                         month = date.month
                         r = store_bugs(label,r,month)
+                    if bug.date_closed and bug.status == 'Invalid': 
+                        label = 'invalid'
+                        date = bug.date_closed
+                        month = date.month
+                        r = store_bugs(label,r,month)
+                    if not bug.is_complete and bug.status == 'Incomplete': 
+                        label = 'incomplete'
+                        date = bug.date_left_new
+                        month = date.month
+                        r = store_bugs(label,r,month)
                     else:
                         continue
             res[project] = r   
@@ -102,7 +113,8 @@ class lpServer(threading.Thread):
         confirmed = []
         inprogress = []
         fixreleased = []
-
+        invalid = []
+        incomplete = []
         for project,types in res.items():
             for type,years in types.items():  
                 for year, months in years.items():
@@ -115,7 +127,11 @@ class lpServer(threading.Thread):
                             inprogress.append([year,month,val])
                         elif type == 'fixreleased':
                             fixreleased.append([year,month,val])
-        datasets = [new,confirmed,inprogress,fixreleased]
+                        elif type == 'invalid':
+                            invalid.append([year,month,val])
+                        elif type == 'incomplete':
+                            incomplete.append([year,month,val])
+        datasets = [new,confirmed,inprogress,fixreleased,invalid,incomplete]
         return datasets
 
     def save_dataset(self):        

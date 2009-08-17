@@ -73,6 +73,9 @@ function getlatestgraph(data,fromDate,toDate) {
     var inprogress = [] 
     var confirmed = [] 
     var fixreleased = []
+    var invalid = []
+    var incomplete = []
+
     for (var i in data){  
         for (var j in data[i]){
             if ( i == 0){                                
@@ -81,16 +84,22 @@ function getlatestgraph(data,fromDate,toDate) {
               confirmed.push([(new Date(data[i][j][0]+'/'+data[i][j][1]+'/01')).getTime(),data[i][j][2]]);}
             else if (i == 2){
               inprogress.push([(new Date(data[i][j][0]+'/'+data[i][j][1]+'/01')).getTime(),data[i][j][2]]);}
-            else{
+            else if (i == 3){
               fixreleased.push([(new Date(data[i][j][0]+'/'+data[i][j][1]+'/01')).getTime(),data[i][j][2]]);}
+            else if (i == 4){
+              invalid.push([(new Date(data[i][j][0]+'/'+data[i][j][1]+'/01')).getTime(),data[i][j][2]]);}
+            else{
+              incomplete.push([(new Date(data[i][j][0]+'/'+data[i][j][1]+'/01')).getTime(),data[i][j][2]]);}
                        }      
                              }
 
     $.plot($("#placeholder"), 
-       [ { data:newbug,     label: "New",         lines: { show: true, lineWidth: 1} },
-         { data:inprogress, label: "In Progress", lines: {  show: true, lineWidth: 1}  },
-         { data:confirmed,  label: "Confirmed",   lines: { show: true, lineWidth: 1} },
-         { data:fixreleased,  label: "FixReleased",lines: { show: true, lineWidth: 1} }
+       [ { data:newbug,      label: "New",          lines: { show: true, lineWidth: 1} },
+         { data:inprogress,  label: "In Progress",  lines: {  show: true, lineWidth: 1}  },
+         { data:confirmed,   label: "Confirmed",    lines: { show: true, lineWidth: 1} },
+         { data:fixreleased, label: "FixReleased",  lines: { show: true, lineWidth: 1} },
+         { data:invalid,     label: "Invalid",      lines: { show: true, lineWidth: 1} },
+         { data:incomplete,  label: "Incomplete",   lines: { show: true, lineWidth: 1} }
         ],
        { 
        xaxis: { mode: "time",
@@ -102,7 +111,7 @@ function getlatestgraph(data,fromDate,toDate) {
         yaxis:{ min:0 },
         shadowSize: 1,
         selection: { mode: "xy" },
-        legend: {show: true, position: 'nw',noColumns: 1},
+        legend: {show: true, position: 'ne',noColumns: 1},
         grid: { hoverable: true, clickable: true ,  backgroundColor: "#fffaff"},
         points: { show: true }
         });
