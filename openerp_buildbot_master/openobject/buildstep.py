@@ -164,7 +164,12 @@ class CheckQuality(LoggingBuildStep):
         s = self.build.getSourceStamp()
         modules = []
         for change in s.changes:
-            for f in change.files:
+            files = (
+                     [f for f in change.files_added]+
+                     [f for f in change.files_modified] + 
+                     [f for f[1] in change.files_renamed]
+                     )
+            for f in files:
                 module = f.split('/')[0]
                 if module in ('bin','Makefile','man','README','setup.cfg','setup.py','doc','MANIFEST.in','openerp.log','pixmaps','rpminstall_sh.txt','setup.nsi','win32'):
                     continue
@@ -326,7 +331,12 @@ class InstallTranslation(LoggingBuildStep):
         s = self.build.getSourceStamp()
         self.pofiles = []
         for change in s.changes:
-            for f in change.files:
+            files = (
+                     [f[0] for f in change.files_added]+
+                     [f[0] for f in change.files_modified] + 
+                     [f[1] for f in change.files_renamed]
+                     )
+            for f in files:
                 fname,ext = os.path.splitext(f.split('/')[-1])
                 if ext == '.po':
                     self.pofiles.append(f)
@@ -457,7 +467,13 @@ class InstallModule(LoggingBuildStep):
         s = self.build.getSourceStamp()
         modules = []
         for change in s.changes:
-            for f in change.files:
+            files = (
+                     [f for f in change.files_added]+
+                     [f for f in change.files_modified] + 
+                     [f for f[1] in change.files_renamed] +
+                     [f for f in change.files_removed]
+                     )
+            for f in files:
                 module = f.split('/')[0]
                 if module in ('bin','Makefile','man','README','setup.cfg','setup.py','doc','MANIFEST.in','openerp.log','pixmaps','rpminstall_sh.txt','setup.nsi','win32'):
                     continue

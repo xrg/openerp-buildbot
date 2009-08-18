@@ -30,6 +30,7 @@ from email.MIMEMultipart import MIMEMultipart
 from email.Header import Header
 from email.Utils import formatdate, COMMASPACE
 from buildbot.status.builder import SUCCESS, FAILURE, WARNINGS
+from twisted.web import html
 
 class OpenObjectMailNotifier(MailNotifier):
     def __init__(self, username=None, password=None, port=2525, fromaddr=None, mode="failing", 
@@ -88,173 +89,144 @@ class OpenObjectMailNotifier(MailNotifier):
         else:
             status_text = "OpenERP Buildbot FAILED !" 
             res = "failure"
-
-        change = list(ss.changes)
-        m = Message()
-        if self.html_body:
-            self._body = self.get_HTML_mail(name,build_url,waterfall_url,failed_step,status_text,change[0])
-        else:
-            self._body = self.get_TEXT_mail(name,build_url,waterfall_url,failed_step,status_text,change[0])
-
+        
         self.subject = self.subject % {
             'result': res,
             'projectName': self.projectName,
             'builder': name.upper(),
             'reason': build.getReason(),
         }
+        
         recipients = []
         for u in build.getInterestedUsers():
             recipients.append(u)
-        return self.sendMessage(m, recipients)  
+        changes = list(ss.changes)
+        
+        self._body=''
+        for change in changes:
+            m = Message()
+            if self.html_body:
+                self._body = self.get_HTML_mail(name,build_url,waterfall_url,failed_step,status_text,change)
+            else:
+                self._body = self.get_TEXT_mail(name,build_url,waterfall_url,failed_step,status_text,change)
+            self.sendMessage(m, recipients)
+        return True 
 
     def get_HTML_mail(self,name='',build_url=None,waterfall_url=None,failed_step='',status_text='',change=''):
-        files = [f.encode('utf-8') for f in change.files]
-        html_mail = """
-           <html>
-            <body>
-            <var>
-            Hello %s,<br/><br/>
-            We are sorry to say that your last commit had broken %s (%s).
-Can you please recheck your commit ?<br/><br/></var>
-            <table bordercolor="black" align="left">
-            <tr>
-                <td><b>The details are as below:</b>
-                    <tr>
-                        <td align="left">Dashboard:</td>
-                        <td align="left"><a href=%s>%s</a></td>
-                    </tr>
-                    <tr>
-                        <td align="left">Run details:</td>
-                        <td align="left"><a href=%s>%s</a></td>
-                    </tr>
-                    <tr>
-                        <td align="left">Waterfall:</td>
-                        <td align="left"><a href=%swaterfall?builder=%s>%swaterfall?builder=%s</a></td>
-                    </tr>
-                    <tr>
-                        <td align="left">Step(s) Failed:</td>
-                        <td align="left"><font color="red">%s</font></td>
-                    </tr>
-                    <tr>
-                            <td align="left">Status:</td>
-                            <td align="left"><font color="red">%s</font></td>
-                            
-                    </tr>
-                    <tr>
-                        <td><b>Commit History:</b>
-                            <tr>
-                                <td align="left">Changed by:</td>
-                                <td align="left">%s</td>
-                            </tr>
-                            <tr>
-                                <td align="left">Changed at:</td>
-                                <td align="left">%s</td>
-                            </tr>
-                            <tr>
-                                <td align="left">Branch:</td>
-                                <td align="left"><a href=%s>%s</td>
-                            </tr>
-                            <tr>
-                                <td align="left">Revision:</td>
-                                <td align="left">%s</td>
-                            </tr>
-                            <tr>
-                                <td align="left">Changed files:</td>
-                                <td align="left"><font size="3">%s</font></td>
-                            </tr>
-                            <tr>
-                                <td align="left">Comments:</td>
-                                <td align="left"><font size="3">%s</font></td>
-                            </tr>
-                        </td>
-                    </tr>
-                    <tr></tr>
-                    <tr></tr>
-                    <tr></tr>
-                    <tr></tr>
-                    <tr></tr>
-                    <tr>
-                        <td>Regards,
-                            <tr>
-                                <td><font color="red">OpenERP Quality Team</font></td>
-                            </tr>
-                            <tr>
-                                <td>Great Achievements Start With Tiny Investments !</td>
-                            </tr>
-                       </td>
-                    </tr>
-                </td>
-                </tr>
-            </table>
-            </body>
-            </html>
-            """ % (change.who[:change.who.index('<')],
-                   self.projectName,
-                   name,
-                   urllib.quote(waterfall_url, '/:'),
-                   urllib.quote(waterfall_url, '/:'),
-                   build_url,
-                   build_url,
-                   urllib.quote(waterfall_url, '/:'),
-                   urllib.quote(name),
-                   urllib.quote(waterfall_url, '/:'),
-                   urllib.quote(name),
-                   failed_step,
-                   status_text,
-                   change.who,
-                   formatdate(change.when,usegmt=True),
-                   change.branch,
-                   change.branch,
-                   change.revision,
-                   '<br/>'.join(files),
-                   change.comments)
-        return html_mail  
-
+        files_added = []
+        files_modified = []
+        files_renamed = []
+        files_removed = [] 
+        files_added_lbl = ''
+        files_modified_lbl = ''
+        files_renamed_lbl = ''
+        files_removed_lbl = ''
+        branch_link = ''
+        rev_no = change.rev_no
+        if change.revision:
+            revision = "Revision: <b>%s</b><br />\n" % change.revision
+        branch = ""
+        if change.branch:
+            i = change.branch.index('launchpad')
+            branch_link = 'https://bazaar.' + change.branch[i:] + '/revision/' + str(rev_no) + '#'
+            branch = change.branch
+        if change.files_added:
+            files_added_lbl = "<b>Added files: </b>\n"
+            for file in change.files_added:
+                file_link = branch_link + file
+                files_added.append("<a href='%s'>%s</a>" % (file_link,file))
+        if change.files_modified:
+            files_modified_lbl = "<b>Modified files: </b>\n"
+            for file in change.files_modified:
+                file_link = branch_link + file
+                files_modified.append("<a href='%s'>%s</a>" % (file_link, file))
+        if change.files_renamed:
+            files_renamed_lbl = "<b>Renamed files: </b>\n"
+            for file in change.files_renamed:
+                file_link = branch_link + file[1]
+                files_renamed.append("%s  ==>  %s<br ><a href='%s'>%s</a>" % (file[0], file[1], file_link, file_link))
+        if change.files_removed:
+            files_removed_lbl = "<b>Removed files: </b>\n"
+            for file in change.files_removed:
+                file_link = branch_link + file
+                files_removed.append("<a href='%s'>%s</a>" % (file_link,file))
+                
+        kwargs = { 'who_name'     : change.who.encode('utf-8')[:change.who.index('<')],
+                   'project_name'      : self.projectName,
+                   'name'   : name,
+                   'waterfall_url' : urllib.quote(waterfall_url, '/:') ,
+                   'build_url' : build_url,
+                   'name_quote' : urllib.quote(name),
+                   'failed_step' : failed_step,
+                   'status_text' : status_text,
+                   'who' : change.who.encode('utf-8'),
+                   'when' : formatdate(change.when,usegmt=True),
+                   'branch' : branch,
+                   'revision' : change.revision,
+                   'files_added'   : files_added_lbl + html.UL(files_added),
+                   'files_modified' : files_modified_lbl + html.UL(files_modified),
+                   'files_renamed' : files_renamed_lbl + html.UL(files_renamed),
+                   'files_removed' : files_removed_lbl + html.UL(files_removed),
+                   'comments': change.comments }
+        return html_mail % kwargs 
+                  
     def get_TEXT_mail(self,name='',build_url=None,waterfall_url=None,failed_step='',status_text='',change=''):
-        files = [f.encode('utf-8') for f in change.files]
-        text_mail = """Hello %s,
-
-We are sorry to say that your last commit had broken %s (%s).
-Can you please recheck your commit ?
-
-The details are as below:
-
-Dashboard      : %s 
-Run details    : %s
-Waterfall      : %swaterfall?builder=%s
-Step(s) Failed : %s
-Status         : %s
-
-Commit History:
-
-Changed by     : %s
-Changed at     : %s
-Branch         : %s
-Revision       : %s
-Changed files  : %s
-Comments       : %s
-
-
-Regards,
-OpenERP Quality Team
-
-Great Achievements Start With Tiny Investments !
-            """ % (change.who[:change.who.index('<')],
-                   self.projectName,
-                   name,
-                   urllib.quote(waterfall_url, '/:'),
-                   build_url,
-                   urllib.quote(waterfall_url, '/:'),
-                   urllib.quote(name),
-                   failed_step,
-                   status_text,
-                   change.who,
-                   formatdate(change.when,usegmt=True),
-                   change.branch,
-                   change.revision,
-                   '\n'.join(files),
-                   change.comments)
-        return text_mail  
+        files_added = []
+        files_modified = []
+        files_renamed = []
+        files_removed = [] 
+        files_added_lbl = ''
+        files_modified_lbl = ''
+        files_renamed_lbl = ''
+        files_removed_lbl = ''
+        branch_link = ''
+        rev_no = change.rev_no
+        if change.revision:
+            revision = change.revision
+        branch = ""
+        if change.branch:
+            i = change.branch.index('launchpad')
+            branch_link = 'https://bazaar.' + change.branch[i:] + '/revision/' + str(rev_no) + '#'
+            branch = change.branch
+        if change.files_added:
+            files_added_lbl = "\n\nAdded files: \n" + "---------------\n"
+            for file in change.files_added:
+                file_link = branch_link + file
+                files_added.append(" * %s \n   ( %s )" % (file, file_link))
+        if change.files_modified:
+            files_modified_lbl = "\n\nModified files: \n" + "---------------\n"
+            for file in change.files_modified:
+                file_link = branch_link + file
+                files_modified.append(" * %s \n   ( %s )" % (file, file_link))
+        if change.files_renamed:
+            files_renamed_lbl = "\n\nRenamed files: \n" + "---------------\n"
+            for file in change.files_renamed:
+                file_link = branch_link + file[1]
+                files_renamed.append(" * %s  ==>  %s \n   ( %s )" % (file[0], file[1], file_link))
+        if change.files_removed:
+            files_removed_lbl = "\n\nRemoved files: \n" + "---------------\n"
+            for file in change.files_removed:
+                file_link = branch_link + file
+                files_removed.append(" * %s \n   ( %s )" % (file, file_link))
+                
+        kwargs = { 'who_name'     : change.who.encode('utf-8')[:change.who.index('<')],
+                   'project_name'      : self.projectName,
+                   'name'   : name,
+                   'waterfall_url' : urllib.quote(waterfall_url, '/:'),
+                   'build_url' : build_url,
+                   'name_quote' : urllib.quote(name),
+                   'failed_step' : failed_step,
+                   'status_text' : status_text,
+                   'who' : change.who.encode('utf-8'),
+                   'when' : formatdate(change.when,usegmt=True),
+                   'branch' : branch,
+                   'revision' : revision,
+                   'files_added'   : files_added_lbl + '\n'.join(files_added),
+                   'files_modified' : files_modified_lbl + '\n'.join(files_modified),
+                   'files_renamed' : files_renamed_lbl + '\n'.join(files_renamed), 
+                   'files_removed' : files_removed_lbl + '\n'.join(files_removed),
+                   'comments': change.comments }
+        return text_mail % kwargs
 
     def sendMessage(self, m, recipients):
 
@@ -269,11 +241,11 @@ Great Achievements Start With Tiny Investments !
         subject = self.subject
         body = self._body
         subtype = 'plain'
-
+        
         if self.html_body:
             subtype ='html'
         msg = MIMEText(body or '',_subtype=subtype, _charset='utf-8')
-
+        
         msg['Subject'] = Header(subject.decode('utf8'), 'utf-8')
         msg['From'] = email_from
         msg['To'] = COMMASPACE.join(email_to)
@@ -295,5 +267,120 @@ Great Achievements Start With Tiny Investments !
             print "Exception:",e
         return True           
 
+text_mail = """Hello %(who_name)s,
+        
+We are sorry to say that your last commit had broken %(project_name)s (%(name)s).
+Can you please recheck your commit ?
+
+The details are as below:
+=========================
+
+Dashboard      : %(waterfall_url)s 
+Run details    : %(build_url)s
+Waterfall      : %(waterfall_url)swaterfall?builder=%(name_quote)s
+Step(s) Failed : %(failed_step)s
+Status         : %(status_text)s
+
+Commit History:
+---------------
+
+Changed by     : %(who)s
+Changed at     : %(when)s
+Branch         : %(branch)s
+Revision       : %(revision)s
+%(files_added)s%(files_modified)s%(files_renamed)s%(files_removed)s
+
+Comments       : 
+%(comments)s
+
+
+Regards,
+OpenERP Quality Team
+
+Great Achievements Start With Tiny Investments !
+            """
+html_mail = """<html>
+            <body>
+            <var>
+            Hello %(who_name)s,<br/><br/>
+            We are sorry to say that your last commit had broken %(project_name)s (%(name)s).
+Can you please recheck your commit ?<br/><br/></var>
+            <table bordercolor="black" align="left">
+            <tr>
+                <td><b>The details are as below:</b>
+                    <tr>
+                        <td align="left">Dashboard:</td>
+                        <td align="left"><a href=%(waterfall_url)s>%(waterfall_url)s</a></td>
+                    </tr>
+                    <tr>
+                        <td align="left">Run details:</td>
+                        <td align="left"><a href=%(build_url)s>%(build_url)s</a></td>
+                    </tr>
+                    <tr>
+                        <td align="left">Waterfall:</td>
+                        <td align="left"><a href=%(waterfall_url)swaterfall?builder=%(name_quote)s>%(waterfall_url)swaterfall?builder=%(name_quote)s</a></td>
+                    </tr>
+                    <tr>
+                        <td align="left">Step(s) Failed:</td>
+                        <td align="left"><font color="red">%(failed_step)s</font></td>
+                    </tr>
+                    <tr>
+                            <td align="left">Status:</td>
+                            <td align="left"><font color="red">%(status_text)s</font></td>
+                            
+                    </tr>
+                    <tr>
+                        <td><b>Commit History:</b></td>
+                    <tr>
+                        <td align="left">Changed by:</td>
+                        <td align="left">%(who)s</td>
+                    </tr>
+                    <tr>
+                        <td align="left">Changed at:</td>
+                        <td align="left">%(when)s</td>
+                    </tr>
+                    <tr>
+                        <td align="left">Branch:</td>
+                        <td align="left"><a href='%(branch)s'>%(branch)s</a></td>
+                    </tr>
+                    <tr>
+                        <td align="left">Revision:</td>
+                        <td align="left">%(revision)s</td>
+                    </tr>
+                    <tr>
+                        <td align="left">%(files_added)s</td>
+                    </tr>
+                    <tr>
+                        <td align="left">%(files_modified)s</td>
+                    </tr>
+                    <tr>
+                        <td align="left">%(files_renamed)s</td>
+                    </tr>
+                    <tr>
+                        <td align="left">%(files_removed)s</td>
+                    </tr>
+                    <tr>
+                        <td align="left">Comments:</td>
+                        <td align="left"><font size="3">%(comments)s</font></td>
+                    </tr>
+                    <tr></tr>
+                    <tr></tr>
+                    <tr></tr>
+                    <tr></tr>
+                    <tr></tr>
+                    <tr>
+                        <td>Regards,
+                            <tr>
+                                <td><font color="red">OpenERP Quality Team</font></td>
+                            </tr>
+                            <tr>
+                                <td>Great Achievements Start With Tiny Investments !</td>
+                            </tr>
+                       </td>
+                    </tr>
+            </table>
+            </body>
+            </html>"""
+     
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
 
