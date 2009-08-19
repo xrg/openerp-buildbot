@@ -167,7 +167,7 @@ class CheckQuality(LoggingBuildStep):
             files = (
                      [f for f in change.files_added]+
                      [f for f in change.files_modified] + 
-                     [f for f[1] in change.files_renamed]
+                     [f[1] for f in change.files_renamed]
                      )
             for f in files:
                 module = f.split('/')[0]
@@ -279,16 +279,16 @@ class Copy(LoggingBuildStep):
         self.branch = branch
     def start(self):
         s = self.build.getSourceStamp()
-        modules = []
+        flag = False
         for change in s.changes:
-            if change.branch != self.branch:
-                continue
-            for f in change.files:
-                module = f.split('/')[0]
-                if module not in modules:
-                    modules.append(module)
-        if len(modules):            
+            if change.branch == self.branch:
+                flag = True
+                break
+        if flag:
             cmd = LoggedRemoteCommand("copy", self.args)
+            self.startCommand(cmd)
+        else:            
+            cmd = LoggedRemoteCommand("dummy", self.args)
             self.startCommand(cmd)
 
 class InstallTranslation(LoggingBuildStep):
@@ -467,13 +467,7 @@ class InstallModule(LoggingBuildStep):
         s = self.build.getSourceStamp()
         modules = []
         for change in s.changes:
-            files = (
-                     [f for f in change.files_added]+
-                     [f for f in change.files_modified] + 
-                     [f for f[1] in change.files_renamed] +
-                     [f for f in change.files_removed]
-                     )
-            for f in files:
+            for f in change.files:
                 module = f.split('/')[0]
                 if module in ('bin','Makefile','man','README','setup.cfg','setup.py','doc','MANIFEST.in','openerp.log','pixmaps','rpminstall_sh.txt','setup.nsi','win32'):
                     continue
@@ -515,10 +509,11 @@ class InstallModule(LoggingBuildStep):
                 pos = io.index(line)
                 for line in io[pos:-1]:
                     traceback_log.append(line)
+                    index = -3
                     if line.find("Exception:") != -1:
-                        index = traceback_log.index(line)
+                        index = traceback_log.index(line) + 2
                 traceback_property = []
-                for line in traceback_log[(index+2):-1]:
+                for line in traceback_log[(index):-1]:
                         traceback_property.append(line)
                 self.addCompleteLog("Install-Module : Traceback", "".join(traceback_log))
                 self.setProperty("Install-Module : Traceback", "".join(traceback_property))

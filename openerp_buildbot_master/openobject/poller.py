@@ -75,7 +75,7 @@ class BzrPoller(service.MultiService, util.ComparableMixin):
         # this is subclass of bzrlib.branch.Branch
         current_revision = b.revno()
         if not self.last_revno:
-            self.last_revno = current_revision
+            self.last_revno = current_revision #- 1
         # NOTE: b.revision_history() does network IO, and is blocking.
         revisions = b.revision_history()[self.last_revno:] # each is an id string
         changes = []
@@ -128,13 +128,14 @@ from twisted.web import html
 class OpenObjectChange(Change):
     def __init__(self, rev_no, who, revision_delta, comments, files=[],  isdir=0, links=[],
                  revision=None, when=None, branch=None):
-        Change.__init__(self, who=who, files=files, comments=comments, isdir=isdir, links=links,revision=revision, when=when, branch=branch)
         self.files_added = [f[0] for f in revision_delta.added]
         self.files_modified = [f[0] for f in revision_delta.modified]
         self.files_renamed = [(f[0],f[1]) for f in revision_delta.renamed]
-        self.files_removed = [f[0] for f in revision_delta.removed] 
+        self.files_removed = [f[0] for f in revision_delta.removed]
         self.ch = revision_delta
-        self.rev_no = rev_no
+        self.rev_no = str(rev_no).encode('utf-8')
+        files =  self.files_added + self.files_modified + self.files_renamed + self.files_removed
+        Change.__init__(self, who=who, files=files, comments=comments, isdir=isdir, links=links,revision=revision, when=when, branch=branch)
         
     def asHTML(self):
         files_added = []
@@ -146,7 +147,7 @@ class OpenObjectChange(Change):
         files_renamed_lbl = ''
         files_removed_lbl = ''
         branch_link = ''
-        rev_no = self.rev_no
+        rev_no = self.rev_no.encode('utf-8')
         if self.revision:
             revision = "Revision : <b>%s</b><br />\n" % self.revision
         branch = ""

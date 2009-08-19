@@ -39,7 +39,7 @@ class SlaveCp(SlaveShellCommand):
         for dir in os.listdir(workdir):
             if dir not in ['.buildbot-sourcedata','.bzrignore','.bzr']:
                 dirs.append(dir)
-        commandline = ["cp","-r"]
+        commandline = ["cp","-r","-u","-l"]
         commandline += dirs
         commandline += [addonsdir]
         c = ShellCommand(self.builder, commandline,
