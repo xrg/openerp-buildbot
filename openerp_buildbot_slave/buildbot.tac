@@ -4,7 +4,7 @@ from buildbot.slave.bot import BuildSlave
 from buildbot.slave.registry import registerSlaveCommand
 from openobject import command 
 
-basedir = r'/home/hmo/Office/Projects/openerp-buildbot/openerp_buildbot_slave'
+basedir = r'/home/nch/openERP/Extra-branch/HMOsir/openerp-buildbot/openerp_buildbot_slave'
 buildmaster_host = '127.0.0.1'
 port = 8999
 slavename = 'openerp_bot'

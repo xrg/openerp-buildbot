@@ -72,33 +72,58 @@
                     <div>
                         <table>
                             <tr>
-                                <td>
-                                    From:
-                                </td>
-                                <td>
-                                    <select id="monthFrom"></select> 
-                                </td>
-                                <td>
-                                    <select id="yearFrom"></select> 
-                                </td>
-                                <td>
-                                    To:
-                                </td>
-                                <td>
-                                   <select id="monthTo"></select> 
-                                </td>
-                                <td>
-                                   <select id="yearTo"></select> 
-                                </td>
-                                <td>
-            			            <button  onClick="javascript:getBugGraph()" align='center'>Refresh</button>
+                              <td>
+                                <table>
+                                        <tr>  
+                                            <td>
+                                                From:
+                                            </td>
+                                            <td>
+                                                <select id="monthFrom"></select> 
+                                            </td>
+                                            <td>
+                                                <select id="yearFrom"></select> 
+                                            </td>
+                                            <td>
+                                                To:
+                                            </td>
+                                            <td>
+                                               <select id="monthTo"></select> 
+                                            </td>
+                                            <td>
+                                               <select id="yearTo"></select> 
+                                            </td>
+                                            <td>
+                        			            <button  onClick="javascript:getBugGraph()" align='center'>Refresh</button>
+                                            </td>
+                                    </tr>
+                                </table>
                                 </td>
                             </tr>
                             <tr >                        
-                                <td colspan="7">
+                                <td>
                                     <div id="placeholder" style="width:100%;height:250px;float:right;"></div>
                                 </td>
                             </tr>   
+                            <tr>
+                                <td>
+                                    <table>
+                                        <tr>
+                                            <td colspan = "2">
+                                               
+                                            <button onClick="window.open('https://bugs.launchpad.net/openobject/+filebug','report',' width=1200,height=600,scrollbars=yes')" align='center'>Report a bug</button>
+                                            </td>
+                                            <td colspan = "2">
+                                            <button onClick="window.open('https://bugs.launchpad.net/openobject/+bugs?field.searchtext=&orderby=-importance&search=Search&field.status%3Alist=NEW&assignee_option=any&field.assignee=&field.bug_reporter=&field.bug_supervisor=&field.bug_commenter=&field.subscriber=&field.omit_dupes.used=&field.omit_dupes=on&field.has_patch.used=&field.has_cve.used=&field.tag=&field.tags_combinator=ANY','review',' width=1200,height=600,scrollbars=yes')" align='center'>Review bugs</button>
+                                            </td>
+                                            <td colspan = "3">
+                                            <button onClick="window.open('https://bugs.launchpad.net/openobject/+bugs?field.searchtext=&orderby=-importance&search=Search&field.status%3Alist=CONFIRMED&assignee_option=any&field.assignee=&field.bug_reporter=&field.bug_supervisor=&field.bug_commenter=&field.subscriber=&field.omit_dupes.used=&field.omit_dupes=on&field.has_patch.used=&field.has_cve.used=&field.tag=&field.tags_combinator=ANY','workonbug',' width=1200,height=600,scrollbars=yes')" align='center'>Work on confirmed bugs</button>
+                                            </td>
+                                        </tr>
+                                    </table>
+                               </td>
+                             </tr>
+
                             </table>
                         
                    </div>
