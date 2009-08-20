@@ -112,6 +112,7 @@ html_tmpl = """
 Changed at : <b>%(at)s</b><br />
 %(branch)s
 %(revision)s
+%(rev_no)s
 </p>
 
 %(files_added)s
@@ -133,7 +134,7 @@ class OpenObjectChange(Change):
         self.files_renamed = [(f[0],f[1]) for f in revision_delta.renamed]
         self.files_removed = [f[0] for f in revision_delta.removed]
         self.ch = revision_delta
-        self.rev_no = str(rev_no).encode('utf-8')
+        self.rev_no = rev_no
         files =  self.files_added + self.files_modified + self.files_renamed + self.files_removed
         Change.__init__(self, who=who, files=files, comments=comments, isdir=isdir, links=links,revision=revision, when=when, branch=branch)
         
@@ -146,15 +147,22 @@ class OpenObjectChange(Change):
         files_modified_lbl = ''
         files_renamed_lbl = ''
         files_removed_lbl = ''
-        branch_link = ''
-        rev_no = self.rev_no.encode('utf-8')
+        
+        revision = ''
         if self.revision:
             revision = "Revision : <b>%s</b><br />\n" % self.revision
+            
+        rev_no = ''
+        if self.rev_no:
+            rev_no = "Revision No: <b>%s</b><br />\n" % self.rev_no
+            
         branch = ""
+        branch_link = ''
         if self.branch:
             i = self.branch.index('launchpad')
             branch_link = 'https://bazaar.' + self.branch[i:] + '/revision/' + str(rev_no) + '#'
             branch = "Branch : <a href='%s'>%s</a><br />\n" % (self.branch,self.branch)
+            
         if self.files_added:
             files_added_lbl = "Added files : \n"
             for file in self.files_added:
@@ -176,7 +184,6 @@ class OpenObjectChange(Change):
             for file in self.files_removed:
                 file_link = branch_link + file
                 files_removed.append("<a href='%s'>%s</a>" % (file_link,file))
-        revision = ""
         
         kwargs = { 'who'     : html.escape(self.who),
                    'at'      : self.getTime(),
@@ -185,6 +192,7 @@ class OpenObjectChange(Change):
                    'files_renamed' : files_renamed_lbl + html.UL(files_renamed) + '\n',
                    'files_removed' : files_removed_lbl + html.UL(files_removed) + '\n',
                    'revision': revision,
+                   'rev_no': rev_no,
                    'branch'  : branch,
                    'comments': html.PRE(self.comments) }
         return html_tmpl % kwargs

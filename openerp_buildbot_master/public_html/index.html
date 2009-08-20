@@ -48,12 +48,7 @@
 			<table width="1004" border="0" cellspacing="0" cellpadding="0" id="menu_header">
 			<tr>
 				<td width="141" id="menu_header_menu" nowrap="nowrap"></td>
-				<td nowrap="nowrap" align="left" height="20px"><div id="menu">					            
-						            <a href="index.html" title="">Home</a>
-						            <a href="waterfall" title="">Waterfall</a>
-						            <a href="builders" title="">Builders</a>
-						            <a href="Changelog" title="">ChangeLog</a>					            
-				            </div></td>
+				<td nowrap="nowrap" align="left" height="25px"></td>
 			</tr>
 			<tr>
 			  <td id="menu_header_menu2" nowrap="nowrap"></td>
@@ -63,18 +58,17 @@
 			
             <div style="clear: both;float:right;"></div>      
 			
-			<div id="content1" style="height:250px; border:medium; width:1004;">
+			<div id="content1" style="height:250px; border:medium; width:100%;">
 				<div style="float:left;">
 					<div>		
 					        <div>      
-					            <span> Latest Builds </span>
-                                <table id="latest_builds" border="1" cellspacing="0" cellpadding="0" width="300px"></table>
+                                <table width="490" id="latest_builds" border="1" cellspacing="0" cellpadding="0"></table>
                              </div>
                             
 					</div><!--csc-->
 				</div>
 
-                <div>
+                <div align="right">
                     From:
                     <select id="monthFrom">
                     </select> 
@@ -87,14 +81,13 @@
                     </select> 
 			        <button  onClick="javascript:getBugGraph()" align='center'>Refresh Graph</button>
                     
-                    <div id="placeholder" style="width:600px;height:250px;float:right;"></div>
-                    
+                    <div id="placeholder" style="width:490px;height:250px;float:right;"></div>
                </div>
-               
 	        </div>
+	        
             <br><span id='retrivalTime' style="float:right;padding-right:30px;font-size: 0.5em"></span>
-            <br>
-
+            
+            <br><br><br>
 			<div id="content">
 				<div id="sidebar">
 					<div id="login" class="boxed">

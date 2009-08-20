@@ -163,6 +163,7 @@ class OpenObjectMailNotifier(MailNotifier):
                    'when' : formatdate(change.when,usegmt=True),
                    'branch' : branch,
                    'revision' : change.revision,
+                   'rev_no': rev_no,
                    'files_added'   : files_added_lbl + html.UL(files_added),
                    'files_modified' : files_modified_lbl + html.UL(files_modified),
                    'files_renamed' : files_renamed_lbl + html.UL(files_renamed),
@@ -221,6 +222,7 @@ class OpenObjectMailNotifier(MailNotifier):
                    'when' : formatdate(change.when,usegmt=True),
                    'branch' : branch,
                    'revision' : revision,
+                   'rev_no': rev_no,
                    'files_added'   : files_added_lbl + '\n'.join(files_added),
                    'files_modified' : files_modified_lbl + '\n'.join(files_modified),
                    'files_renamed' : files_renamed_lbl + '\n'.join(files_renamed), 
@@ -288,6 +290,7 @@ Changed by     : %(who)s
 Changed at     : %(when)s
 Branch         : %(branch)s
 Revision       : %(revision)s
+Revision No.   : %(rev_no)s
 %(files_added)s%(files_modified)s%(files_renamed)s%(files_removed)s
 
 Comments       : 
@@ -346,6 +349,10 @@ Can you please recheck your commit ?<br/><br/></var>
                     <tr>
                         <td align="left">Revision:</td>
                         <td align="left">%(revision)s</td>
+                    </tr>
+                    <tr>
+                        <td align="left">Revision No:</td>
+                        <td align="left">%(rev_no)s</td>
                     </tr>
                     <tr>
                         <td align="left">%(files_added)s</td>

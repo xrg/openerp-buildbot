@@ -85,13 +85,7 @@ baseweb.HEADER = '''
             <table width="1004" border="0" cellspacing="0" cellpadding="0" id="menu_header">
 			<tr>
 				<td width="141" id="menu_header_menu" nowrap="nowrap"></td>
-				<td nowrap="nowrap" align="left" height="20px"><div id="menu">
-					            
-						            <a href="%(root)sindex.html" title="">Home</a>
-						            <a href="%(root)swaterfall" title="">Waterfall</a>
-					                <a href="%(root)sbuilders" title="">Builders</a>
-						            <a href="%(root)schanges" title="">ChangeSources</a>
-				            </div></td>
+				<td nowrap="nowrap" align="left" height="25px"></td>
 			</tr>
 			<tr>
 			  <td id="menu_header_menu2" nowrap="nowrap"></td>
@@ -182,25 +176,39 @@ class LatestBuilds(HtmlResource):
     title = "Latest Builds"
 
     def body(self, req):
+        from twisted.web import html
         status = self.getStatus(req)
         control = self.getControl(req)
 
         builders = req.args.get("builder", status.getBuilderNames())
         branches = [b for b in req.args.get("branch", []) if b]
 
-        data = ""
-
-        data += "<h2>Latest builds: %s</h2>\n" % ", ".join(branches)
-        data += "<table id='latest_builds'>\n"
-
         building = False
         online = 0
+        
         base_builders_url = self.path_to_root(req) + "builders/"
-        for bn in builders:
+        all_builders = [html.escape(bn) for bn in builders]
+        trunk_builders = [bn for bn in all_builders if bn.startswith('trunk')]
+        stable_builders = [bn for bn in all_builders if bn.startswith('stable')]  
+        trunk_builders_link = 'waterfall?builder='+'&amp;builder='.join(trunk_builders)
+        stable_builders_link = 'waterfall?builder=' + '&amp;builder='.join(stable_builders)
+        tr_b = False
+        st_b = False
+        data = ""
+        data += "<table id='latest_builds'>"
+        for bn in all_builders:
+            if (bn.startswith('stable')) and (not st_b):
+                st_b = True
+                data += "<table id='stable_builds'>\n"
+                data += "<tr><td><span>Latest Stable</span></td><td><a href=%s>Stable Tests</a></td><td><a href='Changelog/5.0'>Changelog</a></td></tr><\n>"[:-3]%(stable_builders_link)
+            if (bn.startswith('trunk')) and (not tr_b):
+                tr_b = True
+                data += "<tr id='trunk_builds'>\n"
+                data += "<br><br><tr><td><span>Latest Trunk</span></td><td><a href='%s'>Trunk Tests</a></td><td><a href='Changelog/trunk'>Changelog</a></td></tr><\n>"[:-3]%(trunk_builders_link)
+                 
             base_builder_url = base_builders_url + urllib.quote(bn, safe='')
             builder = status.getBuilder(bn)
             data += "<tr>\n"
-            from twisted.web import html
             data += '<td class="box"><a href="%s">%s</a></td>\n' \
                   % (base_builder_url, html.escape(bn))
             builds = list(builder.generateFinishedBuilds(map_branches(branches),
@@ -223,7 +231,8 @@ class LatestBuilds(HtmlResource):
                 data += '<td class="LastBuild box" >no build</td>\n'
             current_box = ICurrentBox(builder).getBox(status)
             data += current_box.td(align="center")
-
+            data+='</tr>'
+            
             builder_status = builder.getState()[0]
             if builder_status == "building":
                 building = True
@@ -231,8 +240,7 @@ class LatestBuilds(HtmlResource):
             elif builder_status != "offline":
                 online += 1
 
-        data += "</table>\n"
-
+        data += "</table></table>\n"
         if control is not None:
             if building:
                 stopURL = "builders/_all/stop"
