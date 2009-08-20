@@ -58,31 +58,53 @@
 			
             <div style="clear: both;float:right;"></div>      
 			
-			<div id="content1" style="height:250px; border:medium; width:100%;">
-				<div style="float:left;">
-					<div>		
-					        <div>      
-                                <table width="490" id="latest_builds" border="1" cellspacing="0" cellpadding="0"></table>
-                             </div>
-                            
-					</div><!--csc-->
-				</div>
 
-                <div align="right">
-                    From:
-                    <select id="monthFrom">
-                    </select> 
-                    <select id="yearFrom">
-                    </select> 
-                    To:
-                    <select id="monthTo">
-                    </select> 
-                    <select id="yearTo">
-                    </select> 
-			        <button  onClick="javascript:getBugGraph()" align='center'>Refresh Graph</button>
-                    
-                    <div id="placeholder" style="width:490px;height:250px;float:right;"></div>
-               </div>
+			<div id="content1" style="height:250px; border:medium; width:1004;">
+                <table style="width:100%;">
+                <tr>
+                <td style="width:50%;">
+	               <div>      
+		                <span> Latest Builds </span>
+                        <table id="latest_builds" border="1" cellspacing="0" cellpadding="0" width="100%"></table>
+                     </div>
+                </td>
+                <td>
+                    <div>
+                        <table>
+                            <tr>
+                                <td>
+                                    From:
+                                </td>
+                                <td>
+                                    <select id="monthFrom"></select> 
+                                </td>
+                                <td>
+                                    <select id="yearFrom"></select> 
+                                </td>
+                                <td>
+                                    To:
+                                </td>
+                                <td>
+                                   <select id="monthTo"></select> 
+                                </td>
+                                <td>
+                                   <select id="yearTo"></select> 
+                                </td>
+                                <td>
+            			            <button  onClick="javascript:getBugGraph()" align='center'>Refresh</button>
+                                </td>
+                            </tr>
+                            <tr >                        
+                                <td colspan="7">
+                                    <div id="placeholder" style="width:100%;height:250px;float:right;"></div>
+                                </td>
+                            </tr>   
+                            </table>
+                        
+                   </div>
+                </td>
+                </tr>
+                </table>
 	        </div>
 	        
             <br><span id='retrivalTime' style="float:right;padding-right:30px;font-size: 0.5em"></span>

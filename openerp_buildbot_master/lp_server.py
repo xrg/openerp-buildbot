@@ -47,74 +47,50 @@ class lpServer(threading.Thread):
         if not isinstance(projects,list):
             projects = [projects]
         
-        def store_bugs(label='',r={},month=''):                     
+        def store_bugs(label='',r={},date=''):
+            print label ,date.month                    
             if label not in r:
                 r[label] = {}
                 r[label][str(date.year)] = {}
-                r[label][str(date.year)][month] = 0
+                r[label][str(date.year)][date.month] = 1
             else:
                 if str(date.year) not in r[label]:
                     r[label][str(date.year)] = {}
-                    r[label][str(date.year)][month] = 0
+                    r[label][str(date.year)][date.month] = 1
                 else:
-                    if month not in r[label][str(date.year)]:
-                        r[label][str(date.year)][month] = 0
+                    if date.month not in r[label][str(date.year)]:
+                        r[label][str(date.year)][date.month] = 1
                     else:
-                        r[label][str(date.year)][month] += 1
+                        r[label][str(date.year)][date.month] += 1
+            print r
             return r
 
-        bug_status = ['New','Confirmed','In Progress','Fix Released','Invalid','Incomplete']
-       
+        bug_status = ['New','Confirmed','In Progress']
+
         for project in projects:
             result = {}            
             r = {}
             lp_project = launchpad.projects[project]
-            result['non-series'] = lp_project.searchTasks(status=bug_status)            
+            result['non-series'] = lp_project.searchTasks(status=bug_status)              
             if 'series' in lp_project.lp_collections:
                 for series in lp_project.series:
                     result[series.name] = series.searchTasks()  
-
-            for name, bugs in result.items():
+            label = ''
+            for name, bugs in result.items():                
                for bug in bugs:
-                    if bug.date_created:
+                    if bug.importance == 'Wishlist':
+                        label = 'wishlist'
+                    elif bug.status == 'New':
                         label = 'new'
-                        date = bug.date_created
-                        month = date.month
-                        r = store_bugs(label,r,month) 
-                    if bug.date_confirmed:
+                    elif bug.status in ('Confirmed','In Progress'):
                         label = 'confirmed'
-                        date = bug.date_confirmed
-                        month = date.month
-                        r = store_bugs(label,r,month)
-                    if bug.date_in_progress:
-                        label = 'inprogress'
-                        date = bug.date_in_progress
-                        month = date.month
-                        r = store_bugs(label,r,month)    
-                    if bug.date_fix_released:
-                        label = 'fixreleased'
-                        date = bug.date_fix_released
-                        month = date.month
-                        r = store_bugs(label,r,month)
-                    if bug.date_closed and bug.status == 'Invalid': 
-                        label = 'invalid'
-                        date = bug.date_closed
-                        month = date.month
-                        r = store_bugs(label,r,month)
-                    if not bug.is_complete and bug.status == 'Incomplete': 
-                        label = 'incomplete'
-                        date = bug.date_left_new
-                        month = date.month
-                        r = store_bugs(label,r,month)
-                    else:
-                        continue
-            res[project] = r   
+                    if label:
+                        date = bug.date_created
+                        r = store_bugs(label,r,date) 
+            res[project] = r
         new = []
         confirmed = []
-        inprogress = []
-        fixreleased = []
-        invalid = []
-        incomplete = []
+        wishlist = []
         for project,types in res.items():
             for type,years in types.items():  
                 for year, months in years.items():
@@ -123,15 +99,9 @@ class lpServer(threading.Thread):
                             new.append([year,month,val]) 
                         elif type == 'confirmed':
                             confirmed.append([year,month,val])
-                        elif type == 'inprogress':
-                            inprogress.append([year,month,val])
-                        elif type == 'fixreleased':
-                            fixreleased.append([year,month,val])
-                        elif type == 'invalid':
-                            invalid.append([year,month,val])
-                        elif type == 'incomplete':
-                            incomplete.append([year,month,val])
-        datasets = [new,confirmed,inprogress,fixreleased,invalid,incomplete]
+                        elif type == 'wishlist':
+                            wishlist.append([year,month,val])
+        datasets = [new,confirmed,wishlist]
         return datasets
 
     def save_dataset(self):        

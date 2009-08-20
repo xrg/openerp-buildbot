@@ -70,11 +70,8 @@ function getBugGraph()
 
 function getlatestgraph(data,fromDate,toDate) {
     var newbug = []
-    var inprogress = [] 
     var confirmed = [] 
-    var fixreleased = []
-    var invalid = []
-    var incomplete = []
+    var wishlist = []
 
     for (var i in data){  
         for (var j in data[i]){
@@ -82,24 +79,15 @@ function getlatestgraph(data,fromDate,toDate) {
               newbug.push([(new Date(data[i][j][0]+'/'+data[i][j][1]+'/01')).getTime(),data[i][j][2]]);}
             else if (i==1){
               confirmed.push([(new Date(data[i][j][0]+'/'+data[i][j][1]+'/01')).getTime(),data[i][j][2]]);}
-            else if (i == 2){
-              inprogress.push([(new Date(data[i][j][0]+'/'+data[i][j][1]+'/01')).getTime(),data[i][j][2]]);}
-            else if (i == 3){
-              fixreleased.push([(new Date(data[i][j][0]+'/'+data[i][j][1]+'/01')).getTime(),data[i][j][2]]);}
-            else if (i == 4){
-              invalid.push([(new Date(data[i][j][0]+'/'+data[i][j][1]+'/01')).getTime(),data[i][j][2]]);}
             else{
-              incomplete.push([(new Date(data[i][j][0]+'/'+data[i][j][1]+'/01')).getTime(),data[i][j][2]]);}
-                       }      
+              wishlist.push([(new Date(data[i][j][0]+'/'+data[i][j][1]+'/01')).getTime(),data[i][j][2]]);}
+                        }      
                              }
 
     $.plot($("#placeholder"), 
-       [ { data:newbug,      label: "New",          lines: { show: true, lineWidth: 1} },
-         { data:inprogress,  label: "In Progress",  lines: {  show: true, lineWidth: 1}  },
-         { data:confirmed,   label: "Confirmed",    lines: { show: true, lineWidth: 1} },
-         { data:fixreleased, label: "FixReleased",  lines: { show: true, lineWidth: 1} },
-         { data:invalid,     label: "Invalid",      lines: { show: true, lineWidth: 1} },
-         { data:incomplete,  label: "Incomplete",   lines: { show: true, lineWidth: 1} }
+       [ { data:newbug,     label: "New",        lines: { show: true, lineWidth: 1} },
+         { data:confirmed,  label: "Confirmed",  lines: { show: true, lineWidth: 1} },
+         { data:wishlist,   label: "Wishlist",   lines: { show: true, lineWidth: 1} }
         ],
        { 
        xaxis: { mode: "time",
@@ -111,7 +99,7 @@ function getlatestgraph(data,fromDate,toDate) {
         yaxis:{ min:0 },
         shadowSize: 1,
         selection: { mode: "xy" },
-        legend: {show: true, position: 'ne',noColumns: 1},
+        legend: {show: true, position: 'nw',noColumns: 3},
         grid: { hoverable: true, clickable: true ,  backgroundColor: "#fffaff"},
         points: { show: true }
         });
@@ -145,9 +133,13 @@ function getlatestgraph(data,fromDate,toDate) {
                 if (item.series.label == 'New')
                     showTooltip(item.pageX, item.pageY,
                           y + " " + item.series.label + " Bugs " + " in " + labelX);
+                else if ((item.series.label == 'Confirmed'))
+                    showTooltip(item.pageX, item.pageY,
+                          y + ' (' + item.series.label + "+Inprogress )" + "Bugs in " + labelX);
                 else
                     showTooltip(item.pageX, item.pageY,
-                          y +" Bugs " + item.series.label+" in " + labelX);
+                          y + " " + item.series.label + " in " + labelX);
+                
             }
         }
         else {
