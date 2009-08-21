@@ -112,7 +112,7 @@ html_tmpl = """
 Changed at : <b>%(at)s</b><br />
 %(branch)s
 %(revision)s
-%(rev_no)s
+Revision No:%(rev_no)s
 </p>
 
 %(files_added)s
@@ -154,7 +154,7 @@ class OpenObjectChange(Change):
             
         rev_no = ''
         if self.rev_no:
-            rev_no = "Revision No: <b>%s</b><br />\n" % self.rev_no
+            rev_no = self.rev_no
             
         branch = ""
         branch_link = ''
