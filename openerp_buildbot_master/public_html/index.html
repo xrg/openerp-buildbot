@@ -60,20 +60,21 @@
 			
 
 			<div id="content1" style="height:250px; border:medium; width:1004;">
-                <table style="width:100%;">
+                <table style="width:100%;valign=top">
                 <tr>
-                <td style="width:50%;">
+                 <td style="width:50%;vertical-align:top">
 	               <div>      
-		                <span> Latest Builds </span>
+		                <span style="align=left;"><b>Automate Tests</b> </span>
                         <table id="latest_builds" border="1" cellspacing="0" cellpadding="0" width="100%"></table>
                      </div>
                 </td>
                 <td>
                     <div>
-                        <table>
+                        <table style="vertical-align: top">
+                          <tr><td><span style="align=left;"><b>Bugs and Wishlist</b> </span></td></tr>
                             <tr>
                               <td>
-                                <table>
+                               <table style="vertical-align: top">
                                         <tr>  
                                             <td>
                                                 From:
@@ -106,6 +107,13 @@
                                 </td>
                             </tr>   
                             <tr>
+                                <td> 
+                                    <br>
+                                        <span id='retrivalTime' style="float:right;padding-right:30px;font-size: 0.5em">
+                                        </span>
+                                 </td>
+                            </tr>
+                            <tr>
                                 <td>
                                     <table>
                                         <tr>
@@ -129,26 +137,34 @@
                    </div>
                 </td>
                 </tr>
-                </table>
-	        </div>
-	        
-            <br><span id='retrivalTime' style="float:right;padding-right:30px;font-size: 0.5em"></span>
-            
-            <br><br><br>
+                <tr>
+                    <td> <img src="images/code_control_process.jpg" /> </td>
+                    <td>Release & Milestone Graph</td>
+                </tr>
+                  <tr><td colspan="2">
 			<div id="content">
 				<div id="sidebar">
 					<div id="login" class="boxed">
 						<div class="title">
-							<h2>Projects</h2>
+							<h2>Teams </h2>
 						</div>
 						<div class="content"> 
                             <div class="ul">
-								<ul>
-							        <a href="https://launchpad.net/openobject-server" class="button"><span class="openobjectserver">OpenObject Server</span></a>							
-
-							        <a href="https://launchpad.net/openobject-addons" class="button"><span class="openobjectaddons">OpenObject Addons</span></a>
-							
-                                </ul>
+                                <table>
+                                    <tr>
+                                     <td>
+							         <a href="https://launchpad.net/~openerp-community" ><span >Community</span></a></td><td><img src="images/jointhisteam.gif" width="100" onClick="window.open('https://launchpad.net/~openerp-community/+join','width=1200,height=600,scrollbars=yes')"/></td></tr>
+                                    <tr>
+                                     <td>
+    						          <a href="https://launchpad.net/~openerp-commiter" ><span >Commiters</span></a>
+                                     </td>
+                                    </tr>
+                                    <tr>
+                                      <td>
+                                        <a href="https://launchpad.net/~openerp" ><span> Quality Team</span></a>
+                                      </td>
+                                    </tr>
+                                </table>
 							</div>
 						</div>
 					</div>
@@ -156,18 +172,33 @@
 				
 				<div id="main">
 					<div id="welcome" class="post">
-						<div class="title"><h2>Official Branches</h2></div>
+						<div class="title"><h2>Projects</h2></div>
 		 
 						<div class="story">
 							<div class="ul">
 							    <ul>
-								    <a href="https://code.launchpad.net/~openerp/openobject-server/trunk" class="button"><span class="openobjectserver">OpenObject Server</span></a>
-
-								    <a href="https://code.launchpad.net/~openerp/openobject-addons/trunk" class="button"><span class="openobjectaddons">OpenObject Addons</span></a>
-								    
-								    <a href="https://code.launchpad.net/~openerp-commiter/openobject-addons/trunk-extra-addons" class="button"><span class="openobjectaddons">Extra Addons</span></a>
-
-								    <a href="https://code.launchpad.net/~openerp-community/openobject-addons/trunk-addons-community" class="button"><span class="openobjectaddons">Community Addons</span></a>
+                                <table>
+                                   <tr>
+                                     <td>
+        						      <a href="https://launchpad.net/openobject-server" ><span>OpenObject Server</span></a>	
+                                     </td>
+                                    <td><img src="images/code.gif" width="50" onClick="window.open('https://code.launchpad.net/openobject-server','width=1200,height=600,scrollbars=yes')"/></td>
+                                    <td><img src="images/bugs.gif" width="50" onClick="window.open('https://bugs.launchpad.net/openobject-server','width=1200,height=600,scrollbars=yes')"/></td>
+                                    <td><img src="images/blueprints.gif" width="50" onClick="window.open('https://blueprints.launchpad.net/openobject-server','width=1200,height=600,scrollbars=yes')"/></td>
+                                    <td><img src="images/translations.gif" width="50" onClick="window.open('https://translations.launchpad.net/openobject-server','width=1200,height=600,scrollbars=yes')"/></td>
+                                    <td><img src="images/answers.gif" width="50" onClick="window.open('https://answers.launchpad.net/openobject-server','width=1200,height=600,scrollbars=yes')"/></td>
+                                    </tr>
+                                    <tr>
+                                      <td>
+								       <a href="https://launchpad.net/openobject-addons"><span>OpenObject Addons</span></a>
+								    </td>
+<td><img src="images/code.gif" width="50" onClick="window.open('https://code.launchpad.net/openobject-addons','width=1200,height=600,scrollbars=yes')"/></td>
+                                    <td><img src="images/bugs.gif" width="50" onClick="window.open('https://bugs.launchpad.net/openobject-addons','width=1200,height=600,scrollbars=yes')"/></td>
+                                    <td><img src="images/blueprints.gif" width="50" onClick="window.open('https://blueprints.launchpad.net/openobject-addons','width=1200,height=600,scrollbars=yes')"/></td>
+                                    <td><img src="images/translations.gif" width="50" onClick="window.open('https://translations.launchpad.net/openobject-addons','width=1200,height=600,scrollbars=yes')"/></td>
+                                    <td><img src="images/answers.gif" width="50" onClick="window.open('https://answers.launchpad.net/openobject-addons','width=1200,height=600,scrollbars=yes')"/></td>
+                                    </tr>
+                                    </tr>						    
                                 </ul>
                             </div>    
 						</div>			
@@ -176,17 +207,12 @@
 
 				<div id="sidebar2">
 					<div id="sponsors" class="boxed">
-						<div class="title"><h2>Teams</h2></div>
+						<div class="title"><h2>Other Links</h2></div>
 			
 						<div class="content1">
 							<ul>
-							    <li><a href="https://launchpad.net/~openerp" class="button"><span class="openerp"> Quality Team</span></a></li>
+						
 
-								<li><a href="https://launchpad.net/~openerp-commiter" class="button"><span class="openerp">Commiters</span></a></li>
-
-								<li><a href="https://launchpad.net/~openerp-community" class="button"><span class="openerp">Community</span></a></li>
-								
-								
 								
 							</ul>
 						</div>
@@ -194,7 +220,7 @@
 				</div>
 				<div style="clear: both;">&nbsp;</div>
 			</div>
-
+            </td></tr><tr><td colspan="2">
 			<table width="1004" border="0" align="center" cellpadding="0" cellspacing="0">
 				<tr>
 					<td valign="top" align="right"><img src="images/fourmis.jpg"/></td>
@@ -218,5 +244,6 @@
 					</td>
 				</tr>
 			</table>
+            </td></tr></table></div>
 	</body>
 </html>

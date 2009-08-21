@@ -48,7 +48,6 @@ class lpServer(threading.Thread):
             projects = [projects]
         
         def store_bugs(label='',r={},date=''):
-            print label ,date.month                    
             if label not in r:
                 r[label] = {}
                 r[label][str(date.year)] = {}
@@ -62,7 +61,6 @@ class lpServer(threading.Thread):
                         r[label][str(date.year)][date.month] = 1
                     else:
                         r[label][str(date.year)][date.month] += 1
-            print r
             return r
 
         bug_status = ['New','Confirmed','In Progress']

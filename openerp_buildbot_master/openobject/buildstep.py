@@ -561,7 +561,7 @@ class InstallModule(LoggingBuildStep):
 
 class OpenObjectBzr(Bzr):
     flunkOnFailure = False
-    haltOnFailure = False
+    haltOnFailure = True
     def __init__(self, repourl=None, baseURL=None,
                  defaultBranch=None,workdir=None,mode='update',alwaysUseLatest=True,timeout=20*60, retry=None,**kwargs):
         LoggingBuildStep.__init__(self, **kwargs)

@@ -9,31 +9,31 @@ td.box {
 
 /* Activity states */
 .offline { 
-        background-color: white;
+        background-color: red;
 }
 .idle {
 	background-color: white;
 }
 .waiting { 
-        background-color: white;
+        background-color: yellow;
 }
 .building { 
-        background-color: white;
+        background-color: yellow;
 }
 
 /* LastBuild, BuildStep states */
 .success {
-	background-color: white;
+	background-color: #72ff75;
 }
 .failure {
-	background-color: white;
+	background-color: red;
 }
 .warnings {
-	background-color: white;
+	background-color:  #ff8000;
 }
 .exception {
-	background-color: white;
+	background-color:  #c000c0;
 }
 .start,.running {
-	background-color: white;
+	background-color: yellow;
 }
