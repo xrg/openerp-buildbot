@@ -332,8 +332,8 @@ class InstallTranslation(LoggingBuildStep):
         self.pofiles = []
         for change in s.changes:
             files = (
-                     [f[0] for f in change.files_added]+
-                     [f[0] for f in change.files_modified] + 
+                     [f for f in change.files_added]+
+                     [f for f in change.files_modified] + 
                      [f[1] for f in change.files_renamed]
                      )
             for f in files:
