@@ -165,8 +165,8 @@ class CheckQuality(LoggingBuildStep):
         modules = []
         for change in s.changes:
             files = (
-                     [f for f in change.files_added]+
-                     [f for f in change.files_modified] + 
+                     change.files_added +
+                     change.files_modified + 
                      [f[1] for f in change.files_renamed]
                      )
             for f in files:
@@ -332,8 +332,8 @@ class InstallTranslation(LoggingBuildStep):
         self.pofiles = []
         for change in s.changes:
             files = (
-                     [f for f in change.files_added]+
-                     [f for f in change.files_modified] + 
+                     change.files_added +
+                     change.files_modified + 
                      [f[1] for f in change.files_renamed]
                      )
             for f in files:
@@ -353,7 +353,7 @@ class InstallTranslation(LoggingBuildStep):
 
             self.args['command'] = commands
 
-            self.description += ["installing", "Translation","Files",":",",".join(self.pofiles),"on Server","http://localhost:%s"%(self.args['port'])]
+            self.description += ["Files",":",",".join(self.pofiles),"on Server","http://localhost:%s"%(self.args['port'])]
             
             self.args['command'].append("i18n-import=../trunk_openobject_addons/%s"%(','.join(self.pofiles)))
             cmd = LoggedRemoteCommand("shell",self.args)
