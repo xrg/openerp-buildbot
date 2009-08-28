@@ -1,10 +1,11 @@
 td.Event, td.BuildStep, td.Activity, td.Change, td.Time, td.Builder {
-    border-top: 2px solid;
-    border-right: 2px solid;
+    border: 1px solid #E3E3E3;
+    
 }
 
 td.box {
-       border: 2px solid;
+    border: none;
+    border-collapse: collapse;
 }
 
 /* Activity states */

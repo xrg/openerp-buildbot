@@ -13,7 +13,11 @@
 		<meta content="text/html; charset=utf-8" http-equiv="content-type"/>
 		<link type="image/x-icon" rel="shortcut icon" href="favicon.ico"/>
 		<!-- Open Object Css File Start -->
-		<link type="text/css" href="css/styles.css" rel="stylesheet"/>
+		<link type="text/css" href="css/style.css" rel="stylesheet"/>
+		<link type="text/css" href="css/listgrid.css" rel="stylesheet"/>
+		<link type="text/css" href="css/dashboard.css" rel="stylesheet"/>
+		
+		
 		<!-- Open Object Css File End -->
 	</head>
 	<body onload="javascript:populatedropdown('monthFrom','yearFrom','monthTo','yearTo');getLatestBuilds();javascript:getBugGraph()">
@@ -60,21 +64,38 @@
 			
 
 			<div id="content1" style="height:250px; border:medium; width:1004;">
-                <table style="width:100%;valign=top">
-                <tr>
-                 <td style="width:50%;vertical-align:top">
-	               <div>      
-		                <span style="align=left;"><b>Automate Tests</b> </span>
-                        <table id="latest_builds" border="1" cellspacing="0" cellpadding="0" width="100%"></table>
+                <table border=0>
+                <tr class="header" style="vertical-align:top">
+                 <td  style="width:50%;padding: 2px 4px;">
+	               <div> 
+	                    <table width="100%">
+	                    <tr>
+	                    <td style="border-bottom: 1px solid #999;width=100%">	                         
+		                <span style="font-weight: bold;font-size: 20px;">Automate Tests</span>
+		                </td>
+		                </tr>
+		                <tr height="2px">
+		                <td>
+		                </td>
+		                </tr>
+		                <tr>		                
+		                <td>	                
+                        <table id="latest_builds" class="grid" width="100%"></table>
+                        </td>
+                        </tr>
+                        </table>
                      </div>
                 </td>
                 <td>
                     <div>
-                        <table style="vertical-align: top">
-                          <tr><td><span style="align=left;"><b>Bugs and Wishlist</b> </span></td></tr>
+                        <table width="100%">
+                        <tr class="header"><td style="border-bottom: 1px solid #999;width=100%"><span style="font-weight: bold;font-size: 20px;">Bugs and Wishlist </span></td></tr>
+                        <tr>
+                        <td>
+                        <table>                          
                             <tr>
                               <td>
-                               <table style="vertical-align: top">
+                               <table>
                                         <tr>  
                                             <td>
                                                 From:
@@ -115,13 +136,13 @@
                             </tr>
                             <tr>
                                 <td>
-                                    <table>
+                                    <table width="100%">
                                         <tr>
-                                            <td colspan = "2">
+                                            <td>
                                                
                                             <button onClick="window.open('https://bugs.launchpad.net/openobject/+filebug','report',' width=1200,height=600,scrollbars=yes')" align='center'>Report a bug</button>
                                             </td>
-                                            <td colspan = "2">
+                                            <td >
                                             <button onClick="window.open('https://bugs.launchpad.net/openobject/+bugs?field.searchtext=&orderby=-importance&search=Search&field.status%3Alist=NEW&assignee_option=any&field.assignee=&field.bug_reporter=&field.bug_supervisor=&field.bug_commenter=&field.subscriber=&field.omit_dupes.used=&field.omit_dupes=on&field.has_patch.used=&field.has_cve.used=&field.tag=&field.tags_combinator=ANY','review',' width=1200,height=600,scrollbars=yes')" align='center'>Review bugs</button>
                                             </td>
                                             <td colspan = "3">
@@ -133,94 +154,102 @@
                              </tr>
 
                             </table>
-                        
+                        </td>
+                        </tr>
+                        </table>
                    </div>
                 </td>
                 </tr>
-                <tr>
-                    <td> <img src="images/code_control_process.jpg" /> </td>
-                    <td>Release & Milestone Graph</td>
+                <tr style="vertical-align:top">
+                    <td>
+                        <table width="100%"><tr class="header"><td style="border-bottom: 1px solid #999;width=100%"><span style="font-weight: bold;font-size: 20px;"><b>Code Control Process</b></td></tr>
+                        <tr><td><img src="images/code_control_process.jpg" /> </td></tr></table>
+                    </td>
+                    <td><table width="100%">
+                            <tr class="header"><td style="border-bottom: 1px solid #999;width=100%"><span style="font-weight: bold;font-size: 20px;"><b>Release & Milestone Graph<spam><b></td></tr>
+                            <tr><td><img src="images/Old_graph2.png"></td></tr>
+                        </table>
+                    </td>
+                        
                 </tr>
-                  <tr><td colspan="2">
-			<div id="content">
-				<div id="sidebar">
-					<div id="login" class="boxed">
-						<div class="title">
-							<h2>Teams </h2>
-						</div>
-						<div class="content"> 
-                            <div class="ul">
-                                <table>
-                                    <tr>
-                                     <td>
-							         <a href="https://launchpad.net/~openerp-community" ><span >Community</span></a></td><td><img src="images/jointhisteam.gif" width="100" onClick="window.open('https://launchpad.net/~openerp-community/+join','width=1200,height=600,scrollbars=yes')"/></td></tr>
-                                    <tr>
-                                     <td>
-    						          <a href="https://launchpad.net/~openerp-commiter" ><span >Commiters</span></a>
-                                     </td>
-                                    </tr>
-                                    <tr>
-                                      <td>
+                <tr style="vertical-align:top">
+                    <td colspan="2">
+                        <table style="width:100%">
+                        <tr style="vertical-align:top">
+                        <td style="width:33%;">                            
+                            <table width="100%">
+                                <tr class="header" style="vertical-align:top">
+                                    <td style="border-bottom: 1px solid #999;width=100%">
+                                       <span style="font-weight: bold;font-size: 20px;"><b>Teams</b> 
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class='content'>                                    
+                                        <a href="https://launchpad.net/~openerp-community" ><span>Community</span></a>                                        
+                                    </td>                                
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <a href="https://launchpad.net/~openerp-commiter" ><span >Commiters</span></a>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
                                         <a href="https://launchpad.net/~openerp" ><span> Quality Team</span></a>
-                                      </td>
-                                    </tr>
-                                </table>
-							</div>
-						</div>
-					</div>
-				</div>
-				
-				<div id="main">
-					<div id="welcome" class="post">
-						<div class="title"><h2>Projects</h2></div>
-		 
-						<div class="story">
-							<div class="ul">
-							    <ul>
-                                <table>
-                                   <tr>
-                                     <td>
-        						      <a href="https://launchpad.net/openobject-server" ><span>OpenObject Server</span></a>	
-                                     </td>
-                                    <td><img src="images/code.gif" width="50" onClick="window.open('https://code.launchpad.net/openobject-server','width=1200,height=600,scrollbars=yes')"/></td>
-                                    <td><img src="images/bugs.gif" width="50" onClick="window.open('https://bugs.launchpad.net/openobject-server','width=1200,height=600,scrollbars=yes')"/></td>
-                                    <td><img src="images/blueprints.gif" width="50" onClick="window.open('https://blueprints.launchpad.net/openobject-server','width=1200,height=600,scrollbars=yes')"/></td>
-                                    <td><img src="images/translations.gif" width="50" onClick="window.open('https://translations.launchpad.net/openobject-server','width=1200,height=600,scrollbars=yes')"/></td>
-                                    <td><img src="images/answers.gif" width="50" onClick="window.open('https://answers.launchpad.net/openobject-server','width=1200,height=600,scrollbars=yes')"/></td>
+                                    </td>
+                                </tr>
+                                
+                            </table> 
+                            
+                         </td>   
+			     
+			            <td style="width:33%;">
+                        <table width="100%">
+                            <tr class="header" style="vertical-align:top">
+                                <td style="border-bottom: 1px solid #999;width=100%">
+                                   <span style="font-weight: bold;font-size: 20px;">Projects
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <table>
+                                    <tr>
+                                        <td>
+                                            <a href="https://launchpad.net/openobject-server"><span>OpenObject Server</span>                                    
+                                        </td>                                
                                     </tr>
                                     <tr>
-                                      <td>
-								       <a href="https://launchpad.net/openobject-addons"><span>OpenObject Addons</span></a>
-								    </td>
-<td><img src="images/code.gif" width="50" onClick="window.open('https://code.launchpad.net/openobject-addons','width=1200,height=600,scrollbars=yes')"/></td>
-                                    <td><img src="images/bugs.gif" width="50" onClick="window.open('https://bugs.launchpad.net/openobject-addons','width=1200,height=600,scrollbars=yes')"/></td>
-                                    <td><img src="images/blueprints.gif" width="50" onClick="window.open('https://blueprints.launchpad.net/openobject-addons','width=1200,height=600,scrollbars=yes')"/></td>
-                                    <td><img src="images/translations.gif" width="50" onClick="window.open('https://translations.launchpad.net/openobject-addons','width=1200,height=600,scrollbars=yes')"/></td>
-                                    <td><img src="images/answers.gif" width="50" onClick="window.open('https://answers.launchpad.net/openobject-addons','width=1200,height=600,scrollbars=yes')"/></td>
+                                        <td>
+                                             <a href="https://launchpad.net/openobject-addons"><span>OpenObject Addons</span></a>
+                                        </td>
                                     </tr>
-                                    </tr>						    
-                                </ul>
-                            </div>    
-						</div>			
-					</div>
-				</div>			
+                                    </table>
+                                </td>
+                             </tr>       
+                            
+                        </table>  
+                     </td>   
+                     <td>
+                     <table width="100%" border=0>
+                            <tr class="header" style="vertical-align:top">
+                                <td style="border-bottom: 1px solid #999;width=100%">
+                                   <span style="font-weight: bold;font-size: 20px;"><b>Other Links</b> 
+                                </td>
+                            </tr>
+                            
+                            
+                     </table>
+                     </td>
+			     </tr>
+			    </table>
+			    </td>
+			    </tr> 
+							
+				
+				
 
-				<div id="sidebar2">
-					<div id="sponsors" class="boxed">
-						<div class="title"><h2>Other Links</h2></div>
-			
-						<div class="content1">
-							<ul>
-						
-
-								
-							</ul>
-						</div>
-					</div>
-				</div>
-				<div style="clear: both;">&nbsp;</div>
-			</div>
-            </td></tr><tr><td colspan="2">
+				
+            <tr><td colspan="2">
 			<table width="1004" border="0" align="center" cellpadding="0" cellspacing="0">
 				<tr>
 					<td valign="top" align="right"><img src="images/fourmis.jpg"/></td>

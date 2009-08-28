@@ -1,0 +1,127 @@
+.gridview {
+    border: none;
+    border-top: 1px solid #999;
+}
+
+.grid {
+    border: none;
+}
+
+.grid-row {
+    background-color: white;
+}
+
+.grid-row:hover {
+    /*background-color: #F3F3F3;*/
+}
+
+.grid-cell {
+    padding: 2px 4px;
+    border: 1px solid #E3E3E3;
+}
+
+.grid-cell.selector {
+    width: 1%;
+
+    max-width: 8px;
+    min-width: 8px;
+
+    text-align: center;
+    vertical-align: middle;    
+}
+
+.grid-cell.button {
+    text-align: right;
+}
+
+.grid-cell.button button {
+    margin: 0px;
+    margin-right: 1px;
+        width: auto;
+}
+
+.grid-header .grid-cell {
+    background:url(/images/gradientlinebg.gif);
+    border-bottom: 1px solid #999;
+    font-weight: bold;
+    text-align: right;
+}
+
+.grid-header .grid-cell .sortup {
+    background: url(/images/arrow_up.gif) no-repeat center;
+}
+
+.grid-header .grid-cell .sortdown {
+    background: url(/images/arrow_down.gif) no-repeat center;
+}
+
+.grid-header .grid-cell.sortable {
+    cursor: pointer;
+}
+
+.grid-row .grid-cell {
+    border-bottom: 1px solid #E3E3E3;
+}
+
+.grid-row.editors .grid-cell {
+    background-color: #FFFFBF;
+    padding: 2px;
+}
+
+.grid-row.editors input,
+.grid-row.editors select,
+.grid-row.editors textarea {
+    width: 99%;
+}
+
+.grid .float,
+.grid .float_time,
+.grid .floattime,
+.grid .integer {
+    text-align: right;
+}
+
+.grid-cell.many2many,
+.grid-cell.one2many {
+    text-align: center;
+}
+
+.gridview .pagerbar {
+    height:22px;
+    vertical-align: middle;
+}
+
+.gridview .pagerbar .pagerbar-cell {
+    background: #f3f3f3;
+    border-bottom: 1px solid #999;
+    padding: 2px 4px;
+}
+
+.gridview .pagerbar .pagerbar-links a {
+    color: #333;
+    text-decoration: none;
+    font-size: 12px;
+}
+
+.gridview .pagerbar .pagerbar-links a:hover {
+    text-decoration: none;
+}
+
+.listButton {
+    width: 25px;
+    text-align: center;
+}
+
+.listImage {
+    cursor: pointer;
+}
+
+.field_sum .grid-cell {
+    border-bottom: 1px solid #999;
+    border-top: 1px solid #999;
+}
+
+/**
+ * vim: sts=4 st=4 et 
+ *
+ */

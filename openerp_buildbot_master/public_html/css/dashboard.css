@@ -1,0 +1,34 @@
+div.dashbar {
+	min-width: 100px;
+	min-height: 250px;
+}
+
+div.dashbar-hover {
+	/*border: 2px dashed gray;*/
+}
+
+div.dashlet {
+	margin-bottom: 4px;
+	border: solid 1px #bbb8a9;
+	background-color: #ffffff;
+}
+
+div.dashlet-title {
+	background: url(/images/grdline1.gif) repeat-x left top;
+    padding: 2px;
+    white-space: nowrap;
+    cursor: move;
+    font-weight: bold;
+}
+
+div.dashlet .dashlet-button {
+    width: auto;
+    margin: 0 1px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+div.dashlet-content {
+	padding: 2px;
+}
+

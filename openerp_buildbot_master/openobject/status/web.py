@@ -40,7 +40,8 @@ baseweb.HEADER = '''
         <meta content="text/html; charset=utf-8" http-equiv="content-type"/>
         <link type="image/x-icon" rel="shortcut icon" href="%(root)sfavicon.ico"/>
         <!-- Open Object Css File Start -->
-        <link type="text/css" href="%(root)scss/styles.css" rel="stylesheet"/>
+        <link type="text/css" href="%(root)scss/style.css" rel="stylesheet"/>
+        <link type="text/css" href="%(root)scss/listgrid.css" rel="stylesheet"/>
         <!-- Open Object Css File End -->
     </head>
     <body>
@@ -195,21 +196,21 @@ class LatestBuilds(HtmlResource):
         tr_b = False
         st_b = False
         data = ""
-        data += "<table id='latest_builds'>"
+        data += "<table class='grid' id='latest_builds'>"
         for bn in all_builders:
             if (bn.startswith('stable')) and (not st_b):
                 st_b = True
-                data += "<table id='stable_builds'>\n"
-                data += "<tr><td><span>Latest Stable</span></td><td><a href=%s>Stable Tests</a></td><td><a href='Changelog/5.0'>Changelog</a></td></tr><\n>"[:-3]%(stable_builders_link)
+                data += "<table class='grid' id='stable_builds'>\n"
+                data += "<tr class='grid-header'><td class='grid-cell'><span>Latest Stable</span></td><td class='grid-cell'><a href=%s>Stable Tests</a></td><td class='grid-cell'><a href='Changelog/5.0'>Changelog</a></td></tr><\n>"[:-3]%(stable_builders_link)
             if (bn.startswith('trunk')) and (not tr_b):
                 tr_b = True
-                data += "<tr id='trunk_builds'>\n"
-                data += "<br><br><tr><td><span>Latest Trunk</span></td><td><a href='%s'>Trunk Tests</a></td><td><a href='Changelog/trunk'>Changelog</a></td></tr><\n>"[:-3]%(trunk_builders_link)
+                data += "<tr id='trunk_builds'><td colspan='3'></td>"
+                data += "<tr class='grid-header'><td class='grid-cell'><span>Latest Trunk</span></td><td class='grid-cell'><a href='%s'>Trunk Tests</a></td><td class='grid-cell'><a href='Changelog/trunk'>Changelog</a></td></tr><\n>"[:-3]%(trunk_builders_link)
                  
             base_builder_url = base_builders_url + urllib.quote(bn, safe='')
             builder = status.getBuilder(bn)
-            data += "<tr>\n"
-            data += '<td class="box"><a href="%s">%s</a></td>\n' \
+            data += "<tr class='grid-row'>\n"
+            data += '<td class="grid-cell"><a href="%s">%s</a></td>\n' \
                   % (base_builder_url, html.escape(bn))
             builds = list(builder.generateFinishedBuilds(map_branches(branches),
                                                          num_builds=1))
@@ -225,12 +226,12 @@ class LatestBuilds(HtmlResource):
                 text = ['<a href="%s">%s</a>' % (url, label)]
                 text.extend(b.getText())
                 box = Box(text, b.getColor(),
-                          class_="LastBuild box %s" % build_get_class(b))
-                data += box.td(align="center")
+                        class_="LastBuild box %s" % build_get_class(b))
+                data += box.td(class_="grid-cell",align="center")
             else:
-                data += '<td class="LastBuild box" >no build</td>\n'
-            current_box = ICurrentBox(builder).getBox(status)
-            data += current_box.td(align="center")
+                data += '<td class="grid-cell" align="center">no build</td>\n'
+            current_box = ICurrentBox(builder).getBox(status)            
+            data += current_box.td(class_="grid-cell",align="center")
             data+='</tr>'
             
             builder_status = builder.getState()[0]
@@ -241,6 +242,7 @@ class LatestBuilds(HtmlResource):
                 online += 1
 
         data += "</table></table>\n"
+        print '...........', data
         if control is not None:
             if building:
                 stopURL = "builders/_all/stop"
