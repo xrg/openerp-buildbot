@@ -93,26 +93,26 @@ class OpenObjectMailNotifier(MailNotifier):
         self.subject = self.subject % {
             'result': res,
             'projectName': self.projectName,
-            'builder': name.upper(),
-            'reason': build.getReason(),
+            'builder': name,
         }
-        
+
+
         recipients = []
         for u in build.getInterestedUsers():
-            recipients.append(u)
+            recipients.append(u)        
         changes = list(ss.changes)
-        
+
         self._body=''
         for change in changes:
             m = Message()
             if self.html_body:
-                self._body = self.get_HTML_mail(name,build_url,waterfall_url,failed_step,status_text,change)
+                self._body = self.get_HTML_mail(name,build,build_url,waterfall_url,failed_step,status_text,change)
             else:
-                self._body = self.get_TEXT_mail(name,build_url,waterfall_url,failed_step,status_text,change)
+                self._body = self.get_TEXT_mail(name,build,build_url,waterfall_url,failed_step,status_text,change)
             self.sendMessage(m, recipients)
         return True 
 
-    def get_HTML_mail(self,name='',build_url=None,waterfall_url=None,failed_step='',status_text='',change=''):
+    def get_HTML_mail(self,name='',build = None,build_url=None,waterfall_url=None,failed_step='',status_text='',change=''):
         files_added = []
         files_modified = []
         files_renamed = []
@@ -150,9 +150,12 @@ class OpenObjectMailNotifier(MailNotifier):
             for file in change.files_removed:
                 file_link = branch_link + file
                 files_removed.append("<a href='%s'>%s</a>" % (file_link,file))
-                
-        kwargs = { 'who_name'     : change.who.encode('utf-8')[:change.who.index('<')],
-                   'project_name'      : self.projectName,
+        try:
+            who_name = change.who.encode('utf-8')[:change.who.index('<')]
+        except:
+            who_name = change.who.encode('utf-8')        
+        kwargs = { 'who_name'     : who_name,
+                   'project_name' : self.projectName,
                    'name'   : name,
                    'waterfall_url' : urllib.quote(waterfall_url, '/:') ,
                    'build_url' : build_url,
@@ -168,10 +171,11 @@ class OpenObjectMailNotifier(MailNotifier):
                    'files_modified' : files_modified_lbl + html.UL(files_modified),
                    'files_renamed' : files_renamed_lbl + html.UL(files_renamed),
                    'files_removed' : files_removed_lbl + html.UL(files_removed),
-                   'comments': change.comments }
+                   'comments': change.comments,
+                   'reason':build.getReason()}
         return html_mail % kwargs 
                   
-    def get_TEXT_mail(self,name='',build_url=None,waterfall_url=None,failed_step='',status_text='',change=''):
+    def get_TEXT_mail(self,name='',build = None,build_url=None,waterfall_url=None,failed_step='',status_text='',change=''):
         files_added = []
         files_modified = []
         files_renamed = []
@@ -209,9 +213,12 @@ class OpenObjectMailNotifier(MailNotifier):
             for file in change.files_removed:
                 file_link = branch_link + file
                 files_removed.append(" * %s \n   ( %s )" % (file, file_link))
-                
-        kwargs = { 'who_name'     : change.who.encode('utf-8')[:change.who.index('<')],
-                   'project_name'      : self.projectName,
+        try:
+            who_name = change.who.encode('utf-8')[:change.who.index('<')]
+        except:
+            who_name = change.who.encode('utf-8')
+        kwargs = { 'who_name'     : who_name,
+                   'project_name' : self.projectName,
                    'name'   : name,
                    'waterfall_url' : urllib.quote(waterfall_url, '/:'),
                    'build_url' : build_url,
@@ -227,7 +234,8 @@ class OpenObjectMailNotifier(MailNotifier):
                    'files_modified' : files_modified_lbl + '\n'.join(files_modified),
                    'files_renamed' : files_renamed_lbl + '\n'.join(files_renamed), 
                    'files_removed' : files_removed_lbl + '\n'.join(files_removed),
-                   'comments': change.comments }
+                   'comments': change.comments,
+                   'reason':build.getReason()}
         return text_mail % kwargs
 
     def sendMessage(self, m, recipients):
@@ -254,6 +262,7 @@ class OpenObjectMailNotifier(MailNotifier):
         msg['Cc'] = COMMASPACE.join(email_cc)
         msg['Reply-To'] = email_reply_to
         msg['Date'] = formatdate(localtime=True,usegmt=True)
+     
         try:
             s = smtplib.SMTP()
             s.connect(smtp_server,port)
@@ -271,8 +280,10 @@ class OpenObjectMailNotifier(MailNotifier):
 
 text_mail = """Hello %(who_name)s,
         
-We are sorry to say that your last commit had broken %(project_name)s (%(name)s).
-Can you please recheck your commit ?
+Your last commit had broken the branch %(project_name)s (%(name)s). Please recheck your code. The details of the build is provided here. If you think this can be a recursive problem, don't hesitate to write automated tests.
+
+To get more information about how to integrate tests in your module, please read the documentation:
+  * Automated Tests 
 
 The details are as below:
 =========================
@@ -282,6 +293,10 @@ Run details    : %(build_url)s
 Waterfall      : %(waterfall_url)swaterfall?builder=%(name_quote)s
 Step(s) Failed : %(failed_step)s
 Status         : %(status_text)s
+
+Reason Of Failure:
+-----------------
+  %(reason)s
 
 Commit History:
 ---------------
@@ -297,11 +312,12 @@ Comments       :
 %(comments)s
 
 
+
+
 Regards,
 OpenERP Quality Team
+http://openobject.com"""
 
-Great Achievements Start With Tiny Investments !
-            """
 html_mail = """<html>
             <body>
             <var>
@@ -331,6 +347,10 @@ Can you please recheck your commit ?<br/><br/></var>
                             <td align="left">Status:</td>
                             <td align="left"><font color="red">%(status_text)s</font></td>
                             
+                    </tr>
+                    <tr>
+                        <td align="left">Reason Of Failure:</td>
+                        <td align="left"><font size="3">%(reason)s</font></td>
                     </tr>
                     <tr>
                         <td><b>Commit History:</b></td>
@@ -381,7 +401,7 @@ Can you please recheck your commit ?<br/><br/></var>
                                 <td><font color="red">OpenERP Quality Team</font></td>
                             </tr>
                             <tr>
-                                <td>Great Achievements Start With Tiny Investments !</td>
+                                <td>http://openobject.com</td>
                             </tr>
                        </td>
                     </tr>
