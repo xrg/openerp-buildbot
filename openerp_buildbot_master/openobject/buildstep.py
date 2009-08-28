@@ -234,9 +234,12 @@ class CheckQuality(LoggingBuildStep):
             line = line[pos:]
             summaries[m].append(line)
             counts[m] += 1
+            
         for m in self.MESSAGES:
             if counts[m]:
                 msg = "".join(summaries[m])
+                if m == "ERROR":
+                    self.build.reason = msg
                 self.addCompleteLog("Check-Quality : %s" % m, msg)    
                 self.setProperty("Check-Quality : %s" % m, counts[m]) 
         if sum(counts.values()):       
@@ -402,9 +405,12 @@ class InstallTranslation(LoggingBuildStep):
             line = line[pos:]
             summaries[m].append(line)
             counts[m] += 1
+
         for m in self.MESSAGES:
             if counts[m]:
                 msg = "".join(summaries[m])
+                if m == "ERROR":
+                    self.build.reason = msg
                 self.addCompleteLog("Install-Translation : %s" % m, msg)    
                 self.setProperty("Install-Translation : %s" % m, counts[m]) 
         if sum(counts.values()):       
@@ -534,9 +540,12 @@ class InstallModule(LoggingBuildStep):
             line = line[pos:]
             summaries[m].append(line)
             counts[m] += 1
+
         for m in self.MESSAGES:
             if counts[m]:
                 msg = "".join(summaries[m])
+                if m == "ERROR":
+                    self.build.reason = msg
                 self.addCompleteLog("Install-Module : %s" % m, msg)    
                 self.setProperty("Install-Module : %s" % m, counts[m]) 
         if sum(counts.values()):
