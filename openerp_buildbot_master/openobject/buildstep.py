@@ -53,7 +53,7 @@ class CreateDB(LoggingBuildStep):
         elif results == WARNINGS:
             return self.describe(True, warn=True) 
         else:
-            return self.describe(True, fail=True) 
+            return self.describe(True, fail=True)
 
 
     def __init__(self, dbname='test',workdir=None, addonsdir=None, demo=True, lang='en_US', port=8869 ,**kwargs):
@@ -342,7 +342,11 @@ class InstallTranslation(LoggingBuildStep):
             for f in files:
                 fname,ext = os.path.splitext(f.split('/')[-1])
                 if ext == '.po':
-                    self.pofiles.append(f)
+                    if 'bin' in f.split('/'):
+                        addonsdir = ''
+                    else:
+                        addonsdir = self.args['addonsdir']+'/'
+                    self.pofiles.append(addonsdir+f)
         if len(self.pofiles):
             commands = []
             commands = ["make","Makefile","install-translation"]        
@@ -358,7 +362,7 @@ class InstallTranslation(LoggingBuildStep):
 
             self.description += ["Files",":",",".join(self.pofiles),"on Server","http://localhost:%s"%(self.args['port'])]
             
-            self.args['command'].append("i18n-import=../trunk_openobject_addons/%s"%(','.join(self.pofiles)))
+            self.args['command'].append("i18n-import=%s"%(','.join(self.pofiles)))
             cmd = LoggedRemoteCommand("shell",self.args)
             self.startCommand(cmd)
         else:           
@@ -381,9 +385,11 @@ class InstallTranslation(LoggingBuildStep):
                 for line in io[pos:-3]:
                     traceback_log.append(line)
                     if line.find("Exception:") != -1:
-                        index = traceback_log.index(line)
+                        index = traceback_log.index(line) + 2
+                    else:
+                        index = -3
                 traceback_property = []
-                for line in traceback_log[(index+2):-1]:
+                for line in traceback_log[index:-1]:
                         traceback_property.append(line)
                 self.addCompleteLog("Install-Translation : Traceback", "".join(traceback_log))
                 self.setProperty("Install-Translation : Traceback", "".join(traceback_property))
@@ -572,7 +578,7 @@ class OpenObjectBzr(Bzr):
     flunkOnFailure = False
     haltOnFailure = True
     def __init__(self, repourl=None, baseURL=None,
-                 defaultBranch=None,workdir=None,mode='update',alwaysUseLatest=True,timeout=20*60, retry=None,**kwargs):
+                 defaultBranch=None,workdir=None, mode='update', alwaysUseLatest=True, timeout=20*60, retry=None,**kwargs):
         LoggingBuildStep.__init__(self, **kwargs)
         Bzr.__init__(self, repourl=repourl, baseURL=baseURL,
                    defaultBranch=defaultBranch,workdir=workdir,mode=mode,alwaysUseLatest=alwaysUseLatest,timeout=timeout,
@@ -583,6 +589,6 @@ class OpenObjectBzr(Bzr):
 
     def startVC(self, branch, revision, patch):
         Bzr.startVC(self,self.branch, revision, patch)
-
-
+        
+        
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
