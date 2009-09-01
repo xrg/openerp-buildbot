@@ -224,7 +224,7 @@ class LatestBuilds(HtmlResource):
                 if not label or len(str(label)) > 20:
                     label = "#%d" % b.getNumber()
                 text = ['<a href="%s">%s</a>' % (url, label)]
-                text.extend(b.getText())
+                text.append(' '.join(b.getText()))
                 box = Box(text, b.getColor(),
                         class_="LastBuild box %s" % build_get_class(b))
                 data += box.td(class_="grid-cell",align="center")
@@ -241,8 +241,7 @@ class LatestBuilds(HtmlResource):
             elif builder_status != "offline":
                 online += 1
 
-        data += "</table></table>\n"
-        print '...........', data
+        data += "</table></table>\n"        
         if control is not None:
             if building:
                 stopURL = "builders/_all/stop"
