@@ -81,7 +81,7 @@ fieldset {
 
 button {
     border: solid 1px #888888;    
-    background: url(/static/images/button_bg.png) repeat-x left top;
+    background: url(/images/button_bg.png) repeat-x left top;
     color: #000;
     padding: 0px 2px;
     font-size: 11px;
@@ -90,7 +90,7 @@ button {
 }
 
 button:hover {
-    background: url(/static/images/button_bg2.png) repeat-x left top;
+    background: url(/images/button_bg2.png) repeat-x left top;
 }
 
 button.inactive {

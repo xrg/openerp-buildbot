@@ -15,9 +15,22 @@
     /*background-color: #F3F3F3;*/
 }
 
+.grid-row2 {
+    background-color: white;
+}
+
+.grid-row2:hover {
+    background-color: #F3F3F3;
+}
+
 .grid-cell {
     padding: 2px 4px;
     border: 1px solid #E3E3E3;
+}
+
+.grid-cell2 {
+    padding: 2px 4px;
+    border-bottom: 1px solid #E3E3E3;
 }
 
 .grid-cell.selector {
@@ -44,7 +57,7 @@
     background:url(/images/gradientlinebg.gif);
     border-bottom: 1px solid #999;
     font-weight: bold;
-    text-align: right;
+    text-align: center;
 }
 
 .grid-header .grid-cell .sortup {
