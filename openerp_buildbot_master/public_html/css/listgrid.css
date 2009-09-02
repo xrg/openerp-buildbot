@@ -5,6 +5,8 @@
 
 .grid {
     border: none;
+    height:100%;
+    border-collapse:collapse;
 }
 
 .grid-row {
@@ -24,12 +26,12 @@
 }
 
 .grid-cell {
-    padding: 2px 4px;
+    padding: 0px 0px;
     border: 1px solid #E3E3E3;
 }
 
 .grid-cell2 {
-    padding: 2px 4px;
+    padding: 0px 0px;    
     border-bottom: 1px solid #E3E3E3;
 }
 
@@ -78,7 +80,7 @@
 
 .grid-row.editors .grid-cell {
     background-color: #FFFFBF;
-    padding: 2px;
+    padding: 0px;
 }
 
 .grid-row.editors input,
