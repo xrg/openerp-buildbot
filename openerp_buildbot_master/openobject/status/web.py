@@ -33,57 +33,52 @@ ROOT_PATH = '.'
 
 baseweb.HEADER = '''
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<!-- Open Object Template End -->
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="<?php echo $this->language; ?>" lang="<?php echo $this->language; ?>" >
-    <head>
-        <title>OpenERP Integration Server</title>
-        <meta content="text/html; charset=utf-8" http-equiv="content-type"/>
-        <link type="image/x-icon" rel="shortcut icon" href="%(root)sfavicon.ico"/>
-        <!-- Open Object Css File Start -->
-        <link type="text/css" href="%(root)scss/style.css" rel="stylesheet"/>
-        <link type="text/css" href="%(root)scss/listgrid.css" rel="stylesheet"/>
-        <!-- Open Object Css File End -->
-    </head>
-    <body>
-        <!-- Main Body Start -->    
-        <div id="maincontent">
-            <!-- Header Start -->        
-            <table width="1004" border="0" cellspacing="0" cellpadding="0">
-            <tr>
-                <td width="202">
-                    <a href="http://openobject.com" alt="Open Object - Free Management Solution Logo"/><img src="%(root)simages/openobject.jpg" border="0"/></a>
-                </td>
-                <td width="335">
-                    <div align="right"><img src="%(root)simages/picture.jpg" width="242" height="68" /></div>
-                </td>
-                <td width="440" align="right" valign="top">
-                    <table id="Table_01" height="35" border="0" cellpadding="0" cellspacing="0">
-                    <tr>
-                        <td class="greycurveleft" width="23px" height="35px"></td>
-                        <td width="107" class="headerlinkgrey">
-                            <div class="headerlink" align="center">
-                                <a href="http://openerp.com"><strong>Open  ERP</strong></a>
-                            </div>
-                        </td>
-                        <td width="22px" height="35px" class="greyredcurve"></td>
-                        <td width="125" height="35" class="headerlinkgrey">
-                            <div class="headerlink" align="center">
-                                <a href="http://ondemand.openerp.com"><strong>On Demand</strong></a>
-                            </div>
-                        </td>
-                        <td width="20" height="35" class="redcurve">&nbsp;</td>
-                        <td width="139" height="35" class="redline">
-                            <div class="headerlink" align="center">
-                                <a href="http://openobject.com"><strong>Community</strong></a>
-                            </div>
-                        </td>
-                        <td width="16" height="35" ><img src="%(root)simages/redcurveright.jpg"/></td>
-                    </tr>
-                    </table>
-                </td>
-            </tr>
-            </table>
-            <table width="1004" border="0" cellspacing="0" cellpadding="0" id="menu_header">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en-gb" >
+	<head>
+		<title>OpenERP Integration Server</title>
+		<meta content="text/html; charset=iso-8859-1" http-equiv="Content-Type"/>
+		<meta content="index, follow" name="robots"/>		
+		<link rel="stylesheet" href="%(root)scss/styles.css" type="text/css" />	
+		<meta content="text/html; charset=utf-8" http-equiv="content-type"/>
+		<link type="%(root)simage/x-icon" rel="shortcut icon" href="%(root)sfavicon.ico"/>
+		<!-- Open Object Css File Start -->
+		<link type="text/css" href="%(root)scss/style.css" rel="stylesheet"/>
+		<link type="text/css" href="%(root)scss/listgrid.css" rel="stylesheet"/>
+		<link type="text/css" href="%(root)scss/dashboard.css" rel="stylesheet"/>
+		
+		
+		<!-- Open Object Css File End -->
+	</head>
+<body>
+
+			<table width="1004" border="0" cellspacing="0" cellpadding="0">
+			<tr>
+				<td width="202"><a href="http://openobject.com" alt="Open Object - Free Management Solution Logo"/><img src="%(root)simages/openobject.jpg" border="0"/></a></td>
+				<td width="335"><div align="right"><img src="%(root)simages/picture.jpg" width="242" height="68" /></div></td>
+				<td width="440" align="right" valign="top">
+					<table id="Table_01" height="35" border="0" cellpadding="0" cellspacing="0">
+					<tr>
+						<td class="greycurveleft" width="23px" height="35px">					    
+						</td>
+						<td width="107" class="headerlinkgrey">
+							<div class="headerlink" align="center"><a href="http://openerp.com"><strong>Open  ERP</strong></a></div>
+						</td>
+						<td width="22px" height="35px" class="greyredcurve"></td>
+						<td width="125" height="35" class="headerlinkgrey">
+							<div class="headerlink" align="center"><a href="http://ondemand.openerp.com"><strong>On Demand</strong></a></div>
+						</td>
+						<td width="20" height="35" class="redcurve">&nbsp;</td>
+						<td width="139" height="35" class="redline">
+							<div class="headerlink" align="center"><a href="http://openobject.com"><strong>Community</strong></a></div>
+						</td>
+						<td width="16" height="35" ><img src="%(root)simages/redcurveright.jpg"/></td>
+					</tr>
+					</table>
+				</td>
+			</tr>
+			</table>
+
+			<table width="1004" border="0" cellspacing="0" cellpadding="0" id="menu_header">
 			<tr>
 				<td width="141" id="menu_header_menu" nowrap="nowrap"></td>
 				<td nowrap="nowrap" align="left" height="25px"></td>
@@ -92,9 +87,7 @@ baseweb.HEADER = '''
 			  <td id="menu_header_menu2" nowrap="nowrap"></td>
 			  <td nowrap="nowrap" align="left"></td>
 			  </tr>
-			</table>
-            <!-- Header End -->        
-'''
+			</table>'''
 
 baseweb.HEAD_ELEMENTS = [    
     '<link href="%(root)sbuildbot.css" rel="stylesheet" type="text/css" />',
@@ -102,7 +95,7 @@ baseweb.HEAD_ELEMENTS = [
 baseweb.BODY_ATTRS = {}
 
 baseweb.FOOTER = '''
-<table width="1004" border="0" align="center" cellpadding="0" cellspacing="0">
+			<table width="1004" border="0" align="center" cellpadding="0" cellspacing="0">
 				<tr>
 					<td valign="top" align="right"><img src="%(root)simages/fourmis.jpg"/></td>
 				</tr>
@@ -125,6 +118,8 @@ baseweb.FOOTER = '''
 					</td>
 				</tr>
 			</table>
+            </td></tr></table></div>
+</body>
 </html>
 '''
 
