@@ -183,6 +183,7 @@ class DropDB(LoggingBuildStep):
             if fail:
                 return ['Dropping of db %s Failed!'%(self.dbname)]
          return self.description
+
     def getText(self, cmd, results):
         if results == SUCCESS:
             return self.describe(True, success=True)
@@ -226,6 +227,8 @@ class CheckQuality(LoggingBuildStep):
             if warn:
                 return ['Check quality had Warnings!']
             if fail:
+                if self.quality_stage == 'fail':
+                    return ['Module failed to reach minimum quality score!']
                 return ['Check quality Failed !']
         return self.description
     
@@ -244,8 +247,8 @@ class CheckQuality(LoggingBuildStep):
         self.dbname = dbname
         # Compute defaults for descriptions:
         description = ["checking quality"]
-
         self.description = description
+        self.quality_stage = 'pass'
 
     def start(self):
         s = self.build.getSourceStamp()
@@ -283,7 +286,7 @@ class CheckQuality(LoggingBuildStep):
         else:
             cmd = LoggedRemoteCommand("dummy", self.args)
             self.startCommand(cmd)
-
+    
     def createSummary(self, log):
         data = False
         logs = log.getText()
@@ -321,12 +324,10 @@ class CheckQuality(LoggingBuildStep):
             line = line[pos:]
             summaries[m].append(line)
             counts[m] += 1
-            
+
         for m in self.MESSAGES:
             if counts[m]:
                 msg = "".join(summaries[m])
-                if m == "ERROR":
-                    self.build.reason = msg
                 self.addCompleteLog("Check-Quality : %s" % m, msg)    
                 self.setProperty("Check-Quality : %s" % m, counts[m]) 
         if sum(counts.values()):       
@@ -341,11 +342,18 @@ class CheckQuality(LoggingBuildStep):
                 new_detail = values[1]  + '''<head><link rel="stylesheet" type="text/css" href="%scss/quality-log-style.css" media="all"/></head>''' %(buildbotURL)
                 self.addHTMLLog(module+':Score(%s)'%(values[0]),new_detail)
                 for test,detail in values[2].items():
-                     if detail[1] != '':
-                        index = detail[1].find('<html>') + len('<html>')
-                        new_detail = detail[1][0:index] + '''<table class="table1"><tr><td class="td1"> Module </td><td class="td1"> : </td><th class="th1"> %s </th></tr><tr><td class="td1"> Test </td><td class="td1"> : </td><th class="th1"> %s </th></tr><tr><td class="td1"> Score </b></td><td class="td1"> : </td><th class="th1"> %s </th></table><hr/>'''%(module, test, detail[0]) + detail[1][index:]+ '''<head><link rel="stylesheet" type="text/css" href="%scss/quality-log-style.css" media="all"/></head>''' %(buildbotURL)
-                        self.addHTMLLog('%s - %s:Score(%s)'%(module,test,detail[0]),new_detail)
+                     if detail[1]:
+                        self.quality_stage = 'fail'
+                     if detail[2] != '':
+                        index = detail[2].find('<html>') + len('<html>')
+                        new_detail = detail[2][0:index] + '''<table class="table1"><tr><td class="td1"> Module </td><td class="td1"> : </td><th class="th1"> %s </th></tr><tr><td class="td1"> Test </td><td class="td1"> : </td><th class="th1"> %s </th></tr><tr><td class="td1"> Score </b></td><td class="td1"> : </td><th class="th1"> %s </th></table><hr/>'''%(module, test, detail[0]) + detail[2][index:]+ '''<head><link rel="stylesheet" type="text/css" href="%scss/quality-log-style.css" media="all"/></head>''' %(buildbotURL)
+                        self.addHTMLLog('%s - %s:Score(%s)%s'%(module,test,detail[0],detail[1][5:]),new_detail)
 
+
+    def evaluateCommand(self, cmd):
+        if self.quality_stage == 'fail' or cmd.rc != 0:
+            return FAILURE
+        return SUCCESS
 
 class Copy(LoggingBuildStep):
     name = 'copy'
@@ -366,6 +374,7 @@ class Copy(LoggingBuildStep):
 
         self.description = description
         self.descriptionDone = descriptionDone
+
     def start(self):
         s = self.build.getSourceStamp()
         cmd = LoggedRemoteCommand("copy", self.args)
@@ -496,8 +505,6 @@ class InstallTranslation(LoggingBuildStep):
         for m in self.MESSAGES:
             if counts[m]:
                 msg = "".join(summaries[m])
-                if m == "ERROR":
-                    self.build.reason = msg
                 self.addCompleteLog("Install-Translation : %s" % m, msg)    
                 self.setProperty("Install-Translation : %s" % m, counts[m]) 
         if sum(counts.values()):       
@@ -631,8 +638,6 @@ class InstallModule(LoggingBuildStep):
         for m in self.MESSAGES:
             if counts[m]:
                 msg = "".join(summaries[m])
-                if m == "ERROR":
-                    self.build.reason = msg
                 self.addCompleteLog("Install-Module : %s" % m, msg)    
                 self.setProperty("Install-Module : %s" % m, counts[m]) 
         if sum(counts.values()):
