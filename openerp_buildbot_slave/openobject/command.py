@@ -36,10 +36,16 @@ class SlaveCp(SlaveShellCommand):
         workdir = os.path.join(self.builder.basedir, args['workdir'])
         addonsdir = args['addonsdir']
         dirs = []
-        for dir in os.listdir(workdir):
-            if dir not in ['.buildbot-sourcedata','.bzrignore','.bzr']:
-                dirs.append(dir)
+        if 'stable_openobject_server' in args['addonsdir'].split('/'):
+        	dirs.append('base')
+        else:
+	        for dir in os.listdir(workdir):
+	            if dir not in ['.buildbot-sourcedata','.bzrignore','.bzr','.svn','README.txt']:
+	            	if dir == 'base':
+	            	   continue
+	                dirs.append(dir)
         commandline = ["cp","-r","-u"]
+        #commandline = ["find",".", "|" ,"grep" ,"-v","'/\.'"] #| cpio -dump $DESTINATION_DIR/.
         commandline += dirs
         commandline += [addonsdir]
         c = ShellCommand(self.builder, commandline,
@@ -55,4 +61,63 @@ class SlaveCp(SlaveShellCommand):
         self.command = c
         d = self.command.start()
         return d
+
+class CreateDB(SlaveShellCommand):
+	def start(self): 
+		script_path = self.builder.basedir+'/../openobject/script.py'
+		args = self.args
+		assert args['workdir'] is not None
+		assert args['addonsdir'] is not None
+		workdir = os.path.join(self.builder.basedir, args['workdir'])
+		addonsdir = args['addonsdir']
+		commandline = ["python", script_path, "create-db"]
+		commandline.append("--root-path=%s"%(workdir))
+		if args['dbname']:
+		    commandline.append("--database=%s"%(self.args['dbname']))
+		if self.args['port']:
+		    commandline.append("--port=%s"%(self.args['port']))
+		
+		c = ShellCommand(self.builder, commandline,
+		                 workdir, environ=None,
+		                 timeout=args.get('timeout', None),
+						 sendStdout=args.get('want_stdout', True),
+						 sendStderr=args.get('want_stderr', True),
+						 sendRC=True,
+						 initialStdin=args.get('initial_stdin'),
+						 keepStdinOpen=args.get('keep_stdin_open'),
+						 logfiles=args.get('logfiles', {}),
+		                 )
+		self.command = c
+		d = self.command.start()
+		return d
+
+class InstallModule(SlaveShellCommand):
+	def start(self):
+		script_path = self.builder.basedir+'/../openobject/script.py'
+		args = self.args
+		assert args['workdir'] is not None
+		assert args['addonsdir'] is not None
+		workdir = os.path.join(self.builder.basedir, args['workdir'])
+		addonsdir = args['addonsdir']
+		commandline = ["python", script_path, "install-module"]
+		commandline.append("--root-path=%s"%(workdir))
+		if args['dbname']:
+		    commandline.append("--database=%s"%(self.args['dbname']))
+		if self.args['port']:
+		    commandline.append("--port=%s"%(self.args['port']))
+		if self.args['modules']:
+			commandline.append("--modules=%s"%(self.args['modules']))
+		c = ShellCommand(self.builder, commandline,
+		                 workdir, environ=None,
+		                 timeout=args.get('timeout', None),
+						 sendStdout=args.get('want_stdout', True),
+						 sendStderr=args.get('want_stderr', True),
+						 sendRC=True,
+						 initialStdin=args.get('initial_stdin'),
+						 keepStdinOpen=args.get('keep_stdin_open'),
+						 logfiles=args.get('logfiles', {}),
+		                 )
+		self.command = c
+		d = self.command.start()
+		return d
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:        

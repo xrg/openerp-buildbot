@@ -20,7 +20,7 @@
 #
 ##############################################################################
 
-from buildbot.steps.source import Source, Bzr
+from buildbot.steps.source import Source, Bzr, SVN
 from buildbot.steps.shell import ShellCommand
 from buildbot.process.buildstep import LoggingBuildStep, LoggedRemoteCommand
 from buildbot.status.builder import SUCCESS, FAILURE, WARNINGS
@@ -33,7 +33,94 @@ try:
 except ImportError:
     from StringIO import StringIO
 
+class createdb(LoggingBuildStep):
+    name = 'create-db'
+    flunkOnFailure = False
+    def describe(self, done=False,success=False,warn=False,fail=False):
+         if done:
+            if success:
+                return ['Created db %s Sucessfully!'%(self.dbname)]
+            if warn:
+                return ['Created db %s with Warnings!'%(self.dbname)]
+            if fail:
+                return ['Creation of db %s Failed!'%(self.dbname)]
+         return self.description
+    
+    def getText(self, cmd, results):
+        if results == SUCCESS:
+            return self.describe(True, success=True)
+        elif results == WARNINGS:
+            return self.describe(True, warn=True) 
+        else:
+            return self.describe(True, fail=True) 
 
+
+    def __init__(self, dbname='test',workdir=None, addonsdir=None, demo=True, lang='en_US', port=8869 ,**kwargs):
+
+        LoggingBuildStep.__init__(self, **kwargs)
+        self.addFactoryArguments(dbname=dbname,workdir=workdir, demo=demo, lang=lang, port=port, addonsdir=addonsdir)
+        self.args = {'dbname': dbname,'workdir':workdir, 'demo':demo, 'lang':lang, 'port' : port, 'addonsdir' : addonsdir}
+        self.dbname = dbname
+        # Compute defaults for descriptions:
+        description = ["creating db"]
+        self.description = description
+
+    def start(self):
+        cmd = LoggedRemoteCommand("createdb",self.args)
+        self.startCommand(cmd)
+        
+class installmodule(LoggingBuildStep):
+    name = 'install-module'
+    flunkOnFailure = True
+    flunkingIssues = ["ERROR","CRITICAL"]
+    MESSAGES = ("ERROR", "CRITICAL", "WARNING")
+
+    def describe(self, done=False,success=False,warn=False,fail=False):
+        if done:
+            if success:
+                return ['Module(s) %s installed Sucessfully!'%(self.args['modules'])]
+            if warn:
+                return ['Installed module(s) had Warnings!']
+            if fail:
+                return ['Installing module(s) Failed!']
+        return self.description
+
+    def getText(self, cmd, results):
+        if results == SUCCESS:
+            return self.describe(True, success=True)
+        elif results == WARNINGS:
+            return self.describe(True, warn=True) 
+        else:
+            return self.describe(True, fail=True)
+ 
+    def __init__(self,workdir=None, addonsdir=None, modules='', dbname=False,port=8869, netport=8870, **kwargs):
+        LoggingBuildStep.__init__(self, **kwargs)
+        self.addFactoryArguments(workdir=workdir,addonsdir=addonsdir,modules=modules, dbname=dbname, port=port, netport=netport)
+        self.args = {'addonsdir': addonsdir,
+                     'workdir': workdir,
+                     'dbname' : dbname,
+                     'modules' : modules,
+                     'netport' : netport,
+                     'port' : port,
+        }
+        self.name = 'install-module'
+        self.description = ["Installing", "modules %s"%(self.args['modules']),"on Server","http://localhost:%s"%(self.args['port'])]
+
+    def start(self):
+        s = self.build.getSourceStamp()
+        modules = ['account']
+        for change in s.changes:
+            for f in change.files:
+                try:
+                    module = f.split('/')[1]
+                except:
+                    continue
+                if module not in modules:
+                    modules.append(module)
+        self.args['modules'] += ','.join(modules)
+        cmd = LoggedRemoteCommand("installmodule",self.args)
+        self.startCommand(cmd)
+            
 class CreateDB(LoggingBuildStep):
     name = 'create-db'
     flunkOnFailure = False
@@ -268,9 +355,9 @@ class Copy(LoggingBuildStep):
             return self.descriptionDone
         return self.description
 
-    def __init__(self, branch=None, workdir=None, addonsdir=None, **kwargs):
+    def __init__(self, workdir=None, addonsdir=None, **kwargs):
         LoggingBuildStep.__init__(self, **kwargs)
-        self.addFactoryArguments(branch=branch,workdir=workdir, addonsdir=addonsdir)
+        self.addFactoryArguments(workdir=workdir, addonsdir=addonsdir)
         self.args = {'workdir': workdir, 'addonsdir':addonsdir}
 
         # Compute defaults for descriptions:
@@ -279,20 +366,14 @@ class Copy(LoggingBuildStep):
 
         self.description = description
         self.descriptionDone = descriptionDone
-        self.branch = branch
     def start(self):
         s = self.build.getSourceStamp()
-        flag = False
-        for change in s.changes:
-            if change.branch == self.branch:
-                flag = True
-                break
-        if flag:
-            cmd = LoggedRemoteCommand("copy", self.args)
-            self.startCommand(cmd)
-        else:            
-            cmd = LoggedRemoteCommand("dummy", self.args)
-            self.startCommand(cmd)
+        cmd = LoggedRemoteCommand("copy", self.args)
+        self.startCommand(cmd)
+    def evaluateCommand(self, cmd):
+        if (cmd.rc == 0) or (cmd.rc == 1):
+            return SUCCESS
+        return FAILURE
 
 class InstallTranslation(LoggingBuildStep):
     name = 'install-translation'
@@ -590,5 +671,18 @@ class OpenObjectBzr(Bzr):
     def startVC(self, branch, revision, patch):
         Bzr.startVC(self,self.branch, revision, patch)
         
-        
+class OpenObjectSVN(SVN):
+    flunkOnFailure = False
+    haltOnFailure = True
+    def __init__(self, svnurl=None, baseURL=None, defaultBranch=None,
+                 directory=None, workdir=None, mode='update',alwaysUseLatest=True,timeout=20*60, retry=None,**kwargs):
+        LoggingBuildStep.__init__(self, **kwargs)
+        SVN.__init__(self, svnurl=svnurl, baseURL=baseURL, defaultBranch=defaultBranch,
+                 directory=directory, workdir=workdir, mode=mode, alwaysUseLatest=alwaysUseLatest, timeout=timeout, retry=retry,**kwargs)
+        self.name = 'svn-update'
+        self.description = ["updating", "branch %s%s"%(baseURL,defaultBranch)]
+        self.descriptionDone = ["updated", "branch %s%s"%(baseURL,defaultBranch)]
+
+    def startVC(self, branch, revision, patch):
+        SVN.startVC(self,self.branch, revision, patch)        
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

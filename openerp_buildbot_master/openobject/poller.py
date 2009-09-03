@@ -75,7 +75,7 @@ class BzrPoller(service.MultiService, util.ComparableMixin):
         # this is subclass of bzrlib.branch.Branch
         current_revision = b.revno()
         if not self.last_revno:
-            self.last_revno = current_revision - 1
+            self.last_revno = current_revision #- 1
         # NOTE: b.revision_history() does network IO, and is blocking.
         revisions = b.revision_history()[self.last_revno:] # each is an id string
         changes = []
@@ -135,7 +135,7 @@ class OpenObjectChange(Change):
         self.files_removed = [f[0] for f in revision_delta.removed]
         self.ch = revision_delta
         self.rev_no = rev_no
-        files =  self.files_added + self.files_modified + self.files_renamed + self.files_removed
+        files =  self.files_added + self.files_modified + [f[1] for f in self.files_renamed] + self.files_removed
         Change.__init__(self, who=who, files=files, comments=comments, isdir=isdir, links=links,revision=revision, when=when, branch=branch)
         
     def asHTML(self):
