@@ -132,13 +132,13 @@ function getlatestgraph(data,fromDate,toDate) {
                 labelX = monthtext[dt.getMonth()] +" "+ dt.getFullYear()
                 if (item.series.label == 'New')
                     showTooltip(item.pageX, item.pageY,
-                          y + " " + item.series.label + " Bugs " + " in " + labelX);
+                          y + " " + item.series.label + " Bugs " + " of " + labelX);
                 else if ((item.series.label == 'Confirmed'))
                     showTooltip(item.pageX, item.pageY,
-                          y + ' (' + item.series.label + "+Inprogress )" + "Bugs in " + labelX);
+                          y + ' (' + item.series.label + "+Inprogress )" + "Bugs of " + labelX);
                 else
                     showTooltip(item.pageX, item.pageY,
-                          y + " " + item.series.label + " in " + labelX);
+                          y + " " + item.series.label + " of " + labelX);
                 
             }
         }
