@@ -251,12 +251,12 @@ class CheckQuality(LoggingBuildStep):
             fp = open(file_path,'a+')
             data = pickle.load(fp)
             for module,values in data.items():
-                new_detail = values[1]  + '''<head><link rel="stylesheet" type="text/css" href="%s/css/quality-log-style.css" media="all"/></head>''' %(buildbotURL)
+                new_detail = values[1]  + '''<head><link rel="stylesheet" type="text/css" href="%scss/quality-log-style.css" media="all"/></head>''' %(buildbotURL)
                 self.addHTMLLog(module+':Score(%s)'%(values[0]),new_detail)
                 for test,detail in values[2].items():
                      if detail[1] != '':
                         index = detail[1].find('<html>') + len('<html>')
-                        new_detail = detail[1][0:index] + '''<table class="table1"><tr><td class="td1"> Module </td><td class="td1"> : </td><th class="th1"> %s </th></tr><tr><td class="td1"> Test </td><td class="td1"> : </td><th class="th1"> %s </th></tr><tr><td class="td1"> Score </b></td><td class="td1"> : </td><th class="th1"> %s </th></table><hr/>'''%(module, test, detail[0]) + detail[1][index:]+ '''<head><link rel="stylesheet" type="text/css" href="%s/css/quality-log-style.css" media="all"/></head>''' %(buildbotURL)
+                        new_detail = detail[1][0:index] + '''<table class="table1"><tr><td class="td1"> Module </td><td class="td1"> : </td><th class="th1"> %s </th></tr><tr><td class="td1"> Test </td><td class="td1"> : </td><th class="th1"> %s </th></tr><tr><td class="td1"> Score </b></td><td class="td1"> : </td><th class="th1"> %s </th></table><hr/>'''%(module, test, detail[0]) + detail[1][index:]+ '''<head><link rel="stylesheet" type="text/css" href="%scss/quality-log-style.css" media="all"/></head>''' %(buildbotURL)
                         self.addHTMLLog('%s - %s:Score(%s)'%(module,test,detail[0]),new_detail)
 
 
