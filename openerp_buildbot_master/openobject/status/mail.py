@@ -36,7 +36,7 @@ class OpenObjectMailNotifier(MailNotifier):
     def __init__(self, username=None, password=None, port=2525, fromaddr=None, mode="failing", 
                categories=None, builders=None,
                addLogs=False, relayhost="localhost",
-               subject="buildbot %(result)s in %(projectName)s on %(builder)s",
+               subject="%(projectName)s %(builder)s %(result)s",
                lookup=None, extraRecipients=[],
                sendToInterestedUsers=True, reply_to=None, html_body=False, TLS=True, mail_watcher=[]):
         MailNotifier.__init__(self, fromaddr, mode, categories, builders,
@@ -55,7 +55,7 @@ class OpenObjectMailNotifier(MailNotifier):
     def buildMessage(self, name, build, results):
         """Send an email about the result. Don't attach the patch as
         MailNotifier.buildMessage do."""
-
+        self.subject = '%(projectName)s %(builder)s %(result)s'
         self.projectName = self.status.getProjectName()
         ss = build.getSourceStamp()
         build_url = self.status.getURLForThing(build)
