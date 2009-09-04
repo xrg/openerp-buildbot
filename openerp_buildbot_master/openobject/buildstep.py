@@ -349,7 +349,6 @@ class CheckQuality(LoggingBuildStep):
     <script type="text/javascript">
     $(function() {
         $("#tabs").tabs();
-        alert('in')
     });
     </script>'''%(buildbotURL,buildbotURL,buildbotURL,buildbotURL,buildbotURL)
                 self.addHTMLLog(module+':Score(%s)'%(values[0]),new_detail)
