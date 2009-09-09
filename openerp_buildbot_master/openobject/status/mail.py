@@ -52,6 +52,30 @@ class OpenObjectMailNotifier(MailNotifier):
         self.mail_watcher = mail_watcher
         self.projectName = ''
 
+    def _to_unicode(self,s):
+        try:
+            return s.decode('utf-8')
+        except UnicodeError:
+            try:
+                return s.decode('latin')
+            except UnicodeError:
+                try:
+                    return s.encode('ascii')
+                except UnicodeError:
+                    return s
+
+    def _to_decode(self,s):
+        try:
+            return s.encode('utf-8')
+        except UnicodeError:
+            try:
+                return s.encode('latin')
+            except UnicodeError:
+                try:
+                    return s.decode('ascii')
+                except UnicodeError:
+                    return s
+
     def buildMessage(self, name, build, results):
         """Send an email about the result. Don't attach the patch as
         MailNotifier.buildMessage do."""
@@ -95,13 +119,10 @@ class OpenObjectMailNotifier(MailNotifier):
             'projectName': self.projectName,
             'builder': name,
         }
-
-
         recipients = []
-        for u in build.getInterestedUsers():
-            recipients.append(u)        
+        for commiter in build.getInterestedUsers():
+            recipients.append(commiter)        
         changes = list(ss.changes)
-
         self._body=''
         for change in changes:
             m = Message()
@@ -150,11 +171,13 @@ class OpenObjectMailNotifier(MailNotifier):
             for file in change.files_removed:
                 file_link = branch_link + file
                 files_removed.append("<a href='%s'>%s</a>" % (file_link,file))
+        
         try:
-            who_name = change.who.encode('utf-8')[:change.who.index('<')]
+            who_name = change.who[:change.who.index('<')]
         except:
-            who_name = change.who.encode('utf-8')        
-        kwargs = { 'who_name'     : who_name,
+            who_name = change.who
+
+        kwargs = { 'who_name'     : self._to_unicode(who_name),
                    'project_name' : self.projectName,
                    'name'   : name,
                    'waterfall_url' : urllib.quote(waterfall_url, '/:') ,
@@ -162,7 +185,7 @@ class OpenObjectMailNotifier(MailNotifier):
                    'name_quote' : urllib.quote(name),
                    'failed_step' : failed_step,
                    'status_text' : status_text,
-                   'who' : change.who.encode('utf-8'),
+                   'who' : self._to_unicode(change.who),
                    'when' : formatdate(change.when,usegmt=True),
                    'branch' : branch,
                    'revision' : change.revision,
@@ -173,7 +196,7 @@ class OpenObjectMailNotifier(MailNotifier):
                    'files_removed' : files_removed_lbl + html.UL(files_removed),
                    'comments': change.comments,
                    'reason':build.getReason()}
-        return html_mail % kwargs 
+        return self._to_decode(html_mail % kwargs) 
                   
     def get_TEXT_mail(self,name='',build = None,build_url=None,waterfall_url=None,failed_step='',status_text='',change=''):
         files_added = []
@@ -214,10 +237,11 @@ class OpenObjectMailNotifier(MailNotifier):
                 file_link = branch_link + file
                 files_removed.append(" * %s \n   ( %s )" % (file, file_link))
         try:
-            who_name = change.who.encode('utf-8')[:change.who.index('<')]
+            who_name = change.who[:change.who.index('<')]
         except:
-            who_name = change.who.encode('utf-8')
-        kwargs = { 'who_name'     : who_name,
+            who_name = change.who
+
+        kwargs = { 'who_name'     : self._to_unicode(who_name),
                    'project_name' : self.projectName,
                    'name'   : name,
                    'waterfall_url' : urllib.quote(waterfall_url, '/:'),
@@ -225,7 +249,7 @@ class OpenObjectMailNotifier(MailNotifier):
                    'name_quote' : urllib.quote(name),
                    'failed_step' : failed_step,
                    'status_text' : status_text,
-                   'who' : change.who.encode('utf-8'),
+                   'who' : self._to_unicode(change.who),
                    'when' : formatdate(change.when,usegmt=True),
                    'branch' : branch,
                    'revision' : revision,
@@ -236,7 +260,7 @@ class OpenObjectMailNotifier(MailNotifier):
                    'files_removed' : files_removed_lbl + '\n'.join(files_removed),
                    'comments': change.comments,
                    'reason':build.getReason()}
-        return text_mail % kwargs
+        return self._to_decode(text_mail % kwargs)
 
     def sendMessage(self, m, recipients):
 
