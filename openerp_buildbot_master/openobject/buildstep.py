@@ -32,94 +32,6 @@ try:
     StringIO = cStringIO.StringIO
 except ImportError:
     from StringIO import StringIO
-
-class createdb(LoggingBuildStep):
-    name = 'create-db'
-    flunkOnFailure = False
-    def describe(self, done=False,success=False,warn=False,fail=False):
-         if done:
-            if success:
-                return ['Created db %s Sucessfully!'%(self.dbname)]
-            if warn:
-                return ['Created db %s with Warnings!'%(self.dbname)]
-            if fail:
-                return ['Creation of db %s Failed!'%(self.dbname)]
-         return self.description
-    
-    def getText(self, cmd, results):
-        if results == SUCCESS:
-            return self.describe(True, success=True)
-        elif results == WARNINGS:
-            return self.describe(True, warn=True) 
-        else:
-            return self.describe(True, fail=True) 
-
-
-    def __init__(self, dbname='test',workdir=None, addonsdir=None, demo=True, lang='en_US', port=8869 ,**kwargs):
-
-        LoggingBuildStep.__init__(self, **kwargs)
-        self.addFactoryArguments(dbname=dbname,workdir=workdir, demo=demo, lang=lang, port=port, addonsdir=addonsdir)
-        self.args = {'dbname': dbname,'workdir':workdir, 'demo':demo, 'lang':lang, 'port' : port, 'addonsdir' : addonsdir}
-        self.dbname = dbname
-        # Compute defaults for descriptions:
-        description = ["creating db"]
-        self.description = description
-
-    def start(self):
-        cmd = LoggedRemoteCommand("createdb",self.args)
-        self.startCommand(cmd)
-        
-class installmodule(LoggingBuildStep):
-    name = 'install-module'
-    flunkOnFailure = True
-    flunkingIssues = ["ERROR","CRITICAL"]
-    MESSAGES = ("ERROR", "CRITICAL", "WARNING")
-
-    def describe(self, done=False,success=False,warn=False,fail=False):
-        if done:
-            if success:
-                return ['Module(s) %s installed Sucessfully!'%(self.args['modules'])]
-            if warn:
-                return ['Installed module(s) had Warnings!']
-            if fail:
-                return ['Installing module(s) Failed!']
-        return self.description
-
-    def getText(self, cmd, results):
-        if results == SUCCESS:
-            return self.describe(True, success=True)
-        elif results == WARNINGS:
-            return self.describe(True, warn=True) 
-        else:
-            return self.describe(True, fail=True)
- 
-    def __init__(self,workdir=None, addonsdir=None, modules='', dbname=False,port=8869, netport=8870, **kwargs):
-        LoggingBuildStep.__init__(self, **kwargs)
-        self.addFactoryArguments(workdir=workdir,addonsdir=addonsdir,modules=modules, dbname=dbname, port=port, netport=netport)
-        self.args = {'addonsdir': addonsdir,
-                     'workdir': workdir,
-                     'dbname' : dbname,
-                     'modules' : modules,
-                     'netport' : netport,
-                     'port' : port,
-        }
-        self.name = 'install-module'
-        self.description = ["Installing", "modules %s"%(self.args['modules']),"on Server","http://localhost:%s"%(self.args['port'])]
-
-    def start(self):
-        s = self.build.getSourceStamp()
-        modules = ['account']
-        for change in s.changes:
-            for f in change.files:
-                try:
-                    module = f.split('/')[1]
-                except:
-                    continue
-                if module not in modules:
-                    modules.append(module)
-        self.args['modules'] += ','.join(modules)
-        cmd = LoggedRemoteCommand("installmodule",self.args)
-        self.startCommand(cmd)
             
 class CreateDB(LoggingBuildStep):
     name = 'create-db'
@@ -154,7 +66,7 @@ class CreateDB(LoggingBuildStep):
         self.description = description
 
     def start(self):
-        self.args['command']=["make","Makefile","create-db"]
+        self.args['command']=["make","create-db"]
         if self.args['dbname']:
             self.args['command'].append("database=%s"%(self.args['dbname']))
         if self.args['port']:
@@ -202,7 +114,7 @@ class DropDB(LoggingBuildStep):
         self.description = description
 
     def start(self):
-        self.args['command']=["make","Makefile","drop-db"]
+        self.args['command']=["make","drop-db"]
         if self.args['dbname']:
             self.args['command'].append("database=%s"%(self.args['dbname']))
         if self.args['port']:
@@ -269,7 +181,7 @@ class CheckQuality(LoggingBuildStep):
         self.args['modules'] = ','.join(modules)        
         if self.args['modules']:
             self.description.append(self.args['modules'])
-            self.args['command']=["make","Makefile","check-quality"]
+            self.args['command']=["make","check-quality"]
 
             if self.args['addonsdir']:
                 self.args['command'].append("addons-path=%s"%(self.args['addonsdir']))
@@ -449,7 +361,7 @@ class InstallTranslation(LoggingBuildStep):
                     self.pofiles.append(addonsdir+f)
         if len(self.pofiles):
             commands = []
-            commands = ["make","Makefile","install-translation"]        
+            commands = ["make","install-translation"]        
 
             if self.args['addonsdir']:
                 commands.append("addons-path=%s"%(self.args['addonsdir']))            
@@ -587,7 +499,7 @@ class InstallModule(LoggingBuildStep):
             self.args['modules'] += ','.join(modules)  
 
         if self.args['modules']:
-            self.args['command'] = ["make","Makefile","install-module"]
+            self.args['command'] = ["make","install-module"]
             if self.args['addonsdir']:
                 self.args['command'].append("addons-path=%s"%(self.args['addonsdir']))
             if self.args['modules']:
@@ -684,7 +596,30 @@ class OpenObjectBzr(Bzr):
         self.descriptionDone = ["updated", "branch %s%s"%(baseURL,defaultBranch)]
 
     def startVC(self, branch, revision, patch):
-        Bzr.startVC(self,self.branch, revision, patch)
+        slavever = self.slaveVersion("bzr")
+        if not slavever:
+            m = "slave is too old, does not know about bzr"
+            raise BuildSlaveTooOldError(m)
+
+        if self.repourl:
+            assert not branch # we need baseURL= to use branches
+            self.args['repourl'] = self.repourl
+        else:
+            self.args['repourl'] = self.baseURL + self.branch # self.baseURL + branch
+        
+        if  self.args['repourl'] == branch:
+            self.args['revision'] = revision
+        else:
+            self.args['revision'] = None
+        self.args['patch'] = patch
+
+        revstuff = []
+        if branch is not None and branch != self.branch:
+            revstuff.append("[branch]")
+        self.description.extend(revstuff)
+        self.descriptionDone.extend(revstuff)
+        cmd = LoggedRemoteCommand("bzr", self.args)
+        self.startCommand(cmd)
         
 class OpenObjectSVN(SVN):
     flunkOnFailure = False
@@ -699,5 +634,88 @@ class OpenObjectSVN(SVN):
         self.descriptionDone = ["updated", "branch %s%s"%(baseURL,defaultBranch)]
 
     def startVC(self, branch, revision, patch):
-        SVN.startVC(self,self.branch, revision, patch)        
+        SVN.startVC(self,self.branch, revision, patch)   
+            
+# Following Step are used in Migration builder        
+class StartServer(LoggingBuildStep):
+    name = 'start_server'
+    flunkOnFailure = False
+    def describe(self, done=False,success=False,warn=False,fail=False):
+         if done:
+            if success:
+                return ['Server started Sucessfully!']
+            if warn:
+                return ['Server started with Warnings!']
+            if fail:
+                return ['Server Failed!']
+         return self.description
+    
+    def getText(self, cmd, results):
+        if results == SUCCESS:
+            return self.describe(True, success=True)
+        elif results == WARNINGS:
+            return self.describe(True, warn=True) 
+        else:
+            return self.describe(True, fail=True) 
+
+
+    def __init__(self, dbname='test',workdir=None, addonsdir=None, demo=True, lang='en_US', port=8869 ,**kwargs):
+
+        LoggingBuildStep.__init__(self, **kwargs)
+        self.addFactoryArguments(dbname=dbname,workdir=workdir, demo=demo, lang=lang, port=port, addonsdir=addonsdir)
+        self.args = {'dbname': dbname,'workdir':workdir, 'port' : port, 'addonsdir' : addonsdir}
+        # Compute defaults for descriptions:
+        description = ["Starting server with upgration"]
+        self.description = description
+
+    def start(self):
+        modules=['base']
+        s = self.build.getSourceStamp()
+        for change in s.changes:
+            for f in change.files:
+                try:
+                    module = f.split('/')[1]
+                    if module not in modules:
+                        modules.append(module)
+                except:
+                    pass
+        self.args['modules'] = ','.join(modules)
+        commands = ['python','bin/openerp-server.py']
+        if self.args['addonsdir']:
+            commands.append("--addons-path=%s"%(self.args['addonsdir']))            
+        if self.args['port']:
+            commands.append("--port=%s"%(self.args['port']))
+        if self.args['dbname']:
+            commands.append("--database=%s"%(self.args['dbname']))     
+        commands.append("--update=%s"%(self.args['modules']))
+        commands.append("--stop-after-init")
+                        
+        self.args['command'] = commands
+
+        cmd = LoggedRemoteCommand("shell",self.args)
+        self.startCommand(cmd)
+        
+
+class CreateDB2(CreateDB):
+    def start(self):
+        cmd = LoggedRemoteCommand("create-db",self.args)
+        self.startCommand(cmd)
+        
+class InstallModule2(InstallModule):
+    def start(self):
+        s = self.build.getSourceStamp()
+        modules = []
+        for change in s.changes:
+            for f in change.files:
+                try:
+                    module = f.split('/')
+                    module = (len(module) > 1) and module[1] or []
+                    if module not in modules:
+                        if module not in ('README.txt'):
+                            modules.append(module)
+                except:
+                    pass                
+        self.args['modules'] += ','.join(modules)
+        cmd = LoggedRemoteCommand("install-module",self.args)
+        self.startCommand(cmd)         
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

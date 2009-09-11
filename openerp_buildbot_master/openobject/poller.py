@@ -62,6 +62,7 @@ class BzrPoller(service.MultiService, util.ComparableMixin):
         self.pollinterval = pollinterval
         self.overrun_counter = 0
         self.callback = callback
+        self.branch = Branch.open_containing(self.location)[0]
         timer = internet.TimerService(pollinterval, self.poll)
         timer.setServiceParent(self)
 
@@ -70,7 +71,7 @@ class BzrPoller(service.MultiService, util.ComparableMixin):
 
     def poll(self):
         log.msg("BzrPoller polling")
-        b = Branch.open_containing(self.location)[0]
+        b = self.branch
         bzrlib.trace.enable_default_logging()
         # this is subclass of bzrlib.branch.Branch
         current_revision = b.revno()
@@ -87,15 +88,15 @@ class BzrPoller(service.MultiService, util.ComparableMixin):
             comments = rev.message
             when = rev.timestamp
             # rev.timezone, interesting. Not sure it's used.
-            revision_delta = b.repository.get_revision_delta(r)
-            rev_no = b.revision_id_to_revno(r)
-            revision= r #b.revision_id_to_revno(r) #b.get_rev_id()
+            revision_delta = b.repository.get_revision_delta(r)            
+            revision= b.revision_id_to_revno(r) #b.get_rev_id()
             branch= self.location #b.get_master_branch()
-            c = OpenObjectChange(  rev_no,
-                                   who=rev.committer,
+            c = OpenObjectChange(  
+                                   who = rev.committer,
                                    revision_delta = revision_delta,
-                                   comments=rev.message,
-                                   when=rev.timestamp,
+                                   revision_id = revision_id,
+                                   comments = rev.message,
+                                   when = rev.timestamp,
                                    revision = revision,
                                    branch = branch
                                    )
@@ -111,8 +112,8 @@ html_tmpl = """
 <p>Changed by : <b>%(who)s</b><br />
 Changed at : <b>%(at)s</b><br />
 %(branch)s
-%(revision)s
-Revision No:%(rev_no)s
+%(revision_id)s
+Revision No:%(revision)s
 </p>
 
 %(files_added)s
@@ -127,14 +128,14 @@ Comments : %(comments)s
 """
 from twisted.web import html
 class OpenObjectChange(Change):
-    def __init__(self, rev_no, who, revision_delta, comments, files=[],  isdir=0, links=[],
+    def __init__(self, who, revision_delta, revision_id, comments, files=[],  isdir=0, links=[],
                  revision=None, when=None, branch=None):
         self.files_added = [f[0] for f in revision_delta.added]
         self.files_modified = [f[0] for f in revision_delta.modified]
         self.files_renamed = [(f[0],f[1]) for f in revision_delta.renamed]
         self.files_removed = [f[0] for f in revision_delta.removed]
         self.ch = revision_delta
-        self.rev_no = rev_no
+        self.revision_id = revision_id
         files =  self.files_added + self.files_modified + [f[1] for f in self.files_renamed] + self.files_removed
         Change.__init__(self, who=who, files=files, comments=comments, isdir=isdir, links=links,revision=revision, when=when, branch=branch)
         
@@ -148,19 +149,20 @@ class OpenObjectChange(Change):
         files_renamed_lbl = ''
         files_removed_lbl = ''
         
+        revision_id = ''
+        if self.revision_id:
+            revision_id = "Revision ID: <b>%s</b><br />\n" % self.revision_id
+        
         revision = ''
         if self.revision:
-            revision = "Revision : <b>%s</b><br />\n" % self.revision
-            
-        rev_no = ''
-        if self.rev_no:
-            rev_no = self.rev_no
+            revision = self.revision            
+        
             
         branch = ""
         branch_link = ''
         if self.branch:
             i = self.branch.index('launchpad')
-            branch_link = 'https://bazaar.' + self.branch[i:] + '/revision/' + str(rev_no) + '#'
+            branch_link = 'https://bazaar.' + self.branch[i:] + '/revision/' + str(revision) + '#'
             branch = "Branch : <a href='%s'>%s</a><br />\n" % (self.branch,self.branch)
             
         if self.files_added:
@@ -192,7 +194,7 @@ class OpenObjectChange(Change):
                    'files_renamed' : files_renamed_lbl + html.UL(files_renamed) + '\n',
                    'files_removed' : files_removed_lbl + html.UL(files_removed) + '\n',
                    'revision': revision,
-                   'rev_no': rev_no,
+                   'revision_id': revision_id,
                    'branch'  : branch,
                    'comments': html.PRE(self.comments) }
         return html_tmpl % kwargs
