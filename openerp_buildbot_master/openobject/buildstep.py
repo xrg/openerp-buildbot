@@ -26,7 +26,7 @@ from buildbot.process.buildstep import LoggingBuildStep, LoggedRemoteCommand
 from buildbot.status.builder import SUCCESS, FAILURE, WARNINGS
 import pickle
 import os
-from lxml import etree
+from openobject import tools
 try:
     import cStringIO
     StringIO = cStringIO.StringIO
@@ -263,7 +263,7 @@ class CheckQuality(LoggingBuildStep):
         $("#tabs").tabs();
     });
     </script>'''%(buildbotURL,buildbotURL,buildbotURL,buildbotURL,buildbotURL)
-                self.addHTMLLog(module+':Score(%s)'%(values[0]),new_detail)
+                self.addHTMLLog(module+':Score(%s)'%(values[0]), tools._to_decode(tools._to_unicode(new_detail)))
 #                for test,detail in values[2].items():
 #                     #if detail[1] != '':
 #                        index = detail[1].find('<html>') + len('<html>')

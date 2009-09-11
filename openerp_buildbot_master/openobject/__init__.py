@@ -23,5 +23,6 @@
 import buildstep
 import poller
 import status
+import tools
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
