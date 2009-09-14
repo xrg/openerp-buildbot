@@ -140,6 +140,7 @@ class CheckQuality(LoggingBuildStep):
                 return ['Check quality had Warnings!']
             if fail:
                 if self.quality_stage == 'fail':
+                    self.name = 'Module(s) failed to reach minimum quality score!'
                     return ['Module failed to reach minimum quality score!']
                 return ['Check quality Failed !']
         return self.description
@@ -264,13 +265,13 @@ class CheckQuality(LoggingBuildStep):
     });
     </script>'''%(buildbotURL,buildbotURL,buildbotURL,buildbotURL,buildbotURL)
                 self.addHTMLLog(module+':Score(%s)'%(values[0]), tools._to_decode(tools._to_unicode(new_detail)))
-#                for test,detail in values[2].items():
-#                     #if detail[1] != '':
-#                        index = detail[1].find('<html>') + len('<html>')
-#                        #new_detail = detail[1][0:index] + '''<table class="none"><tr><td class="none"> Module </td><td class="none"> : </td><th class="none"> %s </th></tr><tr><td class="none"> Test </td><td class="none"> : </td><th class="none"> %s </th></tr><tr><td class="none"> Score </b></td><td class="none"> : </td><th class=""> %s </th></table><hr/>'''%(module, test, detail[0]) + detail[1][index:]+ '''<head><link rel="stylesheet" type="text/css" href="%scss/quality-log-style.css" media="all"/></head>''' %(buildbotURL)
-#                        new_detail = detail[1][0:index] + '''<h1>Module : %s </h1><h1>Test  : %s </h1><h2>Score  :  %s</h2>'''%(module, test, detail[0]) + detail[1][index:]+ '''<head><link rel="stylesheet" type="text/css" href="%scss/quality-log-style.css" media="all"/></head>''' %(buildbotURL)
-#                        #new_detail = detail[1][0:index] + '''<span style="font-size: 20pt">Module : %s </span><br/><span style="font-size: 20pt">Test  : %s </span><br/><span style="font-size: 15pt">Score  :  %s</span><br/>'''%(module, test, detail[0]) + detail[1][index:]+ '''<head><link rel="stylesheet" type="text/css" href="%scss/quality-log-style.css" media="all"/></head>''' %(buildbotURL)
-#                        self.addHTMLLog('%s - %s:Score(%s)'%(module,test,detail[0]),new_detail)
+                for test,detail in values[2].items():
+                     if detail[1]:
+                        self.quality_stage = 'fail'
+                     if detail[2] != '':
+                        index = detail[2].find('<html>') + len('<html>')
+                        new_detail = detail[2][0:index] + '''<table class="table1"><tr><td class="td1"> Module </td><td class="td1"> : </td><th class="th1"> %s </th></tr><tr><td class="td1"> Test </td><td class="td1"> : </td><th class="th1"> %s </th></tr><tr><td class="td1"> Score </b></td><td class="td1"> : </td><th class="th1"> %s </th></table><hr/>'''%(module, test, detail[0]) + detail[2][index:]+ '''<head><link rel="stylesheet" type="text/css" href="%scss/quality-log-style.css" media="all"/></head>''' %(buildbotURL)
+                        self.addHTMLLog('%s - %s:Score(%s)%s'%(module,test,detail[0],detail[1][5:]),tools._to_decode(tools._to_unicode(new_detail)))
 
     def evaluateCommand(self, cmd):
         if self.quality_stage == 'fail' or cmd.rc != 0:

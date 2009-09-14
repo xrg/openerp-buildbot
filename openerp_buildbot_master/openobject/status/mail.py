@@ -66,10 +66,11 @@ class OpenObjectMailNotifier(MailNotifier):
             source = "unavailable"
         else:
             source = ""
+
         if ss.branch:
             source += "[branch %s] " % ss.branch
         if ss.revision:
-            source += ss.revision
+            source += str(ss.revision)
         else:
             source += "" 
 
@@ -121,9 +122,9 @@ class OpenObjectMailNotifier(MailNotifier):
         files_renamed_lbl = ''
         files_removed_lbl = ''
         branch_link = ''
-        rev_no = change.rev_no
-        if change.revision:
-            revision = "Revision: <b>%s</b><br />\n" % change.revision
+        rev_no = change.revision
+        if change.revision_id:
+            revision = "Revision: <b>%s</b><br />\n" % change.revision_id
         branch = ""
         if change.branch:
             i = change.branch.index('launchpad')
@@ -186,9 +187,10 @@ class OpenObjectMailNotifier(MailNotifier):
         files_renamed_lbl = ''
         files_removed_lbl = ''
         branch_link = ''
-        rev_no = change.rev_no
-        if change.revision:
-            revision = change.revision
+
+        rev_no = change.revision
+        if change.revision_id:
+            revision = change.revision_id
         branch = ""
         if change.branch:
             i = change.branch.index('launchpad')
