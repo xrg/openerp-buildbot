@@ -316,9 +316,9 @@ class InstallTranslation(LoggingBuildStep):
     def describe(self, done=False,success=False,warn=False,fail=False):
         if done:
             if success:
-                return ['Translation %s Installed Sucessfully!'%(','.join(self.pofiles))]
+                return ['Translation %s Installed Sucessfully!'%(','.join(self.translation_lst))]
             if warn:
-                return ['Translation %s Installed with Warnings!'%(','.join(self.pofiles))]
+                return ['Translation %s Installed with Warnings!'%(','.join(self.translation_lst))]
             if fail:
                 return ['Translation(s) Installing Failed!']
         return self.description
@@ -345,7 +345,8 @@ class InstallTranslation(LoggingBuildStep):
 
     def start(self):
         s = self.build.getSourceStamp()
-        self.pofiles = []
+        self.pofiles = {}
+        self.translation_lst = []
         for change in s.changes:
             files = (
                      change.files_added +
@@ -353,14 +354,15 @@ class InstallTranslation(LoggingBuildStep):
                      [f[1] for f in change.files_renamed]
                      )
             for f in files:
-                fname,ext = os.path.splitext(f.split('/')[-1])
+                mod_lst = f.split('/')
+                fname,ext = os.path.splitext(mod_lst[-1])
                 if ext == '.po':
-                    if 'bin' in f.split('/'):
-                        addonsdir = ''
-                    else:
-                        addonsdir = self.args['addonsdir']+'/'
-                    self.pofiles.append(addonsdir+f)
-        if len(self.pofiles):
+                    if mod_lst[0] not in self.pofiles:
+                        self.pofiles[mod_lst[0]] = []
+                    self.pofiles[mod_lst[0]].append(mod_lst[-1])
+                    self.translation_lst.append(mod_lst[-1])
+                        
+        if len(self.translation_lst):
             commands = []
             commands = ["make","install-translation"]        
 
@@ -373,9 +375,12 @@ class InstallTranslation(LoggingBuildStep):
 
             self.args['command'] = commands
 
-            self.description += ["Files",":",",".join(self.pofiles),"on Server","http://localhost:%s"%(self.args['port'])]
-            
-            self.args['command'].append("i18n-import=%s"%(','.join(self.pofiles)))
+            self.description += ["Files",":",",".join(self.translation_lst),"on Server","http://localhost:%s"%(self.args['port'])]
+            i18n_str = ''    
+            for module,files in self.pofiles.items():
+                i18n_str += module + ':'+','.join(files) + '+'
+                
+            self.args['command'].append("i18n-import=%s"%(i18n_str[:-1]))
             cmd = LoggedRemoteCommand("shell",self.args)
             self.startCommand(cmd)
         else:           
@@ -513,7 +518,7 @@ class InstallModule(LoggingBuildStep):
             if self.args['dbname']:
                 self.args['command'].append("database=%s"%(self.args['dbname']))
             if self.args['extra_addons']:
-                self.args['extra_addons'].append("extra_addons=%s"%(self.args['extra_addons']))
+                self.args['command'].append("extra_addons=%s"%(self.args['extra_addons']))
             cmd = LoggedRemoteCommand("shell",self.args)
             self.startCommand(cmd)
         else:
@@ -618,8 +623,6 @@ class OpenObjectBzr(Bzr):
         self.args['patch'] = patch
 
         revstuff = []
-        if branch is not None and branch != self.branch:
-            revstuff.append("[branch]")
         self.description.extend(revstuff)
         self.descriptionDone.extend(revstuff)
         cmd = LoggedRemoteCommand("bzr", self.args)
