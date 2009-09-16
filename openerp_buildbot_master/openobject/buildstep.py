@@ -473,7 +473,7 @@ class InstallModule(LoggingBuildStep):
         else:
             return self.describe(True, fail=True)
  
-    def __init__(self,workdir=None, addonsdir=None, modules='',extra_addons=extra_addons, dbname=False,port=8869, netport=8870, **kwargs):
+    def __init__(self,workdir=None, addonsdir=None, modules='',extra_addons='', dbname=False,port=8869, netport=8870, **kwargs):
         LoggingBuildStep.__init__(self, **kwargs)
         self.addFactoryArguments(workdir=workdir,addonsdir=addonsdir,extra_addons=extra_addons,modules=modules, dbname=dbname, port=port, netport=netport)
         self.args = {'addonsdir': addonsdir,
