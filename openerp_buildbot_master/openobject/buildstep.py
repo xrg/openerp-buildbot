@@ -473,15 +473,16 @@ class InstallModule(LoggingBuildStep):
         else:
             return self.describe(True, fail=True)
  
-    def __init__(self,workdir=None, addonsdir=None, modules='', dbname=False,port=8869, netport=8870, **kwargs):
+    def __init__(self,workdir=None, addonsdir=None, modules='',extra_addons=extra_addons, dbname=False,port=8869, netport=8870, **kwargs):
         LoggingBuildStep.__init__(self, **kwargs)
-        self.addFactoryArguments(workdir=workdir,addonsdir=addonsdir,modules=modules, dbname=dbname, port=port, netport=netport)
+        self.addFactoryArguments(workdir=workdir,addonsdir=addonsdir,extra_addons=extra_addons,modules=modules, dbname=dbname, port=port, netport=netport)
         self.args = {'addonsdir': addonsdir,
                      'workdir': workdir,
                      'dbname' : dbname,
                      'modules' : modules,
                      'netport' : netport,
                      'port' : port,
+                     'extra_addons':extra_addons,
         }
         self.name = 'install-module'
         self.description = ["Installing", "modules %s"%(self.args['modules']),"on Server","http://localhost:%s"%(self.args['port'])]
@@ -511,6 +512,8 @@ class InstallModule(LoggingBuildStep):
                 self.args['command'].append("port=%s"%(self.args['port']))
             if self.args['dbname']:
                 self.args['command'].append("database=%s"%(self.args['dbname']))
+            if self.args['extra_addons']:
+                self.args['extra_addons'].append("extra_addons=%s"%(self.args['extra_addons']))
             cmd = LoggedRemoteCommand("shell",self.args)
             self.startCommand(cmd)
         else:
