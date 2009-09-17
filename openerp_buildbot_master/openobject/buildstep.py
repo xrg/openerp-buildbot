@@ -518,7 +518,7 @@ class InstallModule(LoggingBuildStep):
             if self.args['dbname']:
                 self.args['command'].append("database=%s"%(self.args['dbname']))
             if self.args['extra_addons']:
-                self.args['command'].append("extra_addons=%s"%(self.args['extra_addons']))
+                self.args['command'].append("extra-addons=%s"%(self.args['extra_addons']))
             cmd = LoggedRemoteCommand("shell",self.args)
             self.startCommand(cmd)
         else:
