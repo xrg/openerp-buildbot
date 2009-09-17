@@ -469,7 +469,7 @@ class InstallModule(LoggingBuildStep):
             if success:
                 return ['Module(s) %s installed Sucessfully!'%(self.args['modules'])]
             if warn:
-                return ['Installed module(s) had Warnings!']
+                return ['Module(s) %s installed with Warnings!'%(self.args['modules'])]
             if fail:
                 return ['Installing module(s) Failed!']
         return self.description
