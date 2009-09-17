@@ -630,7 +630,7 @@ class OpenObjectBzr(Bzr):
         revstuff = []
         self.description.extend(revstuff)
         self.descriptionDone.extend(revstuff)
-        cmd = LoggedRemoteCommand("bzr", self.args)
+        cmd = LoggedRemoteCommand("openobjectbzr", self.args)
         self.startCommand(cmd)
         
 class OpenObjectSVN(SVN):

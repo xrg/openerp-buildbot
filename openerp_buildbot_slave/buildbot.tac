@@ -23,5 +23,6 @@ s.setServiceParent(application)
 registerSlaveCommand("copy", command.SlaveCp, command.command_version)
 registerSlaveCommand("create-db", command.CreateDB, command.command_version)
 registerSlaveCommand("install-module", command.InstallModule, command.command_version)
+registerSlaveCommand("openobjectbzr", command.OpenObjectBzr, command.command_version)
 
 

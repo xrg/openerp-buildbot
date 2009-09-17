@@ -21,7 +21,7 @@
 ##############################################################################
 
 
-from buildbot.slave.commands import Command, SlaveShellCommand, ShellCommand, AbandonChain
+from buildbot.slave.commands import Command, SlaveShellCommand, ShellCommand, AbandonChain, Bzr
 from twisted.internet import reactor, defer, task
 from twisted.python import log, failure, runtime
 import os
@@ -120,4 +120,24 @@ class InstallModule(SlaveShellCommand):
 		self.command = c
 		d = self.command.start()
 		return d
+		
+class OpenObjectBzr(Bzr):
+    def doVCUpdate(self):
+        if self.revision:
+            command = [self.vcexe, 'pull', self.sourcedata.split('\n')[0],'-r',str(self.revision)]
+        else:
+            command = [self.vcexe, 'update']
+        srcdir = os.path.join(self.builder.basedir, self.srcdir)
+        c = ShellCommand(self.builder, command, srcdir,
+                          sendRC=False, timeout=self.timeout)
+        self.command = c
+        return c.start()
+       
+    def sourcedirIsUpdateable(self):
+        if os.path.exists(os.path.join(self.builder.basedir,
+                                 self.srcdir, ".buildbot-patched")):
+            return False
+        if self.revision:
+            return True
+        return os.path.isdir(os.path.join(self.builder.basedir,self.srcdir, ".bzr"))		
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:        
