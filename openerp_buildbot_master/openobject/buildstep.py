@@ -316,9 +316,9 @@ class InstallTranslation(LoggingBuildStep):
     def describe(self, done=False,success=False,warn=False,fail=False):
         if done:
             if success:
-                return ['Translation %s Installed Sucessfully!'%(','.join(self.translation_lst))]
+                return ['Translation %s Installed Sucessfully!'%(self.translation_lst[:-1])]
             if warn:
-                return ['Translation %s Installed with Warnings!'%(','.join(self.translation_lst))]
+                return ['Translation %s Installed with Warnings!'%(self.translation_lst[:-1])]
             if fail:
                 return ['Translation(s) Installing Failed!']
         return self.description
@@ -342,11 +342,12 @@ class InstallTranslation(LoggingBuildStep):
         }
         self.name = 'install-translation'
         self.description = ["Installing Translation"]
+        self.translation_lst = ''
 
     def start(self):
         s = self.build.getSourceStamp()
         self.pofiles = {}
-        self.translation_lst = []
+
         for change in s.changes:
             files = (
                      change.files_added +
@@ -360,9 +361,9 @@ class InstallTranslation(LoggingBuildStep):
                     if mod_lst[0] not in self.pofiles:
                         self.pofiles[mod_lst[0]] = []
                     self.pofiles[mod_lst[0]].append(mod_lst[-1])
-                    self.translation_lst.append(mod_lst[-1])
+                   
                         
-        if len(self.translation_lst):
+        if len(self.pofiles):
             commands = []
             commands = ["make","install-translation"]        
 
@@ -372,14 +373,17 @@ class InstallTranslation(LoggingBuildStep):
                 commands.append("port=%s"%(self.args['port']))
             if self.args['dbname']:
                 commands.append("database=%s"%(self.args['dbname']))            
-
             self.args['command'] = commands
 
-            self.description += ["Files",":",",".join(self.translation_lst),"on Server","http://localhost:%s"%(self.args['port'])]
+            buildbotURL = self.build.builder.botmaster.parent.buildbotURL
+
             i18n_str = ''    
+
             for module,files in self.pofiles.items():
                 i18n_str += module + ':'+','.join(files) + '+'
-                
+                self.translation_lst += module + ':'+','.join(files) + ','
+
+            self.description += ["Files:",self.translation_lst[:-1],"on Server","%s:%s"%(buildbotURL[:-1],self.args['port'])]
             self.args['command'].append("i18n-import=%s"%(i18n_str[:-1]))
             cmd = LoggedRemoteCommand("shell",self.args)
             self.startCommand(cmd)
@@ -490,7 +494,7 @@ class InstallModule(LoggingBuildStep):
                      'extra_addons':extra_addons,
         }
         self.name = 'install-module'
-        self.description = ["Installing", "modules %s"%(self.args['modules']),"on Server","http://localhost:%s"%(self.args['port'])]
+        
 
     def start(self):
         s = self.build.getSourceStamp()
@@ -504,7 +508,8 @@ class InstallModule(LoggingBuildStep):
                     modules.append(module)
         if len(modules):
             self.args['modules'] += ','.join(modules)  
-
+        buildbotURL = self.build.builder.botmaster.parent.buildbotURL
+        self.description = ["Installing", "modules %s"%(self.args['modules']),"on Server","%s:%s"%(buildbotURL[:-1],self.args['port'])]
         if self.args['modules']:
             self.args['command'] = ["make","install-module"]
             if self.args['addonsdir']:
