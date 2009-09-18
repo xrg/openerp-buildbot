@@ -181,7 +181,7 @@ class CheckQuality(LoggingBuildStep):
         
         self.args['modules'] = ','.join(modules)        
         if self.args['modules']:
-            self.description.append(self.args['modules'])
+            self.description += self.args['modules'].split(',')
             self.args['command']=["make","check-quality"]
 
             if self.args['addonsdir']:
@@ -274,7 +274,8 @@ class CheckQuality(LoggingBuildStep):
                         self.addHTMLLog('%s - %s:Score(%s)%s'%(module,test,detail[0],detail[1][5:]),tools._to_decode(tools._to_unicode(new_detail)))
 
     def evaluateCommand(self, cmd):
-        if self.quality_stage == 'fail' or cmd.rc != 0:
+        #if self.quality_stage == 'fail' or cmd.rc != 0:
+        if cmd.rc != 0:
             return FAILURE
         return SUCCESS
 
@@ -316,9 +317,9 @@ class InstallTranslation(LoggingBuildStep):
     def describe(self, done=False,success=False,warn=False,fail=False):
         if done:
             if success:
-                return ['Translation %s Installed Sucessfully!'%(self.translation_lst[:-1])]
+                return ['Translation'] + self.translation_lst.split('\n') + ['Installed Sucessfully!']
             if warn:
-                return ['Translation %s Installed with Warnings!'%(self.translation_lst[:-1])]
+                return ['Translation'] + self.translation_lst.split('\n') + ['Installed with Warnings!']
             if fail:
                 return ['Translation(s) Installing Failed!']
         return self.description
@@ -381,9 +382,9 @@ class InstallTranslation(LoggingBuildStep):
 
             for module,files in self.pofiles.items():
                 i18n_str += module + ':'+','.join(files) + '+'
-                self.translation_lst += module + ':'+','.join(files) + ','
+                self.translation_lst += module + ':'+','.join(files) + '\n'
 
-            self.description += ["Files:",self.translation_lst[:-1],"on Server","%s:%s"%(buildbotURL[:-1],self.args['port'])]
+            self.description += ["Files:"] + self.translation_lst.split('\n') + ["on Server","%s:%s"%(buildbotURL[:-1],self.args['port'])]
             self.args['command'].append("i18n-import=%s"%(i18n_str[:-1]))
             cmd = LoggedRemoteCommand("shell",self.args)
             self.startCommand(cmd)
@@ -467,9 +468,9 @@ class InstallModule(LoggingBuildStep):
     def describe(self, done=False,success=False,warn=False,fail=False):
         if done:
             if success:
-                return ['Module(s) %s installed Sucessfully!'%(self.args['modules'])]
+                return ['Module(s)'] + self.args['modules'].split(',') + ['installed Sucessfully!']
             if warn:
-                return ['Module(s) %s installed with Warnings!'%(self.args['modules'])]
+                return ['Module(s)'] + self.args['modules'].split(',') + ['installed with Warnings!']
             if fail:
                 return ['Installing module(s) Failed!']
         return self.description
@@ -494,7 +495,8 @@ class InstallModule(LoggingBuildStep):
                      'extra_addons':extra_addons,
         }
         self.name = 'install-module'
-        
+        self.description = ['Installing Module(s)']
+	self.descriptionDone = ['Module Installed Sucessfully']
 
     def start(self):
         s = self.build.getSourceStamp()
@@ -509,7 +511,7 @@ class InstallModule(LoggingBuildStep):
         if len(modules):
             self.args['modules'] += ','.join(modules)  
         buildbotURL = self.build.builder.botmaster.parent.buildbotURL
-        self.description = ["Installing", "modules %s"%(self.args['modules']),"on Server","%s:%s"%(buildbotURL[:-1],self.args['port'])]
+        self.description = self.args['modules'].split(',') + ["on Server","%s:%s"%(buildbotURL[:-1],self.args['port'])]
         if self.args['modules']:
             self.args['command'] = ["make","install-module"]
             if self.args['addonsdir']:
@@ -646,6 +648,13 @@ class OpenObjectSVN(SVN):
         self.descriptionDone = ["updated", "branch %s%s"%(baseURL,defaultBranch)]
 
     def startVC(self, branch, revision, patch):
+        svnurl = self.baseURL + self.branch
+        if  svnurl == branch:
+            pass
+        else:
+            revision= None
+            patch=None
+        branch = self.branch
         SVN.startVC(self,self.branch, revision, patch)   
             
 # Following Step are used in Migration builder        

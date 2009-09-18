@@ -82,7 +82,8 @@ class OpenObjectMailNotifier(MailNotifier):
             failed_step = " ".join(failed_step)
         else:
             failed_step = ""
-
+        if failed_step in ('bzr-update','bzr-update_2','bzr-update_3','copy'):
+            return True
         if results == SUCCESS:
             status_text = "OpenERP Builbot succeeded !"
             res = "success"
@@ -95,8 +96,8 @@ class OpenObjectMailNotifier(MailNotifier):
         
         self.subject = self.subject % {
             'result': res,
-            'projectName': self.projectName,
-            'builder': name,
+            'projectName': '[%s]'%(self.projectName),
+            'builder': name.upper(),
         }
         recipients = []
         for commiter in build.getInterestedUsers():
