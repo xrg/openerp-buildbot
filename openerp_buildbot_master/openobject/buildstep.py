@@ -155,8 +155,8 @@ class CheckQuality(LoggingBuildStep):
 
     def __init__(self, dbname='test',workdir=None,addonsdir=None,netport=8970, port=8869 ,**kwargs):
         LoggingBuildStep.__init__(self, **kwargs)
-        self.addFactoryArguments(dbname=dbname,workdir=workdir,addonsdir=addonsdir,netport=netport, port=port)
-        self.args = {'dbname': dbname, 'modules':'', 'port' :port,'workdir':workdir,'netport':netport,'addonsdir':addonsdir}
+        self.addFactoryArguments(dbname=dbname,workdir=workdir,addonsdir=addonsdir,netport=netport, port=port, logfiles={})
+        self.args = {'dbname': dbname, 'modules':'', 'port' :port,'workdir':workdir,'netport':netport,'addonsdir':addonsdir,'logfiles':{}}
         self.dbname = dbname
         # Compute defaults for descriptions:
         description = ["checking quality"]
@@ -166,6 +166,7 @@ class CheckQuality(LoggingBuildStep):
     def start(self):
         s = self.build.getSourceStamp()
         modules = []
+        self.logfiles={}
         for change in s.changes:
             files = (
                      change.files_added +
@@ -178,8 +179,10 @@ class CheckQuality(LoggingBuildStep):
                     continue
                 if module not in modules:
                     modules.append(str(module))
+                    self.logfiles['Quality Log - %s'%module] = ('quality_logs/%s.html'%module)
         
-        self.args['modules'] = ','.join(modules)        
+        self.args['modules'] = ','.join(modules)
+        self.args['logfiles'] = self.logfiles
         if self.args['modules']:
             self.description += self.args['modules'].split(',')
             self.args['command']=["make","check-quality"]
@@ -204,7 +207,7 @@ class CheckQuality(LoggingBuildStep):
         data = False
         logs = log.getText()
         buildbotURL = self.build.builder.botmaster.parent.buildbotURL
-            
+        
         counts = {}
         summaries = {}
         for m in self.MESSAGES:
@@ -246,32 +249,6 @@ class CheckQuality(LoggingBuildStep):
         if sum(counts.values()):       
             self.setProperty("Check-Quality : MessageCount", sum(counts.values()))
 
-        if logs.find('LOG PATH') != -1:
-            path = logs.split('LOG PATH')[1]
-            file_path = (path.split('\r'))[0]
-            fp = open(file_path,'a+')
-            data = pickle.load(fp)
-            for module,values in data.items():
-                new_detail = values[1]  + '''<head><link rel="stylesheet" type="text/css" href="%scss/quality-log-style.css" media="all"/></head>''' %(buildbotURL)
-                new_detail +='''<link type="text/css" href="%sjs/jquery/themes/base/ui.all.css" rel="stylesheet" />
-    <script type="text/javascript" src="%sjs/jquery/jquery-1.3.2.js"></script>
-    <script type="text/javascript" src="%sjs/jquery/ui/ui.core.js"></script>
-    <script type="text/javascript" src="%sjs/jquery/ui/ui.tabs.js"></script>
-
-    <link type="text/css" href="%sjs/jquery/demos.css" rel="stylesheet" />
-    <script type="text/javascript">
-    $(function() {
-        $("#tabs").tabs();
-    });
-    </script>'''%(buildbotURL,buildbotURL,buildbotURL,buildbotURL,buildbotURL)
-                self.addHTMLLog(module+':Score(%s)'%(values[0]), tools._to_decode(tools._to_unicode(new_detail)))
-                for test,detail in values[2].items():
-                     if detail[1]:
-                        self.quality_stage = 'fail'
-                     if detail[2] != '':
-                        index = detail[2].find('<html>') + len('<html>')
-                        new_detail = detail[2][0:index] + '''<table class="table1"><tr><td class="td1"> Module </td><td class="td1"> : </td><th class="th1"> %s </th></tr><tr><td class="td1"> Test </td><td class="td1"> : </td><th class="th1"> %s </th></tr><tr><td class="td1"> Score </b></td><td class="td1"> : </td><th class="th1"> %s </th></table><hr/>'''%(module, test, detail[0]) + detail[2][index:]+ '''<head><link rel="stylesheet" type="text/css" href="%scss/quality-log-style.css" media="all"/></head>''' %(buildbotURL)
-                        self.addHTMLLog('%s - %s:Score(%s)%s'%(module,test,detail[0],detail[1][5:]),tools._to_decode(tools._to_unicode(new_detail)))
 
     def evaluateCommand(self, cmd):
         #if self.quality_stage == 'fail' or cmd.rc != 0:
@@ -646,7 +623,7 @@ class OpenObjectSVN(SVN):
         self.name = 'svn-update'
         self.description = ["updating", "branch %s%s"%(baseURL,defaultBranch)]
         self.descriptionDone = ["updated", "branch %s%s"%(baseURL,defaultBranch)]
-
+    
     def startVC(self, branch, revision, patch):
         svnurl = self.baseURL + self.branch
         if  svnurl == branch:
