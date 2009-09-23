@@ -256,6 +256,17 @@ class CheckQuality(LoggingBuildStep):
         #if self.quality_stage == 'fail' or cmd.rc != 0:
         if cmd.rc != 0:
             return FAILURE
+        for m in self.flunkingIssues:
+            try:
+                if self.getProperty("Check-Quality : %s" % m):
+                    return FAILURE
+            except:
+                pass
+        try:
+            if self.getProperty("Check-Quality : MessageCount"):
+                return WARNINGS
+        except:
+            pass
         return SUCCESS
 
 class Copy(LoggingBuildStep):
@@ -490,7 +501,7 @@ class InstallModule(LoggingBuildStep):
         if len(modules):
             self.args['modules'] += ','.join(modules)  
         buildbotURL = self.build.builder.botmaster.parent.buildbotURL
-        self.description = self.args['modules'].split(',') + ["on Server","%s:%s"%(buildbotURL[:-1],self.args['port'])]
+        self.description += self.args['modules'].split(',') + ["on Server","%s:%s"%(buildbotURL[:-1],self.args['port'])]
         if self.args['modules']:
             self.args['command'] = ["make","install-module"]
             if self.args['addonsdir']:
