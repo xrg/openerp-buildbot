@@ -130,6 +130,7 @@ class DropDB(LoggingBuildStep):
 class CheckQuality(LoggingBuildStep):
     name = 'check-quality'
     flunkOnFailure = True
+    flunkingIssues = ["ERROR","CRITICAL"]
     MESSAGES = ("ERROR", "CRITICAL", "WARNING")
 
     def describe(self, done=False,success=False,warn=False,fail=False):
@@ -166,6 +167,7 @@ class CheckQuality(LoggingBuildStep):
     def start(self):
         s = self.build.getSourceStamp()
         modules = []
+        quality_logs = 'quality-logs'
         self.logfiles={}
         for change in s.changes:
             files = (
@@ -179,7 +181,7 @@ class CheckQuality(LoggingBuildStep):
                     continue
                 if module not in modules:
                     modules.append(str(module))
-                    self.logfiles['Quality Log - %s'%module] = ('quality_logs/%s.html'%module)
+                    self.logfiles['Quality Log - %s'%module] = ('%s/%s.html'%(quality_logs,module))
         
         self.args['modules'] = ','.join(modules)
         self.args['logfiles'] = self.logfiles
@@ -707,7 +709,10 @@ class InstallModule2(InstallModule):
             for f in change.files:
                 try:
                     module = f.split('/')
-                    module = (len(module) > 1) and module[1] or []
+                    if change.branch == 'https://svn.tinyerp.com/be/maintenance':
+                        module = (len(module) > 1) and module[1] or []
+                    else:
+                        module = module[0]
                     if module not in modules:
                         if module not in ('README.txt'):
                             modules.append(module)
