@@ -721,7 +721,7 @@ class InstallModule2(InstallModule):
                 try:
                     module = f.split('/')
                     if change.branch == 'https://svn.tinyerp.com/be/maintenance':
-                        module = (len(module) > 1) and module[1] or []
+                        module = (len(module) > 1) and module[1] or ''
                     else:
                         module = module[0]
                     if module not in modules:
