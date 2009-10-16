@@ -72,7 +72,7 @@ class BzrPoller(service.MultiService, util.ComparableMixin):
     def poll(self):
         log.msg("BzrPoller polling")
         b = self.branch
-        bzrlib.trace.enable_default_logging()
+        #bzrlib.trace.enable_default_logging()
         # this is subclass of bzrlib.branch.Branch
         current_revision = b.revno()
         if not self.last_revno:
