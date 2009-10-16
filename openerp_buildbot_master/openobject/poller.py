@@ -63,6 +63,7 @@ class BzrPoller(service.MultiService, util.ComparableMixin):
         self.overrun_counter = 0
         self.callback = callback
         self.branch = Branch.open_containing(self.location)[0]
+        # bzrlib.trace.enable_default_logging()
         timer = internet.TimerService(pollinterval, self.poll)
         timer.setServiceParent(self)
 
@@ -72,7 +73,6 @@ class BzrPoller(service.MultiService, util.ComparableMixin):
     def poll(self):
         log.msg("BzrPoller polling")
         b = self.branch
-        #bzrlib.trace.enable_default_logging()
         # this is subclass of bzrlib.branch.Branch
         current_revision = b.revno()
         if not self.last_revno:
