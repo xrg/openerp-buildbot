@@ -349,9 +349,12 @@ class InstallTranslation(LoggingBuildStep):
                 mod_lst = f.split('/')
                 fname,ext = os.path.splitext(mod_lst[-1])
                 if ext == '.po':
-                    if mod_lst[0] not in self.pofiles:
-                        self.pofiles[mod_lst[0]] = []
-                    self.pofiles[mod_lst[0]].append(mod_lst[-1])
+                    modName = mod_lst[0]
+                    if modName == 'bin':
+                        modName = 'base'
+                    if modName not in self.pofiles:
+                        self.pofiles[modName] = []
+                    self.pofiles[modName].append(mod_lst[-1])
                    
                         
         if len(self.pofiles):
