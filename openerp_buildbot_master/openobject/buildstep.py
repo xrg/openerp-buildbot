@@ -35,7 +35,10 @@ except ImportError:
             
 class CreateDB(LoggingBuildStep):
     name = 'create-db'
-    flunkOnFailure = False
+    flunkOnFailure = True
+    haltOnFailure = True
+    flunkingIssues = ["ERROR","CRITICAL"]
+    MESSAGES = ("ERROR", "CRITICAL", "WARNING")
     def describe(self, done=False,success=False,warn=False,fail=False):
          if done:
             if success:
@@ -77,10 +80,68 @@ class CreateDB(LoggingBuildStep):
             self.args['command'].append("addons-path=%s"%(self.args['addonsdir']))
         cmd = LoggedRemoteCommand("shell",self.args)        
         self.startCommand(cmd)
-    
+
+    def createSummary(self, log):
+        data = False
+        logs = log.getText()
+        buildbotURL = self.build.builder.botmaster.parent.buildbotURL
+        
+        counts = {}
+        summaries = {}
+        for m in self.MESSAGES:
+            counts[m] = 0
+            summaries[m] = []
+
+        io = StringIO(log.getText()).readlines()
+
+        for line in io:
+            if line.find("ERROR") != -1:
+                pos = line.find("ERROR") + len("ERROR") + 5
+                m = "ERROR"
+            elif line.find("INFO:") != -1:
+                continue
+            elif line.find("CRITICAL") != -1:
+                pos = line.find("CRITICAL") + len("CRITICAL") + 5
+                m = "CRITICAL"
+            elif line.find("Traceback") != -1:
+                traceback_log = []
+                pos = io.index(line)
+                for line in io[pos:-2]:
+                    traceback_log.append(line)
+                self.addCompleteLog("create-db : Traceback", "".join(traceback_log))
+                break;
+            elif line.find("WARNING") != -1:
+                pos = line.find("WARNING") + len("WARNING") + 5
+                m = "WARNING"
+            else:
+                continue
+            line = line[pos:]
+            summaries[m].append(line)
+            counts[m] += 1
+
+        for m in self.MESSAGES:
+            if counts[m]:
+                msg = "".join(summaries[m])
+                self.addCompleteLog("create-db : %s" % m, msg)    
+                self.setProperty("create-db : %s" % m, counts[m]) 
+        if sum(counts.values()):       
+            self.setProperty("create-db : MessageCount", sum(counts.values()))
+
+
     def evaluateCommand(self, cmd):
         if cmd.rc != 0:
             return FAILURE
+        for m in self.flunkingIssues:
+            try:
+                if self.getProperty("create-db : %s" % m):
+                    return FAILURE
+            except:
+                pass
+        try:
+            if self.getProperty("create-db : MessageCount"):
+                return WARNINGS
+        except:
+            pass
         return SUCCESS
 
 class DropDB(LoggingBuildStep):
