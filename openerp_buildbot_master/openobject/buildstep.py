@@ -27,6 +27,8 @@ from buildbot.status.builder import SUCCESS, FAILURE, WARNINGS
 import pickle
 import os
 from openobject import tools
+ignore_module_list = ['bin','Makefile','man','README','setup.cfg','debian','python25-compat','sql','change-loglevel.sh',
+        'get-srvstats.sh','setup.py','doc','MANIFEST.in','openerp.log','pixmaps','rpminstall_sh.txt','setup.nsi','win32']
 try:
     import cStringIO
     StringIO = cStringIO.StringIO
@@ -236,9 +238,9 @@ class CheckQuality(LoggingBuildStep):
                      change.files_modified + 
                      [f[1] for f in change.files_renamed]
                      )
-            for f in files:
+            for f in files: 
                 module = f.split('/')[0]
-                if module in ('bin','Makefile','man','README','setup.cfg','setup.py','doc','MANIFEST.in','openerp.log','pixmaps','rpminstall_sh.txt','setup.nsi','win32'):
+                if module in ignore_module_list: 
                     continue
                 if module not in modules:
                     modules.append(str(module))
@@ -558,7 +560,7 @@ class InstallModule(LoggingBuildStep):
         for change in s.changes:
             for f in change.files:
                 module = f.split('/')[0]
-                if module in ('bin','Makefile','man','README','setup.cfg','setup.py','doc','MANIFEST.in','openerp.log','pixmaps','rpminstall_sh.txt','setup.nsi','win32'):
+                if module in ignore_module_list:
                     continue
                 if module not in modules:
                     modules.append(module)
