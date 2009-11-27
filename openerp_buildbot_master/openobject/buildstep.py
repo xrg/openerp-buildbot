@@ -60,11 +60,11 @@ class CreateDB(LoggingBuildStep):
             return self.describe(True, fail=True)
 
 
-    def __init__(self, dbname='test',workdir=None, addonsdir=None, demo=True, lang='en_US', port=8869 ,**kwargs):
+    def __init__(self, dbname='test',workdir=None, addonsdir=None, demo=True, lang='en_US',netport=8970, port=8869 ,**kwargs):
 
         LoggingBuildStep.__init__(self, **kwargs)
-        self.addFactoryArguments(dbname=dbname,workdir=workdir, demo=demo, lang=lang, port=port, addonsdir=addonsdir)
-        self.args = {'dbname': dbname,'workdir':workdir, 'demo':demo, 'lang':lang, 'port' : port, 'addonsdir' : addonsdir}
+        self.addFactoryArguments(dbname=dbname,workdir=workdir, demo=demo, lang=lang, netport=netport,port=port, addonsdir=addonsdir)
+        self.args = {'dbname': dbname,'workdir':workdir, 'demo':demo, 'lang':lang,'netport':netport, 'port' : port, 'addonsdir' : addonsdir}
         self.dbname = dbname
         # Compute defaults for descriptions:
         description = ["creating db"]
@@ -73,13 +73,15 @@ class CreateDB(LoggingBuildStep):
     def start(self):
         self.args['command']=["make","create-db"]
         if self.args['dbname']:
-            self.args['command'].append("database=%s"%(self.args['dbname']))
+           self.args['command'].append("database=%s"%(self.args['dbname']))
         if self.args['port']:
-            self.args['command'].append("port=%s"%(self.args['port']))
+           self.args['command'].append("port=%s"%(self.args['port']))
+        if self.args['netport']:
+           self.args['command'].append("net_port=%s"%(self.args['netport']))
         if self.args['demo']:
-            self.args['command'].append("demo=%s"%(self.args['demo']))
+           self.args['command'].append("demo=%s"%(self.args['demo']))
         if self.args['addonsdir']:
-            self.args['command'].append("addons-path=%s"%(self.args['addonsdir']))
+           self.args['command'].append("addons-path=%s"%(self.args['addonsdir']))
         cmd = LoggedRemoteCommand("shell",self.args)        
         self.startCommand(cmd)
 
@@ -167,10 +169,10 @@ class DropDB(LoggingBuildStep):
         else:
             return self.describe(True, fail=True) 
 
-    def __init__(self, dbname='test',workdir=None,port=8869,**kwargs):
+    def __init__(self, dbname='test',workdir=None,port=8869,netport=8970,**kwargs):
         LoggingBuildStep.__init__(self, **kwargs)
-        self.addFactoryArguments(dbname=dbname,workdir=workdir,port=port)
-        self.args = {'dbname': dbname,'workdir':workdir,'port':port}
+        self.addFactoryArguments(dbname=dbname,workdir=workdir,port=port,netport=netport)
+        self.args = {'dbname': dbname,'workdir':workdir,'netport':netport, 'port':port}
         self.dbname = dbname
         # Compute defaults for descriptions:
         description = ["Dropping db"]
@@ -179,9 +181,11 @@ class DropDB(LoggingBuildStep):
     def start(self):
         self.args['command']=["make","drop-db"]
         if self.args['dbname']:
-            self.args['command'].append("database=%s"%(self.args['dbname']))
+           self.args['command'].append("database=%s"%(self.args['dbname']))
         if self.args['port']:
-            self.args['command'].append("port=%s"%(self.args['port']))
+           self.args['command'].append("port=%s"%(self.args['port']))
+        if self.args['netport']:
+           self.args['command'].append("net_port=%s"%(self.args['netport']))
         cmd = LoggedRemoteCommand("shell",self.args)        
         self.startCommand(cmd)
 
@@ -736,11 +740,11 @@ class StartServer(LoggingBuildStep):
             return self.describe(True, fail=True) 
 
 
-    def __init__(self, dbname='test',workdir=None, addonsdir=None, demo=True, lang='en_US', port=8869 ,**kwargs):
+    def __init__(self, dbname='test',workdir=None, addonsdir=None, demo=True, lang='en_US', port=8869, netport=8970,**kwargs):
 
         LoggingBuildStep.__init__(self, **kwargs)
-        self.addFactoryArguments(dbname=dbname,workdir=workdir, demo=demo, lang=lang, port=port, addonsdir=addonsdir)
-        self.args = {'dbname': dbname,'workdir':workdir, 'port' : port, 'addonsdir' : addonsdir}
+        self.addFactoryArguments(dbname=dbname,workdir=workdir, demo=demo, lang=lang, netport=netport,port=port, addonsdir=addonsdir)
+        self.args = {'dbname': dbname,'workdir':workdir, 'netport':netport,'port' : port, 'addonsdir' : addonsdir}
         # Compute defaults for descriptions:
         description = ["Starting server with upgration"]
         self.description = description
@@ -762,6 +766,8 @@ class StartServer(LoggingBuildStep):
             commands.append("--addons-path=%s"%(self.args['addonsdir']))            
         if self.args['port']:
             commands.append("--port=%s"%(self.args['port']))
+        if self.args['netport']:
+           self.args['command'].append("--net_port=%s"%(self.args['netport']))
         if self.args['dbname']:
             commands.append("--database=%s"%(self.args['dbname']))     
         commands.append("--update=%s"%(self.args['modules']))
