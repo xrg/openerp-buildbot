@@ -169,7 +169,7 @@ class DropDB(LoggingBuildStep):
         else:
             return self.describe(True, fail=True) 
 
-    def __init__(self, dbname='test',workdir=None,port=8869,netport=8970,**kwargs):
+    def __init__(self, dbname='test',workdir=None,port=8869,netport=8971,**kwargs):
         LoggingBuildStep.__init__(self, **kwargs)
         self.addFactoryArguments(dbname=dbname,workdir=workdir,port=port,netport=netport)
         self.args = {'dbname': dbname,'workdir':workdir,'netport':netport, 'port':port}
@@ -221,7 +221,7 @@ class CheckQuality(LoggingBuildStep):
         else:
             return self.describe(True, fail=True) 
 
-    def __init__(self, dbname='test',workdir=None,addonsdir=None,netport=8970, port=8869 ,**kwargs):
+    def __init__(self, dbname='test',workdir=None,addonsdir=None,netport=8972, port=8869 ,**kwargs):
         LoggingBuildStep.__init__(self, **kwargs)
         self.addFactoryArguments(dbname=dbname,workdir=workdir,addonsdir=addonsdir,netport=netport, port=port, logfiles={})
         self.args = {'dbname': dbname, 'modules':'', 'port' :port,'workdir':workdir,'netport':netport,'addonsdir':addonsdir,'logfiles':{}}
@@ -389,7 +389,7 @@ class InstallTranslation(LoggingBuildStep):
         else:
             return self.describe(True, fail=True) 
 
-    def __init__(self,workdir=None, addonsdir=None,dbname=False,port=8869, netport=8870, **kwargs):
+    def __init__(self,workdir=None, addonsdir=None,dbname=False,port=8869, netport=8973, **kwargs):
         LoggingBuildStep.__init__(self, **kwargs)
         self.addFactoryArguments(workdir=workdir,addonsdir=addonsdir,dbname=dbname, port=port, netport=netport)
         self.args = {'addonsdir': addonsdir,
@@ -543,7 +543,7 @@ class InstallModule(LoggingBuildStep):
         else:
             return self.describe(True, fail=True)
  
-    def __init__(self,workdir=None, addonsdir=None, modules='',extra_addons='', dbname=False,port=8869, netport=8870, **kwargs):
+    def __init__(self,workdir=None, addonsdir=None, modules='',extra_addons='', dbname=False,port=8869, netport=8974, **kwargs):
         LoggingBuildStep.__init__(self, **kwargs)
         self.addFactoryArguments(workdir=workdir,addonsdir=addonsdir,extra_addons=extra_addons,modules=modules, dbname=dbname, port=port, netport=netport)
         self.args = {'addonsdir': addonsdir,
@@ -740,7 +740,7 @@ class StartServer(LoggingBuildStep):
             return self.describe(True, fail=True) 
 
 
-    def __init__(self, dbname='test',workdir=None, addonsdir=None, demo=True, lang='en_US', port=8869, netport=8970,**kwargs):
+    def __init__(self, dbname='test',workdir=None, addonsdir=None, demo=True, lang='en_US', port=8869, netport=8975,**kwargs):
 
         LoggingBuildStep.__init__(self, **kwargs)
         self.addFactoryArguments(dbname=dbname,workdir=workdir, demo=demo, lang=lang, netport=netport,port=port, addonsdir=addonsdir)
