@@ -767,7 +767,7 @@ class StartServer(LoggingBuildStep):
         if self.args['port']:
             commands.append("--port=%s"%(self.args['port']))
         if self.args['netport']:
-           self.args['command'].append("--net_port=%s"%(self.args['netport']))
+           self.args['netport'].append("--net_port=%s"%(self.args['netport']))
         if self.args['dbname']:
             commands.append("--database=%s"%(self.args['dbname']))     
         commands.append("--update=%s"%(self.args['modules']))
