@@ -432,6 +432,8 @@ class InstallTranslation(LoggingBuildStep):
                 commands.append("addons-path=%s"%(self.args['addonsdir']))            
             if self.args['port']:
                 commands.append("port=%s"%(self.args['port']))
+            if self.args['netport']:
+                commands.append("net_port=%s"%(self.args['netport']))
             if self.args['dbname']:
                 commands.append("database=%s"%(self.args['dbname']))            
             self.args['command'] = commands
