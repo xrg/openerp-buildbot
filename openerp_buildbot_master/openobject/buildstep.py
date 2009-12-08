@@ -28,7 +28,8 @@ import pickle
 import os
 from openobject import tools
 ignore_module_list = ['bin','Makefile','man','README','setup.cfg','debian','python25-compat','sql','change-loglevel.sh',
-        'get-srvstats.sh','setup.py','doc','MANIFEST.in','openerp.log','pixmaps','rpminstall_sh.txt','setup.nsi','win32']
+        'get-srvstats.sh','setup.py','doc','MANIFEST.in','openerp.log','pixmaps','rpminstall_sh.txt','setup.nsi','win32',
+        '.bzrignore','.bzr']
 try:
     import cStringIO
     StringIO = cStringIO.StringIO
