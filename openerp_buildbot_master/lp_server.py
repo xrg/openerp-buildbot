@@ -1,4 +1,4 @@
-from launchpadlib.launchpad import Launchpad, STAGING_SERVICE_ROOT
+from launchpadlib.launchpad import Launchpad, EDGE_SERVICE_ROOT
 from launchpadlib.credentials import Credentials
 from SimpleXMLRPCServer import SimpleXMLRPCServer
 from SimpleXMLRPCServer import SimpleXMLRPCRequestHandler
@@ -29,14 +29,14 @@ class lpServer(threading.Thread):
                 raise 
         if not os.path.isfile(self.lp_credential_file): 
             try:       
-                launchpad = Launchpad.get_token_and_login('openerp', STAGING_SERVICE_ROOT, self.cachedir)        
+                launchpad = Launchpad.get_token_and_login('openerp', EDGE_SERVICE_ROOT, self.cachedir)        
                 launchpad.credentials.save(file(self.lp_credential_file, "w"))
             except:
                 print 'Service Unavailable !'
         else:        
             credentials = Credentials()
             credentials.load(open(self.lp_credential_file))
-            launchpad = Launchpad(credentials, STAGING_SERVICE_ROOT, self.cachedir)
+            launchpad = Launchpad(credentials, EDGE_SERVICE_ROOT, self.cachedir)
         return launchpad
     
     def get_lp_bugs(self, projects):
