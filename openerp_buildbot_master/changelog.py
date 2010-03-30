@@ -14,6 +14,7 @@ class logServer(threading.Thread):
         self.locations = {
             '5.0/server':'https://launchpad.net/~openerp/openobject-server/5.0/',
             '5.0/addons':'https://launchpad.net/~openerp/openobject-addons/5.0/',
+            '5.0/extra-addons':'https://launchpad.net/~openerp-commiter/openobject-addons/5.0-extra-addons/',
             'trunk/server':'https://launchpad.net/~openerp/openobject-server/trunk/',
             'trunk/addons':'https://launchpad.net/~openerp/openobject-addons/trunk/',
             'trunk/extra-addons':'https://launchpad.net/~openerp-commiter/openobject-addons/trunk-extra-addons/',
