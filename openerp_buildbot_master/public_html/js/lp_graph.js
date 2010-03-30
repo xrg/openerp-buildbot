@@ -22,8 +22,6 @@ function populatedropdown(monthfrom, yearfrom, monthto, yearto){
     }
     monthfrom.options[0] = new Option('January',0, true, true);
     monthto.options[today.getMonth()] = new Option(monthtext[today.getMonth()], today.getMonth(), true, true)}
-    yearfrom.options[0]=new Option(today.getFullYear() - 1, today.getFullYear() - 1, true, true)
-    yearto.options[0]=new Option(today.getFullYear(), today.getFullYear(), true, true)
 }
 
 function getBugGraph()
