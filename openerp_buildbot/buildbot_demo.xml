@@ -1,0 +1,170 @@
+<?xml version="1.0" ?>
+<openerp>
+	<data>
+		<record id="buildbot_step_createdb0" model="buildbot.step">
+			<field name="name">CreateDB</field>
+		</record>
+	</data>
+	<data>
+		<record id="buildbot_step_dropdb0" model="buildbot.step">
+			<field name="name">DropDB</field>
+		</record>
+	</data>
+	<data>
+		<record id="buildbot_lp_branch_openobjectaddons0" model="buildbot.lp.branch">
+			<field eval="1" name="is_test_branch"/>
+			<field name="name">openobject-addons</field>
+			<field name="lastest_rev_id">aa</field>
+			<field name="url">https://code.launchpad.net/~openerp/openobject-addons/trunk</field>
+			<field eval="1" name="active"/>
+			<field eval="0" name="is_root_branch"/>
+		</record>
+	</data>
+	<data>
+		<record id="buildbot_lp_branch_ucodevaddons0" model="buildbot.lp.branch">
+			<field eval="0" name="is_test_branch"/>
+			<field name="name">uco-dev-addons1</field>
+			<field name="lastest_rev_id">11</field>
+			<field model="buildbot.lp.project" name="lp_project_id" search="[('name', '=', u'openobject-addons')]"/>
+			<field name="url">https://launchpad.net/~openerp/openobject-addons/trunk</field>
+			<field eval="1" name="active"/>
+			<field eval="0" name="is_root_branch"/>
+		</record>
+	</data>
+	<data>
+		<record id="buildbot_lp_branch_ysadevaddons0" model="buildbot.lp.branch">
+			<field eval="0" name="is_test_branch"/>
+			<field name="name">ysa-dev-addons2</field>
+			<field name="lastest_rev_id">11</field>
+			<field model="buildbot.lp.project" name="lp_project_id" search="[('name', '=', u'openobject-addons')]"/>
+			<field name="url">https://code.launchpad.net/~openerp-dev/openobject-addons/uco-dev-addons1</field>
+			<field eval="1" name="active"/>
+			<field eval="0" name="is_root_branch"/>
+		</record>
+	</data>
+	<data>
+		<record id="buildbot_lp_branch_openobjectserver0" model="buildbot.lp.branch">
+			<field eval="1" name="is_test_branch"/>
+			<field name="name">openobject-server</field>
+			<field name="lastest_rev_id">qq</field>
+			<field name="url">https://code.launchpad.net/~openerp/openobject-server/trunk</field>
+			<field eval="1" name="active"/>
+			<field eval="0" name="is_root_branch"/>
+		</record>
+	</data>
+	<data>
+		<record id="buildbot_lp_branch_diaserver0" model="buildbot.lp.branch">
+			<field eval="0" name="is_test_branch"/>
+			<field name="name">dia-server</field>
+			<field name="lastest_rev_id">22</field>
+			<field model="buildbot.lp.project" name="lp_project_id" search="[('name', '=', u'openobject-server')]"/>
+			<field name="url">https://code.launchpad.net/~openerp-commiter/openobject-server/dia-server</field>
+			<field eval="1" name="active"/>
+			<field eval="0" name="is_root_branch"/>
+		</record>
+	</data>
+	<data>
+		<record id="buildbot_lp_project_openobjectaddons0" model="buildbot.lp.project">
+			<field name="url">https://launchpad.net/openobject-addons</field>
+			<field name="test_branch_id" ref="buildbot_lp_branch_openobjectaddons0"/>
+			<field name="name">openobject-addons</field>
+		</record>
+		<record id="buildbot_lp_branch_ucodevaddons1" model="buildbot.lp.branch">
+			<field eval="0" name="is_test_branch"/>
+			<field name="name">uco-dev-addons1</field>
+			<field name="lastest_rev_id">11</field>
+			<field model="buildbot.lp.project" name="lp_project_id" search="[('name', '=', u'openobject-addons')]"/>
+			<field name="url">https://launchpad.net/~openerp/openobject-addons/trunk</field>
+			<field eval="1" name="active"/>
+			<field eval="0" name="is_root_branch"/>
+		</record>
+		<record id="buildbot_lp_branch_ysadevaddons1" model="buildbot.lp.branch">
+			<field eval="0" name="is_test_branch"/>
+			<field name="name">ysa-dev-addons2</field>
+			<field name="lastest_rev_id">11</field>
+			<field model="buildbot.lp.project" name="lp_project_id" search="[('name', '=', u'openobject-addons')]"/>
+			<field name="url">https://code.launchpad.net/~openerp-dev/openobject-addons/uco-dev-addons1</field>
+			<field eval="1" name="active"/>
+			<field eval="0" name="is_root_branch"/>
+		</record>
+	</data>
+	<data>
+		<record id="buildbot_lp_project_openobjectserver0" model="buildbot.lp.project">
+			<field name="url">https://launchpad.net/openobject-server</field>
+			<field name="test_branch_id" ref="buildbot_lp_branch_openobjectserver0"/>
+			<field name="name">openobject-server</field>
+		</record>
+		<record id="buildbot_lp_branch_diaserver1" model="buildbot.lp.branch">
+			<field eval="0" name="is_test_branch"/>
+			<field name="name">dia-server</field>
+			<field name="lastest_rev_id">22</field>
+			<field model="buildbot.lp.project" name="lp_project_id" search="[('name', '=', u'openobject-server')]"/>
+			<field name="url">https://code.launchpad.net/~openerp-commiter/openobject-server/dia-server</field>
+			<field eval="1" name="active"/>
+			<field eval="0" name="is_root_branch"/>
+		</record>
+	</data>
+	<data>
+		<record id="buildbot_directory_ucoadd0" model="buildbot.directory">
+			<field name="name">UCO_ADD1</field>
+		</record>
+		<record id="buildbot_directory_trunkserver0" model="buildbot.directory">
+			<field model="buildbot.directory" name="parent_id" search="[('name', '=', u'UCO_ADD1')]"/>
+			<field name="name">trunk_server</field>
+		</record>
+		<record id="buildbot_directory_ucodevaddons0" model="buildbot.directory">
+			<field model="buildbot.directory" name="parent_id" search="[('name', '=', u'UCO_ADD1')]"/>
+			<field name="name">uco_dev_addons1</field>
+		</record>
+	</data>
+	<data>
+		<record id="buildbot_directory_trunkserver1" model="buildbot.directory">
+			<field name="parent_id" ref="buildbot_directory_ucoadd0"/>
+			<field name="name">trunk_server</field>
+		</record>
+	</data>
+	<data>
+		<record id="buildbot_directory_ucodevaddons1" model="buildbot.directory">
+			<field name="parent_id" ref="buildbot_directory_ucoadd0"/>
+			<field name="name">uco_dev_addons1</field>
+		</record>
+	</data>
+	<data>
+		<record id="buildbot_builder_builderforucodevaddons0" model="buildbot.builder">
+			<field name="workdir" ref="buildbot_directory_trunkserver1"/>
+			<field name="name">Builder for uco_dev_addons1</field>
+			<field eval="[(6,0,[ref('buildbot_step_createdb0'),ref('buildbot_step_dropdb0')])]" name="build_steps"/>
+			<field eval="[(6,0,[ref('buildbot_lp_branch_ucodevaddons0'),ref('buildbot_lp_branch_openobjectserver0')])]" name="up_branches"/>
+			<field name="addons_dir" ref="buildbot_directory_ucodevaddons1"/>
+			<field name="dbname">uco_add1</field>
+			<field name="build_directory" ref="buildbot_directory_ucoadd0"/>
+		</record>
+	</data>
+	<data>
+		<record id="buildbot_builder_testbuilder0" model="buildbot.builder">
+			<field name="name">test builder</field>
+			<field eval="[(6,0,[ref('buildbot_step_createdb0')])]" name="build_steps"/>
+			<field eval="[(6,0,[])]" name="up_branches"/>
+		</record>
+	</data>
+	<data>
+		<record id="buildbot_builder_test0" model="buildbot.builder">
+			<field name="name">test2</field>
+			<field eval="[(6,0,[])]" name="build_steps"/>
+			<field eval="[(6,0,[])]" name="up_branches"/>
+		</record>
+	</data>
+	<data>
+		<record id="buildbot_scheduler_sh0" model="buildbot.scheduler">
+			<field name="name">sh2</field>
+		</record>
+	</data>
+	<data>
+		<record id="buildbot_scheduler_schedulerforucodevaddons0" model="buildbot.scheduler">
+			<field name="change_branch_id" ref="buildbot_lp_branch_ucodevaddons0"/>
+			<field name="builder_id" ref="buildbot_builder_builderforucodevaddons0"/>
+			<field name="name">Scheduler for uco_dev_addons1</field>
+			<field eval="30" name="treestabletimer"/>
+		</record>
+	</data>
+</openerp>
