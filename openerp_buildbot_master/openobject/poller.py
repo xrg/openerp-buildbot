@@ -69,14 +69,14 @@ class BzrPoller(service.MultiService, util.ComparableMixin):
 
     def describe(self):
         return "BzrPoller watching %s" % self.location
-
+        
     def poll(self):
         log.msg("BzrPoller polling")
         b = self.branch
         # this is subclass of bzrlib.branch.Branch
         current_revision = b.revno()
         if not self.last_revno:
-            self.last_revno = current_revision #- 1
+            self.last_revno = current_revision - 1
         # NOTE: b.revision_history() does network IO, and is blocking.
         revisions = b.revision_history()[self.last_revno:] # each is an id string
         changes = []

@@ -255,11 +255,6 @@
             		<field name="name" colspan="2"/>
             		<field name="dbname" colspan="2"/>
             		<field name="build_directory" colspan="2"/>
-            		<field name="workdir" colspan="2" domain="[('parent_id','=',build_directory)]"/>
-            		<field name="addons_dir" colspan="2" domain="[('parent_id','=',build_directory)]"/>
-            		<newline/>
-            		<separator string="Steps" colspan="4"/>
-            		<field name="build_steps" nolabel="1" colspan="4"/>
             	</form>
         	</field>
         </record>
@@ -275,40 +270,7 @@
        	<menuitem id="buildbot_builder"
             name="Buildbot Builder" parent="buildbot_menu"
             sequence="5" action="action_buildbot_builders"/>
-            
-        <!-- Buildbot Directories -->
-        <record id="view_buildbot_directory_form" model="ir.ui.view">
-        	<field name="name">Buildbot Directory</field>
-            <field name="model">buildbot.directory</field>
-            <field name="type">form</field>
-            <field name="arch" type="xml">
-            	<form>
-            		<field name="name" colspan="2"/>
-            		<newline></newline>
-            		<separator string="Work Directories" colspan="4"/>
-            		<field name="child_ids" string="Work Directory" colspan="4">
-            			<form>
-            				<field name="name"/>
-            			</form>
-            			<tree string="Work Directories">
-            				<field name="name"/>
-            			</tree>
-            		</field>
-            	</form>
-        	</field>
-        </record>
-        
-        <record id="view_buildbot_directory_list" model="ir.ui.view">
-        	<field name="name">Buildbot Directory</field>
-            <field name="model">buildbot.directory</field>
-            <field name="type">tree</field>
-            <field name="arch" type="xml">
-            	<tree>
-            		<field name="name" colspan="2"/>
-            	</tree>
-        	</field>
-        </record>
-        
+                    
 	<!-- Buildbot Projects -->
         <record id="view_buildbot_project_form" model="ir.ui.view">
         	<field name="name">Buildbot Project</field>

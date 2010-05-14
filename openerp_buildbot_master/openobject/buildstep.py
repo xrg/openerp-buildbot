@@ -24,6 +24,8 @@ from buildbot.steps.source import Source, Bzr, SVN
 from buildbot.steps.shell import ShellCommand
 from buildbot.process.buildstep import LoggingBuildStep, LoggedRemoteCommand
 from buildbot.status.builder import SUCCESS, FAILURE, WARNINGS
+from sql import db_connection
+
 import pickle
 import os
 from openobject import tools
@@ -41,7 +43,7 @@ class CreateDB(LoggingBuildStep):
     flunkOnFailure = True
     haltOnFailure = True
     flunkingIssues = ["ERROR","CRITICAL"]
-    MESSAGES = ("ERROR", "CRITICAL", "WARNING")
+    MESSAGES = ("ERROR", "CRITICAL", "WARNING", "TEST")
     def describe(self, done=False,success=False,warn=False,fail=False):
          if done:
             if success:
@@ -50,6 +52,7 @@ class CreateDB(LoggingBuildStep):
                 return ['Created db %s with Warnings!'%(self.dbname)]
             if fail:
                 return ['Creation of db %s Failed!'%(self.dbname)]
+         print "in describe--"
          return self.description
     
     def getText(self, cmd, results):
@@ -87,6 +90,7 @@ class CreateDB(LoggingBuildStep):
         self.startCommand(cmd)
 
     def createSummary(self, log):
+        print "in createsummary--"
         data = False
         logs = log.getText()
         buildbotURL = self.build.builder.botmaster.parent.buildbotURL
@@ -123,7 +127,7 @@ class CreateDB(LoggingBuildStep):
             line = line[pos:]
             summaries[m].append(line)
             counts[m] += 1
-
+        self.summaries = summaries
         for m in self.MESSAGES:
             if counts[m]:
                 msg = "".join(summaries[m])
@@ -134,6 +138,8 @@ class CreateDB(LoggingBuildStep):
 
 
     def evaluateCommand(self, cmd):
+        print "in eval cmd--", self.summaries
+        res={}
         if cmd.rc != 0:
             return FAILURE
         for m in self.flunkingIssues:
@@ -526,7 +532,7 @@ class InstallModule(LoggingBuildStep):
     name = 'install-module'
     flunkOnFailure = True
     flunkingIssues = ["ERROR","CRITICAL"]
-    MESSAGES = ("ERROR", "CRITICAL", "WARNING")
+    MESSAGES = ("ERROR", "CRITICAL", "WARNING", 'YML')
 
     def describe(self, done=False,success=False,warn=False,fail=False):
         if done:
@@ -806,5 +812,66 @@ class InstallModule2(InstallModule):
                     pass                
         self.args['modules'] += ','.join(modules)
         cmd = LoggedRemoteCommand("install-module",self.args)
-        self.startCommand(cmd)         
+        self.startCommand(cmd)
+        
+class MakeOpenERPTest(LoggingBuildStep):
+    name = 'make-test'
+    flunkOnFailure = False
+    haltOnFailure = False
+    flunkingIssues = ["ERROR","CRITICAL"]
+    MESSAGES = ("ERROR", "CRITICAL", "WARNING")
+    def describe(self, done=False,success=False,warn=False,fail=False):
+         if done:
+            if success:
+                return ['Created test Sucessfully!']
+            if warn:
+                return ['Created test with Warnings!']
+            if fail:
+                return ['Creation test Failed!']
+         return self.description
+    
+    def getText(self, cmd, results):
+        if results == SUCCESS:
+            return self.describe(True, success=True)
+        elif results == WARNINGS:
+            return self.describe(True, warn=True) 
+        else:
+            return self.describe(True, fail=True)
+
+
+    def __init__(self, dbname='pap15', change_url='', **kwargs):
+        LoggingBuildStep.__init__(self, **kwargs)
+        self.addFactoryArguments(change_url=change_url, dbname=dbname)
+        self.args = {'change_url': change_url, 'dbname': dbname}
+        self.change_url = change_url
+        self.dbname=dbname
+        # Compute defaults for descriptions:
+        description = ["creating test"]
+        self.description = description
+
+    def start(self):
+        s = self.build.getSourceStamp()
+        changes = s.changes
+        for ch in changes:
+            print "\n\ns-----",self.dbname
+            if ch.branch != self.change_url:
+                continue
+            else:
+               res={}
+               res['name'] = "Test for branch"# %s"%str(ch.branch)
+               res['commit_comment'] = str(ch.comments)
+               res['commit_rev_id'] = str(ch.revision_id)
+               res['commit_rev_no'] = int(ch.revision)
+               res['new_files'] = '\n'.join(ch.files_added)
+               res['update_files'] = '\n'.join(ch.files_modified)
+               renamed_files = ['%s --> %s'%(f[0], f[1]) for f in ch.files_renamed]
+               res['rename_files'] = '\n'.join(renamed_files)
+               res['remove_files'] = '\n'.join(ch.files_removed)
+               print "res----",res
+               query = """INSERT INTO buildbot_test(name,commit_comment,commit_rev_id,commit_rev_no, new_files, update_files, rename_files, remove_files) VALUES (%(name)s, %(commit_comment)s, %(commit_rev_id)s, %(commit_rev_no)s, %(new_files)s, %(update_files)s, %(rename_files)s, %(remove_files)s)"""                
+               print "query---",query
+#               db_cn = db_connection(self.dbname)
+#               db_cn.executemany(query, (res,))
+               cmd = LoggedRemoteCommand("dummy",self.args)
+               self.startCommand(cmd)
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
