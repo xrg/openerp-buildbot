@@ -37,13 +37,15 @@ try:
     StringIO = cStringIO.StringIO
 except ImportError:
     from StringIO import StringIO
-            
+global test_id   
+DBNAME = 'pap102'
+
 class CreateDB(LoggingBuildStep):
     name = 'create-db'
     flunkOnFailure = True
     haltOnFailure = True
     flunkingIssues = ["ERROR","CRITICAL"]
-    MESSAGES = ("ERROR", "CRITICAL", "WARNING", "TEST")
+    MESSAGES = ("ERROR", "CRITICAL", "WARNING", "TEST", "INFO", "TRACEBACK")
     def describe(self, done=False,success=False,warn=False,fail=False):
          if done:
             if success:
@@ -52,7 +54,6 @@ class CreateDB(LoggingBuildStep):
                 return ['Created db %s with Warnings!'%(self.dbname)]
             if fail:
                 return ['Creation of db %s Failed!'%(self.dbname)]
-         print "in describe--"
          return self.description
     
     def getText(self, cmd, results):
@@ -90,7 +91,6 @@ class CreateDB(LoggingBuildStep):
         self.startCommand(cmd)
 
     def createSummary(self, log):
-        print "in createsummary--"
         data = False
         logs = log.getText()
         buildbotURL = self.build.builder.botmaster.parent.buildbotURL
@@ -108,7 +108,9 @@ class CreateDB(LoggingBuildStep):
                 pos = line.find("ERROR") + len("ERROR") + 5
                 m = "ERROR"
             elif line.find("INFO:") != -1:
-                continue
+                pos = line.find("INFO") + len("INFO") + 5
+                m = "INFO"
+                #continue
             elif line.find("CRITICAL") != -1:
                 pos = line.find("CRITICAL") + len("CRITICAL") + 5
                 m = "CRITICAL"
@@ -118,6 +120,9 @@ class CreateDB(LoggingBuildStep):
                 for line in io[pos:-2]:
                     traceback_log.append(line)
                 self.addCompleteLog("create-db : Traceback", "".join(traceback_log))
+                m = "TRACEBACK"
+                summaries[m].append(traceback_log)
+                counts[m] += 1
                 break;
             elif line.find("WARNING") != -1:
                 pos = line.find("WARNING") + len("WARNING") + 5
@@ -129,31 +134,42 @@ class CreateDB(LoggingBuildStep):
             counts[m] += 1
         self.summaries = summaries
         for m in self.MESSAGES:
-            if counts[m]:
-                msg = "".join(summaries[m])
-                self.addCompleteLog("create-db : %s" % m, msg)    
-                self.setProperty("create-db : %s" % m, counts[m]) 
+            if not m == 'TRACEBACK':
+                if counts[m]:
+                    msg = "".join(summaries[m])
+                    self.addCompleteLog("create-db : %s" % m, msg)    
+                    self.setProperty("create-db : %s" % m, counts[m]) 
         if sum(counts.values()):       
             self.setProperty("create-db : MessageCount", sum(counts.values()))
 
 
     def evaluateCommand(self, cmd):
-        print "in eval cmd--", self.summaries
-        res={}
+        s=self.summaries
         if cmd.rc != 0:
-            return FAILURE
-        for m in self.flunkingIssues:
+            state='fail'
+            res=FAILURE
+        else:
+            for m in self.flunkingIssues:
+                try:
+                    if self.getProperty("create-db : %s" % m):
+                        state='fail'
+                        res=FAILURE
+                except:
+                    pass
             try:
-                if self.getProperty("create-db : %s" % m):
-                    return FAILURE
+                if self.getProperty("create-db : MessageCount"):
+                    state='pass'
+                    res=WARNINGS
             except:
                 pass
-        try:
-            if self.getProperty("create-db : MessageCount"):
-                return WARNINGS
-        except:
-            pass
-        return SUCCESS
+            state='pass'
+            res=SUCCESS
+        global test_id
+        query = """INSERT INTO buildbot_test_step(name, test_id, warning_log, error_log, critical_log, info_log, yml_log, traceback_detail, state)
+        values ('%s', %d, '%s', '%s', '%s', '%s', '%s', '%s', '%s')"""%(self.name, int(test_id), '\n'.join(s['WARNING']), '\n'.join(s['ERROR']), '\n'.join(s['CRITICAL']), '\n'.join(s['INFO']), '\n'.join(s['TEST']), '\n'.join(s['TRACEBACK']), state)
+        db_cn = db_connection(DBNAME)
+        db_cn.execute(query)
+        return res
 
 class DropDB(LoggingBuildStep):
     name = 'drop-db'
@@ -205,7 +221,7 @@ class CheckQuality(LoggingBuildStep):
     name = 'check-quality'
     flunkOnFailure = True
     flunkingIssues = ["ERROR","CRITICAL"]
-    MESSAGES = ("ERROR", "CRITICAL", "WARNING")
+    MESSAGES = ("ERROR", "CRITICAL", "WARNING", "TEST", "INFO", "TRACEBACK")
 
     def describe(self, done=False,success=False,warn=False,fail=False):
         if done:
@@ -297,7 +313,9 @@ class CheckQuality(LoggingBuildStep):
                 pos = line.find("ERROR") + len("ERROR") + 5
                 m = "ERROR"
             elif line.find("INFO:") != -1:
-                continue
+                pos = line.find("INFO") + len("INFO") + 5
+                m = "INFO"
+                #continue
             elif line.find("CRITICAL") != -1:
                 pos = line.find("CRITICAL") + len("CRITICAL") + 5
                 m = "CRITICAL"
@@ -307,6 +325,9 @@ class CheckQuality(LoggingBuildStep):
                 for line in io[pos:-3]:
                     traceback_log.append(line)
                 self.addCompleteLog("Check-Quality : Traceback", "".join(traceback_log))
+                m = "TRACEBACK"
+                summaries[m].append(traceback_log)
+                counts[m] += 1
                 break;
             elif line.find("WARNING") != -1:
                 pos = line.find("WARNING") + len("WARNING") + 5
@@ -316,32 +337,45 @@ class CheckQuality(LoggingBuildStep):
             line = line[pos:]
             summaries[m].append(line)
             counts[m] += 1
-
+        self.summaries = summaries
+        
         for m in self.MESSAGES:
-            if counts[m]:
-                msg = "".join(summaries[m])
-                self.addCompleteLog("Check-Quality : %s" % m, msg)    
-                self.setProperty("Check-Quality : %s" % m, counts[m]) 
+            if not m == 'TRACEBACK':
+                if counts[m]:
+                    msg = "".join(summaries[m])
+                    self.addCompleteLog("Check-Quality : %s" % m, msg)    
+                    self.setProperty("Check-Quality : %s" % m, counts[m]) 
         if sum(counts.values()):       
             self.setProperty("Check-Quality : MessageCount", sum(counts.values()))
 
 
     def evaluateCommand(self, cmd):
-        #if self.quality_stage == 'fail' or cmd.rc != 0:
+        s=self.summaries
         if cmd.rc != 0:
-            return FAILURE
-        for m in self.flunkingIssues:
+            state='fail'
+            res=FAILURE
+        else:
+            for m in self.flunkingIssues:
+                try:
+                    if self.getProperty("Check-Quality : %s" % m):
+                        state='fail'
+                        res=FAILURE
+                except:
+                    pass
             try:
-                if self.getProperty("Check-Quality : %s" % m):
-                    return FAILURE
+                if self.getProperty("Check-Quality : MessageCount"):
+                    state='pass'
+                    res=WARNINGS
             except:
                 pass
-        try:
-            if self.getProperty("Check-Quality : MessageCount"):
-                return WARNINGS
-        except:
-            pass
-        return SUCCESS
+            state='pass'
+            res=SUCCESS
+        global test_id
+        query = """INSERT INTO buildbot_test_step(name, test_id, warning_log, error_log, critical_log, info_log, yml_log, traceback_detail, state)
+        values ('%s', %d, '%s', '%s', '%s', '%s', '%s', '%s', '%s')"""%(self.name, int(test_id), '\n'.join(s['WARNING']), '\n'.join(s['ERROR']), '\n'.join(s['CRITICAL']), '\n'.join(s['INFO']), '\n'.join(s['TEST']), '\n'.join(s['TRACEBACK']), state)
+        db_cn = db_connection(DBNAME)
+        db_cn.execute(query)
+        return res
 
 class Copy(LoggingBuildStep):
     name = 'copy'
@@ -376,7 +410,7 @@ class InstallTranslation(LoggingBuildStep):
     name = 'install-translation'
     flunkOnFailure = True
     flunkingIssues = ["ERROR","CRITICAL"]
-    MESSAGES = ("ERROR", "CRITICAL", "WARNING")
+    MESSAGES = ("ERROR", "CRITICAL", "WARNING", "TEST", "INFO", "TRACEBACK")
 
     def describe(self, done=False,success=False,warn=False,fail=False):
         if done:
@@ -485,10 +519,15 @@ class InstallTranslation(LoggingBuildStep):
                         traceback_property.append(line)
                 self.addCompleteLog("Install-Translation : Traceback", "".join(traceback_log))
                 self.setProperty("Install-Translation : Traceback", "".join(traceback_property))
+                m = "TRACEBACK"
+                summaries[m].append(traceback_log)
+                counts[m] += 1
                 break;
                     
             elif line.find("INFO:") != -1:
-                continue
+                pos = line.find("INFO") + len("INFO") + 5
+                m = "INFO"
+                #continue
             elif line.find("CRITICAL") != -1:
                 pos = line.find("CRITICAL") + len("CRITICAL") + 5
                 m = "CRITICAL"
@@ -503,36 +542,51 @@ class InstallTranslation(LoggingBuildStep):
             line = line[pos:]
             summaries[m].append(line)
             counts[m] += 1
-
+        self.summaries = summaries
+        
         for m in self.MESSAGES:
-            if counts[m]:
-                msg = "".join(summaries[m])
-                self.addCompleteLog("Install-Translation : %s" % m, msg)    
-                self.setProperty("Install-Translation : %s" % m, counts[m]) 
+            if not m == 'TRACEBACK':
+                if counts[m]:
+                    msg = "".join(summaries[m])
+                    self.addCompleteLog("Install-Translation : %s" % m, msg)    
+                    self.setProperty("Install-Translation : %s" % m, counts[m]) 
         if sum(counts.values()):       
             self.setProperty("Install-Translation : MessageCount", sum(counts.values()))
 
     def evaluateCommand(self, cmd):
+        s=self.summaries
         if cmd.rc != 0:
-            return FAILURE
-        for m in self.flunkingIssues:
+            state='fail'
+            res=FAILURE
+        else:
+            for m in self.flunkingIssues:
+                try:
+                    if self.getProperty("Install-Translation : %s" % m):
+                        state='fail'
+                        res=FAILURE
+                except:
+                    pass
             try:
-                if self.getProperty("Install-Translation : %s" % m):
-                    return FAILURE
+                if self.getProperty("Install-Translation : MessageCount"):
+                    state='pass'
+                    res=WARNINGS
             except:
                 pass
-        try:
-            if self.getProperty("Install-Translation : MessageCount"):
-                return WARNINGS
-        except:
-            pass
-        return SUCCESS
+            state='pass'
+            res=SUCCESS
+        global test_id
+        query = """INSERT INTO buildbot_test_step(name, test_id, warning_log, error_log, critical_log, info_log, yml_log, traceback_detail, state)
+        values ('%s', %d, '%s', '%s', '%s', '%s', '%s', '%s', '%s')"""%(self.name, int(test_id), '\n'.join(s['WARNING']), '\n'.join(s['ERROR']), '\n'.join(s['CRITICAL']), '\n'.join(s['INFO']), '\n'.join(s['TEST']), '\n'.join(s['TRACEBACK']), state)
+        db_cn = db_connection(DBNAME)
+        db_cn.execute(query)
+        return res
+
 
 class InstallModule(LoggingBuildStep):
     name = 'install-module'
     flunkOnFailure = True
     flunkingIssues = ["ERROR","CRITICAL"]
-    MESSAGES = ("ERROR", "CRITICAL", "WARNING", 'YML')
+    MESSAGES = ("ERROR", "CRITICAL", "WARNING", "TEST", "INFO", "TRACEBACK")
 
     def describe(self, done=False,success=False,warn=False,fail=False):
         if done:
@@ -624,9 +678,14 @@ class InstallModule(LoggingBuildStep):
                         traceback_property.append(line)
                 self.addCompleteLog("Install-Module : Traceback", "".join(traceback_log))
                 self.setProperty("Install-Module : Traceback", "".join(traceback_property))
+                m = "TRACEBACK"
+                summaries[m].append("".join(traceback_log))
+                counts[m] += 1
                 break;
             elif line.find("INFO") != -1:
-                continue                
+                pos = line.find("INFO") + len("INFO") + 5
+                m = "INFO"
+                #continue                
             elif line.find("CRITICAL") != -1:
                 m = "CRITICAL"
                 pos = line.find("CRITICAL") + len("CRITICAL") + 5
@@ -641,30 +700,54 @@ class InstallModule(LoggingBuildStep):
             line = line[pos:]
             summaries[m].append(line)
             counts[m] += 1
-
+        self.summaries = summaries
+        
         for m in self.MESSAGES:
-            if counts[m]:
-                msg = "".join(summaries[m])
-                self.addCompleteLog("Install-Module : %s" % m, msg)    
-                self.setProperty("Install-Module : %s" % m, counts[m]) 
+            if not m == 'TRACEBACK':
+                if counts[m]:
+                    msg = "".join(summaries[m])
+                    self.addCompleteLog("Install-Module : %s" % m, msg)    
+                    self.setProperty("Install-Module : %s" % m, counts[m]) 
         if sum(counts.values()):
             self.setProperty("Install-Module : MessageCount", sum(counts.values()))
 
     def evaluateCommand(self, cmd):
+        s=self.summaries
         if cmd.rc != 0:
-            return FAILURE
-        for m in self.flunkingIssues:
+            state='fail'
+            res=FAILURE
+        else:
+            for m in self.flunkingIssues:
+                try:
+                    if self.getProperty("Install-Module : %s" % m):
+                        state='fail'
+                        res=FAILURE
+                except:
+                    pass
             try:
-                if self.getProperty("Install-Module : %s" % m):
-                    return FAILURE
+                if self.getProperty("Install-Module : MessageCount"):
+                    state='pass'
+                    res=WARNINGS
             except:
-                pass   
-        try:
-            if self.getProperty("Install-Module : MessageCount"):
-                return WARNINGS
-        except:
-            pass
-        return SUCCESS
+                pass
+            state='pass'
+            res=SUCCESS
+        global test_id
+        query = """INSERT INTO buildbot_test_step(name, test_id, warning_log, error_log, critical_log, info_log, yml_log, traceback_detail, state)
+        values (%(name)s, %(test_id)s, %(warning_log)s, %(error_log)s, %(critical_log)s, %(info_log)s, %(yml_log)s, %(traceback_detail)s, %(state)s)"""
+        params={}
+        params['name']=self.name
+        params['test_id']=int(test_id)
+        params['warning_log']='\n'.join(s['WARNING'])
+        params['error_log']='\n'.join(s['ERROR'])
+        params['critical_log']='\n'.join(s['CRITICAL'])
+        params['info_log']='\n'.join(s['INFO'])
+        params['yml_log']='\n'.join(s['TEST'])
+        params['traceback_detail']='\n'.join(s['TRACEBACK'])
+        params['state']=state
+        db_cn = db_connection(DBNAME)
+        db_cn.executemany(query, (params, ))
+        return res
 
 
 class OpenObjectBzr(Bzr):
@@ -839,12 +922,12 @@ class MakeOpenERPTest(LoggingBuildStep):
             return self.describe(True, fail=True)
 
 
-    def __init__(self, dbname='pap15', change_url='', **kwargs):
+    def __init__(self, change_branch_id=None, change_branch=None, **kwargs):
         LoggingBuildStep.__init__(self, **kwargs)
-        self.addFactoryArguments(change_url=change_url, dbname=dbname)
-        self.args = {'change_url': change_url, 'dbname': dbname}
-        self.change_url = change_url
-        self.dbname=dbname
+        self.addFactoryArguments(change_branch=change_branch, change_branch_id=change_branch_id)
+        self.args = {'change_branch': change_branch, 'change_branch_id': change_branch_id}
+        self.change_branch = change_branch
+        self.change_branch_id = change_branch_id
         # Compute defaults for descriptions:
         description = ["creating test"]
         self.description = description
@@ -852,13 +935,16 @@ class MakeOpenERPTest(LoggingBuildStep):
     def start(self):
         s = self.build.getSourceStamp()
         changes = s.changes
+        from datetime import datetime
         for ch in changes:
-            print "\n\ns-----",self.dbname
-            if ch.branch != self.change_url:
+            if ch.branch != self.change_branch[1]:
                 continue
             else:
                res={}
-               res['name'] = "Test for branch"# %s"%str(ch.branch)
+               res['name'] = "Test for branch %s"%self.change_branch[0]
+               res['tested_branch'] = int(self.change_branch_id)
+               res['create_date'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+               res['commit_date']=datetime.fromtimestamp(ch.when).strftime('%Y-%m-%d %H:%M:%S')
                res['commit_comment'] = str(ch.comments)
                res['commit_rev_id'] = str(ch.revision_id)
                res['commit_rev_no'] = int(ch.revision)
@@ -867,11 +953,13 @@ class MakeOpenERPTest(LoggingBuildStep):
                renamed_files = ['%s --> %s'%(f[0], f[1]) for f in ch.files_renamed]
                res['rename_files'] = '\n'.join(renamed_files)
                res['remove_files'] = '\n'.join(ch.files_removed)
-               print "res----",res
-               query = """INSERT INTO buildbot_test(name,commit_comment,commit_rev_id,commit_rev_no, new_files, update_files, rename_files, remove_files) VALUES (%(name)s, %(commit_comment)s, %(commit_rev_id)s, %(commit_rev_no)s, %(new_files)s, %(update_files)s, %(rename_files)s, %(remove_files)s)"""                
-               print "query---",query
-#               db_cn = db_connection(self.dbname)
-#               db_cn.executemany(query, (res,))
-               cmd = LoggedRemoteCommand("dummy",self.args)
-               self.startCommand(cmd)
+               query = """INSERT INTO buildbot_test(name,tested_branch,create_date,commit_date,commit_comment,commit_rev_id,commit_rev_no, new_files, update_files, rename_files, remove_files) VALUES (%(name)s, %(tested_branch)s, %(create_date)s, %(commit_date)s, %(commit_comment)s, %(commit_rev_id)s, %(commit_rev_no)s, %(new_files)s, %(update_files)s, %(rename_files)s, %(remove_files)s)"""                
+               db_cn = db_connection(DBNAME)
+               global test_id
+               test_id=db_cn.executemany(query, (res,))
+               query = """Update buildbot_lp_branch set lastest_rev_id = %(commit_rev_id)s, lastest_rev_no=%(commit_rev_no)s where id=%(tested_branch)s"""
+               db_cn = db_connection(DBNAME)
+               db_cn.executemany(query, (res,))
+        cmd = LoggedRemoteCommand("dummy",self.args)
+        self.startCommand(cmd)
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

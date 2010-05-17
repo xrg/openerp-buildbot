@@ -20,7 +20,7 @@ class buildbot_lp_user(osv.osv):
                 } 
 buildbot_lp_user()
 
-class buildbot_lp_branch(osv.osv): 
+class buildbot_lp_branch(osv.osv):
     _name = "buildbot.lp.branch" 
     _columns = { 
                 'name': fields.char('LP Branch', size=128, required=True),
@@ -79,7 +79,7 @@ buildbot_test_environment()
 class buildbot_test(osv.osv):
     _name = "buildbot.test" 
     _columns = {
-              'name': fields.char('Test Name', size=200, required=True), 
+              'name': fields.char('Test Name', size=500, required=True), 
               'create_date': fields.datetime('Date of Test'), 
               'tested_branch': fields.many2one('buildbot.lp.branch', 'Branch Tested'),  
               'environment_id': fields.many2one('buildbot.test.environment', 'Test Environment'), 
@@ -93,6 +93,7 @@ class buildbot_test(osv.osv):
               'remove_files': fields.text('Files Removed'), 
               'rename_files': fields.text('Files Renamd'),
               'state': fields.selection([('fail', 'Fail'), ('pass', 'Pass')], "Test Result"), 
+              'test_step_ids':fields.one2many('buildbot.test.step', 'test_id', 'Test Steps'),
               }   
 buildbot_test()
 

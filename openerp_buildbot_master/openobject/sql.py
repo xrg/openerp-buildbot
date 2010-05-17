@@ -12,18 +12,25 @@ class db_connection(object):
         cnx = psycopg2.connect(dsn=self.dsn)
         return cnx
     def executemany(self, query, args):
-        print "query--",query
         cnx = self._get_cnx()
         cr = cnx.cursor()
         cr.executemany(query, args)
         cnx.commit()
+        q="SELECT MAX(id) from buildbot_test"
+        cr.execute(q)
+        id=cr.fetchone()[0]
         cnx.close()
+        return id
     def execute(self, query):
         cnx = self._get_cnx()
         cr = cnx.cursor()
-        cr.execute(query, args)
+        cr.execute(query)
         cnx.commit()
+        q="SELECT MAX(id) from buildbot_test_step"
+        cr.execute(q)
+        id=cr.fetchone()[0]
         cnx.close()
+        return id
     def get_only_rows(self, query):
         cnx = self._get_cnx()
         cr = cnx.cursor()

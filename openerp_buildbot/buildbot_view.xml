@@ -157,6 +157,17 @@
             		<field name="remove_files" colspan="2" nolabel="1"/>
             		<field name="rename_files" colspan="2" nolabel="1"/>
             		<newline></newline>
+            		<separator string="Test Steps" colspan="4"/>
+            		<field name="test_step_ids" colspan="4" nolabel="1">
+            			<tree>
+            				<field name="name"/>
+            				<field name="state"/>
+            			</tree>
+            			<form>
+            				<field name="name"/>
+            				<field name="state"/>
+            			</form>
+            		</field>
             		<field name="state" colspan="2"/>
             	</form>
         	</field>
@@ -282,7 +293,7 @@
             		<field name="url" select="1"/>
             		<newline/>
             		<field name="tester_server_branch_id" domain="[('is_test_branch', '=', True)]"/>
-            		<field name="tester_addons_branch_id" domain="[('is_root_branch', '=', True)]"/>
+            		<field name="tester_addons_branch_id" domain="[('is_test_branch', '=', True)]"/>
             		<field name="root_branch_id" domain="[('is_root_branch', '=', True)]"/>
             		<newline/>
             		<separator string="Branches" colspan="4"/>

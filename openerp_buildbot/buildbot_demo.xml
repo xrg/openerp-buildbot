@@ -21,17 +21,6 @@
 		</record>
 	</data>
 	<data>
-		<record id="buildbot_lp_branch_ucodevaddons0" model="buildbot.lp.branch">
-			<field eval="0" name="is_test_branch"/>
-			<field name="name">uco-dev-addons1</field>
-			<field name="lastest_rev_id">test</field>
-			<field model="buildbot.lp.project" name="lp_project_id" search="[('name', '=', u'openobject-addons')]"/>
-			<field name="url">https://code.launchpad.net/~openerp-dev/openobject-addons/uco-dev-addons1</field>
-			<field eval="1" name="active"/>
-			<field eval="0" name="is_root_branch"/>
-		</record>
-	</data>
-	<data>
 		<record id="buildbot_lp_project_openobjectaddons0" model="buildbot.lp.project">
 			<field name="name">openobject-addons</field>
 			<field name="tester_server_branch_id" ref="buildbot_lp_branch_openobjectserver0"/>
