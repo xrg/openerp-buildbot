@@ -153,7 +153,7 @@
        <!-- Buildbot Tests -->
 
         <record id="view_buildbot_test_form" model="ir.ui.view">
-        	<field name="name">Buildbot Tests</field>
+        	<field name="name">Test Details</field>
             <field name="model">buildbot.test</field>
             <field name="type">form</field>
             <field name="arch" type="xml">
@@ -197,17 +197,18 @@
         </record>
 
         <record id="action_buildbot_test" model="ir.actions.act_window">
-        	<field name="name">Buildbot Test</field>
+        	<field name="name">Test Details</field>
         	<field name="type">ir.actions.act_window</field>
             <field name="res_model">buildbot.test</field>
             <field name="view_type">form</field>
             <field name="view_mode">tree,form</field>
        	</record>
 
-       	<menuitem id="buildbot_test" name="Buildbot Test" parent="buildbot_test_detail"
+       	<menuitem id="buildbot_test" name="Test Details" parent="buildbot_test_detail"
                   sequence="5" action="action_buildbot_test"/>
 
         <!-- Buildbot Test Steps -->
+
 		<record id="view_buildbot_test_step_tree" model="ir.ui.view">
         	<field name="name">Buildbot Test Step</field>
             <field name="model">buildbot.test.step</field>
