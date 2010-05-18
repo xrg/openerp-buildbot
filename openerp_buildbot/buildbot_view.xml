@@ -10,7 +10,7 @@
        <!-- Buildbot Groups -->
 
         <record id="view_buildbot_group_form" model="ir.ui.view">
-        	<field name="name">LP Teams</field>
+        	<field name="name">Launchpad Teams</field>
             <field name="model">buildbot.lp.group</field>
             <field name="type">form</field>
             <field name="arch" type="xml">
@@ -23,20 +23,20 @@
         </record>
 
         <record id="action_buildbot_group" model="ir.actions.act_window">
-        	<field name="name">LP Teams</field>
+        	<field name="name">Launchpad Teams</field>
         	<field name="type">ir.actions.act_window</field>
             <field name="res_model">buildbot.lp.group</field>
             <field name="view_type">form</field>
             <field name="view_mode">tree,form</field>
        	</record>
 
-       	<menuitem id="buildbot_groups"  name="LP Teams" parent="buildbot_config"
+       	<menuitem id="buildbot_groups"  name="Launchpad Teams" parent="buildbot_config"
        	          sequence="5" action="action_buildbot_group"/>
 
         <!-- Buildbot Users -->
 
         <record id="view_buildbot_user_form" model="ir.ui.view">
-        	<field name="name">LP Users</field>
+        	<field name="name">Launchpad Users</field>
             <field name="model">buildbot.lp.user</field>
             <field name="type">form</field>
             <field name="arch" type="xml">
@@ -51,34 +51,40 @@
         </record>
 
         <record id="action_buildbot_user" model="ir.actions.act_window">
-        	<field name="name">LP Users</field>
+        	<field name="name">Launchpad Users</field>
         	<field name="type">ir.actions.act_window</field>
             <field name="res_model">buildbot.lp.user</field>
             <field name="view_type">form</field>
             <field name="view_mode">tree,form</field>
        	</record>
 
-       	<menuitem id="buildbot_users" name="LP Users" parent="buildbot_config"
+       	<menuitem id="buildbot_users" name="Launchpad Users" parent="buildbot_config"
             sequence="5" action="action_buildbot_user"/>
 
        <!-- Buildbot Branches -->
 
         <record id="view_buildbot_branch_form" model="ir.ui.view">
-        	<field name="name">LP Branches</field>
+        	<field name="name">Launchpad Branches</field>
             <field name="model">buildbot.lp.branch</field>
             <field name="type">form</field>
             <field name="arch" type="xml">
             	<form>
-        			<field name="name"/>
-        			<field name="url" widget="url"/>
-        			<field name="lp_project_id"/>
-        			<field name="active"/>
-       				<group colspan="4" col="8">
+        					<field name="name"/>
+        					<field name="url" widget="url"/>
+        			<group colspan="4" col="8">
+        				<group colspan="4">
+       						<field name="lp_project_id" colspan="2"/>
+       					</group>
+       					<group colspan="4">
+       						<field name="active" colspan="1"/>
+       						<label string="" colspan="1"/>
+        					<field name="is_root_branch" colspan="1"/>
+       						<field name="is_test_branch" colspan="1"/>
+       					</group>
        					<group colspan="4">
 							<separator string="General Details" colspan="4"/>
    							<field name="lp_user_id" colspan="2"/>
 		   					<field name="lp_group_id" colspan="2"/>
-   							<field name="lp_project_id" colspan="2"/>
        					</group>
        					<group colspan="4">
        						<separator string="Schedular" colspan="4"/>
@@ -86,22 +92,14 @@
        						<label string="" colspan="2"/>
        					</group>
        					<group colspan="4">
-       						<separator string="Ports" colspan="4"/>
-   							<field name="port" colspan="2"/>
-       						<field name="netport" colspan="2"/>
-       					</group>
-       					<group colspan="4">
-       						<separator string="Details for Test" colspan="4"/>
-	       					<field name="is_root_branch" colspan="2"/>
-       						<field name="is_test_branch" colspan="2"/>
-       					</group>
-       					<group colspan="4">
-							<separator string="Builder" colspan="4"/>
+							<separator string="Builder Settings" colspan="4"/>
 							<field name="dbname" colspan="2"/>
 							<field name="build_directory" colspan="2"/>
+   							<field name="port" colspan="2"/>
+       						<field name="netport" colspan="2"/>
 						</group>
 						<group colspan="4" groups="base.group_extended">
-							<separator string="Revision Details" colspan="4"/>
+							<separator string="Latest Revision Details" colspan="4"/>
        						<field name="lastest_rev_no" colspan="2"/>
        						<field name="lastest_rev_id" colspan="2"/>
        					</group>
@@ -111,14 +109,14 @@
         </record>
 
         <record id="action_buildbot_branch" model="ir.actions.act_window">
-        	<field name="name">LP Branches</field>
+        	<field name="name">Launchpad Branches</field>
         	<field name="type">ir.actions.act_window</field>
             <field name="res_model">buildbot.lp.branch</field>
             <field name="view_type">form</field>
             <field name="view_mode">tree,form</field>
        	</record>
 
-       	<menuitem id="buildbot_branch" name="LP Branches" parent="buildbot_config"
+       	<menuitem id="buildbot_branch" name="Launchpad Branches" parent="buildbot_config"
             	  sequence="5" action="action_buildbot_branch"/>
 
        <!-- Buildbot Environment -->
@@ -261,7 +259,7 @@
 	<!-- Buildbot Projects -->
 
         <record id="view_buildbot_project_form" model="ir.ui.view">
-        	<field name="name">Buildbot Project</field>
+        	<field name="name">Launchpad Project</field>
             <field name="model">buildbot.lp.project</field>
             <field name="type">form</field>
             <field name="arch" type="xml">
@@ -296,14 +294,14 @@
         </record>
 
         <record id="action_buildbot_project" model="ir.actions.act_window">
-        	<field name="name">LP Projects</field>
+        	<field name="name">Launchpad Projects</field>
         	<field name="type">ir.actions.act_window</field>
             <field name="res_model">buildbot.lp.project</field>
             <field name="view_type">form</field>
             <field name="view_mode">tree,form</field>
        	</record>
 
-       	<menuitem id="buildbot_project" name="LP Projects" parent="buildbot_config"
+       	<menuitem id="buildbot_project" name="Launchpad Projects" parent="buildbot_config"
                   sequence="5" action="action_buildbot_project"/>
 	</data>
 </openerp>
