@@ -1,10 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <openerp>
     <data>
+        <menuitem id="buildbot_menu" name="Buildbot" icon="terp-tools"/>
+		<menuitem id="buildbot_config" name="Configuration" parent="buildbot_menu"/>
+		<menuitem id="buildbot_test_detail" name="Test Detail" parent="buildbot_menu"/>
+		<menuitem id="buildbot_schedular_detail" name="Schedular" parent="buildbot_menu"/>
+		<menuitem id="buildbot_project_builder" name="Project &amp; Builder" parent="buildbot_menu"/>
 
-		<menuitem id="buildbot_menu" name="Buildbot Data"/>
-            
        <!-- Buildbot Groups -->
+
         <record id="view_buildbot_group_form" model="ir.ui.view">
         	<field name="name">Buildbot Group</field>
             <field name="model">buildbot.lp.group</field>
@@ -17,7 +21,7 @@
             	</form>
         	</field>
         </record>
-        
+
         <record id="action_buildbot_group" model="ir.actions.act_window">
         	<field name="name">Buildbot Group</field>
         	<field name="type">ir.actions.act_window</field>
@@ -25,29 +29,27 @@
             <field name="view_type">form</field>
             <field name="view_mode">tree,form</field>
        	</record>
-       	
-       	<menuitem id="buildbot_groups"
-            name="Buildbot Groups" parent="buildbot_menu"
-            sequence="5" action="action_buildbot_group"/>
-            
+
+       	<menuitem id="buildbot_groups"  name="Buildbot Groups" parent="buildbot_config"
+       	          sequence="5" action="action_buildbot_group"/>
+
         <!-- Buildbot Users -->
+
         <record id="view_buildbot_user_form" model="ir.ui.view">
         	<field name="name">Buildbot User</field>
-            <field name="model">buildbot.lp.users</field>
+            <field name="model">buildbot.lp.user</field>
             <field name="type">form</field>
             <field name="arch" type="xml">
             	<form>
             		<field name="name"/>
             		<field name="user_id"/>
-            		<newline/>
-            		<field name="url" colspan="4"/>
-            		<newline/>
-            		<separator string="Buildbot Projects" colspan="4"/> 
+            		<field name="url" colspan="2"/>
+            		<separator string="Groups" colspan="4"/>
             		<field name="lp_group_ids" nolabel="1" colspan="4"/>
             	</form>
         	</field>
         </record>
-        
+
         <record id="action_buildbot_user" model="ir.actions.act_window">
         	<field name="name">Buildbot User</field>
         	<field name="type">ir.actions.act_window</field>
@@ -55,40 +57,36 @@
             <field name="view_type">form</field>
             <field name="view_mode">tree,form</field>
        	</record>
-       	
-       	<menuitem id="buildbot_users"
-            name="Buildbot Users" parent="buildbot_menu"
-            sequence="5" action="action_buildbot_user"/>   
-            
+
+       	<menuitem id="buildbot_users" name="Buildbot Users" parent="buildbot_config"
+            sequence="5" action="action_buildbot_user"/>
+
        <!-- Buildbot Branches -->
+
         <record id="view_buildbot_branch_form" model="ir.ui.view">
         	<field name="name">Buildbot Branch</field>
             <field name="model">buildbot.lp.branch</field>
             <field name="type">form</field>
             <field name="arch" type="xml">
             	<form>
-            		<group col="8">
-            		<field name="name"  colspan="8"/>
-            		<field name="url"  colspan="8"/>
-            		</group>
-            		<newline/>
-           		<group col="8">
-           			<separator string="General Details" colspan="2"/>
-            		<separator string="Latest Details" colspan="2"/>
-            		<separator string="Details for Test" colspan="4"/>
-            		<field name="lp_user_id" colspan="2"/>
-            		<field name="lastest_rev_id" colspan="2"/>
-            		<field name="is_test_branch" colspan="4"/>
-            		<field name="lp_group_id" colspan="2"/>
-            		<field name="lastest_rev_no" colspan="2"/>
-            		<field name="is_root_branch" colspan="4"/>
-					<field name="lp_project_id" colspan="2"/> 
-					<field name="active"></field>
-					</group>          		
+        			<field name="name"/>
+        			<field name="url"/>
+       				<separator string="General Details" colspan="4"/>
+       				<field name="lp_user_id" colspan="2"/>
+       				<field name="lp_group_id" colspan="2"/>
+       				<field name="lp_project_id" colspan="2"/>
+       				<separator string="Details for Test" colspan="4"/>
+       				<field name="active" colspan="2"/>
+       				<label string="" colspan="2"/>
+       				<field name="lastest_rev_no" colspan="2"/>
+       				<field name="lastest_rev_id" colspan="2"/>
+       				<separator string="Details for Test" colspan="4"/>
+       				<field name="is_root_branch" colspan="2"/>
+       				<field name="is_test_branch" colspan="2"/>
             	</form>
         	</field>
         </record>
-        
+
         <record id="action_buildbot_branch" model="ir.actions.act_window">
         	<field name="name">Buildbot Branch</field>
         	<field name="type">ir.actions.act_window</field>
@@ -96,12 +94,12 @@
             <field name="view_type">form</field>
             <field name="view_mode">tree,form</field>
        	</record>
-       	
-       	<menuitem id="buildbot_branch"
-            name="Buildbot Branch" parent="buildbot_menu"
-            sequence="5" action="action_buildbot_branch"/>   
-        
+
+       	<menuitem id="buildbot_branch" name="Buildbot Branch" parent="buildbot_config"
+            	  sequence="5" action="action_buildbot_branch"/>
+
        <!-- Buildbot Environment -->
+
         <record id="view_buildbot_environment_form" model="ir.ui.view">
         	<field name="name">Buildbot Test Environment</field>
             <field name="model">buildbot.test.environment</field>
@@ -110,7 +108,6 @@
             	<form>
             		<field name="name" colspan="2"/>
             		<field name="version" colspan="2"/>
-            		<newline></newline>
             		<field name="revision_id" colspan="2"/>
             		<field name="source_url" colspan="2"/>
             		<separator string="Notes" colspan="4"/>
@@ -118,7 +115,7 @@
             	</form>
         	</field>
         </record>
-        
+
         <record id="action_buildbot_test_env" model="ir.actions.act_window">
         	<field name="name">Buildbot Test Environment</field>
         	<field name="type">ir.actions.act_window</field>
@@ -126,12 +123,12 @@
             <field name="view_type">form</field>
             <field name="view_mode">tree,form</field>
        	</record>
-       	
-       	<menuitem id="buildbot_test_environment"
-            name="Buildbot Test Environment" parent="buildbot_menu"
-            sequence="5" action="action_buildbot_test_env"/>
-       
+
+       	<menuitem id="buildbot_test_environment"  name="Buildbot Test Environment" parent="buildbot_config"
+                  sequence="5" action="action_buildbot_test_env"/>
+
        <!-- Buildbot Tests -->
+
         <record id="view_buildbot_test_form" model="ir.ui.view">
         	<field name="name">Buildbot Tests</field>
             <field name="model">buildbot.test</field>
@@ -139,40 +136,43 @@
             <field name="arch" type="xml">
             	<form>
             		<field name="name" colspan="2"/>
-            		<field name="create_date" colspan="2"/>
+            		<field name="test_date" colspan="2"/>
             		<field name="tested_branch" colspan="2"/>
             		<field name="environment_id" colspan="2"/>
-            		<newline></newline>
             		<separator string="Commit Details" colspan="4"/>
             		<field name="commiter_id" colspan="2"/>
             		<field name="commit_date" colspan="2"/>
             		<field name="commit_rev_id" colspan="2"/>
             		<field name="commit_rev_no" colspan="2"/>
-            		<separator string="New Files" colspan="2"/>
-            		<separator string="Updated Files" colspan="2"/>
-            		<field name="new_files" colspan="2" nolabel="1"/>
-            		<field name="update_files" colspan="2" nolabel="1"/>
-            		<separator string="Removed Files" colspan="2"/>
-            		<separator string="Renamed Files" colspan="2"/>
-            		<field name="remove_files" colspan="2" nolabel="1"/>
-            		<field name="rename_files" colspan="2" nolabel="1"/>
-            		<newline></newline>
-            		<separator string="Test Steps" colspan="4"/>
-            		<field name="test_step_ids" colspan="4" nolabel="1">
-            			<tree>
+            		<notebook colspan="4">
+            			<page string="New Files">
+            				<field name="new_files" nolabel="1"/>
+            			</page>
+            			<page string="Updated Files">
+            				<field name="update_files" nolabel="1"/>
+            			</page>
+            			<page string="Removed Files">
+            				<field name="remove_files" nolabel="1"/>
+            			</page>
+            			<page string="Renamed Files">
+            				<field name="rename_files" nolabel="1"/>
+            			</page>
+            		</notebook>
+            		<field colspan="4" mode="tree,form" name="test_step_ids" nolabel="1" widget="one2many_list">
+            			<tree string="Test Steps">
             				<field name="name"/>
             				<field name="state"/>
             			</tree>
-            			<form>
+            			<form string="Test Steps">
             				<field name="name"/>
             				<field name="state"/>
             			</form>
             		</field>
-            		<field name="state" colspan="2"/>
+					<field name="state"/>
             	</form>
         	</field>
         </record>
-        
+
         <record id="action_buildbot_test" model="ir.actions.act_window">
         	<field name="name">Buildbot Test</field>
         	<field name="type">ir.actions.act_window</field>
@@ -180,13 +180,12 @@
             <field name="view_type">form</field>
             <field name="view_mode">tree,form</field>
        	</record>
-       	
-       	<menuitem id="buildbot_test"
-            name="Buildbot Test" parent="buildbot_menu"
-            sequence="5" action="action_buildbot_test"/>
-            
-       
+
+       	<menuitem id="buildbot_test" name="Buildbot Test" parent="buildbot_test_detail"
+                  sequence="5" action="action_buildbot_test"/>
+
         <!-- Buildbot Test Steps -->
+
         <record id="view_buildbot_test_step_form" model="ir.ui.view">
         	<field name="name">Buildbot Test Step</field>
             <field name="model">buildbot.test.step</field>
@@ -195,28 +194,35 @@
             	<form>
             		<field name="name" colspan="2"/>
             		<field name="test_id" colspan="2"/>
-            		<newline></newline>
-            		<separator string="Logs" colspan="4"/>
-            		<separator string="Error Log" colspan="2"/>
-            		<separator string="Warning Log" colspan="2"/>
-            		<field name="error_log" colspan="2" nolabel="1"/>
-            		<field name="warning_log" colspan="2" nolabel="1"/>
-            		<separator string="Critical Log" colspan="2"/>
-            		<separator string="Info Log" colspan="2"/>
-            		<field name="critical_log" colspan="2" nolabel="1"/>
-            		<field name="info_log" colspan="2" nolabel="1"/>
-            		<separator string="Yml Log" colspan="2"/>
-            		<newline></newline>
-            		<field name="yml_log" colspan="2" nolabel="1"/>
-            		<newline></newline>
-            		<separator string="Traceback" colspan="4"/>
-            		<field name="traceback_detail" nolabel="1" colspan="4"/>
-            		<newline></newline>
+            		<notebook colspan="4">
+            			<page string="Logs">
+            				<notebook colspan="4">
+			            		<page string="Error Log">
+			            			<field name="error_log" colspan="2" nolabel="1"/>
+			            		</page>
+			            		<page string="Warning Log">
+			            			<field name="warning_log" colspan="2" nolabel="1"/>
+			            		</page>
+			            		<page string="Critical Log">
+			            			<field name="critical_log" colspan="2" nolabel="1"/>
+			            		</page>
+			            		<page string="Info Log">
+			            			<field name="info_log" colspan="2" nolabel="1"/>
+			            		</page>
+			            		<page string="Yml Log">
+			            			<field name="yml_log" colspan="2" nolabel="1"/>
+			            		</page>
+			            		<page string="Traceback">
+			            			<field name="traceback_detail" nolabel="1" colspan="4"/>
+			            		</page>
+			            	</notebook>
+			            </page>
+            		</notebook>
             		<field name="state" colspan="2"/>
             	</form>
         	</field>
         </record>
-        
+
         <record id="action_buildbot_test_step" model="ir.actions.act_window">
         	<field name="name">Buildbot Test Step</field>
         	<field name="type">ir.actions.act_window</field>
@@ -224,12 +230,12 @@
             <field name="view_type">form</field>
             <field name="view_mode">tree,form</field>
        	</record>
-       	
-       	<menuitem id="buildbot_test_step"
-            name="Buildbot Test Step" parent="buildbot_menu"
-            sequence="5" action="action_buildbot_test_step"/>    
-            
+
+       	<menuitem id="buildbot_test_step" name="Buildbot Test Step" parent="buildbot_test_detail"
+                  sequence="5" action="action_buildbot_test_step"/>
+
        <!-- Buildbot Schedulers -->
+
         <record id="view_buildbot_scheduler_form" model="ir.ui.view">
         	<field name="name">Buildbot Schedulers</field>
             <field name="model">buildbot.scheduler</field>
@@ -243,7 +249,7 @@
             	</form>
         	</field>
         </record>
-        
+
         <record id="action_buildbot_schedulers" model="ir.actions.act_window">
         	<field name="name">Buildbot Schedulers</field>
         	<field name="type">ir.actions.act_window</field>
@@ -251,12 +257,12 @@
             <field name="view_type">form</field>
             <field name="view_mode">tree,form</field>
        	</record>
-       	
-       	<menuitem id="buildbot_scheduler"
-            name="Buildbot Scheduler" parent="buildbot_menu"
-            sequence="5" action="action_buildbot_schedulers"/>
-            
+
+       	<menuitem id="buildbot_scheduler" name="Buildbot Scheduler" parent="buildbot_schedular_detail"
+                  sequence="5" action="action_buildbot_schedulers"/>
+
        <!-- Buildbot Builders -->
+
         <record id="view_buildbot_builder_form" model="ir.ui.view">
         	<field name="name">Buildbot Builders</field>
             <field name="model">buildbot.builder</field>
@@ -269,7 +275,7 @@
             	</form>
         	</field>
         </record>
-        
+
         <record id="action_buildbot_builders" model="ir.actions.act_window">
         	<field name="name">Buildbot Builders</field>
         	<field name="type">ir.actions.act_window</field>
@@ -277,12 +283,12 @@
             <field name="view_type">form</field>
             <field name="view_mode">tree,form</field>
        	</record>
-       	
-       	<menuitem id="buildbot_builder"
-            name="Buildbot Builder" parent="buildbot_menu"
-            sequence="5" action="action_buildbot_builders"/>
-                    
+
+       	<menuitem id="buildbot_builder" name="Buildbot Builder" parent="buildbot_project_builder"
+                  sequence="5" action="action_buildbot_builders"/>
+
 	<!-- Buildbot Projects -->
+
         <record id="view_buildbot_project_form" model="ir.ui.view">
         	<field name="name">Buildbot Project</field>
             <field name="model">buildbot.lp.project</field>
@@ -291,14 +297,11 @@
             	<form>
             		<field name="name" select="1"/>
             		<field name="url" select="1"/>
-            		<newline/>
             		<field name="tester_server_branch_id" domain="[('is_test_branch', '=', True)]"/>
             		<field name="tester_addons_branch_id" domain="[('is_test_branch', '=', True)]"/>
             		<field name="root_branch_id" domain="[('is_root_branch', '=', True)]"/>
-            		<newline/>
-            		<separator string="Branches" colspan="4"/>
-            		<field name="branch_ids" string="" nolabel="1" colspan="4" domain="[('is_test_branch', '=', False), ('is_root_branch', '=', False)]">
-            		   <tree>
+            		<field name="branch_ids"  nolabel="1" colspan="4" domain="[('is_test_branch', '=', False), ('is_root_branch', '=', False)]">
+            		   <tree string="Branches">
             		    	<field name="name"/>
             				<field name="url"/>
             				<field name="lp_user_id"/>
@@ -307,7 +310,7 @@
 		            		<field name="lastest_rev_no"/>
 		            		<field name="active"/>
             			</tree>
-            		    <form>
+            		    <form string="Branches">
             		    	<field name="name"/>
             				<field name="url"/>
             				<field name="lp_user_id"/>
@@ -320,7 +323,7 @@
             	</form>
         	</field>
         </record>
-        
+
         <record id="action_buildbot_project" model="ir.actions.act_window">
         	<field name="name">Buildbot Projects</field>
         	<field name="type">ir.actions.act_window</field>
@@ -328,9 +331,8 @@
             <field name="view_type">form</field>
             <field name="view_mode">tree,form</field>
        	</record>
-       	
-       	<menuitem id="buildbot_project"
-            name="Buildbot Projects" parent="buildbot_menu"
-            sequence="5" action="action_buildbot_project"/>
+
+       	<menuitem id="buildbot_project" name="Buildbot Project" parent="buildbot_project_builder"
+                  sequence="5" action="action_buildbot_project"/>
 	</data>
 </openerp>
