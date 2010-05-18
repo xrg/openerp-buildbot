@@ -4,9 +4,9 @@ from osv import osv
 class buildbot_lp_group(osv.osv):
     _name = "buildbot.lp.group"
     _columns = {
-                'name': fields.char('Group Name', size=64, required=True),
+                'name': fields.char('Team Name', size=64, required=True),
                 'sequence': fields.integer('Sequence'),
-                'url': fields.char('Group URL', size=128, required=True),
+                'url': fields.char('Team URL', size=128, required=True),
                 }
 buildbot_lp_group()
 
@@ -27,11 +27,17 @@ class buildbot_lp_branch(osv.osv):
                 'lp_group_id': fields.many2one('buildbot.lp.group', 'LP Group'),
                 'lp_user_id': fields.many2one('buildbot.lp.user', 'LP User'),
                 'url': fields.char('Source Url', size=128, required=True),
-                'lastest_rev_id': fields.char('Revision Id', size=128, required=True),
+                'lastest_rev_id': fields.char('Revision Id', size=128),
                 'lastest_rev_no': fields.integer('Revision Number'),
                 'active': fields.boolean('Active'),
                 "is_test_branch": fields.boolean("Test Branch"),
                 "is_root_branch": fields.boolean("Root Branch"),
+                'treestabletimer': fields.integer('Tree Stable Timer'),
+                'build_directory': fields.char('Build Directoy', size=128),
+                'dbname': fields.char('Database Name', size=128),
+                'port':fields.integer('port'),
+                'netport':fields.integer('net-port'),
+
                 }
     _defaults = {
         'active': lambda *a: 1,
@@ -43,9 +49,9 @@ class buildbot_lp_project(osv.osv):
     _columns = {
                 'name': fields.char('Project Name', size=64, required=True),
                 'url': fields.char('Project URL', size=128, required=True),
-                'tester_addons_branch_id': fields.many2one('buildbot.lp.branch', 'Tester Addons Branch'),
-                'tester_server_branch_id': fields.many2one('buildbot.lp.branch', 'Tester Server Branch'),
-                'root_branch_id': fields.many2one('buildbot.lp.branch', 'Root Branch'),
+                'tester_addons_branch_id': fields.many2one('buildbot.lp.branch', 'Tester Addons Branch', required=True),
+                'tester_server_branch_id': fields.many2one('buildbot.lp.branch', 'Tester Server Branch', required=True),
+                'root_branch_id': fields.many2one('buildbot.lp.branch', 'Root Branch', required=True),
                 }
 buildbot_lp_project()
 
@@ -61,7 +67,7 @@ class buildbot_lp_branch(osv.osv):
     _name = "buildbot.lp.branch"
     _inherit = "buildbot.lp.branch"
     _columns = {
-                'lp_project_id': fields.many2one('buildbot.lp.project', 'LP Project'),
+                'lp_project_id': fields.many2one('buildbot.lp.project', 'LP Project', required=True),
                 }
 buildbot_lp_branch()
 
@@ -69,8 +75,8 @@ class buildbot_test_environment(osv.osv):
     _name = "buildbot.test.environment"
     _columns = {
                 'name': fields.char('Name', size=100, required=True),
-                'version': fields.char('Version', size=64, required=True),
-                'revision_id': fields.char('Revision Id', size=64, required=True),
+                'version': fields.char('Version', size=64,),
+                'revision_id': fields.char('Revision Id', size=64,),
                 'source_url': fields.char('Source Url', size=128),
                 'note': fields.text('Note'),
                 }
@@ -86,11 +92,11 @@ class buildbot_test(osv.osv):
 
     _columns = {
               'name': fields.char('Test Name', size=500, required=True),
-              'test_date': fields.datetime('Date of Test'),
-              'tested_branch': fields.many2one('buildbot.lp.branch', 'Branch Tested'),
-              'environment_id': fields.many2one('buildbot.test.environment', 'Test Environment'),
-              'commiter_id': fields.many2one('buildbot.lp.user', 'Branch Committer'),
-              'commit_date': fields.datetime('Date Of Commit'),
+              'test_date': fields.datetime('Date of Test', required=True),
+              'tested_branch': fields.many2one('buildbot.lp.branch', 'Branch', required=True),
+              'environment_id': fields.many2many('buildbot.test.environment','buildbot_test_evironment_rel','test_id','env_id','Test Environment'),
+              'commiter_id': fields.many2one('buildbot.lp.user', 'Branch Committer',required=True),
+              'commit_date': fields.datetime('Date Of Commit', required=True),
               'commit_comment': fields.text('Comment On Commit'),
               'commit_rev_id': fields.char('Revision Id', size=128),
               'commit_rev_no': fields.integer('Revision No.'),
@@ -123,22 +129,3 @@ class buildbot_test_step(osv.osv):
                 'state': fields.function(_get_step_result, method=True, type='char', size=8, string="Step Result"),
         }
 buildbot_test_step()
-
-class buildbot_builder(osv.osv):
-    _name="buildbot.builder"
-    _columns={
-              'name': fields.char('Builder Name', size=200),
-              'build_directory': fields.char('Build Directoy', size=128),
-              'dbname': fields.char('Database Name', size=128),
-              }
-buildbot_builder()
-
-class buildbot_scheduler(osv.osv):
-    _name="buildbot.scheduler"
-    _columns={
-              'name': fields.char('Name of Scheduler', size=128),
-              'change_branch_id': fields.many2one('buildbot.lp.branch', 'Change Branch'),
-              'builder_id': fields.many2one('buildbot.builder', 'Builder'),
-              'treestabletimer': fields.integer('Tree Stable Timer')
-              }
-buildbot_scheduler()
