@@ -42,6 +42,9 @@ class buildbot_lp_branch(osv.osv):
     _defaults = {
         'active': lambda *a: 1,
         }
+    _sql_constraints = [
+        ('dbname_build_dir_uniq', 'unique (dbname, build_directory)', 'The database name and build directory must be unique !')
+    ]
 buildbot_lp_branch()
 
 class buildbot_lp_project(osv.osv):
