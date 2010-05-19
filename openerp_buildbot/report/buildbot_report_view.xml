@@ -2,44 +2,6 @@
 <openerp>
     <data>
 
-	<!-- Buildbot Data -->
-
-<!--        <record id="view_buildbot_data_graph" model="ir.ui.view">-->
-<!--            <field name="name">report.buildbot.data.graph</field>-->
-<!--            <field name="model">report.buildbot.data</field>-->
-<!--            <field name="type">graph</field>-->
-<!--            <field name="arch" type="xml">-->
-<!--                <graph string="Buildbot data" type="bar">-->
-<!--                    <field name="name"/>-->
-<!--                    <field name="balance" operator="+"/>-->
-<!--                </graph>-->
-<!--            </field>-->
-<!--        </record>-->
-        <record id="view_buildbot_data_tree" model="ir.ui.view">
-            <field name="name">report.buildbot.data.tree</field>
-            <field name="model">report.buildbot.data</field>
-            <field name="type">tree</field>
-            <field name="arch" type="xml">
-                <tree string="Buildbot Data">
-                    <field name="testing_br_name"/>
-                    <field name="testing_br_url"/>
-                    <field name="databasename"/>
-                    <field name="builddir"/>
-                    <field name="tester_server_br"/>
-                    <field name="tester_addons_br"/>
-                    <field name="stabletimer"/>
-
-                </tree>
-            </field>
-        </record>
-
-        <record id="action_get_buildbot_data" model="ir.actions.act_window">
-            <field name="name">Buildbot data</field>
-            <field name="res_model">report.buildbot.data</field>
-            <field name="view_type">form</field>
-            <field name="view_mode">tree,form</field>
-        </record>
-        <menuitem id="menu_buildbot_reporting" name="Buildbot Reporting" parent="buildbot_menu"/>
-        <menuitem action="action_get_buildbot_data" id="menu_buildbot_data" parent="menu_buildbot_reporting"/>
+	
     </data>
 </openerp>

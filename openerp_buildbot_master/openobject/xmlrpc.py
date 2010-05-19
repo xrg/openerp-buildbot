@@ -18,6 +18,26 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.     
 #
 ##############################################################################
-import tools
-from osv import fields,osv
+
+import time
+import socket
+import xmlrpclib
+
+waittime = 10
+wait_count = 0
+wait_limit = 12
+
+class buildbot_xmlrpc:
+    def __init__(self, host='localhost', port='8069', dbname='buildbot'):
+        self.host = host
+        self.dbname = dbname
+        self.port = port
+    
+    def execute(self, connection, method, *args): 
+        connection = '/xmlrpc/%s' %(connection)
+        connector = xmlrpclib.ServerProxy("http://%s:%s/%s" %(self.host, self.port, connection))      
+        res = getattr(connector,method)(*args)
+        return res  
+	
+
 
