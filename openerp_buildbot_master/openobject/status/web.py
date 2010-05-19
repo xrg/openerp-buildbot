@@ -37,16 +37,16 @@ baseweb.HEADER = '''
 	<head>
 		<title>OpenERP Integration Server</title>
 		<meta content="text/html; charset=iso-8859-1" http-equiv="Content-Type"/>
-		<meta content="index, follow" name="robots"/>		
-		<link rel="stylesheet" href="%(root)scss/styles.css" type="text/css" />	
+		<meta content="index, follow" name="robots"/>
+		<link rel="stylesheet" href="%(root)scss/styles.css" type="text/css" />
 		<meta content="text/html; charset=utf-8" http-equiv="content-type"/>
 		<link type="%(root)simage/x-icon" rel="shortcut icon" href="%(root)sfavicon.ico"/>
 		<!-- Open Object Css File Start -->
 		<link type="text/css" href="%(root)scss/style.css" rel="stylesheet"/>
 		<link type="text/css" href="%(root)scss/listgrid.css" rel="stylesheet"/>
 		<link type="text/css" href="%(root)scss/dashboard.css" rel="stylesheet"/>
-		
-		
+
+
 		<!-- Open Object Css File End -->
 	</head>
 <body>
@@ -58,7 +58,7 @@ baseweb.HEADER = '''
 				<td width="440" align="right" valign="top">
 					<table id="Table_01" height="35" border="0" cellpadding="0" cellspacing="0">
 					<tr>
-						<td class="greycurveleft" width="23px" height="35px">					    
+						<td class="greycurveleft" width="23px" height="35px">
 						</td>
 						<td width="107" class="headerlinkgrey">
 							<div class="headerlink" align="center"><a href="http://openerp.com"><strong>Open  ERP</strong></a></div>
@@ -89,7 +89,7 @@ baseweb.HEADER = '''
 			  </tr>
 			</table>'''
 
-baseweb.HEAD_ELEMENTS = [    
+baseweb.HEAD_ELEMENTS = [
     '<link href="%(root)sbuildbot.css" rel="stylesheet" type="text/css" />',
     ]
 baseweb.BODY_ATTRS = {}
@@ -100,13 +100,13 @@ baseweb.FOOTER = '''
 					<td valign="top" align="right"><img src="%(root)simages/fourmis.jpg"/></td>
 				</tr>
 			</table>
-			
+
 			<table border="0" width="1004" cellpadding="0" cellspacing="0">
 				<tr height="1">
 					<td width="1004" bgcolor="#D6D6D6"></td>
 				</tr>
 			</table>
-            
+
 			<table border="0" width="1004" cellpadding="5" cellspacing="0">
 				<tr>
 					<td bgcolor="#ffffff">
@@ -124,7 +124,7 @@ baseweb.FOOTER = '''
 '''
 
 class BugGraph(HtmlResource):
-   
+
     title = "Bug Graph"
 
     def content(self, request):
@@ -148,7 +148,7 @@ class BugGraph(HtmlResource):
         datasets=['',[]]
         try:
             fp = open(ROOT_PATH + '/bugs.pck','a+')
-            datasets = pickle.load(fp) 
+            datasets = pickle.load(fp)
             import calendar
             import time
             fromDate = request.args.get('fromDate')[0]
@@ -181,11 +181,11 @@ class LatestBuilds(HtmlResource):
 
         building = False
         online = 0
-        
+
         base_builders_url = self.path_to_root(req) + "builders/"
         all_builders = [html.escape(bn) for bn in builders]
         trunk_builders = [bn for bn in all_builders if bn.startswith('trunk')]
-        stable_builders = [bn for bn in all_builders if bn.startswith('stable')]  
+        stable_builders = [bn for bn in all_builders if bn.startswith('stable')]
         trunk_builders_link = 'waterfall?builder='+'&amp;builder='.join(trunk_builders)
         stable_builders_link = 'waterfall?builder=' + '&amp;builder='.join(stable_builders)
         tr_b = False
@@ -201,7 +201,7 @@ class LatestBuilds(HtmlResource):
                 tr_b = True
                 data += "<tr id='trunk_builds'><td colspan='3'></td>"
                 data += "<tr class='grid-header'><td class='grid-cell'><span>Latest Trunk</span></td><td class='grid-cell'><a href='%s'>Trunk Tests</a></td><td class='grid-cell'><a href='Changelog/trunk'>Changelog</a></td></tr><\n>"[:-3]%(trunk_builders_link)
-                 
+
             base_builder_url = base_builders_url + urllib.quote(bn, safe='')
             builder = status.getBuilder(bn)
             data += "<tr class='grid-row'>\n"
@@ -225,10 +225,10 @@ class LatestBuilds(HtmlResource):
                 data += box.td(class_="grid-cell",align="center")
             else:
                 data += '<td class="grid-cell" align="center">no build</td>\n'
-            current_box = ICurrentBox(builder).getBox(status)            
+            current_box = ICurrentBox(builder).getBox(status)
             data += current_box.td(class_="grid-cell",align="center")
             data+='</tr>'
-            
+
             builder_status = builder.getState()[0]
             if builder_status == "building":
                 building = True
@@ -236,7 +236,7 @@ class LatestBuilds(HtmlResource):
             elif builder_status != "offline":
                 online += 1
 
-        data += "</table></table>\n"        
+        data += "</table></table>\n"
         if control is not None:
             if building:
                 stopURL = "builders/_all/stop"
@@ -250,14 +250,12 @@ class OpenObjectWebStatus(WebStatus):
     def __init__(self, http_port=None, distrib_port=None, allowForce=False):
         WebStatus.__init__(self, http_port=http_port, distrib_port=distrib_port, allowForce=allowForce)
 
-    def setupUsualPages(self, numbuilds=None, num_events=None,
-                             num_events_max=None):
-        WebStatus.setupUsualPages(self, numbuilds=numbuilds, num_events=num_events,
-                             num_events_max=num_events_max)
+    def setupUsualPages(self, *args, **kargs):
+        WebStatus.setupUsualPages(self)
         self.putChild("buggraph", BugGraph())
         self.putChild("latestbuilds", LatestBuilds())
 
-        
+
 
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

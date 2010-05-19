@@ -27,7 +27,7 @@ class buildbot_xmlrpc:
         self.port = port
 
     def execute(self, connection, method, *args):
-        connection = '/xmlrpc/%s' %(connection)
+        connection = 'xmlrpc/%s' %(connection)
         connector = xmlrpclib.ServerProxy("http://%s:%s/%s" %(self.host, self.port, connection))
         res = getattr(connector,method)(*args)
         return res
