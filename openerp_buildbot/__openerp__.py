@@ -11,7 +11,9 @@
     'category': 'Generic Modules/Others',
     'website': 'http://test.openobject.com/',
     "init_xml" : [],
-    "demo_xml" : ['buildbot_demo.xml'],
+    "demo_xml" : [
+                  'demo/buildbot_demo.xml',
+                  'demo/buildbot_tests_demo.xml'],
     "update_xml" : [
                     'buildbot_view.xml',
                     'report/buildbot_report_view.xml'

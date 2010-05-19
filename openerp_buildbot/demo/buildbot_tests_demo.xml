@@ -1,0 +1,159 @@
+<?xml version="1.0" ?>
+<openerp>
+	<data noupdate="1">
+		<record id="buildbot_test_testforucoaddons0" model="buildbot.test">
+			<field eval="1" name="commit_rev_no"/>
+			<field name="commiter_id" ref="openerp_buildbot.buildbot_lp_user_ucoopenerp0"/>
+			<field name="name">Test for uco addons</field>
+			<field name="tested_branch" ref="openerp_buildbot.buildbot_lp_branch_ucodevaddons0"/>
+			<field name="commit_date">2010-05-14 15:32:00</field>
+			<field name="state">pass</field>
+			<field eval="[(6,0,[])]" name="environment_id"/>
+			<field name="test_date">2010-05-19 15:32:00</field>
+		</record>
+	</data>
+	<data noupdate="1">
+		<record id="buildbot_test_testforucoaddons1" model="buildbot.test">
+			<field eval="2" name="commit_rev_no"/>
+			<field name="commiter_id" ref="openerp_buildbot.buildbot_lp_user_ucoopenerp0"/>
+			<field name="name">Test for uco addons</field>
+			<field name="tested_branch" ref="openerp_buildbot.buildbot_lp_branch_ucodevaddons0"/>
+			<field name="commit_date">2010-05-14 15:32:00</field>
+			<field name="state">pass</field>
+			<field eval="[(6,0,[])]" name="environment_id"/>
+			<field name="test_date">2010-05-19 15:32:00</field>
+		</record>
+	</data>
+	<data noupdate="1">
+		<record id="buildbot_test_testforucoaddons2" model="buildbot.test">
+			<field eval="3" name="commit_rev_no"/>
+			<field name="commiter_id" ref="openerp_buildbot.buildbot_lp_user_ucoopenerp0"/>
+			<field name="name">Test for uco addons</field>
+			<field name="tested_branch" ref="openerp_buildbot.buildbot_lp_branch_ucodevaddons0"/>
+			<field name="commit_date">2010-05-14 15:32:00</field>
+			<field name="state">fail</field>
+			<field eval="[(6,0,[])]" name="environment_id"/>
+			<field name="test_date">2010-05-19 15:32:00</field>
+		</record>
+	</data>
+	<data noupdate="1">
+		<record id="buildbot_test_testforucoaddons3" model="buildbot.test">
+			<field eval="4" name="commit_rev_no"/>
+			<field name="commiter_id" ref="openerp_buildbot.buildbot_lp_user_ucoopenerp0"/>
+			<field name="name">Test for uco addons</field>
+			<field name="tested_branch" ref="openerp_buildbot.buildbot_lp_branch_ucodevaddons0"/>
+			<field name="commit_date">2010-05-14 15:32:00</field>
+			<field name="state">pass</field>
+			<field eval="[(6,0,[])]" name="environment_id"/>
+			<field name="test_date">2010-05-19 15:32:00</field>
+		</record>
+	</data>
+	<data noupdate="1">
+		<record id="buildbot_test_testforucoaddons4" model="buildbot.test">
+			<field eval="5" name="commit_rev_no"/>
+			<field name="commiter_id" ref="openerp_buildbot.buildbot_lp_user_ucoopenerp0"/>
+			<field name="name">Test for uco addons</field>
+			<field name="tested_branch" ref="openerp_buildbot.buildbot_lp_branch_ucodevaddons0"/>
+			<field name="commit_date">2010-05-14 15:32:00</field>
+			<field name="state">fail</field>
+			<field eval="[(6,0,[])]" name="environment_id"/>
+			<field name="test_date">2010-05-19 15:32:00</field>
+		</record>
+	</data>
+	<data noupdate="1">
+		<record id="buildbot_test_testforucoaddons5" model="buildbot.test">
+			<field eval="6" name="commit_rev_no"/>
+			<field name="commiter_id" ref="openerp_buildbot.buildbot_lp_user_ucoopenerp0"/>
+			<field name="name">Test for uco addons</field>
+			<field name="tested_branch" ref="openerp_buildbot.buildbot_lp_branch_ucodevaddons0"/>
+			<field name="commit_date">2010-05-14 15:32:00</field>
+			<field name="state">fail</field>
+			<field eval="[(6,0,[])]" name="environment_id"/>
+			<field name="test_date">2010-05-19 15:32:00</field>
+		</record>
+	</data>
+	<data noupdate="1">
+		<record id="buildbot_test_testforucoaddons6" model="buildbot.test">
+			<field eval="7" name="commit_rev_no"/>
+			<field name="commiter_id" ref="openerp_buildbot.buildbot_lp_user_ucoopenerp0"/>
+			<field name="name">Test for uco addons</field>
+			<field name="tested_branch" ref="openerp_buildbot.buildbot_lp_branch_ucodevaddons0"/>
+			<field name="commit_date">2010-05-14 15:32:00</field>
+			<field name="state">pass</field>
+			<field eval="[(6,0,[])]" name="environment_id"/>
+			<field name="test_date">2010-05-19 15:32:00</field>
+		</record>
+	</data>
+	<data noupdate="1">
+		<record id="buildbot_test_testforrgaserver0" model="buildbot.test">
+			<field eval="200" name="commit_rev_no"/>
+			<field name="commiter_id" ref="openerp_buildbot.buildbot_lp_user_rgaopenerp0"/>
+			<field name="name">Test for rga server</field>
+			<field name="tested_branch" ref="openerp_buildbot.buildbot_lp_branch_frameworkrgachangerespartneraddress0"/>
+			<field name="commit_date">2010-05-14 15:32:00</field>
+			<field name="state">fail</field>
+			<field eval="[(6,0,[])]" name="environment_id"/>
+			<field name="test_date">2010-05-19 15:32:00</field>
+		</record>
+	</data>
+	<data noupdate="1">
+		<record id="buildbot_test_testforrgaserver1" model="buildbot.test">
+			<field eval="201" name="commit_rev_no"/>
+			<field name="commiter_id" ref="openerp_buildbot.buildbot_lp_user_rgaopenerp0"/>
+			<field name="name">Test for rga server</field>
+			<field name="tested_branch" ref="openerp_buildbot.buildbot_lp_branch_frameworkrgachangerespartneraddress0"/>
+			<field name="commit_date">2010-05-14 15:32:00</field>
+			<field name="state">pass</field>
+			<field eval="[(6,0,[])]" name="environment_id"/>
+			<field name="test_date">2010-05-19 15:32:00</field>
+		</record>
+	</data>
+	<data noupdate="1">
+		<record id="buildbot_test_testforrgaserver2" model="buildbot.test">
+			<field eval="202" name="commit_rev_no"/>
+			<field name="commiter_id" ref="openerp_buildbot.buildbot_lp_user_rgaopenerp0"/>
+			<field name="name">Test for rga server</field>
+			<field name="tested_branch" ref="openerp_buildbot.buildbot_lp_branch_frameworkrgachangerespartneraddress0"/>
+			<field name="commit_date">2010-05-14 15:32:00</field>
+			<field name="state">fail</field>
+			<field eval="[(6,0,[])]" name="environment_id"/>
+			<field name="test_date">2010-05-19 15:32:00</field>
+		</record>
+	</data>
+	<data noupdate="1">
+		<record id="buildbot_test_testforrgaserver3" model="buildbot.test">
+			<field eval="203" name="commit_rev_no"/>
+			<field name="commiter_id" ref="openerp_buildbot.buildbot_lp_user_rgaopenerp0"/>
+			<field name="name">Test for rga server</field>
+			<field name="tested_branch" ref="openerp_buildbot.buildbot_lp_branch_frameworkrgachangerespartneraddress0"/>
+			<field name="commit_date">2010-05-14 15:32:00</field>
+			<field name="state">fail</field>
+			<field eval="[(6,0,[])]" name="environment_id"/>
+			<field name="test_date">2010-05-19 15:32:00</field>
+		</record>
+	</data>
+	<data noupdate="1">
+		<record id="buildbot_test_testforrgaserver4" model="buildbot.test">
+			<field eval="204" name="commit_rev_no"/>
+			<field name="commiter_id" ref="openerp_buildbot.buildbot_lp_user_rgaopenerp0"/>
+			<field name="name">Test for rga server</field>
+			<field name="tested_branch" ref="openerp_buildbot.buildbot_lp_branch_frameworkrgachangerespartneraddress0"/>
+			<field name="commit_date">2010-05-14 15:32:00</field>
+			<field name="state">pass</field>
+			<field eval="[(6,0,[])]" name="environment_id"/>
+			<field name="test_date">2010-05-19 15:32:00</field>
+		</record>
+	</data>
+	<data noupdate="1">
+		<record id="buildbot_test_testforrgaserver5" model="buildbot.test">
+			<field eval="205" name="commit_rev_no"/>
+			<field name="commiter_id" ref="openerp_buildbot.buildbot_lp_user_rgaopenerp0"/>
+			<field name="name">Test for rga server</field>
+			<field name="tested_branch" ref="openerp_buildbot.buildbot_lp_branch_frameworkrgachangerespartneraddress0"/>
+			<field name="commit_date">2010-05-14 15:32:00</field>
+			<field name="state">fail</field>
+			<field eval="[(6,0,[])]" name="environment_id"/>
+			<field name="test_date">2010-05-19 15:32:00</field>
+		</record>
+	</data>
+</openerp>

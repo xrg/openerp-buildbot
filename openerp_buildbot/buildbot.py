@@ -130,7 +130,7 @@ class buildbot_test(osv.osv):
               'update_files': fields.text('Files Updated'),
               'remove_files': fields.text('Files Removed'),
               'rename_files': fields.text('Files Renamd'),
-              'state': fields.function(_get_test_result, method=True, type='char', size=8, string="Test Result"),
+              'state': fields.function(_get_test_result, method=True, type='char', size=8, string="Test Result", store=True),
               'test_step_ids':fields.one2many('buildbot.test.step', 'test_id', 'Test Steps'),
               }
 buildbot_test()
@@ -152,6 +152,6 @@ class buildbot_test_step(osv.osv):
                 'info_log': fields.text('Info Log'),
                 'yml_log': fields.text('YML-Test Log'),
                 'traceback_detail': fields.text('Traceback'),
-                'state': fields.function(_get_step_result, method=True, type='char', size=8, string="Step Result"),
+                'state': fields.function(_get_step_result, method=True, type='char', size=8, string="Step Result", store=True),
         }
 buildbot_test_step()

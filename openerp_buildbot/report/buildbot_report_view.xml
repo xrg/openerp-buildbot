@@ -1,7 +1,54 @@
 <?xml version="1.0" encoding="utf-8"?>
 <openerp>
     <data>
+    
+    <menuitem id="menu_buildbot_reporting" name="Buildbot Reporting" parent="buildbot_menu"/>
+		<record id="view_branch_test_ratio_tree" model="ir.ui.view">
+            <field name="name">report.buildbot.branch.test.result.ratio.tree</field>
+            <field name="model">report.buildbot.branch.test.result.ratio</field>
+            <field name="type">tree</field>
+            <field name="arch" type="xml">
+                <tree string="Branch Test Ratio">
+                    <field name="name"/>
+                    <field name="success_ratio"/>
+                    <field name="failure_ratio"/>
+                    <field name="total_tests"/>
+                </tree>
+            </field>
+        </record>
 
-	
+        <record id="action_get_branch_test_ratio" model="ir.actions.act_window">
+            <field name="name">Branch Test Ratio</field>
+            <field name="res_model">report.buildbot.branch.test.result.ratio</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+        </record>
+        <menuitem action="action_get_branch_test_ratio" id="menu_branch_test_ratio" parent="menu_buildbot_reporting"/>
+        
+        <record id="view_branch_statistics_tree" model="ir.ui.view">
+            <field name="name">report.branch.test.statistics.tree</field>
+            <field name="model">report.branch.test.statistics</field>
+            <field name="type">tree</field>
+            <field name="arch" type="xml">
+                <tree string="Branch Test Ratio">
+                    <field name="name"/>
+                    <field name="rev4"/>
+                    <field name="rev5"/>
+                    <field name="rev6"/>
+                    <field name="curr_rev"/>
+                    <field name="rev1"/>
+                    <field name="rev2"/>
+                    <field name="rev3"/>
+                </tree>
+            </field>
+        </record>
+
+        <record id="action_get_branch_test_statistics" model="ir.actions.act_window">
+            <field name="name">Branch Test Statistics</field>
+            <field name="res_model">report.branch.test.statistics</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+        </record>
+        <menuitem action="action_get_branch_test_statistics" id="menu_branch_test_statistics" parent="menu_buildbot_reporting"/>
     </data>
-</openerp>
+</openerp>        

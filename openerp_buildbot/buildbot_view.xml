@@ -149,7 +149,19 @@
                   sequence="5" action="action_buildbot_test_env"/>
 
        <!-- Buildbot Tests -->
-
+		
+		<record id="view_buildbot_test_tree" model="ir.ui.view">
+        	<field name="name">Test Details</field>
+            <field name="model">buildbot.test</field>
+            <field name="type">tree</field>
+            <field name="arch" type="xml">
+            	<tree>
+            		<field name="name"/>
+            		<field name="tested_branch"/>
+            		<field name="state"/>
+            	</tree>
+            </field>
+        </record>        
         <record id="view_buildbot_test_form" model="ir.ui.view">
         	<field name="name">Test Details</field>
             <field name="model">buildbot.test</field>
@@ -158,7 +170,7 @@
             	<form>
             		<field name="name" colspan="2"/>
             		<field name="test_date" colspan="2"/>
-            		<field name="tested_branch" colspan="2"/>
+<!--            		<field name="tested_branch" colspan="2"/>-->
             		<notebook colspan="4">
             		<page string="Environment">
             			<field name="environment_id" nolabel="1" colspan="4"/>
