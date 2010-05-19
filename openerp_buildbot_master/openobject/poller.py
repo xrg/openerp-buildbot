@@ -28,6 +28,11 @@ from buildbot.changes.changes import Change
 
 from bzrlib.branch import Branch
 import bzrlib
+from xmlrpc import buildbot_xmlrpc
+
+openerp_host = 'localhost'
+openerp_port = 8069
+openerp_dbname = 'buildbot'
 
 class BzrPoller(service.MultiService, util.ComparableMixin):
     """This source will poll a Bzr repository for changes and submit them to
@@ -69,29 +74,32 @@ class BzrPoller(service.MultiService, util.ComparableMixin):
 
     def describe(self):
         return "BzrPoller watching %s" % self.location
-        
+
     def poll(self):
         log.msg("BzrPoller polling")
-        b = self.branch
         # this is subclass of bzrlib.branch.Branch
-        current_revision = b.revno()
+        current_revision = self.branch.revno()
         if not self.last_revno:
-            self.last_revno = current_revision - 1
+            openerp = buildbot_xmlrpc(host = openerp_host, port = openerp_port, dbname = openerp_dbname)
+            openerp_uid = openerp.execute('common','login',  openerp.dbname, openerp_userid, openerp_userpwd)
+            tested_branch_id = openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.lp.branch','search',[('name','ilike',self.branch)])
+            tested_branch_data = openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.lp.branch','read',tested_branch_id,['lastest_rev_no'])
+            self.last_revno = int(tested_branch_data['lastest_rev_no'])
         # NOTE: b.revision_history() does network IO, and is blocking.
-        revisions = b.revision_history()[self.last_revno:] # each is an id string
+        revisions = self.branch.revision_history()[self.last_revno:] # each is an id string
         changes = []
         for r in revisions:
-            rev = b.repository.get_revision(r)
+            rev = self.branch.repository.get_revision(r)
             revision_id = rev.revision_id
             # bzrlib.revision.Revision
             who = rev.committer
             comments = rev.message
             when = rev.timestamp
             # rev.timezone, interesting. Not sure it's used.
-            revision_delta = b.repository.get_revision_delta(r)            
-            revision= b.revision_id_to_revno(r) #b.get_rev_id()
+            revision_delta = self.branch.repository.get_revision_delta(r)
+            revision= self.branch.revision_id_to_revno(r) #b.get_rev_id()
             branch= self.location #b.get_master_branch()
-            c = OpenObjectChange(  
+            c = OpenObjectChange(
                                    who = rev.committer,
                                    revision_delta = revision_delta,
                                    revision_id = revision_id,
@@ -138,33 +146,33 @@ class OpenObjectChange(Change):
         self.revision_id = revision_id
         files =  self.files_added + self.files_modified + [f[1] for f in self.files_renamed] + self.files_removed
         Change.__init__(self, who=who, files=files, comments=comments, isdir=isdir, links=links,revision=revision, when=when, branch=branch)
-        
+
     def asHTML(self):
         files_added = []
         files_modified = []
         files_renamed = []
-        files_removed = [] 
+        files_removed = []
         files_added_lbl = ''
         files_modified_lbl = ''
         files_renamed_lbl = ''
         files_removed_lbl = ''
-        
+
         revision_id = ''
         if self.revision_id:
             revision_id = "Revision ID: <b>%s</b><br />\n" % self.revision_id
-        
+
         revision = ''
         if self.revision:
-            revision = self.revision            
-        
-            
+            revision = self.revision
+
+
         branch = ""
         branch_link = ''
         if self.branch:
             i = self.branch.index('launchpad')
             branch_link = 'https://bazaar.' + self.branch[i:] + '/revision/' + str(revision) + '#'
             branch = "Branch : <a href='%s'>%s</a><br />\n" % (self.branch,self.branch)
-            
+
         if self.files_added:
             files_added_lbl = "Added files : \n"
             for file in self.files_added:
@@ -186,7 +194,7 @@ class OpenObjectChange(Change):
             for file in self.files_removed:
                 file_link = branch_link + file
                 files_removed.append("<a href='%s'>%s</a>" % (file_link,file))
-        
+
         kwargs = { 'who'     : html.escape(self.who),
                    'at'      : self.getTime(),
                    'files_added'   : files_added_lbl + html.UL(files_added) + '\n',

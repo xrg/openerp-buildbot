@@ -25,6 +25,7 @@ from buildbot.steps.shell import ShellCommand
 from buildbot.process.buildstep import LoggingBuildStep, LoggedRemoteCommand
 from buildbot.status.builder import SUCCESS, FAILURE, WARNINGS
 from sql import db_connection
+from xmlrpc import buildbot_xmlrpc
 
 import pickle
 import os
@@ -37,8 +38,32 @@ try:
     StringIO = cStringIO.StringIO
 except ImportError:
     from StringIO import StringIO
-global test_id   
-DBNAME = 'pap102'
+
+#TODO:We need to get test_id passed from schedular and the following fixed args.
+
+openerp_host = 'localhost'
+openerp_port = 8069
+openerp_dbname = 'buildbot'
+
+def create_test_step_log(summary_object = None, res='SUCCESS'):
+    state = 'pass'
+    summary = summary_object.summary
+    if res == FAILURE:
+        state = 'fail'
+    params={}
+    params['name'] = summary_object.name
+    params['test_id'] = int(test_id)
+    params['warning_log'] = '\n'.join(summary['WARNING'])
+    params['error_log'] = '\n'.join(summary['ERROR'])
+    params['critical_log'] = '\n'.join(summary['CRITICAL'])
+    params['info_log'] = '\n'.join(summary['INFO'])
+    params['yml_log'] = '\n'.join(summary['TEST'])
+    params['traceback_detail'] = '\n'.join(summary['TRACEBACK'])
+    params['state'] = state
+    openerp = buildbot_xmlrpc(host = openerp_host, port = openerp_port, dbname = openerp_dbname)
+    openerp_uid = openerp.execute('common','login',  openerp.dbname, openerp_userid, openerp_userpwd)
+    result_id = openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.test.step','create',params)
+    return result_id
 
 class CreateDB(LoggingBuildStep):
     name = 'create-db'
@@ -55,12 +80,12 @@ class CreateDB(LoggingBuildStep):
             if fail:
                 return ['Creation of db %s Failed!'%(self.dbname)]
          return self.description
-    
+
     def getText(self, cmd, results):
         if results == SUCCESS:
             return self.describe(True, success=True)
         elif results == WARNINGS:
-            return self.describe(True, warn=True) 
+            return self.describe(True, warn=True)
         else:
             return self.describe(True, fail=True)
 
@@ -87,14 +112,14 @@ class CreateDB(LoggingBuildStep):
            self.args['command'].append("demo=%s"%(self.args['demo']))
         if self.args['addonsdir']:
            self.args['command'].append("addons-path=%s"%(self.args['addonsdir']))
-        cmd = LoggedRemoteCommand("shell",self.args)        
+        cmd = LoggedRemoteCommand("shell",self.args)
         self.startCommand(cmd)
 
     def createSummary(self, log):
         data = False
         logs = log.getText()
         buildbotURL = self.build.builder.botmaster.parent.buildbotURL
-        
+
         counts = {}
         summaries = {}
         for m in self.MESSAGES:
@@ -137,38 +162,28 @@ class CreateDB(LoggingBuildStep):
             if not m == 'TRACEBACK':
                 if counts[m]:
                     msg = "".join(summaries[m])
-                    self.addCompleteLog("create-db : %s" % m, msg)    
-                    self.setProperty("create-db : %s" % m, counts[m]) 
-        if sum(counts.values()):       
+                    self.addCompleteLog("create-db : %s" % m, msg)
+                    self.setProperty("create-db : %s" % m, counts[m])
+        if sum(counts.values()):
             self.setProperty("create-db : MessageCount", sum(counts.values()))
 
-
     def evaluateCommand(self, cmd):
-        s=self.summaries
+        res = SUCCESS
         if cmd.rc != 0:
-            state='fail'
-            res=FAILURE
+            res = FAILURE
         else:
             for m in self.flunkingIssues:
                 try:
                     if self.getProperty("create-db : %s" % m):
-                        state='fail'
-                        res=FAILURE
+                        res = FAILURE
                 except:
                     pass
             try:
                 if self.getProperty("create-db : MessageCount"):
-                    state='pass'
-                    res=WARNINGS
+                    res = WARNINGS
             except:
                 pass
-            state='pass'
-            res=SUCCESS
-        global test_id
-        query = """INSERT INTO buildbot_test_step(name, test_id, warning_log, error_log, critical_log, info_log, yml_log, traceback_detail, state)
-        values ('%s', %d, '%s', '%s', '%s', '%s', '%s', '%s', '%s')"""%(self.name, int(test_id), '\n'.join(s['WARNING']), '\n'.join(s['ERROR']), '\n'.join(s['CRITICAL']), '\n'.join(s['INFO']), '\n'.join(s['TEST']), '\n'.join(s['TRACEBACK']), state)
-        db_cn = db_connection(DBNAME)
-        db_cn.execute(query)
+        create_test_step_log(self, res)
         return res
 
 class DropDB(LoggingBuildStep):
@@ -188,9 +203,9 @@ class DropDB(LoggingBuildStep):
         if results == SUCCESS:
             return self.describe(True, success=True)
         elif results == WARNINGS:
-            return self.describe(True, warn=True) 
+            return self.describe(True, warn=True)
         else:
-            return self.describe(True, fail=True) 
+            return self.describe(True, fail=True)
 
     def __init__(self, dbname='test',workdir=None,port=8869,netport=8971,**kwargs):
         LoggingBuildStep.__init__(self, **kwargs)
@@ -209,13 +224,15 @@ class DropDB(LoggingBuildStep):
            self.args['command'].append("port=%s"%(self.args['port']))
         if self.args['netport']:
            self.args['command'].append("net_port=%s"%(self.args['netport']))
-        cmd = LoggedRemoteCommand("shell",self.args)        
+        cmd = LoggedRemoteCommand("shell",self.args)
         self.startCommand(cmd)
 
     def evaluateCommand(self, cmd):
+        res = SUCESS
         if cmd.rc != 0:
-            return FAILURE
-        return SUCCESS
+            res = FAILURE
+        create_test_step_log(self, res)
+        return res
 
 class CheckQuality(LoggingBuildStep):
     name = 'check-quality'
@@ -235,14 +252,14 @@ class CheckQuality(LoggingBuildStep):
                     return ['Module failed to reach minimum quality score!']
                 return ['Check quality Failed !']
         return self.description
-    
+
     def getText(self, cmd, results):
         if results == SUCCESS:
             return self.describe(True, success=True)
         elif results == WARNINGS:
-            return self.describe(True, warn=True) 
+            return self.describe(True, warn=True)
         else:
-            return self.describe(True, fail=True) 
+            return self.describe(True, fail=True)
 
     def __init__(self, dbname='test',workdir=None,addonsdir=None,netport=8972, port=8869 ,**kwargs):
         LoggingBuildStep.__init__(self, **kwargs)
@@ -262,17 +279,17 @@ class CheckQuality(LoggingBuildStep):
         for change in s.changes:
             files = (
                      change.files_added +
-                     change.files_modified + 
+                     change.files_modified +
                      [f[1] for f in change.files_renamed]
                      )
-            for f in files: 
+            for f in files:
                 module = f.split('/')[0]
-                if module in ignore_module_list: 
+                if module in ignore_module_list:
                     continue
                 if module not in modules:
                     modules.append(str(module))
                     self.logfiles['Quality Log - %s'%module] = ('%s/%s.html'%(quality_logs,module))
-        
+
         self.args['modules'] = ','.join(modules)
         self.args['logfiles'] = self.logfiles
         if self.args['modules']:
@@ -294,12 +311,12 @@ class CheckQuality(LoggingBuildStep):
         else:
             cmd = LoggedRemoteCommand("dummy", self.args)
             self.startCommand(cmd)
-    
+
     def createSummary(self, log):
         data = False
         logs = log.getText()
         buildbotURL = self.build.builder.botmaster.parent.buildbotURL
-        
+
         counts = {}
         summaries = {}
         for m in self.MESSAGES:
@@ -338,43 +355,34 @@ class CheckQuality(LoggingBuildStep):
             summaries[m].append(line)
             counts[m] += 1
         self.summaries = summaries
-        
+
         for m in self.MESSAGES:
             if not m == 'TRACEBACK':
                 if counts[m]:
                     msg = "".join(summaries[m])
-                    self.addCompleteLog("Check-Quality : %s" % m, msg)    
-                    self.setProperty("Check-Quality : %s" % m, counts[m]) 
-        if sum(counts.values()):       
+                    self.addCompleteLog("Check-Quality : %s" % m, msg)
+                    self.setProperty("Check-Quality : %s" % m, counts[m])
+        if sum(counts.values()):
             self.setProperty("Check-Quality : MessageCount", sum(counts.values()))
 
 
     def evaluateCommand(self, cmd):
-        s=self.summaries
+        res = SUCCESS
         if cmd.rc != 0:
-            state='fail'
-            res=FAILURE
+            res = FAILURE
         else:
             for m in self.flunkingIssues:
                 try:
                     if self.getProperty("Check-Quality : %s" % m):
-                        state='fail'
-                        res=FAILURE
+                        res = FAILURE
                 except:
                     pass
             try:
                 if self.getProperty("Check-Quality : MessageCount"):
-                    state='pass'
-                    res=WARNINGS
+                    res = WARNINGS
             except:
                 pass
-            state='pass'
-            res=SUCCESS
-        global test_id
-        query = """INSERT INTO buildbot_test_step(name, test_id, warning_log, error_log, critical_log, info_log, yml_log, traceback_detail, state)
-        values ('%s', %d, '%s', '%s', '%s', '%s', '%s', '%s', '%s')"""%(self.name, int(test_id), '\n'.join(s['WARNING']), '\n'.join(s['ERROR']), '\n'.join(s['CRITICAL']), '\n'.join(s['INFO']), '\n'.join(s['TEST']), '\n'.join(s['TRACEBACK']), state)
-        db_cn = db_connection(DBNAME)
-        db_cn.execute(query)
+        create_test_step_log(self, res)
         return res
 
 class Copy(LoggingBuildStep):
@@ -401,10 +409,13 @@ class Copy(LoggingBuildStep):
         s = self.build.getSourceStamp()
         cmd = LoggedRemoteCommand("copy", self.args)
         self.startCommand(cmd)
+
     def evaluateCommand(self, cmd):
+        res = FAILURE
         if (cmd.rc == 0) or (cmd.rc == 1):
-            return SUCCESS
-        return FAILURE
+            res = SUCCESS
+        create_test_step_log(self, res)
+        return res
 
 class InstallTranslation(LoggingBuildStep):
     name = 'install-translation'
@@ -426,9 +437,9 @@ class InstallTranslation(LoggingBuildStep):
         if results == SUCCESS:
             return self.describe(True, success=True)
         elif results == WARNINGS:
-            return self.describe(True, warn=True) 
+            return self.describe(True, warn=True)
         else:
-            return self.describe(True, fail=True) 
+            return self.describe(True, fail=True)
 
     def __init__(self,workdir=None, addonsdir=None,dbname=False,port=8869, netport=8973, **kwargs):
         LoggingBuildStep.__init__(self, **kwargs)
@@ -450,7 +461,7 @@ class InstallTranslation(LoggingBuildStep):
         for change in s.changes:
             files = (
                      change.files_added +
-                     change.files_modified + 
+                     change.files_modified +
                      [f[1] for f in change.files_renamed]
                      )
             for f in files:
@@ -463,25 +474,25 @@ class InstallTranslation(LoggingBuildStep):
                     if modName not in self.pofiles:
                         self.pofiles[modName] = []
                     self.pofiles[modName].append(mod_lst[-1])
-                   
-                        
+
+
         if len(self.pofiles):
             commands = []
-            commands = ["make","install-translation"]        
+            commands = ["make","install-translation"]
 
             if self.args['addonsdir']:
-                commands.append("addons-path=%s"%(self.args['addonsdir']))            
+                commands.append("addons-path=%s"%(self.args['addonsdir']))
             if self.args['port']:
                 commands.append("port=%s"%(self.args['port']))
             if self.args['netport']:
                 commands.append("net_port=%s"%(self.args['netport']))
             if self.args['dbname']:
-                commands.append("database=%s"%(self.args['dbname']))            
+                commands.append("database=%s"%(self.args['dbname']))
             self.args['command'] = commands
 
             buildbotURL = self.build.builder.botmaster.parent.buildbotURL
 
-            i18n_str = ''    
+            i18n_str = ''
 
             for module,files in self.pofiles.items():
                 i18n_str += module + ':'+','.join(files) + '+'
@@ -491,7 +502,7 @@ class InstallTranslation(LoggingBuildStep):
             self.args['command'].append("i18n-import=%s"%(i18n_str[:-1]))
             cmd = LoggedRemoteCommand("shell",self.args)
             self.startCommand(cmd)
-        else:           
+        else:
             cmd = LoggedRemoteCommand("dummy", self.args)
             self.startCommand(cmd)
 
@@ -523,7 +534,7 @@ class InstallTranslation(LoggingBuildStep):
                 summaries[m].append(traceback_log)
                 counts[m] += 1
                 break;
-                    
+
             elif line.find("INFO:") != -1:
                 pos = line.find("INFO") + len("INFO") + 5
                 m = "INFO"
@@ -543,42 +554,33 @@ class InstallTranslation(LoggingBuildStep):
             summaries[m].append(line)
             counts[m] += 1
         self.summaries = summaries
-        
+
         for m in self.MESSAGES:
             if not m == 'TRACEBACK':
                 if counts[m]:
                     msg = "".join(summaries[m])
-                    self.addCompleteLog("Install-Translation : %s" % m, msg)    
-                    self.setProperty("Install-Translation : %s" % m, counts[m]) 
-        if sum(counts.values()):       
+                    self.addCompleteLog("Install-Translation : %s" % m, msg)
+                    self.setProperty("Install-Translation : %s" % m, counts[m])
+        if sum(counts.values()):
             self.setProperty("Install-Translation : MessageCount", sum(counts.values()))
 
     def evaluateCommand(self, cmd):
-        s=self.summaries
+        res = SUCCESS
         if cmd.rc != 0:
-            state='fail'
-            res=FAILURE
+            res = FAILURE
         else:
             for m in self.flunkingIssues:
                 try:
                     if self.getProperty("Install-Translation : %s" % m):
-                        state='fail'
-                        res=FAILURE
+                        res = FAILURE
                 except:
                     pass
             try:
                 if self.getProperty("Install-Translation : MessageCount"):
-                    state='pass'
-                    res=WARNINGS
+                    res = WARNINGS
             except:
                 pass
-            state='pass'
-            res=SUCCESS
-        global test_id
-        query = """INSERT INTO buildbot_test_step(name, test_id, warning_log, error_log, critical_log, info_log, yml_log, traceback_detail, state)
-        values ('%s', %d, '%s', '%s', '%s', '%s', '%s', '%s', '%s')"""%(self.name, int(test_id), '\n'.join(s['WARNING']), '\n'.join(s['ERROR']), '\n'.join(s['CRITICAL']), '\n'.join(s['INFO']), '\n'.join(s['TEST']), '\n'.join(s['TRACEBACK']), state)
-        db_cn = db_connection(DBNAME)
-        db_cn.execute(query)
+        create_test_step_log(self, res)
         return res
 
 
@@ -602,10 +604,10 @@ class InstallModule(LoggingBuildStep):
         if results == SUCCESS:
             return self.describe(True, success=True)
         elif results == WARNINGS:
-            return self.describe(True, warn=True) 
+            return self.describe(True, warn=True)
         else:
             return self.describe(True, fail=True)
- 
+
     def __init__(self,workdir=None, addonsdir=None, modules='',extra_addons='', dbname=False,port=8869, netport=8974, **kwargs):
         LoggingBuildStep.__init__(self, **kwargs)
         self.addFactoryArguments(workdir=workdir,addonsdir=addonsdir,extra_addons=extra_addons,modules=modules, dbname=dbname, port=port, netport=netport)
@@ -632,7 +634,7 @@ class InstallModule(LoggingBuildStep):
                 if module not in modules:
                     modules.append(module)
         if len(modules):
-            self.args['modules'] += ','.join(modules)  
+            self.args['modules'] += ','.join(modules)
         buildbotURL = self.build.builder.botmaster.parent.buildbotURL
         self.description += self.args['modules'].split(',') + ["on Server","%s:%s"%(buildbotURL[:-1],self.args['port'])]
         if self.args['modules']:
@@ -654,7 +656,7 @@ class InstallModule(LoggingBuildStep):
         else:
             cmd = LoggedRemoteCommand("dummy", self.args)
             self.startCommand(cmd)
-    
+
     def createSummary(self, log):
         counts = {}
         summaries = {}
@@ -685,7 +687,7 @@ class InstallModule(LoggingBuildStep):
             elif line.find("INFO") != -1:
                 pos = line.find("INFO") + len("INFO") + 5
                 m = "INFO"
-                #continue                
+                #continue
             elif line.find("CRITICAL") != -1:
                 m = "CRITICAL"
                 pos = line.find("CRITICAL") + len("CRITICAL") + 5
@@ -701,52 +703,33 @@ class InstallModule(LoggingBuildStep):
             summaries[m].append(line)
             counts[m] += 1
         self.summaries = summaries
-        
+
         for m in self.MESSAGES:
             if not m == 'TRACEBACK':
                 if counts[m]:
                     msg = "".join(summaries[m])
-                    self.addCompleteLog("Install-Module : %s" % m, msg)    
-                    self.setProperty("Install-Module : %s" % m, counts[m]) 
+                    self.addCompleteLog("Install-Module : %s" % m, msg)
+                    self.setProperty("Install-Module : %s" % m, counts[m])
         if sum(counts.values()):
             self.setProperty("Install-Module : MessageCount", sum(counts.values()))
 
     def evaluateCommand(self, cmd):
-        s=self.summaries
+        res = SUCCESS
         if cmd.rc != 0:
-            state='fail'
-            res=FAILURE
+            res = FAILURE
         else:
             for m in self.flunkingIssues:
                 try:
                     if self.getProperty("Install-Module : %s" % m):
-                        state='fail'
-                        res=FAILURE
+                        res = FAILURE
                 except:
                     pass
             try:
                 if self.getProperty("Install-Module : MessageCount"):
-                    state='pass'
-                    res=WARNINGS
+                    res = WARNINGS
             except:
                 pass
-            state='pass'
-            res=SUCCESS
-        global test_id
-        query = """INSERT INTO buildbot_test_step(name, test_id, warning_log, error_log, critical_log, info_log, yml_log, traceback_detail, state)
-        values (%(name)s, %(test_id)s, %(warning_log)s, %(error_log)s, %(critical_log)s, %(info_log)s, %(yml_log)s, %(traceback_detail)s, %(state)s)"""
-        params={}
-        params['name']=self.name
-        params['test_id']=int(test_id)
-        params['warning_log']='\n'.join(s['WARNING'])
-        params['error_log']='\n'.join(s['ERROR'])
-        params['critical_log']='\n'.join(s['CRITICAL'])
-        params['info_log']='\n'.join(s['INFO'])
-        params['yml_log']='\n'.join(s['TEST'])
-        params['traceback_detail']='\n'.join(s['TRACEBACK'])
-        params['state']=state
-        db_cn = db_connection(DBNAME)
-        db_cn.executemany(query, (params, ))
+        create_test_step_log(self, res)
         return res
 
 
@@ -774,7 +757,7 @@ class OpenObjectBzr(Bzr):
             self.args['repourl'] = self.repourl
         else:
             self.args['repourl'] = self.baseURL + self.branch # self.baseURL + branch
-        
+
         if  self.args['repourl'] == branch:
             self.args['revision'] = revision
         else:
@@ -786,7 +769,7 @@ class OpenObjectBzr(Bzr):
         self.descriptionDone.extend(revstuff)
         cmd = LoggedRemoteCommand("openobjectbzr", self.args)
         self.startCommand(cmd)
-        
+
 class OpenObjectSVN(SVN):
     flunkOnFailure = False
     haltOnFailure = True
@@ -798,7 +781,7 @@ class OpenObjectSVN(SVN):
         self.name = 'svn-update'
         self.description = ["updating", "branch %s%s"%(baseURL,defaultBranch)]
         self.descriptionDone = ["updated", "branch %s%s"%(baseURL,defaultBranch)]
-    
+
     def startVC(self, branch, revision, patch):
         svnurl = self.baseURL + self.branch
         if  svnurl == branch:
@@ -807,9 +790,9 @@ class OpenObjectSVN(SVN):
             revision= None
             patch=None
         branch = self.branch
-        SVN.startVC(self,self.branch, revision, patch)   
-            
-# Following Step are used in Migration builder        
+        SVN.startVC(self,self.branch, revision, patch)
+
+# Following Step are used in Migration builder
 class StartServer(LoggingBuildStep):
     name = 'start_server'
     flunkOnFailure = False
@@ -822,14 +805,14 @@ class StartServer(LoggingBuildStep):
             if fail:
                 return ['Server Failed!']
          return self.description
-    
+
     def getText(self, cmd, results):
         if results == SUCCESS:
             return self.describe(True, success=True)
         elif results == WARNINGS:
-            return self.describe(True, warn=True) 
+            return self.describe(True, warn=True)
         else:
-            return self.describe(True, fail=True) 
+            return self.describe(True, fail=True)
 
 
     def __init__(self, dbname='test',workdir=None, addonsdir=None, demo=True, lang='en_US', port=8869, netport=8975,**kwargs):
@@ -855,27 +838,27 @@ class StartServer(LoggingBuildStep):
         self.args['modules'] = ','.join(modules)
         commands = ['python','bin/openerp-server.py']
         if self.args['addonsdir']:
-            commands.append("--addons-path=%s"%(self.args['addonsdir']))            
+            commands.append("--addons-path=%s"%(self.args['addonsdir']))
         if self.args['port']:
             commands.append("--port=%s"%(self.args['port']))
         if self.args['netport']:
            self.args['netport'].append("--net_port=%s"%(self.args['netport']))
         if self.args['dbname']:
-            commands.append("--database=%s"%(self.args['dbname']))     
+            commands.append("--database=%s"%(self.args['dbname']))
         commands.append("--update=%s"%(self.args['modules']))
         commands.append("--stop-after-init")
-                        
+
         self.args['command'] = commands
 
         cmd = LoggedRemoteCommand("shell",self.args)
         self.startCommand(cmd)
-        
+
 
 class CreateDB2(CreateDB):
     def start(self):
         cmd = LoggedRemoteCommand("create-db",self.args)
         self.startCommand(cmd)
-        
+
 class InstallModule2(InstallModule):
     def start(self):
         s = self.build.getSourceStamp()
@@ -892,74 +875,9 @@ class InstallModule2(InstallModule):
                         if module not in ('README.txt'):
                             modules.append(module)
                 except:
-                    pass                
+                    pass
         self.args['modules'] += ','.join(modules)
         cmd = LoggedRemoteCommand("install-module",self.args)
         self.startCommand(cmd)
-        
-class MakeOpenERPTest(LoggingBuildStep):
-    name = 'make-test'
-    flunkOnFailure = False
-    haltOnFailure = False
-    flunkingIssues = ["ERROR","CRITICAL"]
-    MESSAGES = ("ERROR", "CRITICAL", "WARNING")
-    def describe(self, done=False,success=False,warn=False,fail=False):
-         if done:
-            if success:
-                return ['Created test Sucessfully!']
-            if warn:
-                return ['Created test with Warnings!']
-            if fail:
-                return ['Creation test Failed!']
-         return self.description
-    
-    def getText(self, cmd, results):
-        if results == SUCCESS:
-            return self.describe(True, success=True)
-        elif results == WARNINGS:
-            return self.describe(True, warn=True) 
-        else:
-            return self.describe(True, fail=True)
 
-
-    def __init__(self, change_branch_id=None, change_branch=None, **kwargs):
-        LoggingBuildStep.__init__(self, **kwargs)
-        self.addFactoryArguments(change_branch=change_branch, change_branch_id=change_branch_id)
-        self.args = {'change_branch': change_branch, 'change_branch_id': change_branch_id}
-        self.change_branch = change_branch
-        self.change_branch_id = change_branch_id
-        # Compute defaults for descriptions:
-        description = ["creating test"]
-        self.description = description
-
-    def start(self):
-        s = self.build.getSourceStamp()
-        changes = s.changes
-        from datetime import datetime
-        for ch in changes:
-            if ch.branch != self.change_branch[1]:
-                continue
-            else:
-               res={}
-               res['name'] = "Test for branch %s"%self.change_branch[0]
-               res['tested_branch'] = int(self.change_branch_id)
-               res['create_date'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-               res['commit_date']=datetime.fromtimestamp(ch.when).strftime('%Y-%m-%d %H:%M:%S')
-               res['commit_comment'] = str(ch.comments)
-               res['commit_rev_id'] = str(ch.revision_id)
-               res['commit_rev_no'] = int(ch.revision)
-               res['new_files'] = '\n'.join(ch.files_added)
-               res['update_files'] = '\n'.join(ch.files_modified)
-               renamed_files = ['%s --> %s'%(f[0], f[1]) for f in ch.files_renamed]
-               res['rename_files'] = '\n'.join(renamed_files)
-               res['remove_files'] = '\n'.join(ch.files_removed)
-               query = """INSERT INTO buildbot_test(name,tested_branch,create_date,commit_date,commit_comment,commit_rev_id,commit_rev_no, new_files, update_files, rename_files, remove_files) VALUES (%(name)s, %(tested_branch)s, %(create_date)s, %(commit_date)s, %(commit_comment)s, %(commit_rev_id)s, %(commit_rev_no)s, %(new_files)s, %(update_files)s, %(rename_files)s, %(remove_files)s)"""                
-               db_cn = db_connection(DBNAME)
-               global test_id
-               test_id=db_cn.executemany(query, (res,))
-               query = """Update buildbot_lp_branch set lastest_rev_id = %(commit_rev_id)s, lastest_rev_no=%(commit_rev_no)s where id=%(tested_branch)s"""
-               db_cn = db_connection(DBNAME)
-               db_cn.executemany(query, (res,))
-        cmd = LoggedRemoteCommand("dummy",self.args)
-        self.startCommand(cmd)
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
