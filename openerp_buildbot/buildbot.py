@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 ##############################################################################
-#    
+#
 #    OpenERP, Open Source Management Solution
 #    Copyright (C) 2004-2009 Tiny SPRL (<http://tiny.be>).
 #
@@ -15,7 +15,7 @@
 #    GNU Affero General Public License for more details.
 #
 #    You should have received a copy of the GNU Affero General Public License
-#    along with this program.  If not, see <http://www.gnu.org/licenses/>.     
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ##############################################################################
 from osv import fields
@@ -57,10 +57,6 @@ class buildbot_lp_branch(osv.osv):
                 'dbname': fields.char('Database Name', size=128),
                 'port':fields.integer('port'),
                 'netport':fields.integer('net-port'),
-                'test_server_branch_name': fields.relate,
-                'test_server_branch_url' : fields.relate,                
-                'test_addons_branch_name': fields.relate,
-                'test_addons_branch_url' : fields.relate,                
                 }
     _defaults = {
         'active': lambda *a: 1,
@@ -94,6 +90,10 @@ class buildbot_lp_branch(osv.osv):
     _inherit = "buildbot.lp.branch"
     _columns = {
                 'lp_project_id': fields.many2one('buildbot.lp.project', 'LP Project',),
+                'test_server_branch_name': fields.related('lp_project_id','tester_server_branch_id','name',type='char', relation='buildbot.lp.project', string='Tester Server Branch'),
+                'test_server_branch_url' : fields.related('lp_project_id','tester_server_branch_id','url',type='char', relation='buildbot.lp.project', string='Tester Server Url'),
+                'test_addons_branch_name': fields.related('lp_project_id','tester_addons_branch_id','name',type='char', relation='buildbot.lp.project', string='Tester Addons Branch'),
+                'test_addons_branch_url' : fields.related('lp_project_id','tester_addons_branch_id','url',type='char', relation='buildbot.lp.project', string='Tester Addons Url'),
                 }
 buildbot_lp_branch()
 

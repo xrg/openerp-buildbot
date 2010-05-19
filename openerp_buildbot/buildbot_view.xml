@@ -69,9 +69,9 @@
             <field name="type">form</field>
             <field name="arch" type="xml">
             	<form>
-        					<field name="name"/>
-        					<field name="url" widget="url"/>
-        			<group colspan="4" col="8">
+					<field name="name"/>
+    				<field name="url" widget="url"/>
+        			 <group colspan="4" col="8">
         				<group colspan="4">
        						<field name="lp_project_id" colspan="2"/>
        					</group>
