@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 ##############################################################################
-#    
+#
 #    OpenERP, Open Source Management Solution
 #    Copyright (C) 2004-2009 Tiny SPRL (<http://tiny.be>).
 #
@@ -15,29 +15,22 @@
 #    GNU Affero General Public License for more details.
 #
 #    You should have received a copy of the GNU Affero General Public License
-#    along with this program.  If not, see <http://www.gnu.org/licenses/>.     
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ##############################################################################
-
-import time
-import socket
 import xmlrpclib
-
-waittime = 10
-wait_count = 0
-wait_limit = 12
 
 class buildbot_xmlrpc:
     def __init__(self, host='localhost', port='8069', dbname='buildbot'):
         self.host = host
         self.dbname = dbname
         self.port = port
-    
-    def execute(self, connection, method, *args): 
+
+    def execute(self, connection, method, *args):
         connection = '/xmlrpc/%s' %(connection)
-        connector = xmlrpclib.ServerProxy("http://%s:%s/%s" %(self.host, self.port, connection))      
+        connector = xmlrpclib.ServerProxy("http://%s:%s/%s" %(self.host, self.port, connection))
         res = getattr(connector,method)(*args)
-        return res  
-	
+        return res
+
 
 
