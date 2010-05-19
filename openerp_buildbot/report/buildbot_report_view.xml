@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <openerp>
     <data>
-    
+
 	<!-- Buildbot Data -->
 
 <!--        <record id="view_buildbot_data_graph" model="ir.ui.view">-->
@@ -23,14 +23,12 @@
                 <tree string="Buildbot Data">
                     <field name="testing_br_name"/>
                     <field name="testing_br_url"/>
-                    <field name="sh_name"/>
-                    <field name="bd_name"/>
-                    <field name="dbname"/>
+                    <field name="databasename"/>
                     <field name="builddir"/>
                     <field name="tester_server_br"/>
                     <field name="tester_addons_br"/>
-                    <field name="treestabletimer"/>
-                    <field name="dbname"/>                    
+                    <field name="stabletimer"/>
+
                 </tree>
             </field>
         </record>
@@ -44,4 +42,4 @@
         <menuitem id="menu_buildbot_reporting" name="Buildbot Reporting" parent="buildbot_menu"/>
         <menuitem action="action_get_buildbot_data" id="menu_buildbot_data" parent="menu_buildbot_reporting"/>
     </data>
-</openerp>        
+</openerp>

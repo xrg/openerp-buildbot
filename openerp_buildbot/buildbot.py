@@ -70,7 +70,7 @@ class buildbot_lp_branch(osv.osv):
     _name = "buildbot.lp.branch"
     _inherit = "buildbot.lp.branch"
     _columns = {
-                'lp_project_id': fields.many2one('buildbot.lp.project', 'LP Project', required=True),
+                'lp_project_id': fields.many2one('buildbot.lp.project', 'LP Project',),
                 }
 buildbot_lp_branch()
 
