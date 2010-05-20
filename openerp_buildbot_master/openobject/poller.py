@@ -33,6 +33,8 @@ from xmlrpc import buildbot_xmlrpc
 openerp_host = 'localhost'
 openerp_port = 8069
 openerp_dbname = 'buildbot'
+openerp_userid = 'admin'
+openerp_userpwd = 'a'
 
 class BzrPoller(service.MultiService, util.ComparableMixin):
     """This source will poll a Bzr repository for changes and submit them to
@@ -82,7 +84,9 @@ class BzrPoller(service.MultiService, util.ComparableMixin):
         if not self.last_revno:
             openerp = buildbot_xmlrpc(host = openerp_host, port = openerp_port, dbname = openerp_dbname)
             openerp_uid = openerp.execute('common','login',  openerp.dbname, openerp_userid, openerp_userpwd)
-            tested_branch_id = openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.lp.branch','search',[('name','ilike',self.branch)])
+            args = [('url','ilike',self.location),('is_test_branch','=',False),('is_root_branch','=',False)]
+            tested_branch_ids = openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.lp.branch','search', args)
+            tested_branch_id = tested_branch_ids[0]
             tested_branch_data = openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.lp.branch','read',tested_branch_id,['lastest_rev_no'])
             self.last_revno = int(tested_branch_data['lastest_rev_no'])
         # NOTE: b.revision_history() does network IO, and is blocking.

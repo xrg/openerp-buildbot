@@ -25,20 +25,36 @@ from sourcestamp import OpenObjectSourceStamp
 from buildbot import buildset
 from xmlrpc import buildbot_xmlrpc
 from datetime import datetime
+import binascii
 
 openerp_host = 'localhost'
 openerp_port = 8069
 openerp_dbname = 'buildbot'
+openerp_userid = 'admin'
+openerp_userpwd = 'a'
 
-def create_test_log(change):
+def create_test_log(source):
+    change = source.changes and source.changes[0] or False
+    if not change:
+        return False
     openerp = buildbot_xmlrpc(host = openerp_host, port = openerp_port, dbname = openerp_dbname)
     openerp_uid = openerp.execute('common','login',  openerp.dbname, openerp_userid, openerp_userpwd)
-    tested_branch_id = openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.lp.branch','search',[('name','ilike',change.branch)])
+    args = [('url','ilike',change.branch),('is_test_branch','=',False),('is_root_branch','=',False)]
+    tested_branch_ids = openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.lp.branch','search',args)
+    tested_branch_id = tested_branch_ids[0]
+
     res = {}
-    res['name'] = "Tested for branch: %s"%change.branch
     res['tested_branch'] = tested_branch_id or False
     res['test_date'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     res['commit_date'] = datetime.fromtimestamp(change.when).strftime('%Y-%m-%d %H:%M:%S')
+    lp_user_id = openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.lp.user','search', [('name','ilike',change.who)])
+    if lp_user_id:
+        lp_user_id = lp_user_id[0]
+    else:
+         lp_email = str(change.revision_id).split('-')[0]
+         res_lp_user = {'name':change.who,'lp_email':lp_email}
+         lp_user_id = openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.lp.user', 'create', res_lp_user)
+    res['commiter_id'] =  lp_user_id
     res['commit_comment'] = str(change.comments)
     res['commit_rev_id'] = str(change.revision_id)
     res['commit_rev_no'] = int(change.revision)
@@ -52,7 +68,30 @@ def create_test_log(change):
     openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.lp.branch', 'write',
                     [tested_branch_id],{'lastest_rev_no':change.revision,
                                         'lastest_rev_id':change.revision_id})
+    ## Add patch as attachment
+    if source.patch:
+     for patch in source.patch or []:
+        data_attach = {
+            'name': str(change.revision_id)+'.patch',
+            'datas':binascii.b2a_base64(str(source.patch.get(patch))),
+            'datas_fname': patch,
+            'description': 'Patch attachment',
+            'res_model': 'buildbot.test',
+            'res_id': result_id,
+        }
+        openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'ir.attachment', 'create', data_attach)
     return result_id
+
+class OpenObjectBuildset(buildset.BuildSet):
+    def start(self, builders):
+        res = buildset.BuildSet.start(self, builders)
+        for builder in builders:
+             if not hasattr(builder, 'test_ids'):
+                 builder.test_ids = {}
+             openerp_test_id = create_test_log(self.source)
+             if self.source.revision not in builder.test_ids:
+                 builder.test_ids[self.source.revision] = openerp_test_id
+        return res
 
 class OpenObjectScheduler(Scheduler):
     def __init__(self, name, branch, treeStableTimer, builderNames,
@@ -68,10 +107,9 @@ class OpenObjectScheduler(Scheduler):
         self.unimportantChanges = []
         # create a BuildSet, submit it to the BuildMaster
         for change in changes:
-            bs = buildset.BuildSet(self.builderNames,
+            bs = OpenObjectBuildset(self.builderNames,
                                    OpenObjectSourceStamp(changes=[change]),
                                    properties=self.properties)
-            bs.test_id = create_test_log(change)
             self.submitBuildSet(bs)
 
 

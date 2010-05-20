@@ -44,14 +44,19 @@ except ImportError:
 openerp_host = 'localhost'
 openerp_port = 8069
 openerp_dbname = 'buildbot'
+openerp_userid = 'admin'
+openerp_userpwd = 'a'
 
-def create_test_step_log(summary_object = None, res='SUCCESS'):
+def create_test_step_log(step_object = None, res=SUCCESS):
     state = 'pass'
-    summary = summary_object.summary
+    source = step_object.build.builder.test_ids
+    revision = step_object.build.source.changes[0].revision
+    test_id = source.get(revision, False)
+    summary = step_object.summaries
     if res == FAILURE:
         state = 'fail'
     params={}
-    params['name'] = summary_object.name
+    params['name'] = step_object.name
     params['test_id'] = int(test_id)
     params['warning_log'] = '\n'.join(summary['WARNING'])
     params['error_log'] = '\n'.join(summary['ERROR'])
@@ -142,11 +147,11 @@ class CreateDB(LoggingBuildStep):
             elif line.find("Traceback") != -1:
                 traceback_log = []
                 pos = io.index(line)
-                for line in io[pos:-2]:
+                for line in io[pos:-14]:
                     traceback_log.append(line)
                 self.addCompleteLog("create-db : Traceback", "".join(traceback_log))
                 m = "TRACEBACK"
-                summaries[m].append(traceback_log)
+                summaries[m].extend(traceback_log)
                 counts[m] += 1
                 break;
             elif line.find("WARNING") != -1:

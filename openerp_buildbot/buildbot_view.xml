@@ -44,6 +44,7 @@
             		<field name="name"/>
             		<field name="user_id"/>
             		<field name="url" colspan="2" widget="url"/>
+            		<field name="lp_email" colspan="2" widget="url"/>
             		<separator string="Groups" colspan="4"/>
             		<field name="lp_group_ids" nolabel="1" colspan="4"/>
             	</form>
@@ -156,7 +157,7 @@
                   sequence="5" action="action_buildbot_test_env"/>
 
        <!-- Buildbot Tests -->
-		
+
 		<record id="view_buildbot_test_tree" model="ir.ui.view">
         	<field name="name">Test Details</field>
             <field name="model">buildbot.test</field>
@@ -168,26 +169,25 @@
             		<field name="state"/>
             	</tree>
             </field>
-        </record>        
+        </record>
         <record id="view_buildbot_test_form" model="ir.ui.view">
         	<field name="name">Test Details</field>
             <field name="model">buildbot.test</field>
             <field name="type">form</field>
             <field name="arch" type="xml">
             	<form>
-            		<field name="name" colspan="2"/>
             		<field name="test_date" colspan="2"/>
-<!--            		<field name="tested_branch" colspan="2"/>-->
+            		<field name="tested_branch" colspan="2"/>
             		<notebook colspan="4">
-            		<page string="Environment">
-            			<field name="environment_id" nolabel="1" colspan="4"/>
-            		</page>
-            		<page string="Commit Details">
-            			<field name="commiter_id" colspan="2"/>
-	            		<field name="commit_date" colspan="2"/>
-	            		<field name="commit_rev_id" colspan="2"/>
-	            		<field name="commit_rev_no" colspan="2"/>
-	            	</page>
+	            		<page string="Commit Details">
+	            			<field name="commiter_id" colspan="2"/>
+		            		<field name="commit_date" colspan="2"/>
+		            		<field name="commit_rev_id" colspan="2"/>
+		            		<field name="commit_rev_no" colspan="2"/>
+		            		<field name="patch_attached" colspan="2"/>
+                            <separator string="Commit Message"  colspan="4"/>
+		            		<field name="commit_comment"  nolabel="1" colspan="4"/>
+		            	</page>
 	            	<page string="File Status">
 	            		<notebook colspan="4">
 	            			<page string="New Files">
@@ -206,6 +206,9 @@
 	            	</page>
 	            	<page string="Test Steps">
             			<field name="test_step_ids" nolabel="1" colspan="4" />
+            		</page>
+            		<page string="Environment">
+            			<field name="environment_id" nolabel="1" colspan="4"/>
             		</page>
             		</notebook>
 					<field name="state"/>

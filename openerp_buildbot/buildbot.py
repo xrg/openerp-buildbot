@@ -34,7 +34,8 @@ class buildbot_lp_user(osv.osv):
     _name = "buildbot.lp.user"
     _columns = {
                 'name': fields.char('LP User Name', size=64, required=True),
-                'url': fields.char('User Url', size=128, required=True),
+                'url': fields.char('User Url', size=128),
+                'lp_email': fields.char('LP email', size=128),
                 'user_id': fields.many2one('res.users', 'User'),
                 'lp_group_ids': fields.many2many('buildbot.lp.group', 'buildbot_lp_users_groups_rel', 'lp_user_id', 'lp_group_id', 'Buildbot Groups')
                 }
@@ -116,12 +117,17 @@ class buildbot_test(osv.osv):
     _name = "buildbot.test"
 
     def _get_test_result(self, cr, uid, ids, name, args, context=None):
-        if ids:
-            return {ids[0]:'pass'}
-        return {}
+        res = {}
+        for test in self.browse(cr, uid, ids):
+            res[test.id] = 'pass'
+            for step in test.test_step_ids:
+                if step.state == 'fail':
+                    res[test.id] = 'fail'
+                    break
+        return res
 
     _columns = {
-              'name': fields.char('Test Name', size=500, required=True),
+              'name': fields.char('Test Name', size=500),
               'test_date': fields.datetime('Date of Test', required=True),
               'tested_branch': fields.many2one('buildbot.lp.branch', 'Branch', required=True),
               'environment_id': fields.many2many('buildbot.test.environment','buildbot_test_evironment_rel','test_id','env_id','Test Environment'),
@@ -134,6 +140,7 @@ class buildbot_test(osv.osv):
               'update_files': fields.text('Files Updated'),
               'remove_files': fields.text('Files Removed'),
               'rename_files': fields.text('Files Renamd'),
+              'patch_attached':fields.boolean('Patch Attached', readonly=True),
               'state': fields.function(_get_test_result, method=True, type='char', size=8, string="Test Result", store=True),
               'test_step_ids':fields.one2many('buildbot.test.step', 'test_id', 'Test Steps'),
               }
@@ -156,6 +163,6 @@ class buildbot_test_step(osv.osv):
                 'info_log': fields.text('Info Log'),
                 'yml_log': fields.text('YML-Test Log'),
                 'traceback_detail': fields.text('Traceback'),
-                'state': fields.function(_get_step_result, method=True, type='char', size=8, string="Step Result", store=True),
+                'state': fields.selection([('fail', 'Fail'), ('pass', 'Pass')], "Test Result", readonly=True),
         }
 buildbot_test_step()
