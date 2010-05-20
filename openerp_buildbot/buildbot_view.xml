@@ -98,6 +98,13 @@
    							<field name="port" colspan="2"/>
        						<field name="netport" colspan="2"/>
 						</group>
+                        <group colspan="4">
+							<separator string="Merge Settings" colspan="4"/>
+							<field name="merge_addons" colspan="2"/>
+							<field name="merge_server" colspan="2"/>
+   							<field name="merge_extra_addons" colspan="2"/>
+       						<field name="merge_community_addons" colspan="2"/>
+						</group>
 						<group colspan="4" groups="base.group_extended">
 							<separator string="Latest Revision Details" colspan="4"/>
        						<field name="lastest_rev_no" colspan="2"/>

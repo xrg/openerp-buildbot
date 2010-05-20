@@ -880,4 +880,107 @@ class InstallModule2(InstallModule):
         cmd = LoggedRemoteCommand("install-module",self.args)
         self.startCommand(cmd)
 
+
+class BzrMerge(LoggingBuildStep):
+    name = 'bzr-merge'
+    flunkOnFailure = True
+    haltOnFailure = True
+    flunkingIssues = ["ERROR","CRITICAL"]
+    MESSAGES = ("ERROR", "CRITICAL", "WARNING", "TEST", "INFO", "TRACEBACK")
+
+    def describe(self, done=False,success=False,warn=False,fail=False):
+         if done:
+            if success:
+                return ['Merge branch %s Sucessfully!'%(self.branch)]
+            if warn:
+                return ['Merge branch %s with Warnings!'%(self.branch)]
+            if fail:
+                return ['Merge branch %s Failed!'%(self.branch)]
+         return self.description
+
+    def getText(self, cmd, results):
+        if results == SUCCESS:
+            return self.describe(True, success=True)
+        elif results == WARNINGS:
+            return self.describe(True, warn=True)
+        else:
+            return self.describe(True, fail=True)
+
+
+    def __init__(self, branch=None, workdir=None, **kwargs):
+        LoggingBuildStep.__init__(self, **kwargs)
+        self.addFactoryArguments(branch=branch, workdir=workdir)
+        self.args = {'branch': branch,'workdir':workdir}
+        # Compute defaults for descriptions:
+        description = ["Merging Branch"]
+        self.description = description
+
+    def start(self):
+        s = self.build.getSourceStamp()        
+        lestest_rev_no = False
+        for change in s.changes:
+            lestest_rev_no = change.revision
+        
+        self.args['command']=["bzr","merge"]
+        if lestest_rev_no:
+          self.args['command'] += ["-r", lestest_rev_no]
+
+        if self.args['branch']:
+           self.args['command'].append(branch)        
+        cmd = LoggedRemoteCommand("shell",self.args)
+        self.startCommand(cmd)    
+
+    def evaluateCommand(self, cmd):
+        res = SUCCESS
+        if cmd.rc != 0:
+            res = FAILURE        
+        create_test_step_log(self, res)
+        return res
+
+class BzrRevert(LoggingBuildStep):
+    name = 'bzr-revert'
+    flunkOnFailure = True
+    haltOnFailure = True
+    flunkingIssues = ["ERROR","CRITICAL"]
+    MESSAGES = ("ERROR", "CRITICAL", "WARNING", "TEST", "INFO", "TRACEBACK")
+
+    def describe(self, done=False,success=False,warn=False,fail=False):
+         if done:
+            if success:
+                return ['Merge revert %s Sucessfully!'%(self.workdir)]
+            if warn:
+                return ['Merge revert %s with Warnings!'%(self.workdir)]
+            if fail:
+                return ['Merge revert %s Failed!'%(self.workdir)]
+         return self.description
+
+    def getText(self, cmd, results):
+        if results == SUCCESS:
+            return self.describe(True, success=True)
+        elif results == WARNINGS:
+            return self.describe(True, warn=True)
+        else:
+            return self.describe(True, fail=True)
+
+
+    def __init__(self, workdir=None, **kwargs):
+        LoggingBuildStep.__init__(self, **kwargs)
+        self.addFactoryArguments(workdir=workdir)
+        self.args = {'workdir':workdir}
+        # Compute defaults for descriptions:
+        description = ["Reverting Branch"]
+        self.description = description
+
+    def start(self):
+        self.args['command']=["bzr","revert"]               
+        cmd = LoggedRemoteCommand("shell",self.args)
+        self.startCommand(cmd)    
+
+    def evaluateCommand(self, cmd):
+        res = SUCCESS
+        if cmd.rc != 0:
+            res = FAILURE        
+        create_test_step_log(self, res)
+        return res
+
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

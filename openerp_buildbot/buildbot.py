@@ -57,6 +57,10 @@ class buildbot_lp_branch(osv.osv):
                 'dbname': fields.char('Database Name', size=128),
                 'port':fields.integer('port'),
                 'netport':fields.integer('net-port'),
+                'merge_addons': fields.boolean('Merge with Addons'),
+                'merge_server': fields.boolean('Merge with Server'),
+                'merge_extra_addons': fields.boolean('Merge with Extra Addons'),
+                'merge_community_addons': fields.boolean('Merge with Community Addons'),
                 }
     _defaults = {
         'active': lambda *a: 1,
@@ -93,7 +97,7 @@ class buildbot_lp_branch(osv.osv):
                 'test_server_branch_name': fields.related('lp_project_id','tester_server_branch_id','name',type='char', relation='buildbot.lp.project', string='Tester Server Branch'),
                 'test_server_branch_url' : fields.related('lp_project_id','tester_server_branch_id','url',type='char', relation='buildbot.lp.project', string='Tester Server Url'),
                 'test_addons_branch_name': fields.related('lp_project_id','tester_addons_branch_id','name',type='char', relation='buildbot.lp.project', string='Tester Addons Branch'),
-                'test_addons_branch_url' : fields.related('lp_project_id','tester_addons_branch_id','url',type='char', relation='buildbot.lp.project', string='Tester Addons Url'),
+                'test_addons_branch_url' : fields.related('lp_project_id','tester_addons_branch_id','url',type='char', relation='buildbot.lp.project', string='Tester Addons Url'),                
                 }
 buildbot_lp_branch()
 
