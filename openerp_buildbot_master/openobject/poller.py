@@ -30,12 +30,6 @@ from bzrlib.branch import Branch
 import bzrlib
 from xmlrpc import buildbot_xmlrpc
 
-openerp_host = 'localhost'
-openerp_port = 8069
-openerp_dbname = 'buildbot'
-openerp_userid = 'admin'
-openerp_userpwd = 'a'
-
 class BzrPoller(service.MultiService, util.ComparableMixin):
     """This source will poll a Bzr repository for changes and submit them to
     the change master."""
@@ -49,7 +43,7 @@ class BzrPoller(service.MultiService, util.ComparableMixin):
     loop = None
     working = False
 
-    def __init__(self, location, pollinterval=60*60, callback=False):
+    def __init__(self, location, pollinterval=60*60, callback=False, openerp_properties = {}):
         """
         @type  location: string
         @param location: the URL of the branch that this poller should watch.
@@ -73,6 +67,7 @@ class BzrPoller(service.MultiService, util.ComparableMixin):
         # bzrlib.trace.enable_default_logging()
         timer = internet.TimerService(pollinterval, self.poll)
         timer.setServiceParent(self)
+        self.openerp_properties = openerp_properties
 
     def describe(self):
         return "BzrPoller watching %s" % self.location
@@ -82,12 +77,21 @@ class BzrPoller(service.MultiService, util.ComparableMixin):
         # this is subclass of bzrlib.branch.Branch
         current_revision = self.branch.revno()
         if not self.last_revno:
+            openerp_host = self.openerp_properties.get('openerp_host', 'localhost')
+            openerp_port = self.openerp_properties.get('openerp_port',8069)
+            openerp_dbname = self.openerp_properties.get('openerp_dbname','buildbot')
+            openerp_userid = self.openerp_properties.get('openerp_userid','admin')
+            openerp_userpwd = self.openerp_properties.get('openerp_userpwd','a')
+
             openerp = buildbot_xmlrpc(host = openerp_host, port = openerp_port, dbname = openerp_dbname)
             openerp_uid = openerp.execute('common','login',  openerp.dbname, openerp_userid, openerp_userpwd)
+
             args = [('url','ilike',self.location),('is_test_branch','=',False),('is_root_branch','=',False)]
             tested_branch_ids = openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.lp.branch','search', args)
             tested_branch_id = tested_branch_ids[0]
+
             tested_branch_data = openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.lp.branch','read',tested_branch_id,['lastest_rev_no'])
+
             self.last_revno = int(tested_branch_data['lastest_rev_no'])
         # NOTE: b.revision_history() does network IO, and is blocking.
         revisions = self.branch.revision_history()[self.last_revno:] # each is an id string

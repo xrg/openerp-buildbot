@@ -42,7 +42,7 @@ except ImportError:
 def create_test_step_log(step_object = None, res=SUCCESS):
     state = 'pass'
     source = step_object.build.builder.test_ids
-    properties = step_object.build.builder.properties
+    properties = step_object.build.builder.openerp_properties
     openerp_host = properties.get('openerp_host', 'localhost')
     openerp_port = properties.get('openerp_port',8069)
     openerp_dbname = properties.get('openerp_dbname','buildbot')
@@ -919,24 +919,24 @@ class BzrMerge(LoggingBuildStep):
         self.description = description
 
     def start(self):
-        s = self.build.getSourceStamp()        
+        s = self.build.getSourceStamp()
         lestest_rev_no = False
         for change in s.changes:
             lestest_rev_no = change.revision
-        
+
         self.args['command']=["bzr","merge"]
         if lestest_rev_no:
           self.args['command'] += ["-r", lestest_rev_no]
 
         if self.args['branch']:
-           self.args['command'].append(branch)        
+           self.args['command'].append(self.args['branch'])
         cmd = LoggedRemoteCommand("shell",self.args)
-        self.startCommand(cmd)    
+        self.startCommand(cmd)
 
     def evaluateCommand(self, cmd):
         res = SUCCESS
         if cmd.rc != 0:
-            res = FAILURE        
+            res = FAILURE
         create_test_step_log(self, res)
         return res
 
@@ -975,14 +975,14 @@ class BzrRevert(LoggingBuildStep):
         self.description = description
 
     def start(self):
-        self.args['command']=["bzr","revert"]               
+        self.args['command']=["bzr","revert"]
         cmd = LoggedRemoteCommand("shell",self.args)
-        self.startCommand(cmd)    
+        self.startCommand(cmd)
 
     def evaluateCommand(self, cmd):
         res = SUCCESS
         if cmd.rc != 0:
-            res = FAILURE        
+            res = FAILURE
         create_test_step_log(self, res)
         return res
 

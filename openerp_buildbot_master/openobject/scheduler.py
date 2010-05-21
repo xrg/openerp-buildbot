@@ -84,13 +84,23 @@ def create_test_log(source, properties):
     return result_id
 
 class OpenObjectBuildset(buildset.BuildSet):
+
     def start(self, builders):
         res = buildset.BuildSet.start(self, builders)
+        openerp_properties = {}
+        openerp_properties['openerp_host'] = self.properties.getProperty('openerp_host') or 'localhost'
+        openerp_properties['openerp_port'] = self.properties.getProperty('openerp_port') or 8069
+        openerp_properties['openerp_dbname'] = self.properties.getProperty('openerp_dbname') or 'buildbot'
+        openerp_properties['openerp_userid'] = self.properties.getProperty('openerp_userid') or 'admin'
+        openerp_properties['openerp_userpwd'] = self.properties.getProperty('openerp_userpwd') or 'a'
         for builder in builders:
              if not hasattr(builder, 'test_ids'):
                  builder.test_ids = {}
-             openerp_test_id = create_test_log(self.source, self.properties)
-             builder.properties = self.properties
+
+             builder.openerp_properties = openerp_properties
+
+             openerp_test_id = create_test_log(self.source, openerp_properties)
+
              if self.source.revision not in builder.test_ids:
                  builder.test_ids[self.source.revision] = openerp_test_id
         return res
