@@ -56,12 +56,18 @@ def create_test_step_log(step_object = None, res=SUCCESS):
     params={}
     params['name'] = step_object.name
     params['test_id'] = int(test_id)
-    params['warning_log'] = '\n'.join(summary['WARNING'])
-    params['error_log'] = '\n'.join(summary['ERROR'])
-    params['critical_log'] = '\n'.join(summary['CRITICAL'])
-    params['info_log'] = '\n'.join(summary['INFO'])
-    params['yml_log'] = '\n'.join(summary['TEST'])
-    params['traceback_detail'] = '\n'.join(summary['TRACEBACK'])
+    if summary.get('WARNING', False):
+        params['warning_log'] = '\n'.join(summary['WARNING'])
+    if summary.get('ERROR', False):
+        params['error_log'] = '\n'.join(summary['ERROR'])
+    if summary.get('CRITICAL', False):
+        params['critical_log'] = '\n'.join(summary['CRITICAL'])
+    if summary.get('INFO', False):
+        params['info_log'] = '\n'.join(summary['INFO'])
+    if summary.get('TEST', False):
+        params['yml_log'] = '\n'.join(summary['TEST'])
+    if summary.get('TRACEBACK', False):
+        params['traceback_detail'] = '\n'.join(summary['TRACEBACK'])
     params['state'] = state
     openerp = buildbot_xmlrpc(host = openerp_host, port = openerp_port, dbname = openerp_dbname)
     openerp_uid = openerp.execute('common','login',  openerp.dbname, openerp_userid, openerp_userpwd)
@@ -756,7 +762,7 @@ class OpenObjectBzr(Bzr):
             raise BuildSlaveTooOldError(m)
 
         if self.repourl:
-            assert not branch # we need baseURL= to use branches
+        #    assert not branch # we need baseURL= to use branches
             self.args['repourl'] = self.repourl
         else:
             self.args['repourl'] = self.baseURL + self.branch # self.baseURL + branch
@@ -885,11 +891,7 @@ class InstallModule2(InstallModule):
 
 
 class BzrMerge(LoggingBuildStep):
-    name = 'bzr-merge'
-    flunkOnFailure = True
-    haltOnFailure = True
-    flunkingIssues = ["ERROR","CRITICAL"]
-    MESSAGES = ("ERROR", "CRITICAL", "WARNING", "TEST", "INFO", "TRACEBACK")
+    name = 'bzr_merge'
 
     def describe(self, done=False,success=False,warn=False,fail=False):
          if done:
@@ -915,23 +917,42 @@ class BzrMerge(LoggingBuildStep):
         self.addFactoryArguments(branch=branch, workdir=workdir)
         self.args = {'branch': branch,'workdir':workdir}
         # Compute defaults for descriptions:
+        self.branch = branch
         description = ["Merging Branch"]
         self.description = description
 
     def start(self):
         s = self.build.getSourceStamp()
-        lestest_rev_no = False
+        latest_rev_no = False
         for change in s.changes:
-            lestest_rev_no = change.revision
+            latest_rev_no = change.revision
 
         self.args['command']=["bzr","merge"]
-        if lestest_rev_no:
-          self.args['command'] += ["-r", lestest_rev_no]
+        if latest_rev_no:
+          self.args['command'] += ["-r", str(latest_rev_no)]
 
         if self.args['branch']:
            self.args['command'].append(self.args['branch'])
         cmd = LoggedRemoteCommand("shell",self.args)
         self.startCommand(cmd)
+
+    def createSummary(self, log):
+        counts = {"ERROR": 0}
+        summaries = {"ERROR": []}
+        io = StringIO(log.getText()).readlines()
+        for line in io:
+            if line.find("ERROR") != -1:
+                pos = line.find("ERROR") + len("ERROR")
+            line = line[pos:]
+            summaries["ERROR"].append(line)
+            counts["ERROR"] += 1
+        self.summaries = summaries
+        if counts["ERROR"]:
+            msg = "".join(summaries["ERROR"])
+            self.addCompleteLog("Bzr Merge : ERROR", msg)
+            self.setProperty("Bzr Merge : ERROR", counts["ERROR"])
+        if sum(counts.values()):
+            self.setProperty("Bzr Merge : MessageCount", sum(counts.values()))
 
     def evaluateCommand(self, cmd):
         res = SUCCESS
@@ -970,6 +991,7 @@ class BzrRevert(LoggingBuildStep):
         LoggingBuildStep.__init__(self, **kwargs)
         self.addFactoryArguments(workdir=workdir)
         self.args = {'workdir':workdir}
+        self.workdir = workdir
         # Compute defaults for descriptions:
         description = ["Reverting Branch"]
         self.description = description
@@ -978,6 +1000,24 @@ class BzrRevert(LoggingBuildStep):
         self.args['command']=["bzr","revert"]
         cmd = LoggedRemoteCommand("shell",self.args)
         self.startCommand(cmd)
+
+    def createSummary(self, log):
+        counts = {"ERROR": 0}
+        summaries = {"ERROR": []}
+        io = StringIO(log.getText()).readlines()
+        for line in io:
+            if line.find("ERROR") != -1:
+                pos = line.find("ERROR") + len("ERROR")
+            line = line[pos:]
+            summaries["ERROR"].append(line)
+            counts["ERROR"] += 1
+        self.summaries = summaries
+        if counts["ERROR"]:
+            msg = "".join(summaries["ERROR"])
+            self.addCompleteLog("Bzr Merge : ERROR", msg)
+            self.setProperty("Bzr Merge : ERROR", counts["ERROR"])
+        if sum(counts.values()):
+            self.setProperty("Bzr Merge : MessageCount", sum(counts.values()))
 
     def evaluateCommand(self, cmd):
         res = SUCCESS

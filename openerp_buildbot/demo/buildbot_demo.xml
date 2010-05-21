@@ -70,19 +70,19 @@
 		</record>
 	</data>
 	<data noupdate="1">
-		<record id="buildbot_lp_branch_openobjectserveraddons0" model="buildbot.lp.branch">
+		<record id="buildbot_lp_branch_openobjectaddons0" model="buildbot.lp.branch">
 			<field name="lp_group_id" ref="openerp_buildbot.buildbot_lp_group_openerpcoreteam0"/>
 <!--			<field name="lp_project_id" ref="buildbot_lp_project_openobjectaddons0"/>-->
 			<field eval="1" name="is_test_branch"/>
-			<field name="name">openobject-server-addons</field>
+			<field name="name">openobject-addons</field>
 			<field name="lp_user_id" ref="buildbot_lp_user_hdaopenerp0"/>
-			<field name="dbname">openobject-server-addons</field>
+			<field name="dbname">openobject-addons</field>
 			<field eval="30" name="treestabletimer"/>
 			<field model="buildbot.lp.project" name="lp_project_id" search="[('name', '=', u'openobject-addons')]"/>
 			<field name="url">https://launchpad.net/openobject-addons/trunk</field>
 			<field eval="1" name="active"/>
 			<field eval="1" name="is_root_branch"/>
-			<field name="build_directory">openobject-server-addons</field>
+			<field name="build_directory">openobject-addons</field>
 		</record>
 	</data>
 	<data noupdate="1">
@@ -123,7 +123,7 @@
 			<field name="tester_server_branch_id" ref="buildbot_lp_branch_openobjectservertrunk0"/>
 			<field name="url">https://launchpad.net/openobject-addons/</field>
 			<field name="tester_addons_branch_id" ref="buildbot_lp_branch_trunkdevaddons0"/>
-			<field name="root_branch_id" ref="buildbot_lp_branch_openobjectserveraddons0"/>
+			<field name="root_branch_id" ref="buildbot_lp_branch_openobjectaddons0"/>
 		</record>
 	</data>
 	<data noupdate="1">
@@ -131,9 +131,9 @@
 			<field name="name">openobject-server</field>
 			<field name="tester_server_branch_id" ref="buildbot_lp_branch_trunkdevframework0"/>
 			<field name="url">https://launchpad.net/openobject-server/</field>
-			<field name="tester_addons_branch_id" ref="buildbot_lp_branch_openobjectserveraddons0"/>
+			<field name="tester_addons_branch_id" ref="buildbot_lp_branch_openobjectaddons0"/>
 			<field name="root_branch_id" ref="buildbot_lp_branch_openobjectservertrunk0"/>
-		</record>		
+		</record>
 	</data>
 	<data noupdate="1">
 		<record id="buildbot_lp_branch_ucodevaddons0" model="buildbot.lp.branch">
@@ -167,5 +167,5 @@
 			<field eval="0" name="is_root_branch"/>
 			<field name="build_directory">framework_rga_change_res_partner_address</field>
 		</record>
-	</data>	
+	</data>
 </openerp>
