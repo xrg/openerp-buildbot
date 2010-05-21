@@ -52,15 +52,15 @@
 		</record>
 		<record id="buildbot_lp_branch_openobjectserveraddons0" model="buildbot.lp.branch">
 			<field name="lp_group_id" ref="openerp_buildbot.buildbot_lp_group_openerpcoreteam0"/>
-			<field name="name">openobject-server-addons</field>
+			<field name="name">openobject-addons</field>
 			<field name="lp_user_id" ref="buildbot_lp_user_hdaopenerp0"/>
-			<field name="dbname">openobject_server_addons</field>
+			<field name="dbname">openobject_addons</field>
 			<field eval="30" name="treestabletimer"/>
 			<field model="buildbot.lp.project" name="lp_project_id" search="[('name', '=', u'openobject-addons')]"/>
 			<field name="url">https://launchpad.net/openobject-addons/trunk</field>
 			<field eval="1" name="is_root_branch"/>
             <field eval="1" name="is_test_branch"/>
-			<field name="build_directory">openobject-server-addons</field>
+			<field name="build_directory">openobject-addons</field>
 		</record>
 		<record id="buildbot_lp_branch_trunkdevaddons0" model="buildbot.lp.branch">
 			<field name="lp_group_id" ref="openerp_buildbot.buildbot_lp_group_openerprdteam0"/>
@@ -70,7 +70,7 @@
 			<field name="dbname">trunk_dev_addons1</field>
 			<field eval="30" name="treestabletimer"/>
 			<field model="buildbot.lp.project" name="lp_project_id" search="[('name', '=', u'openobject-addons')]"/>
-			<field name="url">https://code.launchpad.net/~openerp-dev/openobject-addons/trunk-dev-addons1</field>			
+			<field name="url">https://code.launchpad.net/~openerp-dev/openobject-addons/trunk-dev-addons1</field>
 			<field name="build_directory">trunk-dev-addons1</field>
             <field eval="1" name="merge_addons"/>
             <field name="lastest_rev_id">mso@mso-20100520111036-i6f05dgllwr9ecyx</field>
@@ -109,18 +109,18 @@
 			<field name="url">https://launchpad.net/openobject-server/</field>
 			<field name="tester_addons_branch_id" ref="buildbot_lp_branch_openobjectserveraddons0"/>
 			<field name="root_branch_id" ref="buildbot_lp_branch_openobjectservertrunk0"/>
-		</record>	
+		</record>
         <record id="buildbot_lp_branch_openobjectservertrunk0" model="buildbot.lp.branch">
             <field model="buildbot.lp.project" name="lp_project_id" search="[('name', '=', u'openobject-server')]"/>
-        </record>	
+        </record>
         <record id="buildbot_lp_branch_openobjectserveraddons0" model="buildbot.lp.branch">
             <field model="buildbot.lp.project" name="lp_project_id" search="[('name', '=', u'openobject-addons')]"/>
-        </record>		
+        </record>
         <record id="buildbot_lp_branch_trunkdevaddons0" model="buildbot.lp.branch">
             <field model="buildbot.lp.project" name="lp_project_id" search="[('name', '=', u'openobject-addons')]"/>
         </record>
         <record id="buildbot_lp_branch_trunkdevframework0" model="buildbot.lp.branch">
               <field model="buildbot.lp.project" name="lp_project_id" search="[('name', '=', u'openobject-server')]"/>
         </record>
-	</data>	
+	</data>
 </openerp>

@@ -2,10 +2,8 @@
 <openerp>
     <data>
         <menuitem id="buildbot_menu" name="Buildbot" icon="terp-tools"/>
-		<menuitem id="buildbot_config" name="Configuration" parent="buildbot_menu"/>
-		<menuitem id="buildbot_test_detail" name="Test Detail" parent="buildbot_menu"/>
-		<menuitem id="buildbot_schedular_detail" name="Schedular" parent="buildbot_menu"/>
-		<menuitem id="buildbot_project_builder" name="Project &amp; Builder" parent="buildbot_menu"/>
+		<menuitem id="buildbot_config" name="Configuration" parent="buildbot_menu" sequence="3"/>
+		<menuitem id="buildbot_test_detail" name="Test Detail" parent="buildbot_menu" sequence="1"/>
 
        <!-- Buildbot Groups -->
 

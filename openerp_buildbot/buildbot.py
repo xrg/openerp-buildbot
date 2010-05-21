@@ -126,6 +126,14 @@ class buildbot_test(osv.osv):
                     break
         return res
 
+    def _get_test_ids(self, cr, uid, ids, context=None):
+        if context is None:
+            context = {}
+        result = {}
+        for step in self.pool.get('buildbot.test.step').browse(cr, uid, ids, context=context):
+            result[step.test_id.id] = True
+        return result.keys()
+
     _columns = {
               'name': fields.char('Test Name', size=500),
               'test_date': fields.datetime('Date of Test', required=True),
@@ -141,7 +149,8 @@ class buildbot_test(osv.osv):
               'remove_files': fields.text('Files Removed'),
               'rename_files': fields.text('Files Renamd'),
               'patch_attached':fields.boolean('Patch Attached', readonly=True),
-              'state': fields.function(_get_test_result, method=True, type='char', size=8, string="Test Result", store=True),
+              'state': fields.function(_get_test_result, method=True, type='char', size=8, string="Test Result",
+                                        store={'buildbot.test.step':(_get_test_ids,['test_id'], 10)}),
               'test_step_ids':fields.one2many('buildbot.test.step', 'test_id', 'Test Steps'),
               }
 buildbot_test()

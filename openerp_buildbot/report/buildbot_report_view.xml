@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <openerp>
     <data>
-    
-    <menuitem id="menu_buildbot_reporting" name="Buildbot Reporting" parent="buildbot_menu"/>
+
+    <menuitem id="menu_buildbot_reporting" name="Reporting" sequence="2" parent="buildbot_menu"/>
 		<record id="view_branch_test_ratio_tree" model="ir.ui.view">
             <field name="name">report.buildbot.branch.test.result.ratio.tree</field>
             <field name="model">report.buildbot.branch.test.result.ratio</field>
@@ -24,7 +24,7 @@
             <field name="view_mode">tree,form</field>
         </record>
         <menuitem action="action_get_branch_test_ratio" id="menu_branch_test_ratio" parent="menu_buildbot_reporting"/>
-        
+
         <record id="view_branch_statistics_tree" model="ir.ui.view">
             <field name="name">report.branch.test.statistics.tree</field>
             <field name="model">report.branch.test.statistics</field>
@@ -51,4 +51,4 @@
         </record>
         <menuitem action="action_get_branch_test_statistics" id="menu_branch_test_statistics" parent="menu_buildbot_reporting"/>
     </data>
-</openerp>        
+</openerp>
