@@ -64,7 +64,6 @@
 		</record>
 		<record id="buildbot_lp_branch_trunkdevaddons0" model="buildbot.lp.branch">
 			<field name="lp_group_id" ref="openerp_buildbot.buildbot_lp_group_openerprdteam0"/>
-			<field eval="1" name="is_test_branch"/>
 			<field name="name">trunk-dev-addons1</field>
 			<field name="lp_user_id" ref="buildbot_lp_user_fabienopenerp0"/>
 			<field name="dbname">trunk_dev_addons1</field>
@@ -80,7 +79,6 @@
 		</record>
 		<record id="buildbot_lp_branch_trunkdevframework0" model="buildbot.lp.branch">
 			<field name="lp_group_id" ref="openerp_buildbot.buildbot_lp_group_openerpsframeworkrd0"/>
-			<field eval="1" name="is_test_branch"/>
 			<field name="name">trunk-dev-framework</field>
 			<field name="lp_user_id" ref="buildbot_lp_user_olivierdonyopenerp0"/>
 			<field name="dbname">trunk_dev_framework</field>
