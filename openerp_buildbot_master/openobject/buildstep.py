@@ -39,17 +39,15 @@ try:
 except ImportError:
     from StringIO import StringIO
 
-#TODO:We need to get test_id passed from schedular and the following fixed args.
-
-openerp_host = 'localhost'
-openerp_port = 8069
-openerp_dbname = 'buildbot'
-openerp_userid = 'admin'
-openerp_userpwd = 'a'
-
 def create_test_step_log(step_object = None, res=SUCCESS):
     state = 'pass'
     source = step_object.build.builder.test_ids
+    properties = step_object.build.builder.properties
+    openerp_host = properties.get('openerp_host', 'localhost')
+    openerp_port = properties.get('openerp_port',8069)
+    openerp_dbname = properties.get('openerp_dbname','buildbot')
+    openerp_userid = properties.get('openerp_userid','admin')
+    openerp_userpwd = properties.get('openerp_userpwd','a')
     revision = step_object.build.source.changes[0].revision
     test_id = source.get(revision, False)
     summary = step_object.summaries

@@ -27,13 +27,14 @@ from xmlrpc import buildbot_xmlrpc
 from datetime import datetime
 import binascii
 
-openerp_host = 'localhost'
-openerp_port = 8069
-openerp_dbname = 'buildbot'
-openerp_userid = 'admin'
-openerp_userpwd = 'a'
 
-def create_test_log(source):
+
+def create_test_log(source, properties):
+    openerp_host = properties.get('openerp_host', 'localhost')
+    openerp_port = properties.get('openerp_port',8069)
+    openerp_dbname = properties.get('openerp_dbname','buildbot')
+    openerp_userid = properties.get('openerp_userid','admin')
+    openerp_userpwd = properties.get('openerp_userpwd','a')
     change = source.changes and source.changes[0] or False
     if not change:
         return False
@@ -88,7 +89,8 @@ class OpenObjectBuildset(buildset.BuildSet):
         for builder in builders:
              if not hasattr(builder, 'test_ids'):
                  builder.test_ids = {}
-             openerp_test_id = create_test_log(self.source)
+             openerp_test_id = create_test_log(self.source, self.properties)
+             builder.properties = self.properties
              if self.source.revision not in builder.test_ids:
                  builder.test_ids[self.source.revision] = openerp_test_id
         return res
