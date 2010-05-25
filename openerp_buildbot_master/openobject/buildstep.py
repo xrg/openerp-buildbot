@@ -155,7 +155,7 @@ class CreateDB(LoggingBuildStep):
                     traceback_log.append(line)
                 self.addCompleteLog("create-db : Traceback", "".join(traceback_log))
                 m = "TRACEBACK"
-                summaries[m].extend(traceback_log)
+                summaries[m]=traceback_log
                 counts[m] += 1
                 break;
             elif line.find("WARNING") != -1:
@@ -221,6 +221,7 @@ class DropDB(LoggingBuildStep):
         self.addFactoryArguments(dbname=dbname,workdir=workdir,port=port,netport=netport)
         self.args = {'dbname': dbname,'workdir':workdir,'netport':netport, 'port':port}
         self.dbname = dbname
+        self.summaries={}
         # Compute defaults for descriptions:
         description = ["Dropping db"]
         self.description = description
@@ -237,7 +238,7 @@ class DropDB(LoggingBuildStep):
         self.startCommand(cmd)
 
     def evaluateCommand(self, cmd):
-        res = SUCESS
+        res = SUCCESS
         if cmd.rc != 0:
             res = FAILURE
         create_test_step_log(self, res)
@@ -352,7 +353,7 @@ class CheckQuality(LoggingBuildStep):
                     traceback_log.append(line)
                 self.addCompleteLog("Check-Quality : Traceback", "".join(traceback_log))
                 m = "TRACEBACK"
-                summaries[m].append(traceback_log)
+                summaries[m]=traceback_log
                 counts[m] += 1
                 break;
             elif line.find("WARNING") != -1:
@@ -540,7 +541,7 @@ class InstallTranslation(LoggingBuildStep):
                 self.addCompleteLog("Install-Translation : Traceback", "".join(traceback_log))
                 self.setProperty("Install-Translation : Traceback", "".join(traceback_property))
                 m = "TRACEBACK"
-                summaries[m].append(traceback_log)
+                summaries[m]=traceback_log
                 counts[m] += 1
                 break;
 
@@ -690,7 +691,7 @@ class InstallModule(LoggingBuildStep):
                 self.addCompleteLog("Install-Module : Traceback", "".join(traceback_log))
                 self.setProperty("Install-Module : Traceback", "".join(traceback_property))
                 m = "TRACEBACK"
-                summaries[m].append("".join(traceback_log))
+                summaries[m]=traceback_log
                 counts[m] += 1
                 break;
             elif line.find("INFO") != -1:
@@ -746,14 +747,14 @@ class OpenObjectBzr(Bzr):
     flunkOnFailure = False
     haltOnFailure = True
     def __init__(self, repourl=None, baseURL=None,
-                 defaultBranch=None,workdir=None, mode='update', alwaysUseLatest=True, timeout=20*60, retry=None,**kwargs):
+                 defaultBranch=None,workdir=None, mode='update', alwaysUseLatest=True, timeout=40*60, retry=None,**kwargs):
         LoggingBuildStep.__init__(self, **kwargs)
         Bzr.__init__(self, repourl=repourl, baseURL=baseURL,
                    defaultBranch=defaultBranch,workdir=workdir,mode=mode,alwaysUseLatest=alwaysUseLatest,timeout=timeout,
                    retry=retry,**kwargs)
         self.name = 'bzr-update'
-        self.description = ["updating", "branch %s%s"%(baseURL,defaultBranch)]
-        self.descriptionDone = ["updated", "branch %s%s"%(baseURL,defaultBranch)]
+        self.description = ["updating", "branch %s"%(repourl)]
+        self.descriptionDone = ["updated", "branch %s"%(repourl)]
 
     def startVC(self, branch, revision, patch):
         slavever = self.slaveVersion("bzr")
@@ -943,9 +944,11 @@ class BzrMerge(LoggingBuildStep):
         for line in io:
             if line.find("ERROR") != -1:
                 pos = line.find("ERROR") + len("ERROR")
-            line = line[pos:]
-            summaries["ERROR"].append(line)
-            counts["ERROR"] += 1
+                line = line[pos:]
+                summaries["ERROR"].append(line)
+                counts["ERROR"] += 1
+            else:
+                pass
         self.summaries = summaries
         if counts["ERROR"]:
             msg = "".join(summaries["ERROR"])
@@ -1008,9 +1011,11 @@ class BzrRevert(LoggingBuildStep):
         for line in io:
             if line.find("ERROR") != -1:
                 pos = line.find("ERROR") + len("ERROR")
-            line = line[pos:]
-            summaries["ERROR"].append(line)
-            counts["ERROR"] += 1
+                line = line[pos:]
+                summaries["ERROR"].append(line)
+                counts["ERROR"] += 1
+            else:
+                pass
         self.summaries = summaries
         if counts["ERROR"]:
             msg = "".join(summaries["ERROR"])

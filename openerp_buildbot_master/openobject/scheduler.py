@@ -84,22 +84,18 @@ def create_test_log(source, properties):
     return result_id
 
 class OpenObjectBuildset(buildset.BuildSet):
-
+    def __init__(self, builderNames, source, reason=None, bsid=None,
+                 properties=None, openerp_properties={}):
+        buildset.BuildSet.__init__(self, builderNames=builderNames, source=source, reason=reason, bsid=bsid, properties=properties)
+        self.openerp_properties = openerp_properties
     def start(self, builders):
         res = buildset.BuildSet.start(self, builders)
-        openerp_properties = {}
-        openerp_properties['openerp_host'] = self.properties.getProperty('openerp_host') or 'localhost'
-        openerp_properties['openerp_port'] = self.properties.getProperty('openerp_port') or 8069
-        openerp_properties['openerp_dbname'] = self.properties.getProperty('openerp_dbname') or 'buildbot'
-        openerp_properties['openerp_userid'] = self.properties.getProperty('openerp_userid') or 'admin'
-        openerp_properties['openerp_userpwd'] = self.properties.getProperty('openerp_userpwd') or 'a'
         for builder in builders:
              if not hasattr(builder, 'test_ids'):
                  builder.test_ids = {}
+             builder.openerp_properties = self.openerp_properties
 
-             builder.openerp_properties = openerp_properties
-
-             openerp_test_id = create_test_log(self.source, openerp_properties)
+             openerp_test_id = create_test_log(self.source, self.openerp_properties)
 
              if self.source.revision not in builder.test_ids:
                  builder.test_ids[self.source.revision] = openerp_test_id
@@ -107,9 +103,10 @@ class OpenObjectBuildset(buildset.BuildSet):
 
 class OpenObjectScheduler(Scheduler):
     def __init__(self, name, branch, treeStableTimer, builderNames,
-                 fileIsImportant=None, properties={}):
+                 fileIsImportant=None, properties={}, openerp_properties={}):
         Scheduler.__init__(self, name=name, branch=branch, treeStableTimer=treeStableTimer, builderNames=builderNames,
                  fileIsImportant=fileIsImportant, properties=properties)
+        self.openerp_properties = openerp_properties
     def fireTimer(self):
         # clear out our state
         self.timer = None
@@ -121,7 +118,8 @@ class OpenObjectScheduler(Scheduler):
         for change in changes:
             bs = OpenObjectBuildset(self.builderNames,
                                    OpenObjectSourceStamp(changes=[change]),
-                                   properties=self.properties)
+                                   properties=self.properties,
+                                   openerp_properties=self.openerp_properties)
             self.submitBuildSet(bs)
 
 
