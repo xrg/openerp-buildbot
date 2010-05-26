@@ -67,49 +67,42 @@
             <field name="model">buildbot.lp.branch</field>
             <field name="type">form</field>
             <field name="arch" type="xml">
-            	<form>
-					<field name="name"/>
-    				<field name="url" widget="url"/>
-        			 <group colspan="4" col="8">
-        				<group colspan="4">
-       						<field name="lp_project_id" colspan="2"/>
-       					</group>
-       					<group colspan="4">
-       						<field name="active" colspan="1"/>
-       						<label string="" colspan="1"/>
-        					<field name="is_root_branch" colspan="1"/>
-       						<field name="is_test_branch" colspan="1"/>
-       					</group>
-       					<group colspan="4">
-							<separator string="General Details" colspan="4"/>
-   							<field name="lp_user_id" colspan="2"/>
-		   					<field name="lp_group_id" colspan="2"/>
-       					</group>
-       					<group colspan="4">
-       						<separator string="Schedular" colspan="4"/>
-       						<field name="treestabletimer" colspan="2"/>
-       						<label string="" colspan="2"/>
-       					</group>
-       					<group colspan="4">
-							<separator string="Builder Settings" colspan="4"/>
-							<field name="dbname" colspan="2"/>
-							<field name="build_directory" colspan="2"/>
-   							<field name="port" colspan="2"/>
-       						<field name="netport" colspan="2"/>
-						</group>
-                        <group colspan="4">
-							<separator string="Merge Settings" colspan="4"/>
-							<field name="merge_addons" colspan="2"/>
-							<field name="merge_server" colspan="2"/>
-   							<field name="merge_extra_addons" colspan="2"/>
-       						<field name="merge_community_addons" colspan="2"/>
-						</group>
-						<group colspan="4" groups="base.group_extended">
-							<separator string="Latest Revision Details" colspan="4"/>
-       						<field name="lastest_rev_no" colspan="2"/>
-       						<field name="lastest_rev_id" colspan="2"/>
-       					</group>
-					</group>
+	        	<form>
+    	            <group colspan="4" col="8">
+            	        <field name="name"/>
+						<field name="url" widget="url"/>
+                       	<field name="lp_project_id" />
+                    </group>
+                  	<group col="1" colspan="3">
+		   				<field name="active"/>
+						<field name="is_root_branch"/>
+						<field name="is_test_branch"/>
+                    </group>
+       				<notebook colspan="4">
+    					<page string="General Details">
+        				 	<field name="lp_user_id"/>
+		   					<field name="lp_group_id"/>
+		   				</page>
+    					<page string="Schedular">
+   							<field name="treestabletimer"/>
+       					</page>
+       					<page string="Builder Settings">
+							<field name="dbname"/>
+							<field name="build_directory"/>
+							<field name="port"/>
+   							<field name="netport"/>
+       					</page>
+       					<page string="Merge Settings">
+							<field name="merge_addons"/>
+							<field name="merge_server"/>
+							<field name="merge_extra_addons"/>
+   							<field name="merge_community_addons"/>
+       					</page>
+       					<page string="Latest Revision Details" groups="base.group_extended">
+   							<field name="lastest_rev_no"/>
+   							<field name="lastest_rev_id"/>
+						</page>
+					</notebook>
             	</form>
         	</field>
         </record>
@@ -323,5 +316,8 @@
 
        	<menuitem id="buildbot_project" name="Launchpad Projects" parent="buildbot_config"
                   sequence="5" action="action_buildbot_project"/>
+
+    <act_window context="{'tested_branch': active_id}" domain="[('tested_branch', '=', active_id)]" id="act_test_branch" name="Test Results" res_model="buildbot.test" src_model="buildbot.lp.branch"/>
+
 	</data>
 </openerp>
