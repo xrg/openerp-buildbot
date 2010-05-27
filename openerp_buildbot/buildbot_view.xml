@@ -144,6 +144,28 @@
                   sequence="5" action="action_buildbot_test_env"/>
 
        <!-- Buildbot Tests -->
+		<record id="view_test_order_filter" model="ir.ui.view">
+			<field name="name">buildbot.test.list.select</field>
+         	<field name="model">buildbot.test</field>
+            <field name="type">search</field>
+            <field name="arch" type="xml">
+            	<search string="Search Test Details">
+                    <filter name="pass" string="Passed" domain="[('state','=','pass')]"/>
+                    <filter  string="Failed" domain="[('state','=', 'fail')]"/>
+                    <filter  string="Skipped" domain="[('state','=','skip')]"/>
+                    <separator orientation="vertical"/>
+                    <field name="name" select="1"/>
+                    <field name="tested_branch" select="1"/>
+                    <field name="test_date" select="1" string="Test Date" />
+                    <newline/>
+                    <group expand="1" string="Group By..." colspan="11" col="11">
+                        <filter string="Branches"  domain="[]" context="{'group_by':'tested_branch'}"/>
+                        <filter string="Test Date" domain="[]" context="{'group_by':'test_date'}"/>
+                        <filter string="State" domain="[]" context="{'group_by':'state'}"/>
+                    </group>
+               </search>
+            </field>
+        </record>
 
 		<record id="view_buildbot_test_tree" model="ir.ui.view">
         	<field name="name">Test Details</field>
@@ -215,6 +237,8 @@
             <field name="res_model">buildbot.test</field>
             <field name="view_type">form</field>
             <field name="view_mode">tree,form</field>
+            <field name="context">{"search_default_pass":1}</field>
+            <field name="search_view_id" ref="view_test_order_filter"/>
        	</record>
 
        	<menuitem id="buildbot_test" name="Test Details" parent="buildbot_test_detail"

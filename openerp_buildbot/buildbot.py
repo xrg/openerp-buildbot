@@ -119,13 +119,13 @@ class buildbot_test(osv.osv):
     def _get_test_result(self, cr, uid, ids, name, args, context=None):
         res = {}
         for test in self.browse(cr, uid, ids):
-            res[test.id] = 'Passed'
+            res[test.id] = 'pass'
             for step in test.test_step_ids:
                 if step.state == 'fail':
-                    res[test.id] = 'Failed'
+                    res[test.id] = 'fail'
                     break
                 elif step.state == 'skip':
-                    res[test.id] = 'Skipped'
+                    res[test.id] = 'skip'
                     break
         return res
 
@@ -152,21 +152,18 @@ class buildbot_test(osv.osv):
               'remove_files': fields.text('Files Removed'),
               'rename_files': fields.text('Files Renamd'),
               'patch_attached':fields.boolean('Patch Attached', readonly=True),
-              'state': fields.function(_get_test_result, method=True, type='char', size=8, string="Test Result",
-                                        store={'buildbot.test.step':(_get_test_ids,['test_id'], 10)}),
+              'state': fields.function(_get_test_result, method=True, type='selection', size=8, string="Test Result",
+                                        selection=[('fail', 'Failed'), ('pass', 'Passed'),('skip', 'Skipped')],store={'buildbot.test.step':(_get_test_ids,['test_id'], 10)}),
               'test_step_ids':fields.one2many('buildbot.test.step', 'test_id', 'Test Steps'),
               'failure_reason':fields.text('Failure Reason')
               }
+    _defaults = {
+                 'state':'pass'
+                 }
 buildbot_test()
 
 class buildbot_test_step(osv.osv):
     _name = "buildbot.test.step"
-
-    def _get_step_result(self, cr, uid, ids, name, args, context=None):
-        if ids:
-            return {ids[0]:'pass'}
-        return {}
-
     _columns = {
                 'name': fields.char('Name of Step', size=128),
                 'test_id': fields.many2one('buildbot.test', 'Test'),
@@ -178,4 +175,7 @@ class buildbot_test_step(osv.osv):
                 'traceback_detail': fields.text('Traceback'),
                 'state': fields.selection([('fail', 'Failed'), ('pass', 'Passed'),('skip', 'Skipped')], "Test Result", readonly=True),
         }
+    _defaults = {
+                 'state':'pass'
+                }
 buildbot_test_step()
