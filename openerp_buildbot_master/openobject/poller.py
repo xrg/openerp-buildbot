@@ -90,9 +90,9 @@ class BzrPoller(service.MultiService, util.ComparableMixin):
             tested_branch_ids = openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.lp.branch','search', args)
             tested_branch_id = tested_branch_ids[0]
 
-            tested_branch_data = openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.lp.branch','read',tested_branch_id,['lastest_rev_no'])
+            tested_branch_data = openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.lp.branch','read',tested_branch_id,['latest_rev_no'])
 
-            self.last_revno = int(tested_branch_data['lastest_rev_no'])
+            self.last_revno = int(tested_branch_data['latest_rev_no'])
         # NOTE: b.revision_history() does network IO, and is blocking.
         revisions = self.branch.revision_history()[self.last_revno:] # each is an id string
         changes = []

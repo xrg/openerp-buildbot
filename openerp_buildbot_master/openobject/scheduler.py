@@ -43,7 +43,10 @@ def create_test_log(source, properties):
     args = [('url','ilike',change.branch),('is_test_branch','=',False),('is_root_branch','=',False)]
     tested_branch_ids = openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.lp.branch','search',args)
     tested_branch_id = tested_branch_ids[0]
-
+    tested_branch_val = openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.lp.branch','read',[tested_branch_id],['latest_rev_no','latest_rev_id'])
+    last_revision_no_stored = tested_branch_val and tested_branch_val[0].get('latest_rev_no', 0) or 0
+    last_revision_id_stored = tested_branch_val and tested_branch_val[0].get('latest_rev_id', '') or ''
+    properties[tested_branch_id] = {'latest_rev_no':last_revision_no_stored,'latest_rev_id':last_revision_id_stored}
     res = {}
     res['tested_branch'] = tested_branch_id or False
     res['test_date'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -67,8 +70,8 @@ def create_test_log(source, properties):
 
     result_id = openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.test', 'create', res)
     openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.lp.branch', 'write',
-                    [tested_branch_id],{'lastest_rev_no':change.revision,
-                                        'lastest_rev_id':change.revision_id})
+                    [tested_branch_id],{'latest_rev_no':change.revision,
+                                        'latest_rev_id':change.revision_id})
     ## Add patch as attachment
     if source.patch:
      for patch in source.patch or []:
@@ -94,7 +97,6 @@ class OpenObjectBuildset(buildset.BuildSet):
              if not hasattr(builder, 'test_ids'):
                  builder.test_ids = {}
              builder.openerp_properties = self.openerp_properties
-
              openerp_test_id = create_test_log(self.source, self.openerp_properties)
 
              if self.source.revision not in builder.test_ids:

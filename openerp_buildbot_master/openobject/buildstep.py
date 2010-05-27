@@ -39,7 +39,7 @@ try:
 except ImportError:
     from StringIO import StringIO
 
-def create_test_step_log(step_object = None, res=SUCCESS):
+def create_test_step_log(step_object = None, res=SUCCESS, step_name = ''):
     state = 'pass'
     source = step_object.build.builder.test_ids
     properties = step_object.build.builder.openerp_properties
@@ -49,11 +49,29 @@ def create_test_step_log(step_object = None, res=SUCCESS):
     openerp_userid = properties.get('openerp_userid','admin')
     openerp_userpwd = properties.get('openerp_userpwd','a')
     revision = step_object.build.source.changes[0].revision
+
+    openerp = buildbot_xmlrpc(host = openerp_host, port = openerp_port, dbname = openerp_dbname)
+    openerp_uid = openerp.execute('common','login',  openerp.dbname, openerp_userid, openerp_userpwd)
+
+    tested_branch = step_object.build.source.changes[0].branch
+    args = [('url','ilike',tested_branch),('is_test_branch','=',False),('is_root_branch','=',False)]
+    tested_branch_ids = openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.lp.branch','search',args)
+
+    tested_branch_id = tested_branch_ids[0]
+    last_revision_no_stored = properties.get(tested_branch_id, {}).get('latest_rev_no',0)
+    last_revision_id_stored = properties.get(tested_branch_id, {}).get('latest_rev_id','')
     test_id = source.get(revision, False)
     summary = step_object.summaries
+
     if res == FAILURE:
         state = 'fail'
-    params={}
+        if step_name in ('bzr-update', 'bzr_merge'):
+            state = 'skip'
+            test_values = {'failure_reason':'This test has been skipped because the step %s has failed ! \n for more details please refer the Test steps tab.'%(step_name),'state':state}
+            branch_values = {'latest_rev_no':last_revision_no_stored,'latest_rev_id':last_revision_id_stored}
+            openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.lp.branch','write', [int(tested_branch_id)],branch_values)
+            openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.test','write', [int(test_id)],test_values)
+    params = {}
     params['name'] = step_object.name
     params['test_id'] = int(test_id)
     if summary.get('WARNING', False):
@@ -69,8 +87,6 @@ def create_test_step_log(step_object = None, res=SUCCESS):
     if summary.get('TRACEBACK', False):
         params['traceback_detail'] = '\n'.join(summary['TRACEBACK'])
     params['state'] = state
-    openerp = buildbot_xmlrpc(host = openerp_host, port = openerp_port, dbname = openerp_dbname)
-    openerp_uid = openerp.execute('common','login',  openerp.dbname, openerp_userid, openerp_userpwd)
     result_id = openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.test.step','create',params)
     return result_id
 
@@ -780,6 +796,13 @@ class OpenObjectBzr(Bzr):
         cmd = LoggedRemoteCommand("openobjectbzr", self.args)
         self.startCommand(cmd)
 
+    def evaluateCommand(self, cmd):
+        res = SUCCESS
+        if cmd.rc != 0:
+            res = FAILURE
+        create_test_step_log(self, res, step_name=self.name)
+        return res
+
 class OpenObjectSVN(SVN):
     flunkOnFailure = False
     haltOnFailure = True
@@ -831,7 +854,7 @@ class StartServer(LoggingBuildStep):
         self.addFactoryArguments(dbname=dbname,workdir=workdir, demo=demo, lang=lang, netport=netport,port=port, addonsdir=addonsdir)
         self.args = {'dbname': dbname,'workdir':workdir, 'netport':netport,'port' : port, 'addonsdir' : addonsdir}
         # Compute defaults for descriptions:
-        description = ["Starting server with upgration"]
+        description = ["Starting server with upgradetion"]
         self.description = description
 
     def start(self):
@@ -893,7 +916,7 @@ class InstallModule2(InstallModule):
 
 class BzrMerge(LoggingBuildStep):
     name = 'bzr_merge'
-
+    haltOnFailure = True
     def describe(self, done=False,success=False,warn=False,fail=False):
          if done:
             if success:
@@ -961,7 +984,7 @@ class BzrMerge(LoggingBuildStep):
         res = SUCCESS
         if cmd.rc != 0:
             res = FAILURE
-        create_test_step_log(self, res)
+        create_test_step_log(self, res, step_name='bzr_merge')
         return res
 
 class BzrRevert(LoggingBuildStep):

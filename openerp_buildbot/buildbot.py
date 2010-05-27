@@ -48,8 +48,8 @@ class buildbot_lp_branch(osv.osv):
                 'lp_group_id': fields.many2one('buildbot.lp.group', 'LP Group'),
                 'lp_user_id': fields.many2one('buildbot.lp.user', 'LP User'),
                 'url': fields.char('Source Url', size=128, required=True),
-                'lastest_rev_id': fields.char('Revision Id', size=128),
-                'lastest_rev_no': fields.integer('Revision Number'),
+                'latest_rev_id': fields.char('Revision Id', size=128),
+                'latest_rev_no': fields.integer('Revision Number'),
                 'active': fields.boolean('Active'),
                 "is_test_branch": fields.boolean("Test Branch"),
                 "is_root_branch": fields.boolean("Root Branch"),
@@ -119,10 +119,13 @@ class buildbot_test(osv.osv):
     def _get_test_result(self, cr, uid, ids, name, args, context=None):
         res = {}
         for test in self.browse(cr, uid, ids):
-            res[test.id] = 'pass'
+            res[test.id] = 'Passed'
             for step in test.test_step_ids:
                 if step.state == 'fail':
-                    res[test.id] = 'fail'
+                    res[test.id] = 'Failed'
+                    break
+                elif step.state == 'skip':
+                    res[test.id] = 'Skipped'
                     break
         return res
 
@@ -152,6 +155,7 @@ class buildbot_test(osv.osv):
               'state': fields.function(_get_test_result, method=True, type='char', size=8, string="Test Result",
                                         store={'buildbot.test.step':(_get_test_ids,['test_id'], 10)}),
               'test_step_ids':fields.one2many('buildbot.test.step', 'test_id', 'Test Steps'),
+              'failure_reason':fields.text('Failure Reason')
               }
 buildbot_test()
 
@@ -172,6 +176,6 @@ class buildbot_test_step(osv.osv):
                 'info_log': fields.text('Info Log'),
                 'yml_log': fields.text('YML-Test Log'),
                 'traceback_detail': fields.text('Traceback'),
-                'state': fields.selection([('fail', 'Fail'), ('pass', 'Pass')], "Test Result", readonly=True),
+                'state': fields.selection([('fail', 'Failed'), ('pass', 'Passed'),('skip', 'Skipped')], "Test Result", readonly=True),
         }
 buildbot_test_step()

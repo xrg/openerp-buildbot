@@ -68,16 +68,12 @@
             <field name="type">form</field>
             <field name="arch" type="xml">
 	        	<form>
-    	            <group colspan="4" col="8">
-            	        <field name="name"/>
-						<field name="url" widget="url"/>
-                       	<field name="lp_project_id" />
-                    </group>
-                  	<group col="1" colspan="3">
-		   				<field name="active"/>
-						<field name="is_root_branch"/>
-						<field name="is_test_branch"/>
-                    </group>
+	                <field name="name"/>
+					<field name="url" widget="url"/>
+                   	<field name="lp_project_id" />
+       				<field name="active"/>
+					<field name="is_root_branch"/>
+					<field name="is_test_branch"/>
        				<notebook colspan="4">
     					<page string="General Details">
         				 	<field name="lp_user_id"/>
@@ -99,8 +95,8 @@
    							<field name="merge_community_addons"/>
        					</page>
        					<page string="Latest Revision Details" groups="base.group_extended">
-   							<field name="lastest_rev_no"/>
-   							<field name="lastest_rev_id"/>
+   							<field name="latest_rev_no"/>
+   							<field name="latest_rev_id"/>
 						</page>
 					</notebook>
             	</form>
@@ -155,6 +151,7 @@
             <field name="type">tree</field>
             <field name="arch" type="xml">
             	<tree>
+            		<field name="test_date"/>
             		<field name="name"/>
             		<field name="tested_branch"/>
             		<field name="state"/>
@@ -176,9 +173,14 @@
 		            		<field name="commit_rev_id" colspan="2"/>
 		            		<field name="commit_rev_no" colspan="2"/>
 		            		<field name="patch_attached" colspan="2"/>
-                            <separator string="Commit Message"  colspan="4"/>
-		            		<field name="commit_comment"  nolabel="1" colspan="4"/>
-		            	</page>
+		            		<label colspan="2" string=""/>
+	            			<separator string="Commit Message" colspan="4"/>
+                        	<field name="commit_comment"  nolabel="1" colspan="4"/>
+                        	<group attrs="{'invisible':[('state','=','pass')]}" colspan="4">
+                        		<separator string="Failure Reason"  colspan="4"/>
+	            				<field name="failure_reason"  nolabel="1" colspan="4"/>
+	            			</group>
+						</page>
 	            	<page string="File Status">
 	            		<notebook colspan="4">
 	            			<page string="New Files">
