@@ -762,6 +762,25 @@ class InstallModule(LoggingBuildStep):
 class OpenObjectBzr(Bzr):
     flunkOnFailure = False
     haltOnFailure = True
+
+    def describe(self, done=False,success=False,warn=False,fail=False):
+         if done:
+            if success:
+                return ['Updated branch %s Sucessfully!'%(self.branch)]
+            if warn:
+                return ['Updated branch %s with Warnings!'%(self.branch)]
+            if fail:
+                return ['Updated branch %s Failed!'%(self.branch)]
+         return self.description
+
+    def getText(self, cmd, results):
+        if results == SUCCESS:
+            return self.describe(True, success=True)
+        elif results == WARNINGS:
+            return self.describe(True, warn=True)
+        else:
+            return self.describe(True, fail=True)
+
     def __init__(self, repourl=None, baseURL=None,
                  defaultBranch=None,workdir=None, mode='update', alwaysUseLatest=True, timeout=40*60, retry=None,**kwargs):
         LoggingBuildStep.__init__(self, **kwargs)
@@ -769,6 +788,7 @@ class OpenObjectBzr(Bzr):
                    defaultBranch=defaultBranch,workdir=workdir,mode=mode,alwaysUseLatest=alwaysUseLatest,timeout=timeout,
                    retry=retry,**kwargs)
         self.name = 'bzr-update'
+        self.branch = repourl
         self.description = ["updating", "branch %s"%(repourl)]
         self.descriptionDone = ["updated", "branch %s"%(repourl)]
 
@@ -795,6 +815,26 @@ class OpenObjectBzr(Bzr):
         self.descriptionDone.extend(revstuff)
         cmd = LoggedRemoteCommand("openobjectbzr", self.args)
         self.startCommand(cmd)
+
+    def createSummary(self, log):
+        counts = {"ERROR": 0}
+        summaries = {"ERROR": []}
+        io = StringIO(log.getText()).readlines()
+        for line in io:
+            if line.find("ERROR") != -1:
+                pos = line.find("ERROR") + len("ERROR")
+                line = line[pos:]
+                summaries["ERROR"].append(line)
+                counts["ERROR"] += 1
+            else:
+                pass
+        self.summaries = summaries
+        if counts["ERROR"]:
+            msg = "".join(summaries["ERROR"])
+            self.addCompleteLog("Branch Update  : ERROR", msg)
+            self.setProperty("Branch Update : ERROR", counts["ERROR"])
+        if sum(counts.values()):
+            self.setProperty("Branch Update : MessageCount", sum(counts.values()))
 
     def evaluateCommand(self, cmd):
         res = SUCCESS
