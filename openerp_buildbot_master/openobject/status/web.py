@@ -20,14 +20,19 @@
 #
 ##############################################################################
 
-from buildbot.status.web.base import HtmlResource,map_branches,Box,ICurrentBox,build_get_class
+from buildbot.status.web.base import HtmlResource,map_branches,Box,ICurrentBox,build_get_class,path_to_builder,css_classes
 from buildbot.status.web.baseweb import WebStatus,OneBoxPerBuilder
 from buildbot.status.web import baseweb
+from buildbot.status.web.build import StatusResourceBuild,BuildsResource
+from buildbot.status.web.builder import StatusResourceBuilder, StatusResourceAllBuilders
+from twisted.web import html
 import xmlrpclib
 import pickle
 import os
 from lxml import etree
-import urllib
+import urllib, time
+from buildbot import version, util
+from openobject.xmlrpc import buildbot_xmlrpc
 
 ROOT_PATH = '.'
 
@@ -167,27 +172,24 @@ class BugGraph(HtmlResource):
         data = ''' <span id='retrivalTime'>%s</span><span id='datasets'>%s</span> ''' %(datasets[0],datasets[1])
         return data
 
-dbname = 'buildbot'
-host = 'localhost'
-port = 8069
-userid = 'admin'
-userpwd = 'a'
-from openobject.xmlrpc import buildbot_xmlrpc
-
 class LatestBuilds(HtmlResource):
 
     title = "Latest Builds"
 
     def body(self, req):
-        from twisted.web import html
+        status = self.getStatus(req)
+        properties = status.getSchedulers()[0].openerp_properties
+        host = properties.get('openerp_host', 'localhost')
+        port = properties.get('openerp_port',8069)
+        dbname = properties.get('openerp_dbname','buildbot')
+        userid = properties.get('openerp_userid','admin')
+        userpwd = properties.get('openerp_userpwd','a')
 
         openerp = buildbot_xmlrpc(host = host, port = port, dbname = dbname)
         openerp_uid = openerp.execute('common','login',  openerp.dbname, userid, userpwd)
 
-        status = self.getStatus(req)
         control = self.getControl(req)
-
-        base_builders_url = self.path_to_root(req) + "builders/"
+        base_builders_url = self.path_to_root(req) + "buildersresource/"
         builders = req.args.get("builder", status.getBuilderNames())
         branches = [b for b in req.args.get("branch", []) if b]
         all_builders = [html.escape(bn) for bn in builders]
@@ -225,6 +227,136 @@ class LatestBuilds(HtmlResource):
         data += "</table>"
         return data
 
+class OpenObjectStatusResourceBuild(StatusResourceBuild):
+    def __init__(self, build_status=None, build_control=None, builder_control=None):
+        StatusResourceBuild.__init__(self, build_status, build_control, builder_control)
+
+    def body(self, req):
+        b = self.build_status
+        status = self.getStatus(req)
+        projectName = status.getProjectName()
+        data = ('<div class="title"><a href="%s">%s</a></div>'
+                % (self.path_to_root(req), projectName))
+        builder_name = b.getBuilder().getName()
+        data += ("<h1><a href=\"%s\">Builder %s</a>: Build #%d</h1>"
+                 % (path_to_builder(req, b.getBuilder()),
+                    builder_name, b.getNumber()))
+        ss = b.getSourceStamp()
+        commiter = ""
+        if list(b.getResponsibleUsers()):
+            for who in b.getResponsibleUsers():
+                commiter += "%s" % html.escape(who)
+        else:
+            commiter += "No Commiter Found !"
+        if ss.revision:
+            revision = ss.revision
+        data += "<table class='grid' id='build_detail'>"
+        data += "<tr class='grid-header'><td class='grid-cell'><span>%s</span></td>"%(builder_name)
+        data += "<td class='grid-cell'><span>%s-%s</span></td></tr>"% (html.escape(str(revision)),commiter)
+        if b.getLogs():
+            for s in b.getSteps():
+                name = s.getName()
+                data += "<tr class='grid-row'>"
+                data += "<td class='grid-cell'>"
+                data += (" <li><a href=\"%s\">%s</a>\n"
+                         % (req.childLink("steps/%s" % urllib.quote(name)),
+                            name))
+                data +='</li></td>'
+                data +="<td class='grid-cell'>"
+                if s.getLogs():
+                    data += "  <ol>\n"
+                    for logfile in s.getLogs():
+                        logname = logfile.getName()
+                        logurl = req.childLink("steps/%s/logs/%s" %
+                                               (urllib.quote(name),
+                                                urllib.quote(logname)))
+                        data += ("   <li><a href=\"%s\">%s</a></li>\n" %
+                                 (logurl, logfile.getName()))
+                    result = s.getResults()[0]
+                    data += '<span class="%s"> %s</span></ol></td></tr>'%(css_classes[result]," ".join(s.getText()))
+                else:
+                    data += "%s</ol></td></tr>"%(" ".join(['Skipped']))
+            data += "</ol></table>"
+
+        if ss.changes:
+            data += "<h2>All Changes</h2>\n"
+            data += "<ol>\n"
+            for c in ss.changes:
+                data += "<li>" + c.asHTML() + "</li>\n"
+            data += "</ol>\n"
+        return data
+
+class OpenObjectBuildsResource(BuildsResource):
+    def __init__(self, builder_status=None, builder_control=None):
+        BuildsResource.__init__(self, builder_status, builder_control)
+
+    def getChild(self, path, req):
+        try:
+            num = int(path)
+        except ValueError:
+            num = None
+        if num is not None:
+            build_status = self.builder_status.getBuild(num)
+            if build_status:
+                if self.builder_control:
+                    build_control = self.builder_control.getBuild(num)
+                else:
+                    build_control = None
+                return OpenObjectStatusResourceBuild(build_status, build_control,
+                                           self.builder_control)
+        return HtmlResource.getChild(self, path, req)
+
+class OpenObjectStatusResourceBuilder(StatusResourceBuilder):
+
+    def __init__(self, builder_status=None, builder_control=None):
+        StatusResourceBuilder.__init__(self, builder_status, builder_control)
+
+    def getChild(self, path, req):
+        if path == "force":
+            return self.force(req)
+        if path == "ping":
+            return self.ping(req)
+        if path == "events":
+            num = req.postpath.pop(0)
+            req.prepath.append(num)
+            num = int(num)
+            # TODO: is this dead code? .statusbag doesn't exist,right?
+            log.msg("getChild['path']: %s" % req.uri)
+            return NoResource("events are unavailable until code gets fixed")
+            filename = req.postpath.pop(0)
+            req.prepath.append(filename)
+            e = self.builder_status.getEventNumbered(num)
+            if not e:
+                return NoResource("No such event '%d'" % num)
+            file = e.files.get(filename, None)
+            if file == None:
+                return NoResource("No such file '%s'" % filename)
+            if type(file) == type(""):
+                if file[:6] in ("<HTML>", "<html>"):
+                    return static.Data(file, "text/html")
+                return static.Data(file, "text/plain")
+            return file
+        if path == "builds":
+            return OpenObjectBuildsResource(self.builder_status, self.builder_control)
+
+        return HtmlResource.getChild(self, path, req)
+
+class OpenObjectBuildersResource(HtmlResource):
+
+    def getChild(self, path, req):
+        s = self.getStatus(req)
+        if path in s.getBuilderNames():
+            builder_status = s.getBuilder(path)
+            builder_control = None
+            c = self.getControl(req)
+            if c:
+                builder_control = c.getBuilder(path)
+            return OpenObjectStatusResourceBuilder(builder_status, builder_control)
+        if path == "_all":
+            return StatusResourceAllBuilders(self.getStatus(req),
+                                             self.getControl(req))
+        return HtmlResource.getChild(self, path, req)
+
 class OpenObjectWebStatus(WebStatus):
     def __init__(self, http_port=None, distrib_port=None, allowForce=False):
         WebStatus.__init__(self, http_port=http_port, distrib_port=distrib_port, allowForce=allowForce)
@@ -233,7 +365,7 @@ class OpenObjectWebStatus(WebStatus):
         WebStatus.setupUsualPages(self)
         self.putChild("buggraph", BugGraph())
         self.putChild("latestbuilds", LatestBuilds())
-
+        self.putChild("buildersresource", OpenObjectBuildersResource())
 
 
 
