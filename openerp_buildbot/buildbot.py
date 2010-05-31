@@ -115,6 +115,7 @@ buildbot_test_environment()
 
 class buildbot_test(osv.osv):
     _name = "buildbot.test"
+    _order = 'test_date desc'
 
     def _get_test_result(self, cr, uid, ids, name, args, context=None):
         res = {}
