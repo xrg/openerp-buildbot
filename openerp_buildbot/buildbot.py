@@ -102,17 +102,6 @@ class buildbot_lp_branch(osv.osv):
                 }
 buildbot_lp_branch()
 
-class buildbot_test_environment(osv.osv):
-    _name = "buildbot.test.environment"
-    _columns = {
-                'name': fields.char('Name', size=100, required=True),
-                'version': fields.char('Version', size=64,),
-                'revision_id': fields.char('Revision Id', size=64,),
-                'source_url': fields.char('Source Url', size=128),
-                'note': fields.text('Note'),
-                }
-buildbot_test_environment()
-
 class buildbot_test(osv.osv):
     _name = "buildbot.test"
     _order = 'test_date desc'
@@ -142,7 +131,7 @@ class buildbot_test(osv.osv):
               'name': fields.char('Test Name', size=500, help="Test Name"),
               'test_date': fields.datetime('Date of Test', required=True, help="Date on which the test was conducted"),
               'tested_branch': fields.many2one('buildbot.lp.branch', 'Branch', required=True, help="Name of the Launchpad Branch Tested"),
-              'environment_id': fields.many2many('buildbot.test.environment','buildbot_test_evironment_rel','test_id','env_id','Test Environment',help="Environment on which test was conducted"),
+              'environment': fields.text('Test Environment',help="Environment on which test was conducted"),
               'commiter_id': fields.many2one('buildbot.lp.user', 'Branch Committer',required=True,help="Commiter of the revision"),
               'commit_date': fields.datetime('Date Of Commit', required=True, help="Date of commit"),
               'commit_comment': fields.text('Comment On Commit',help="Cooment on commit"),

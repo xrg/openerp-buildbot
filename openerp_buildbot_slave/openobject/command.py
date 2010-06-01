@@ -26,9 +26,9 @@ from twisted.internet import reactor, defer, task
 from twisted.python import log, failure, runtime
 import os
 command_version = "0.0.1"
-	
 
-class SlaveCp(SlaveShellCommand):
+class OpenObjectShell(SlaveShellCommand):
+
     def start(self):
         args = self.args
         assert args['workdir'] is not None
@@ -44,8 +44,7 @@ class SlaveCp(SlaveShellCommand):
 	            	if dir == 'base':
 	            	   continue
 	                dirs.append(dir)
-        commandline = ["cp","-r","-u"]
-        #commandline = ["find",".", "|" ,"grep" ,"-v","'/\.'"] #| cpio -dump $DESTINATION_DIR/.
+        commandline = args.get('command', [])
         commandline += dirs
         commandline += [addonsdir]
         c = ShellCommand(self.builder, commandline,
@@ -62,65 +61,6 @@ class SlaveCp(SlaveShellCommand):
         d = self.command.start()
         return d
 
-class CreateDB(SlaveShellCommand):
-	def start(self): 
-		script_path = self.builder.basedir+'/../openobject/script.py'
-		args = self.args
-		assert args['workdir'] is not None
-		assert args['addonsdir'] is not None
-		workdir = os.path.join(self.builder.basedir, args['workdir'])
-		addonsdir = args['addonsdir']
-		commandline = ["python", script_path, "create-db"]
-		commandline.append("--root-path=%s"%(workdir))
-		if args['dbname']:
-		    commandline.append("--database=%s"%(self.args['dbname']))
-		if self.args['port']:
-		    commandline.append("--port=%s"%(self.args['port']))
-		
-		c = ShellCommand(self.builder, commandline,
-		                 workdir, environ=None,
-		                 timeout=args.get('timeout', None),
-						 sendStdout=args.get('want_stdout', True),
-						 sendStderr=args.get('want_stderr', True),
-						 sendRC=True,
-						 initialStdin=args.get('initial_stdin'),
-						 keepStdinOpen=args.get('keep_stdin_open'),
-						 logfiles=args.get('logfiles', {}),
-		                 )
-		self.command = c
-		d = self.command.start()
-		return d
-
-class InstallModule(SlaveShellCommand):
-	def start(self):
-		script_path = self.builder.basedir+'/../openobject/script.py'
-		args = self.args
-		assert args['workdir'] is not None
-		assert args['addonsdir'] is not None
-		workdir = os.path.join(self.builder.basedir, args['workdir'])
-		addonsdir = args['addonsdir']
-		commandline = ["python", script_path, "install-module"]
-		commandline.append("--root-path=%s"%(workdir))
-		if args['dbname']:
-		    commandline.append("--database=%s"%(self.args['dbname']))
-		if self.args['port']:
-		    commandline.append("--port=%s"%(self.args['port']))
-		if self.args['modules']:
-			commandline.append("--modules=%s"%(self.args['modules']))
-		c = ShellCommand(self.builder, commandline,
-		                 workdir, environ=None,
-		                 timeout=args.get('timeout', None),
-						 sendStdout=args.get('want_stdout', True),
-						 sendStderr=args.get('want_stderr', True),
-						 sendRC=True,
-						 initialStdin=args.get('initial_stdin'),
-						 keepStdinOpen=args.get('keep_stdin_open'),
-						 logfiles=args.get('logfiles', {}),
-		                 )
-		self.command = c
-		d = self.command.start()
-		return d
-		
 class OpenObjectBzr(Bzr):
     def doVCUpdate(self):
         if self.revision:
@@ -132,12 +72,12 @@ class OpenObjectBzr(Bzr):
                           sendRC=False, timeout=self.timeout)
         self.command = c
         return c.start()
-       
+
     def sourcedirIsUpdateable(self):
         if os.path.exists(os.path.join(self.builder.basedir,
                                  self.srcdir, ".buildbot-patched")):
             return False
         if self.revision:
             return True
-        return os.path.isdir(os.path.join(self.builder.basedir,self.srcdir, ".bzr"))		
-# vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:        
+        return os.path.isdir(os.path.join(self.builder.basedir,self.srcdir, ".bzr"))
+# vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

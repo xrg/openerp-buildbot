@@ -114,35 +114,6 @@
        	<menuitem id="buildbot_branch" name="Launchpad Branches" parent="buildbot_config"
             	  sequence="5" action="action_buildbot_branch"/>
 
-       <!-- Buildbot Environment -->
-
-        <record id="view_buildbot_environment_form" model="ir.ui.view">
-        	<field name="name">Test Environment</field>
-            <field name="model">buildbot.test.environment</field>
-            <field name="type">form</field>
-            <field name="arch" type="xml">
-            	<form>
-            		<field name="name" colspan="2"/>
-            		<field name="version" colspan="2"/>
-            		<field name="revision_id" colspan="2"/>
-            		<field name="source_url" colspan="2" widget="url"/>
-            		<separator string="Notes" colspan="4"/>
-            		<field name="note" nolabel="1" colspan="4"/>
-            	</form>
-        	</field>
-        </record>
-
-        <record id="action_buildbot_test_env" model="ir.actions.act_window">
-        	<field name="name">Test Environment</field>
-        	<field name="type">ir.actions.act_window</field>
-            <field name="res_model">buildbot.test.environment</field>
-            <field name="view_type">form</field>
-            <field name="view_mode">tree,form</field>
-       	</record>
-
-       	<menuitem id="buildbot_test_environment"  name="Test Environment" parent="buildbot_config"
-                  sequence="5" action="action_buildbot_test_env"/>
-
        <!-- Buildbot Tests -->
 		<record id="view_test_order_filter" model="ir.ui.view">
 			<field name="name">buildbot.test.list.select</field>
@@ -223,7 +194,7 @@
             			<field name="test_step_ids" nolabel="1" colspan="4" />
             		</page>
             		<page string="Environment">
-            			<field name="environment_id" nolabel="1" colspan="4"/>
+            			<field name="environment" nolabel="1" colspan="4"/>
             		</page>
             		</notebook>
 					<field name="state"/>
