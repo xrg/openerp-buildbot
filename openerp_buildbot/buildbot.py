@@ -43,6 +43,20 @@ buildbot_lp_user()
 
 class buildbot_lp_branch(osv.osv):
     _name = "buildbot.lp.branch"
+
+    def _get_directory_name(self, cr, uid, ids, name, args, context=None):
+        res = {}
+        for branch in self.browse(cr, uid, ids):
+            dir_name = ''
+            if branch.lp_group_id and branch.lp_group_id.name:
+                dir_name += branch.lp_group_id.name + '_'
+            if branch.lp_project_id and branch.lp_project_id.name:
+                dir_name += branch.lp_project_id.name + '_'
+            if branch.name:
+                dir_name += branch.name
+            res[branch.id] = dir_name
+        return res
+
     _columns = {
                 'name': fields.char('LP Branch', size=128, required=True, help="Launchpad Branch Name"),
                 'lp_group_id': fields.many2one('buildbot.lp.group', 'LP Group', help="Launchpad Group"),
@@ -54,7 +68,7 @@ class buildbot_lp_branch(osv.osv):
                 "is_test_branch": fields.boolean("Test Branch", help="Is this branch a test branch"),
                 "is_root_branch": fields.boolean("Root Branch",help="Is this branch a root branch"),
                 'treestabletimer': fields.integer('Tree Stable Timer',help="Timer for the branch"),
-                'build_directory': fields.char('Build Directoy', size=128, help="The Directory in which this branch will be built"),
+                'build_directory': fields.function(_get_directory_name, method=True, type='char', string='Build Directoy', size=128, help="The Directory in which this branch will be built"),
                 'dbname': fields.char('Database Name', size=128, help="The Name of the Database which will be created for testing this branch"),
                 'port':fields.integer('port', help="Port for the openerp-server to start"),
                 'netport':fields.integer('net-port', help="net-port for the openerp-server to start"),
@@ -135,7 +149,7 @@ class buildbot_test(osv.osv):
               'remove_files': fields.text('Files Removed',help="Files Removed in the Commit"),
               'rename_files': fields.text('Files Renamed',help="Files Renamed in the Commit"),
               'patch_attached':fields.boolean('Patch Attached', readonly=True,help="Patch Attached in the Commit"),
-              'state': fields.function(_get_test_result, method=True, type='selection', size=8, string="Test Result",
+              'state': fields.function(_get_test_result, method=True, type='selection', string="Test Result",
                                         selection=[('fail', 'Failed'), ('pass', 'Passed'),('skip', 'Skipped')],store={'buildbot.test.step':(_get_test_ids,['test_id'], 10)},
                                         help="Final State of the Test"),
               'test_step_ids':fields.one2many('buildbot.test.step', 'test_id', 'Test Steps'),
