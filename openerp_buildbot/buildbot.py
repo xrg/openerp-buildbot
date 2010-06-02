@@ -79,13 +79,6 @@ class buildbot_lp_project(osv.osv):
                 'tester_addons_branch_id': fields.many2one('buildbot.lp.branch', 'Tester Addons Branch', required=True, help="Tester Branch for Addons"),
                 'tester_server_branch_id': fields.many2one('buildbot.lp.branch', 'Tester Server Branch', required=True,  help="Tester Branch for Server"),
                 'root_branch_id': fields.many2one('buildbot.lp.branch', 'Root Branch', required=True),
-                }
-buildbot_lp_project()
-
-class buildbot_lp_project(osv.osv):
-    _name = "buildbot.lp.project"
-    _inherit = "buildbot.lp.project"
-    _columns = {
                 'branch_ids':fields.one2many('buildbot.lp.branch','lp_project_id','Branches', help="Launchpad Branches"),
                 }
 buildbot_lp_project()
