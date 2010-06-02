@@ -20,7 +20,7 @@
 #
 ##############################################################################
 
-from buildbot.status.web.base import HtmlResource,map_branches,Box,ICurrentBox,build_get_class,path_to_builder,css_classes
+from buildbot.status.web.base import HtmlResource,map_branches,Box,ICurrentBox,build_get_class,path_to_builder
 from buildbot.status.web.baseweb import WebStatus,OneBoxPerBuilder
 from buildbot.status.web import baseweb
 from buildbot.status.web.build import StatusResourceBuild,BuildsResource
@@ -272,10 +272,23 @@ class OpenObjectStatusResourceBuild(StatusResourceBuild):
                                                 urllib.quote(logname)))
                         data += ("   <li><a href=\"%s\">%s</a></li>\n" %
                                  (logurl, logfile.getName()))
-                    result = s.getResults()[0]
-                    data += '<span class="%s"> %s</span></ol></td></tr>'%(css_classes[result]," ".join(s.getText()))
+                    text = " ".join(s.getText())
+                    color = ''
+                    if text.find('Failed') != -1:
+                        color = 'failure'
+                    elif text.find('Sucessfully') != -1:
+                        color = 'success'
+                    elif text.find('Warnings') != -1:
+                        color = 'warnings'
+                    elif text.find('exception') != -1:
+                        color = 'exception'
+                    if color:
+                        data += '<span class="%s"> %s</span></ol></td></tr>'%(color, text)
+                    else:
+                        data += '<span>%s</span></ol></td></tr>'%(text)
                 else:
-                    data += "%s</ol></td></tr>"%(" ".join(['Skipped']))
+                    data += '<span>Skipped</span></ol></td>'
+
             data += "</ol></table>"
 
         if ss.changes:
@@ -340,6 +353,82 @@ class OpenObjectStatusResourceBuilder(StatusResourceBuilder):
             return OpenObjectBuildsResource(self.builder_status, self.builder_control)
 
         return HtmlResource.getChild(self, path, req)
+
+    def body(self, req):
+        b = self.builder_status
+        builder_name = b.getName()
+        status = self.getStatus(req)
+        control = self.builder_control
+
+        projectName = status.getProjectName()
+
+        data = '<a href="%s">%s</a>\n' % (self.path_to_root(req), projectName)
+
+        data += "<h1>Builder: %s</h1>\n" % html.escape(builder_name)
+
+        # Then a section with the last 5 builds, with the most recent build
+        # distinguished from the rest.
+
+        data += "<h2>Recent Builds:</h2>\n"
+        data += "<table border='1'><tr><th>Commiter <br> / Steps</th>"
+        step_name = []
+        builds = []
+
+        for build in b.generateFinishedBuilds(num_builds=5):
+            if build not in builds:
+                builds.append(build)
+            for step in build.getSteps():
+                name = step.getName()
+                if name not in step_name:
+                    step_name.append(name)
+
+        for build in builds:
+            ss = build.getSourceStamp()
+            commiter = ""
+            if list(build.getResponsibleUsers()):
+                for who in build.getResponsibleUsers():
+                    commiter += "%s" % html.escape(who)
+            else:
+                commiter += "No Commiter Found !"
+            if ss.revision:
+                revision = ss.revision
+            data += "<th><span>%s-%s</span></th>"% (html.escape(str(revision)),commiter)
+        data += "</tr>"
+        for name in step_name:
+            data += "<tr><td>%s</td>"%name
+            for build in builds:
+                data += "<td>"
+                for s in build.getSteps():
+                    if s.getName() == name:
+                        if s.getLogs():
+                            data += "  <ol>\n"
+                            for logfile in s.getLogs():
+                                logname = logfile.getName()
+                                logurl = req.childLink("builds/%d/steps/%s/logs/%s" %
+                                                       (build.getNumber(),urllib.quote(name),
+                                                        urllib.quote(logname)))
+                                data += ("  <li><a href=\"%s\">%s</a></li>\n" %
+                                         (logurl, logfile.getName()))
+                            data += "</ol>"
+                            text = " ".join(s.getText())
+                            color = ''
+                            if text.find('Failed') != -1:
+                                color = 'failure'
+                            elif text.find('Sucessfully') != -1:
+                                color = 'success'
+                            elif text.find('Warnings') != -1:
+                                color = 'warnings'
+                            elif text.find('exception') != -1:
+                                color = 'exception'
+                            if color:
+                                data += '<span class="%s"> %s</span></td>'%(color,text)
+                            else:
+                                data += '<span>%s</span></td>'%(text)
+                        else:
+                            data += '<span>Skipped</span></td>'
+            data += "</tr>"
+        data += " </table>"
+        return data
 
 class OpenObjectBuildersResource(HtmlResource):
 
