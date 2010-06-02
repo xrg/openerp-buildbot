@@ -63,14 +63,15 @@ def create_test_step_log(step_object = None, res=SUCCESS, step_name = ''):
     test_id = source.get(revision, False)
     summary = step_object.summaries
 
-    if res == FAILURE:
-        state = 'fail'
-        if step_name in ('bzr-update', 'bzr_merge'):
+    if step_name in ('bzr-update', 'bzr_merge'):
+        if res == FAILURE:
             state = 'skip'
             test_values = {'failure_reason':'This test has been skipped because the step %s has failed ! \n for more details please refer the Test steps tab.'%(step_name),'state':state}
             branch_values = {'latest_rev_no':last_revision_no_stored,'latest_rev_id':last_revision_id_stored}
             openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.lp.branch','write', [int(tested_branch_id)],branch_values)
             openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.test','write', [int(test_id)],test_values)
+        openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.test','write', [int(test_id)],{'environment':step_object.env_info})
+
     params = {}
     params['name'] = step_object.name
     params['test_id'] = int(test_id)
@@ -137,7 +138,7 @@ class CreateDB(LoggingBuildStep):
            self.args['command'].append("demo=%s"%(self.args['demo']))
         if self.args['addonsdir']:
            self.args['command'].append("addons-path=%s"%(self.args['addonsdir']))
-        cmd = LoggedRemoteCommand("shell",self.args)
+        cmd = LoggedRemoteCommand("OpenObjectShell",self.args)
         self.startCommand(cmd)
 
     def createSummary(self, log):
@@ -250,7 +251,7 @@ class DropDB(LoggingBuildStep):
            self.args['command'].append("port=%s"%(self.args['port']))
         if self.args['netport']:
            self.args['command'].append("net_port=%s"%(self.args['netport']))
-        cmd = LoggedRemoteCommand("shell",self.args)
+        cmd = LoggedRemoteCommand("OpenObjectShell",self.args)
         self.startCommand(cmd)
 
     def evaluateCommand(self, cmd):
@@ -332,7 +333,7 @@ class CheckQuality(LoggingBuildStep):
                 self.args['command'].append("module=%s"%(self.args['modules']))
             if self.args['dbname']:
                 self.args['command'].append("database=%s"%(self.args['dbname']))
-            cmd = LoggedRemoteCommand("shell",self.args)
+            cmd = LoggedRemoteCommand("OpenObjectShell",self.args)
             self.startCommand(cmd)
         else:
             cmd = LoggedRemoteCommand("dummy", self.args)
@@ -526,7 +527,7 @@ class InstallTranslation(LoggingBuildStep):
 
             self.description += ["Files:"] + self.translation_lst.split('\n') + ["on Server","%s:%s"%(buildbotURL[:-1],self.args['port'])]
             self.args['command'].append("i18n-import=%s"%(i18n_str[:-1]))
-            cmd = LoggedRemoteCommand("shell",self.args)
+            cmd = LoggedRemoteCommand("OpenObjectShell",self.args)
             self.startCommand(cmd)
         else:
             cmd = LoggedRemoteCommand("dummy", self.args)
@@ -647,7 +648,7 @@ class InstallModule(LoggingBuildStep):
         }
         self.name = 'install-module'
         self.description = ['Installing Module(s)']
-	self.descriptionDone = ['Module Installed Sucessfully']
+        self.descriptionDone = ['Module Installed Sucessfully']
 
     def start(self):
         s = self.build.getSourceStamp()
@@ -677,7 +678,7 @@ class InstallModule(LoggingBuildStep):
                 self.args['command'].append("database=%s"%(self.args['dbname']))
             if self.args['extra_addons']:
                 self.args['command'].append("extra-addons=%s"%(self.args['extra_addons']))
-            cmd = LoggedRemoteCommand("shell",self.args)
+            cmd = LoggedRemoteCommand("OpenObjectShell",self.args)
             self.startCommand(cmd)
         else:
             cmd = LoggedRemoteCommand("dummy", self.args)
@@ -791,6 +792,7 @@ class OpenObjectBzr(Bzr):
         self.branch = repourl
         self.description = ["updating", "branch %s"%(repourl)]
         self.descriptionDone = ["updated", "branch %s"%(repourl)]
+        self.env_info = ''
 
     def startVC(self, branch, revision, patch):
         slavever = self.slaveVersion("bzr")
@@ -837,6 +839,11 @@ class OpenObjectBzr(Bzr):
             self.setProperty("Branch Update : MessageCount", sum(counts.values()))
 
     def evaluateCommand(self, cmd):
+        for ch, txt in cmd.logs['stdio'].getChunks():
+            if ch == 2:
+                if txt.find('environment')!= -1:
+                    pos = txt.find('environment')
+                    self.env_info = txt[pos:]
         res = SUCCESS
         if cmd.rc != 0:
             res = FAILURE
@@ -923,7 +930,7 @@ class StartServer(LoggingBuildStep):
 
         self.args['command'] = commands
 
-        cmd = LoggedRemoteCommand("shell",self.args)
+        cmd = LoggedRemoteCommand("OpenObjectShell",self.args)
         self.startCommand(cmd)
 
 
@@ -984,6 +991,7 @@ class BzrMerge(LoggingBuildStep):
         self.branch = branch
         description = ["Merging Branch"]
         self.description = description
+        self.env_info = ''
 
     def start(self):
         s = self.build.getSourceStamp()
@@ -997,7 +1005,7 @@ class BzrMerge(LoggingBuildStep):
 
         if self.args['branch']:
            self.args['command'].append(self.args['branch'])
-        cmd = LoggedRemoteCommand("shell",self.args)
+        cmd = LoggedRemoteCommand("OpenObjectShell",self.args)
         self.startCommand(cmd)
 
     def createSummary(self, log):
@@ -1021,6 +1029,11 @@ class BzrMerge(LoggingBuildStep):
             self.setProperty("Bzr Merge : MessageCount", sum(counts.values()))
 
     def evaluateCommand(self, cmd):
+        for ch, txt in cmd.logs['stdio'].getChunks():
+            if ch == 2:
+                if txt.find('environment')!= -1:
+                    pos = txt.find('environment')
+                    self.env_info = txt[pos:]
         res = SUCCESS
         if cmd.rc != 0:
             res = FAILURE
@@ -1064,7 +1077,7 @@ class BzrRevert(LoggingBuildStep):
 
     def start(self):
         self.args['command']=["bzr","revert"]
-        cmd = LoggedRemoteCommand("shell",self.args)
+        cmd = LoggedRemoteCommand("OpenObjectShell",self.args)
         self.startCommand(cmd)
 
     def createSummary(self, log):
