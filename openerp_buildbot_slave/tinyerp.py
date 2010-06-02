@@ -37,6 +37,7 @@ def start_server(root_path, port):
     if root_path:
         root_path += '/'
     os.system('python2.5 '+root_path+'/bin/tinyerp-server.py --pidfile=tinyerp.pid --port=%s --no-netrpc' %(str(port)))
+
 def clean():
     if os.path.isfile('tinyerp.pid'):
         ps = open('tinyerp.pid') 

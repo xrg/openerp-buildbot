@@ -37,13 +37,13 @@ class OpenObjectShell(SlaveShellCommand):
         addonsdir = args['addonsdir']
         dirs = []
         if 'stable_openobject_server' in args['addonsdir'].split('/'):
-        	dirs.append('base')
+            dirs.append('base')
         else:
-	        for dir in os.listdir(workdir):
-	            if dir not in ['.buildbot-sourcedata','.bzrignore','.bzr','.svn','README.txt']:
-	            	if dir == 'base':
-	            	   continue
-	                dirs.append(dir)
+            for dir in os.listdir(workdir):
+                if dir not in ['.buildbot-sourcedata','.bzrignore','.bzr','.svn','README.txt']:
+                    if dir == 'base':
+                       continue
+                    dirs.append(dir)
         commandline = args.get('command', [])
         commandline += dirs
         commandline += [addonsdir]
@@ -68,16 +68,15 @@ class OpenObjectBzr(Bzr):
         else:
             command = [self.vcexe, 'update']
         srcdir = os.path.join(self.builder.basedir, self.srcdir)
-        c = ShellCommand(self.builder, command, srcdir,
-                          sendRC=False, timeout=self.timeout)
+        c = ShellCommand(self.builder, command, srcdir, sendRC=False, timeout=self.timeout)
         self.command = c
         return c.start()
 
     def sourcedirIsUpdateable(self):
-        if os.path.exists(os.path.join(self.builder.basedir,
-                                 self.srcdir, ".buildbot-patched")):
+        if os.path.exists(os.path.join(self.builder.basedir, self.srcdir, ".buildbot-patched")):
             return False
         if self.revision:
             return True
         return os.path.isdir(os.path.join(self.builder.basedir,self.srcdir, ".bzr"))
+
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
