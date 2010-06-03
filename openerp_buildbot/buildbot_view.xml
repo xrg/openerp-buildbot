@@ -279,8 +279,28 @@
                 <field name="tester_server_branch_id" domain="[('is_test_branch', '=', True)]"/>
                 <field name="tester_addons_branch_id" domain="[('is_test_branch', '=', True)]"/>
                 <field name="root_branch_id" domain="[('is_root_branch', '=', True)]"/>
+                <field name="branch_ids"  nolabel="1" colspan="4" domain="[('is_test_branch', '=', False), ('is_root_branch', '=', False)]">
+                  <tree string="Branches">
+                      <field name="name"/>
+                      <field name="url"/>
+                      <field name="lp_user_id"/>
+                      <field name="lp_group_id"/>
+                      <field name="latest_rev_id"/>
+                      <field name="latest_rev_no"/>
+                      <field name="active"/>
+                  </tree>
+                  <form string="Branches">
+                      <field name="name"/>
+                      <field name="url"/>
+                      <field name="lp_user_id"/>
+                      <field name="lp_group_id"/>
+                      <field name="latest_rev_id"/>
+                      <field name="latest_rev_no"/>
+                      <field name="active"/>
+                  </form>
+                </field>
               </form>
-          </field>
+            </field>
         </record>
 
         <record id="action_buildbot_project" model="ir.actions.act_window">

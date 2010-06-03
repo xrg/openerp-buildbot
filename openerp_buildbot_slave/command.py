@@ -32,21 +32,22 @@ class OpenObjectShell(SlaveShellCommand):
     def start(self):
         args = self.args
         assert args['workdir'] is not None
-        assert args['addonsdir'] is not None
         workdir = os.path.join(self.builder.basedir, args['workdir'])
-        addonsdir = args['addonsdir']
-        dirs = []
-        if 'stable_openobject_server' in args['addonsdir'].split('/'):
-            dirs.append('base')
-        else:
-            for dir in os.listdir(workdir):
-                if dir not in ['.buildbot-sourcedata','.bzrignore','.bzr','.svn','README.txt']:
-                    if dir == 'base':
-                       continue
-                    dirs.append(dir)
+        addonsdir = args.get('addonsdir', False)
+        if addonsdir:
+            dirs = []
+            if 'stable_openobject_server' in args['addonsdir'].split('/'):
+                dirs.append('base')
+            else:
+                for dir in os.listdir(workdir):
+                    if dir not in ['.buildbot-sourcedata','.bzrignore','.bzr','.svn','README.txt']:
+                        if dir == 'base':
+                           continue
+                        dirs.append(dir)
         commandline = args.get('command', [])
-        commandline += dirs
-        commandline += [addonsdir]
+        if addonsdir:
+            commandline += dirs
+            commandline += [addonsdir]
         c = ShellCommand(self.builder, commandline,
                          workdir, environ=None,
                          timeout=args.get('timeout', None),
