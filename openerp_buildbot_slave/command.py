@@ -25,7 +25,63 @@ from buildbot.slave.commands import Command, SlaveShellCommand, ShellCommand, Ab
 from twisted.internet import reactor, defer, task
 from twisted.python import log, failure, runtime
 import os
+import sys
+import platform
+import locale
+
 command_version = "0.0.1"
+
+class test_environment():
+
+    def get_test_environment(self, base_dir=''):
+        environment = {}
+        testbranch_rev_info = ['Not Available !', 'Not Available !']
+        if base_dir:
+            server_dir_path = os.path.join(base_dir, 'openerp-server')
+            addons_dir_path = os.path.join(base_dir, 'openerp-addons')
+            bzr_path_ext = '/.bzr/branch/last-revision'
+            testbranch_rev_info = []
+            try:
+                for path in [server_dir_path, addons_dir_path]:
+                    fp = open(path + bzr_path_ext,'r')
+                    testbranch_rev_info.append(fp.read())
+                    fp.close()
+            except:
+                testbranch_rev_info = ['Not Available !', 'Not Available !']
+
+        openerp_ver_cmd = 'make -C  %s version'%(server_dir_path)
+        openerp_version = os.popen(openerp_ver_cmd).read()
+        openerp_version = openerp_version.split('\n')[2]
+
+        os_lang = '.'.join( [x for x in locale.getdefaultlocale() if x] )
+
+        if not os_lang:
+            os_lang = 'NOT SET'
+        if os.name == 'posix':
+          if platform.system() == 'Linux':
+             lsbinfo = os.popen('lsb_release -a').read()
+             lsb = {}
+             for val in lsbinfo.split('\n'):
+                 info = val.split(':')
+                 if len(info) > 1:
+                     lsb.update({'A: '+info[0]:info[1].strip()})
+          else:
+             lsb = {'A: System is not lsb compliant ':''}
+
+        environment = {
+                      'A: OpenERP Version ':openerp_version,
+                      'A: OpenERP Server ':testbranch_rev_info[0].strip(),
+                      'A: OpenERP Addons ':testbranch_rev_info[1].strip(),
+                      'A: OS platform ':platform.platform(),
+                      'A: OS Name ':platform.os.name,
+                      'A: OS Release ':platform.release(),
+                      'A: OS Version ':platform.version(),
+                      'A: OS Architecture ':platform.architecture()[0],
+                      'A: OS Locale ':os_lang,
+                      'A: Python Version ':platform.python_version()
+                      }
+        environment.update(lsb)
+        return environment
 
 class OpenObjectShell(SlaveShellCommand):
 
@@ -48,8 +104,11 @@ class OpenObjectShell(SlaveShellCommand):
         if addonsdir:
             commandline += dirs
             commandline += [addonsdir]
+
+        openerp_env = test_environment()
+        openERP_environment = openerp_env.get_test_environment(self.builder.basedir)
         c = ShellCommand(self.builder, commandline,
-                         workdir, environ=None,
+                         workdir, environ=openERP_environment ,
                          timeout=args.get('timeout', None),
                          sendStdout=args.get('want_stdout', True),
                          sendStderr=args.get('want_stderr', True),
