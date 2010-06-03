@@ -48,7 +48,7 @@ def create_test_log(source, properties):
     last_revision_id_stored = tested_branch_val and tested_branch_val[0].get('latest_rev_id', '') or ''
     properties[tested_branch_id] = {'latest_rev_no':last_revision_no_stored,'latest_rev_id':last_revision_id_stored}
     res = {}
-    res['tested_branch'] = tested_branch_id or False
+    res['branch_id'] = tested_branch_id or False
     res['test_date'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     res['commit_date'] = datetime.fromtimestamp(change.when).strftime('%Y-%m-%d %H:%M:%S')
     lp_user_id = openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.lp.user','search', [('name','ilike',change.who)])

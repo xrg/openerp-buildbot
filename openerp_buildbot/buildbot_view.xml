@@ -126,11 +126,11 @@
                     <filter  string="Skipped" domain="[('state','=','skip')]"/>
                     <separator orientation="vertical"/>
                     <field name="name" select="1"/>
-                    <field name="tested_branch" select="1"/>
+                    <field name="branch_id" select="1"/>
                     <field name="test_date" select="1" string="Test Date" />
                     <newline/>
                     <group expand="1" string="Group By..." colspan="11" col="11">
-                        <filter string="Branches"  domain="[]" context="{'group_by':'tested_branch'}"/>
+                        <filter string="Branches"  domain="[]" context="{'group_by':'branch_id'}"/>
                         <filter string="Test Date" domain="[]" context="{'group_by':'test_date'}"/>
                         <filter string="State" domain="[]" context="{'group_by':'state'}"/>
                     </group>
@@ -146,7 +146,7 @@
               <tree>
                 <field name="test_date"/>
                 <field name="name"/>
-                <field name="tested_branch"/>
+                <field name="branch_id"/>
                 <field name="state"/>
               </tree>
             </field>
@@ -158,7 +158,7 @@
             <field name="arch" type="xml">
               <form>
                 <field name="test_date" colspan="2"/>
-                <field name="tested_branch" colspan="2"/>
+                <field name="branch_id" colspan="2"/>
                 <notebook colspan="4">
                   <page string="Commit Details">
                     <field name="commiter_id" colspan="2"/>
@@ -314,7 +314,7 @@
          <menuitem id="buildbot_project" name="Launchpad Projects" parent="buildbot_config"
                   sequence="5" action="action_buildbot_project"/>
 
-    <act_window context="{'tested_branch': active_id}" domain="[('tested_branch', '=', active_id)]" id="act_test_branch" name="Test Results" res_model="buildbot.test" src_model="buildbot.lp.branch"/>
+    <act_window context="{'branch_id': active_id}" domain="[('branch_id', '=', active_id)]" id="act_test_branch" name="Test Results" res_model="buildbot.test" src_model="buildbot.lp.branch"/>
 
   </data>
 </openerp>

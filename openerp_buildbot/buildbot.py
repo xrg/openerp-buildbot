@@ -137,7 +137,7 @@ class buildbot_test(osv.osv):
     _columns = {
               'name': fields.char('Test Name', size=500, help="Test Name"),
               'test_date': fields.datetime('Date of Test', required=True, help="Date on which the test was conducted"),
-              'tested_branch': fields.many2one('buildbot.lp.branch', 'Branch', required=True, help="Name of the Launchpad Branch Tested"),
+              'branch_id': fields.many2one('buildbot.lp.branch', 'Branch', required=True, help="Name of the Launchpad Branch Tested"),
               'environment': fields.text('Test Environment',help="Environment on which test was conducted"),
               'commiter_id': fields.many2one('buildbot.lp.user', 'Branch Committer',required=True,help="Commiter of the revision"),
               'commit_date': fields.datetime('Date Of Commit', required=True, help="Date of commit"),

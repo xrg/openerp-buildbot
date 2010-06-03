@@ -205,7 +205,7 @@ class LatestBuilds(HtmlResource):
 
             args = [('name','ilike',bn),('is_test_branch','=',False),('is_root_branch','=',False)]
             tested_branch_ids = openerp.execute('object', 'execute', openerp.dbname, openerp_uid, userpwd, 'buildbot.lp.branch','search',args)
-            test_search_args = [('tested_branch','in', tested_branch_ids)]
+            test_search_args = [('branch_id','in', tested_branch_ids)]
             test_ids = openerp.execute('object', 'execute', openerp.dbname, openerp_uid, userpwd, 'buildbot.test','search',test_search_args,0,5)
             test_data = openerp.execute('object', 'execute', openerp.dbname, openerp_uid, userpwd, 'buildbot.test','read',test_ids)
             index = ''
