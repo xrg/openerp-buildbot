@@ -24,7 +24,7 @@ class report_buildbot_branch_test_result_ratio(osv.osv):
             ((sum(CASE WHEN state='pass' THEN 1 ELSE 0 END)))/count(buildbot_test.id)::float(1) as success_ratio,
            ((sum(CASE WHEN state='fail' THEN 1 ELSE 0 END)))/count(buildbot_test.id)::float(1) as failure_ratio,
            count(buildbot_test.id) as total_tests
-           from buildbot_test join buildbot_lp_branch on buildbot_lp_branch.id = buildbot_test.tested_branch group by buildbot_lp_branch.name)
+           from buildbot_test join buildbot_lp_branch on buildbot_lp_branch.id = buildbot_test.branch_id group by buildbot_lp_branch.name)
         """)
 
 report_buildbot_branch_test_result_ratio()
@@ -55,7 +55,7 @@ class report_branch_test_statistics(osv.osv):
             test1.state as rev1,
             test2.state as rev2,
             test3.state as rev3
-            from buildbot_lp_branch as br join buildbot_test as test on br.id = test.tested_branch
+            from buildbot_lp_branch as br join buildbot_test as test on br.id = test.branch_id
             left join buildbot_test as test4 on test.commit_rev_no=test4.commit_rev_no+3
             left join buildbot_test as test5 on test.commit_rev_no=test5.commit_rev_no+2
             left join buildbot_test as test6 on test.commit_rev_no=test6.commit_rev_no+1
