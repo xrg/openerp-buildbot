@@ -44,9 +44,10 @@ buildbot_lp_user()
 class buildbot_lp_branch(osv.osv):
     _name = "buildbot.lp.branch"
 
-    def _get_directory_name(self, cr, uid, ids, name, args, context=None):
+    def _get_name(self, cr, uid, ids, name, args, context=None):
         res = {}
         for branch in self.browse(cr, uid, ids):
+            res[branch.id] = {'build_directory':'','dbname':''}
             dir_name = ''
             if branch.lp_group_id and branch.lp_group_id.name:
                 dir_name += branch.lp_group_id.name + '_'
@@ -54,7 +55,8 @@ class buildbot_lp_branch(osv.osv):
                 dir_name += branch.lp_project_id.name + '_'
             if branch.name:
                 dir_name += branch.name
-            res[branch.id] = dir_name
+            res[branch.id]['build_directory'] = dir_name
+            res[branch.id]['dbname'] = branch.name.replace('-','_')
         return res
 
     _columns = {
@@ -68,8 +70,8 @@ class buildbot_lp_branch(osv.osv):
                 "is_test_branch": fields.boolean("Test Branch", help="Is this branch a test branch"),
                 "is_root_branch": fields.boolean("Root Branch",help="Is this branch a root branch"),
                 'treestabletimer': fields.integer('Tree Stable Timer',help="Timer for the branch"),
-                'build_directory': fields.function(_get_directory_name, method=True, type='char', string='Build Directoy', size=128, help="The Directory in which this branch will be built"),
-                'dbname': fields.char('Database Name', size=128, help="The Name of the Database which will be created for testing this branch"),
+                'build_directory': fields.function(_get_name, multi='name', method=True, type='char', string='Build Directoy', size=128, help="The Directory in which this branch will be built"),
+                'dbname': fields.function(_get_name, method=True, multi='name', type='char', size=128, string='Database Name', help="The Name of the Database which will be created for testing this branch"),
                 'port':fields.integer('port', help="Port for the openerp-server to start"),
                 'netport':fields.integer('net-port', help="net-port for the openerp-server to start"),
                 'merge_addons': fields.boolean('Merge with Addons', help="Whether you want the branch to be merged with Trunk Addons"),
