@@ -22,8 +22,10 @@ h3 {
 }
 
 p, blockquote, ul, ol {
+/*
 	margin-bottom: 1.5em;
 	line-height: 1.65em;
+*/
 	text-align: justify;
 }
 
