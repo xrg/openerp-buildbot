@@ -22,5 +22,6 @@ s = BuildSlave(buildmaster_host, port, slavename, passwd, basedir, keepalive, us
 s.setServiceParent(application)
 
 registerSlaveCommand("OpenObjectShell", command.OpenObjectShell, command.command_version)
+registerSlaveCommand("openobjectbzr", command.OpenObjectBzr, command.command_version)
 
 
