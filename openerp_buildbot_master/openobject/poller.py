@@ -73,7 +73,7 @@ class BzrPoller(service.MultiService, util.ComparableMixin):
         return "BzrPoller watching %s" % self.location
 
     def poll(self):
-        log.msg("BzrPoller polling")
+        log.msg("BzrPoller polling: %s"%(self.location))
         # this is subclass of bzrlib.branch.Branch
         current_revision = self.branch.revno()
         if not self.last_revno:
