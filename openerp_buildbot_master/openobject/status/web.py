@@ -32,7 +32,6 @@ import os
 from lxml import etree
 import urllib, time
 from buildbot import version, util
-from openobject.xmlrpc import buildbot_xmlrpc
 
 ROOT_PATH = '.'
 
@@ -178,16 +177,8 @@ class LatestBuilds(HtmlResource):
 
     def body(self, req):
         status = self.getStatus(req)
-        properties = status.getSchedulers()[0].openerp_properties
-        host = properties.get('openerp_host', 'localhost')
-        port = properties.get('openerp_port',8069)
-        dbname = properties.get('openerp_dbname','buildbot')
-        userid = properties.get('openerp_userid','admin')
-        userpwd = properties.get('openerp_userpwd','a')
-
-        openerp = buildbot_xmlrpc(host = host, port = port, dbname = dbname)
-        openerp_uid = openerp.execute('common','login',  openerp.dbname, userid, userpwd)
-
+        building = False
+        online = 0
         control = self.getControl(req)
         base_builders_url = self.path_to_root(req) + "buildersresource/"
         builders = req.args.get("builder", status.getBuilderNames())
@@ -196,24 +187,27 @@ class LatestBuilds(HtmlResource):
 
         data = ""
         data += "<table class='grid' id='latest_builds'>"
+        data +="""<tr class='grid-row'><td class='grid-cell'>Latest Builds/Tested Branches</td><td class='grid-cell'>Build : 5</td><td class='grid-cell'>Build : 4</td>
+                 <td class='grid-cell'>Build : 3</td><td class='grid-cell'>Build : 2</td><td class='grid-cell'>Build : 1</td><td class='grid-cell'>Current Build</td>"""
         for bn in  all_builders:
             base_builder_url = base_builders_url + urllib.quote(bn, safe='')
             builder = status.getBuilder(bn)
             data += "<tr class='grid-row'>\n"
             data += '<td class="grid-cell"><a href="%s">%s</a></td>\n'%(base_builder_url, html.escape(bn))
             builds = list(builder.generateFinishedBuilds(map_branches(branches),num_builds=5))
-
-            args = [('name','ilike',bn),('is_test_branch','=',False),('is_root_branch','=',False)]
-            tested_branch_ids = openerp.execute('object', 'execute', openerp.dbname, openerp_uid, userpwd, 'buildbot.lp.branch','search',args)
-            test_search_args = [('branch_id','in', tested_branch_ids)]
-            test_ids = openerp.execute('object', 'execute', openerp.dbname, openerp_uid, userpwd, 'buildbot.test','search',test_search_args,0,5)
-            test_data = openerp.execute('object', 'execute', openerp.dbname, openerp_uid, userpwd, 'buildbot.test','read',test_ids)
-            index = ''
             for build in builds[:5]:
                 url = (base_builder_url + "/builds/%d" % build.getNumber())
-                index = builds.index(build)
                 try:
-                    label = test_data[index]['test_date'][:10] +'-' + str(test_data[index]['commit_rev_no']) + '-'+''.join(build.text)+'-' + test_data[index]['commiter_id'][1]
+                    ss = build.getSourceStamp()
+                    commiter = ""
+                    if list(build.getResponsibleUsers()):
+                        for who in build.getResponsibleUsers():
+                            commiter += "%s" % html.escape(who)
+                    else:
+                        commiter += "No Commiter Found !"
+                    if ss.revision:
+                        revision = ss.revision
+                    label = str(revision) + '-' + ''.join(build.text) + '-' +commiter
                 except:
                     label = None
                 if not label:
@@ -221,10 +215,28 @@ class LatestBuilds(HtmlResource):
                 text = ['<a href="%s">%s</a>' % (url, label)]
                 box = Box(text, build.getColor(),class_="LastBuild box %s" % build_get_class(build))
                 data += box.td(class_="grid-cell",align="center")
-            if not index:
+            for i in range(len(builds),5):
                 data += '<td class="grid-cell" align="center">no build</td>'
+            if not builds:
+                data += '<td class="grid-cell" align="center">no build</td>'
+            current_box = ICurrentBox(builder).getBox(status)
+            data += current_box.td(class_="grid-cell",align="center")
+
+            builder_status = builder.getState()[0]
+            if builder_status == "building":
+                building = True
+                online += 1
+            elif builder_status != "offline":
+                online += 1
             data += "</tr>"
         data += "</table>"
+        if control is not None:
+            if building:
+                stopURL = "builders/_all/stop"
+                data += make_stop_form(stopURL, True, "Builds")
+            if online:
+                forceURL = "builders/_all/force"
+                data += make_force_build_form(forceURL, True)
         return data
 
 class OpenObjectStatusResourceBuild(StatusResourceBuild):
