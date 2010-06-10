@@ -42,7 +42,7 @@
                 <field name="name"/>
                 <field name="user_id"/>
                 <field name="url" colspan="2" widget="url"/>
-                <field name="lp_email" colspan="2" widget="url"/>
+                <field name="lp_email" colspan="2"/>
                 <separator string="Groups" colspan="4"/>
                 <field name="lp_group_ids" nolabel="1" colspan="4"/>
               </form>
