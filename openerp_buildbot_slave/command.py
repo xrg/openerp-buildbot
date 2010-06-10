@@ -106,7 +106,10 @@ class OpenObjectShell(SlaveShellCommand):
             commandline += [addonsdir]
 
         openerp_env = test_environment()
-        openERP_environment = openerp_env.get_test_environment(self.builder.basedir)
+        try:
+            openERP_environment = openerp_env.get_test_environment(self.builder.basedir)
+        except:
+            openERP_environment = None
         c = ShellCommand(self.builder, commandline,
                          workdir, environ=openERP_environment ,
                          timeout=args.get('timeout', None),
