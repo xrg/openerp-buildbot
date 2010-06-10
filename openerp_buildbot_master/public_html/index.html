@@ -1,67 +1,67 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en-gb" >
-	<head>
-		<title>OpenERP Integration Server</title>
-		<meta content="text/html; charset=iso-8859-1" http-equiv="Content-Type"/>
-		<meta content="index, follow" name="robots"/>		
-		<link rel="stylesheet" href="css/styles.css" type="text/css" />	
+  <head>
+    <title>OpenERP Integration Server</title>
+    <meta content="text/html; charset=iso-8859-1" http-equiv="Content-Type"/>
+    <meta content="index, follow" name="robots"/>
+    <link rel="stylesheet" href="css/styles.css" type="text/css" />
         <script language="javascript" type="text/javascript" src="js/flot/excanvas.js"></script>
         <script language="javascript" type="text/javascript" src="js/lp_graph.js"></script>
         <script language="javascript" type="text/javascript" src="js/flot/jquery.js"></script>
         <script language="javascript" type="text/javascript" src="js/flot/jquery.flot.js"></script>
         <script language="javascript" type="text/javascript" src="js/latest_builds.js"></script>
-		<meta content="text/html; charset=utf-8" http-equiv="content-type"/>
-		<link type="image/x-icon" rel="shortcut icon" href="favicon.ico"/>
-		<!-- Open Object Css File Start -->
-		<link type="text/css" href="css/style.css" rel="stylesheet"/>
-		<link type="text/css" href="css/listgrid.css" rel="stylesheet"/>
-		<link type="text/css" href="css/dashboard.css" rel="stylesheet"/>
-		
-		
-		<!-- Open Object Css File End -->
-	</head>
-	<body onload="javascript:populatedropdown('monthFrom','yearFrom','monthTo','yearTo');getLatestBuilds();javascript:getBugGraph()">
-		<center>
-			<table width="1004" border="0" cellspacing="0" cellpadding="0">
-			<tr>
-				<td width="202"><a href="http://openobject.com" alt="Open Object - Free Management Solution Logo"/><img src="images/openobject.jpg" border="0"/></a></td>
-				<td width="335"><div align="right"><img src="images/picture.jpg" width="242" height="68" /></div></td>
-				<td width="440" align="right" valign="top">
-					<table id="Table_01" height="35" border="0" cellpadding="0" cellspacing="0">
-					<tr>
-						<td class="greycurveleft" width="23px" height="35px">					    
-						</td>
-						<td width="107" class="headerlinkgrey">
-							<div class="headerlink" align="center"><a href="http://openerp.com"><strong>Open  ERP</strong></a></div>
-						</td>
-						<td width="22px" height="35px" class="greyredcurve"></td>
-						<td width="125" height="35" class="headerlinkgrey">
-							<div class="headerlink" align="center"><a href="http://ondemand.openerp.com"><strong>On Demand</strong></a></div>
-						</td>
-						<td width="20" height="35" class="redcurve">&nbsp;</td>
-						<td width="139" height="35" class="redline">
-							<div class="headerlink" align="center"><a href="http://openobject.com"><strong>Community</strong></a></div>
-						</td>
-						<td width="16" height="35" ><img src="images/redcurveright.jpg"/></td>
-					</tr>
-					</table>
-				</td>
-			</tr>
-			</table>
+    <meta content="text/html; charset=utf-8" http-equiv="content-type"/>
+    <link type="image/x-icon" rel="shortcut icon" href="favicon.ico"/>
+    <!-- Open Object Css File Start -->
+    <link type="text/css" href="css/style.css" rel="stylesheet"/>
+    <link type="text/css" href="css/listgrid.css" rel="stylesheet"/>
+    <link type="text/css" href="css/dashboard.css" rel="stylesheet"/>
 
-			<table width="1004" border="0" cellspacing="0" cellpadding="0" id="menu_header">
-			<tr>
-				<td width="141" id="menu_header_menu" nowrap="nowrap"></td>
-				<td nowrap="nowrap" align="left" height="25px"></td>
-			</tr>
-			<tr>
-			  <td id="menu_header_menu2" nowrap="nowrap"></td>
-			  <td nowrap="nowrap" align="left"></td>
-			  </tr>
-			</table>
-			
-            <div style="clear: both;float:right;"></div> 
-			<div id="content1">
+
+    <!-- Open Object Css File End -->
+  </head>
+  <body onload="javascript:populatedropdown('monthFrom','yearFrom','monthTo','yearTo');getLatestBuilds();javascript:getBugGraph()">
+    <center>
+      <table width="1004" border="0" cellspacing="0" cellpadding="0">
+      <tr>
+        <td width="202"><a href="http://openobject.com" alt="Open Object - Free Management Solution Logo"/><img src="images/openobject.jpg" border="0"/></a></td>
+        <td width="335"><div align="right"><img src="images/picture.jpg" width="242" height="68" /></div></td>
+        <td width="440" align="right" valign="top">
+          <table id="Table_01" height="35" border="0" cellpadding="0" cellspacing="0">
+          <tr>
+            <td class="greycurveleft" width="23px" height="35px">
+            </td>
+            <td width="107" class="headerlinkgrey">
+              <div class="headerlink" align="center"><a href="http://openerp.com"><strong>Open  ERP</strong></a></div>
+            </td>
+            <td width="22px" height="35px" class="greyredcurve"></td>
+            <td width="125" height="35" class="headerlinkgrey">
+              <div class="headerlink" align="center"><a href="http://ondemand.openerp.com"><strong>On Demand</strong></a></div>
+            </td>
+            <td width="20" height="35" class="redcurve">&nbsp;</td>
+            <td width="139" height="35" class="redline">
+              <div class="headerlink" align="center"><a href="http://openobject.com"><strong>Community</strong></a></div>
+            </td>
+            <td width="16" height="35" ><img src="images/redcurveright.jpg"/></td>
+          </tr>
+          </table>
+        </td>
+      </tr>
+      </table>
+
+      <table width="1004" border="0" cellspacing="0" cellpadding="0" id="menu_header">
+      <tr>
+        <td width="141" id="menu_header_menu" nowrap="nowrap"></td>
+        <td nowrap="nowrap" align="left" height="25px"></td>
+      </tr>
+      <tr>
+        <td id="menu_header_menu2" nowrap="nowrap"></td>
+        <td nowrap="nowrap" align="left"></td>
+        </tr>
+      </table>
+
+            <div style="clear: both;float:right;"></div>
+      <div id="content1">
                 <table width="100%">
                     <tr style="vertical-align:top">
                         <td width="33%" style="text-align:left; line-height:150%;">
@@ -119,12 +119,12 @@
                                 <a href="http://openerp-code.blogspot.com/">Api changes</a>
                          </td>
                      </tr>
-                </table>  
+                </table>
 
 
                 <table width="100%">
                     <tr style="vertical-align:top">
-                        <td style="border-bottom: 1px solid #999;width=100%">	                         
+                        <td style="border-bottom: 1px solid #999;width=100%">
                             <span style="font-weight: bold;font-size: 20px;">Automated Tests</span>
                         </td>
                     </tr>
@@ -132,28 +132,9 @@
                         <td>
                         </td>
                     </tr>
-                    <tr>		                
-                        <td>	                
+                    <tr>
+                        <td>
                             <table id="latest_builds" class="grid" width="100%"></table>
-                            GRID
-                            GRID
-                            GRID
-                            GRID
-                            GRID
-                            GRID
-                            GRID
-                            GRID
-                            GRID
-                            GRID
-                            GRID
-                            GRID
-                            GRID
-                            GRID
-                            GRID
-                            GRID
-                            GRID
-                            GRID
-                            GRID
                         </td>
                     </tr>
                     <tr>
@@ -174,33 +155,33 @@
                     <tr style="vertical-align:top"><td style="border-bottom: 1px solid #999;width=100%"><span style="font-weight: bold;font-size: 20px;">Bugs and Wishlist </span></td></tr>
                     <tr>
                     <td>
-                    <table>                          
+                    <table>
                         <tr>
                           <td>
                            <table width="80%">
-                                <tr>  
+                                <tr>
                                         <td> From: </td> <td> <select id="monthFrom"></select> </td> <td> <select id="yearFrom"></select> </td> <td> To: </td> <td> <select id="monthTo"></select> </td> <td> <select id="yearTo"></select> </td> <td> <button  onClick="javascript:getBugGraph()" align='center'>Refresh</button> </td>
                                 </tr>
                             </table>
                             </td>
                         </tr>
-                        <tr >                        
+                        <tr >
                             <td>
                                 <div id="placeholder" style="width:500px;height:250px;float:right;"></div>
                             </td>
-                        </tr>   
+                        </tr>
                         <tr>
-                            <td> 
+                            <td>
                                 <br>
                                     <span id='retrivalTime' style="float:right;padding-right:30px;font-size: 0.5em">
                                     </span>
                              </td>
-                        </tr> 
+                        </tr>
                         </table>
                     </td>
                     </tr>
                     </table>
-                    <table width="100%">                            
+                    <table width="100%">
                             <tr class="header"><td style="border-bottom: 1px solid #999;width=100%"><span style="font-weight: bold;font-size: 20px;"><b>Releases & Milestones<spam><b></td></tr>
                             <tr><td height="200">
                             <span id="timeline-loading" style="display: none"> <img src="images/spinner.gif" /> Loading graph...  </span>
@@ -211,12 +192,12 @@
                           function timeline_iframe() {
                               var loading_el = document.getElementById('timeline-loading');
                               loading_el.style.display = 'block';
-                              var iframe = document.getElementById('timeline-iframe');          
+                              var iframe = document.getElementById('timeline-iframe');
                               iframe.onload = function(e) {
                                   loading_el.style.display =  'none';
                                   iframe.style.display = 'block';
                               };
-                          
+
                       }
                       </script>
                       <script>
@@ -224,54 +205,47 @@
                           </script>
 
           </td></tr>
-                            
+
                             <tr>
                                 <td style="border-bottom: 1px solid #999;width=100%"><span style="font-weight: bold;font-size: 20px;">Announce Your Contributions</span></td>
                             </tr>
                             <tr>
                                 <td><span  style="font-size: 13px;">All Contributions should be announced in the <a href="http://openobject.com/planet/">planet</a>.
 To post to the planet, send an email to nva AT openerp.com, with the URL of your personnal blog. Write english blogs and tag them with OpenObject to be integrated in the planet.</span></td>
-                                
+
                             </tr>
                             <tr>
                                 <td style="text-align:left">
                                 </td>
-               </tr>                            
+               </tr>
                         </table>
                     </td>
-                        
-                </tr>
-                
-                
-							
-				
-				
 
-				
+                </tr>
             <tr><td colspan="2">
-			<table width="1004" border="0" align="center" cellpadding="0" cellspacing="0">
-				<tr>
-					<td valign="top" align="right"><img src="images/fourmis.jpg"/></td>
-				</tr>
-			</table>
-			
-			<table border="0" width="1004" cellpadding="0" cellspacing="0">
-				<tr height="1">
-					<td width="1004" bgcolor="#D6D6D6"></td>
-				</tr>
-			</table>
-            
-			<table border="0" width="1004" cellpadding="5" cellspacing="0">
-				<tr>
-					<td bgcolor="#ffffff">
-						<div class="footertext">
-							&copy; 2001-TODAY <a href="http://tiny.be">Tiny sprl</a>. All rights reserved.<br/>
-							OpenERP and OpenObject are trademarks of the Tiny company.<br/>
-							They both are released under GPL V3.0.
-						</div>
-					</td>
-				</tr>
-			</table>
+      <table width="1004" border="0" align="center" cellpadding="0" cellspacing="0">
+        <tr>
+          <td valign="top" align="right"><img src="images/fourmis.jpg"/></td>
+        </tr>
+      </table>
+
+      <table border="0" width="1004" cellpadding="0" cellspacing="0">
+        <tr height="1">
+          <td width="1004" bgcolor="#D6D6D6"></td>
+        </tr>
+      </table>
+
+      <table border="0" width="1004" cellpadding="5" cellspacing="0">
+        <tr>
+          <td bgcolor="#ffffff">
+            <div class="footertext">
+              &copy; 2001-TODAY <a href="http://tiny.be">Tiny sprl</a>. All rights reserved.<br/>
+              OpenERP and OpenObject are trademarks of the Tiny company.<br/>
+              They both are released under GPL V3.0.
+            </div>
+          </td>
+        </tr>
+      </table>
             </td></tr></table></div>
-	</body>
+  </body>
 </html>
