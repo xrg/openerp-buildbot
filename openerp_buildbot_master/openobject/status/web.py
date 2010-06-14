@@ -187,13 +187,13 @@ class LatestBuilds(HtmlResource):
 
         data = ""
         data += "<table class='grid' id='latest_builds'>"
-        data +="""<tr class='grid-row'><td class='grid-cell'>Latest Builds/Tested Branches</td><td class='grid-cell'>Build : 5</td><td class='grid-cell'>Build : 4</td>
-                 <td class='grid-cell'>Build : 3</td><td class='grid-cell'>Build : 2</td><td class='grid-cell'>Build : 1</td><td class='grid-cell'>Current Build</td>"""
+        data +="""<tr class='grid-row'><td class='grid-cell' align="center">Tested Branches/Latest Builds</td><td class='grid-cell' align="center" >Build : 5</td><td class='grid-cell' align="center">Build : 4</td>
+                 <td class='grid-cell' align="center">Build : 3</td><td class='grid-cell' align="center">Build : 2</td><td class='grid-cell' align="center">Build : 1</td><td class='grid-cell' align="center">Current Build</td>"""
         for bn in  all_builders:
             base_builder_url = base_builders_url + urllib.quote(bn, safe='')
             builder = status.getBuilder(bn)
             data += "<tr class='grid-row'>\n"
-            data += '<td class="grid-cell"><a href="%s">%s</a></td>\n'%(base_builder_url, html.escape(bn))
+            data += '<td class="grid-cell" align="center"><a href="%s">%s</a></td>\n'%(base_builder_url, html.escape(bn))
             builds = list(builder.generateFinishedBuilds(map_branches(branches),num_builds=5))
             for build in builds[:5]:
                 url = (base_builder_url + "/builds/%d" % build.getNumber())
@@ -216,8 +216,6 @@ class LatestBuilds(HtmlResource):
                 box = Box(text, build.getColor(),class_="LastBuild box %s" % build_get_class(build))
                 data += box.td(class_="grid-cell",align="center")
             for i in range(len(builds),5):
-                data += '<td class="grid-cell" align="center">no build</td>'
-            if not builds:
                 data += '<td class="grid-cell" align="center">no build</td>'
             current_box = ICurrentBox(builder).getBox(status)
             data += current_box.td(class_="grid-cell",align="center")
