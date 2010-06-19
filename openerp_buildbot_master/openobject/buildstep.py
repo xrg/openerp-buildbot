@@ -91,11 +91,21 @@ def create_test_step_log(step_object = None, res=SUCCESS, step_name = ''):
     result_id = openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.test.step','create',params)
     return result_id
 
+class OpenERPLoggedRemoteCommand(LoggedRemoteCommand):
+     def addToLog(self, logname, data):
+        if logname in self.logs:
+            self.logs[logname].addStdout(data)
+        else:
+            self.stdio_log = stdio_log = self.addLog("stdio")
+            self.useLog(stdio_log, True)
+
 class OpenERPTest(LoggingBuildStep):
     name = 'OpenERP-Test'
     flunkOnFailure = True
     flunkingIssues = ["ERROR","CRITICAL"]
     MESSAGES = ("ERROR", "CRITICAL", "WARNING", "TEST", "INFO", "TRACEBACK")
+
+
 
     def describe(self, done=False,success=False,warn=False,fail=False):
         if done:
@@ -123,7 +133,18 @@ class OpenERPTest(LoggingBuildStep):
         self.description = description
 
     def start(self):
+        #TODO FIX:
+        # need to change the static slave path
+        self.logfiles = {}
+        builddir = self.build.builder.builddir
+        full_addons = os.path.normpath(os.getcwd() + '../../openerp_buildbot_slave/build/%s/openerp-addons/'%(builddir))
+        for module in os.listdir(full_addons):
+            if module in ['.bzrignore','.bzr']:
+                continue
+            self.logfiles['%s'%module] = ('%s/%s/%s.html'%('test_logs', module, module))
+
         self.args['command']=["make","openerp-test"]
+        self.args['logfiles'] = self.logfiles
         if self.args['addonsdir']:
             self.args['command'].append("addons-path=%s"%(self.args['addonsdir']))
         if self.args['netport']:
@@ -314,31 +335,31 @@ class StartServer(LoggingBuildStep):
         self.startCommand(cmd)
 
 
-class CreateDB2(CreateDB):
-    def start(self):
-        cmd = LoggedRemoteCommand("create-db",self.args)
-        self.startCommand(cmd)
-
-class InstallModule2(InstallModule):
-    def start(self):
-        s = self.build.getSourceStamp()
-        modules = []
-        for change in s.changes:
-            for f in change.files:
-                try:
-                    module = f.split('/')
-                    if change.branch == 'https://svn.tinyerp.com/be/maintenance':
-                        module = (len(module) > 1) and module[1] or ''
-                    else:
-                        module = module[0]
-                    if module not in modules:
-                        if module not in ('README.txt'):
-                            modules.append(module)
-                except:
-                    pass
-        self.args['modules'] += ','.join(modules)
-        cmd = LoggedRemoteCommand("install-module",self.args)
-        self.startCommand(cmd)
+#class CreateDB2(CreateDB):
+#    def start(self):
+#        cmd = LoggedRemoteCommand("create-db",self.args)
+#        self.startCommand(cmd)
+#
+#class InstallModule2(InstallModule):
+#    def start(self):
+#        s = self.build.getSourceStamp()
+#        modules = []
+#        for change in s.changes:
+#            for f in change.files:
+#                try:
+#                    module = f.split('/')
+#                    if change.branch == 'https://svn.tinyerp.com/be/maintenance':
+#                        module = (len(module) > 1) and module[1] or ''
+#                    else:
+#                        module = module[0]
+#                    if module not in modules:
+#                        if module not in ('README.txt'):
+#                            modules.append(module)
+#                except:
+#                    pass
+#        self.args['modules'] += ','.join(modules)
+#        cmd = LoggedRemoteCommand("install-module",self.args)
+#        self.startCommand(cmd)
 
 
 class BzrMerge(LoggingBuildStep):
@@ -347,11 +368,11 @@ class BzrMerge(LoggingBuildStep):
     def describe(self, done=False,success=False,warn=False,fail=False):
          if done:
             if success:
-                return ['Merge branch %s Sucessfully!'%(self.branch)]
+                return ['Merge Sucessfull!']
             if warn:
-                return ['Merge branch %s with Warnings!'%(self.branch)]
+                return ['Merge had Warnings!']
             if fail:
-                return ['Merge branch %s Failed!'%(self.branch)]
+                return ['Merge Failed!'%(self.branch)]
          return self.description
 
     def getText(self, cmd, results):
