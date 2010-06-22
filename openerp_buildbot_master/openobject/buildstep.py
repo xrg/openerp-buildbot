@@ -135,7 +135,7 @@ class OpenERPTest(LoggingBuildStep):
     def start(self):
         #TODO FIX:
         # need to change the static slave path
-        self.logfiles = {}
+        self.logfiles = {'createDB':'test_logs/create_db.txt'}
         builddir = self.build.builder.builddir
         full_addons = os.path.normpath(os.getcwd() + '../../openerp_buildbot_slave/build/%s/openerp-addons/'%(builddir))
         for module in os.listdir(full_addons):
@@ -151,7 +151,7 @@ class OpenERPTest(LoggingBuildStep):
             self.args['command'].append("net_port=%s"%(self.args['netport']))
         if self.args['port']:
             self.args['command'].append("port=%s"%(self.args['port']))
-        cmd = LoggedRemoteCommand("OpenERPTestShell",self.args)
+        cmd = LoggedRemoteCommand("OpenObjectShell",self.args)
         self.startCommand(cmd)
 
     def evaluateCommand(self, cmd):
@@ -280,11 +280,11 @@ class StartServer(LoggingBuildStep):
     def describe(self, done=False,success=False,warn=False,fail=False):
          if done:
             if success:
-                return ['Server started Sucessfully!']
+                return ['Server started Sucessfully !']
             if warn:
-                return ['Server started with Warnings!']
+                return ['Server started with Warnings !']
             if fail:
-                return ['Server Failed!']
+                return ['Server Failed !']
          return self.description
 
     def getText(self, cmd, results):
@@ -368,11 +368,11 @@ class BzrMerge(LoggingBuildStep):
     def describe(self, done=False,success=False,warn=False,fail=False):
          if done:
             if success:
-                return ['Merge Sucessfull!']
+                return ['Merge Sucessfull !']
             if warn:
-                return ['Merge had Warnings!']
+                return ['Merge had Warnings !']
             if fail:
-                return ['Merge Failed!'%(self.branch)]
+                return ['Merge Failed !']
          return self.description
 
     def getText(self, cmd, results):

@@ -126,54 +126,6 @@ class OpenObjectShell(SlaveShellCommand):
         d = self.command.start()
         return d
 
-class OpenERPTestShell(SlaveShellCommand):
-
-    def start(self):
-        args = self.args
-        assert args['workdir'] is not None
-        workdir = os.path.join(self.builder.basedir, args['workdir'])
-        addonsdir = args.get('addonsdir', False)
-        if addonsdir:
-            dirs = []
-            if 'stable_openobject_server' in args['addonsdir'].split('/'):
-                dirs.append('base')
-            else:
-                for dir in os.listdir(workdir):
-                    if dir not in ['.buildbot-sourcedata','.bzrignore','.bzr','.svn','README.txt']:
-                        if dir == 'base':
-                           continue
-                        dirs.append(dir)
-
-        commandline = args.get('command', [])
-        if addonsdir:
-            commandline += dirs
-            commandline += [addonsdir]
-        # creating Test Log results link
-        full_addons_path = os.path.join(self.builder.basedir,'openerp-addons')
-        logfiles = {}
-        for module in os.listdir(full_addons_path):
-            if module in ['.bzrignore','.bzr']:
-                continue
-            logfiles['%s'%module] = ('%s/%s/%s.html'%('test_logs', module, module))
-        openerp_env = test_environment()
-        try:
-            openERP_environment = openerp_env.get_test_environment(self.builder.basedir)
-        except:
-            openERP_environment = None
-        c = ShellCommand(self.builder, commandline,
-                         workdir, environ = openERP_environment ,
-                         timeout = args.get('timeout', None),
-                         sendStdout = args.get('want_stdout', True),
-                         sendStderr = args.get('want_stderr', True),
-                         sendRC = True,
-                         initialStdin = args.get('initial_stdin'),
-                         keepStdinOpen = args.get('keep_stdin_open'),
-                         logfiles = logfiles,
-                         )
-        self.command = c
-        d = self.command.start()
-        return d
-
 class OpenObjectBzr(Bzr):
     def doVCUpdate(self):
         if self.revision:

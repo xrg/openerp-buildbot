@@ -282,6 +282,17 @@ class OpenObjectStatusResourceBuild(StatusResourceBuild):
                                                 urllib.quote(logname)))
                         data += ("   <li><a href=\"%s\">%s</a></li>\n" %
                                  (logurl, logfile.getName()))
+                        if name == 'OpenERP-Test' and logname != 'stdio':
+                            txt = logfile.getText()
+                            color = 'exception'
+                            disp_txt = 'Skipped'
+                            if txt:
+                                color = 'success'
+                                disp_txt = 'Passed'
+                                if txt.find('Failed') != -1:
+                                    color = 'failure'
+                                    disp_txt = 'Failed'
+                            data += '<span class="%s">%s</span></br>'%(color, disp_txt)
                     text = " ".join(s.getText())
                     color = ''
                     if text.find('Failed') != -1:
@@ -308,6 +319,7 @@ class OpenObjectStatusResourceBuild(StatusResourceBuild):
                 data += "<li>" + c.asHTML() + "</li>\n"
             data += "</ol>\n"
         return data
+
 
 class OpenObjectBuildsResource(BuildsResource):
     def __init__(self, builder_status=None, builder_control=None):
@@ -379,8 +391,7 @@ class OpenObjectStatusResourceBuilder(StatusResourceBuilder):
         # Then a section with the last 5 builds, with the most recent build
         # distinguished from the rest.
 
-        data += "<h2>Recent Builds:</h2>\n"
-        data += "<table border='1'><tr><th>Commiter <br> / Steps</th>"
+
         step_name = []
         builds = []
 
@@ -391,7 +402,11 @@ class OpenObjectStatusResourceBuilder(StatusResourceBuilder):
                 name = step.getName()
                 if name not in step_name:
                     step_name.append(name)
-
+        if not builds:
+            data += "<h2>Recent Builds:No Builds</h2>\n"
+        else:
+            data += "<h2>Recent Builds:</h2>\n"
+            data += "<table border='1'><tr><th>Commiter <br> / Steps</th>"
         for build in builds:
             ss = build.getSourceStamp()
             commiter = ""
@@ -419,7 +434,19 @@ class OpenObjectStatusResourceBuilder(StatusResourceBuilder):
                                                         urllib.quote(logname)))
                                 data += ("  <li><a href=\"%s\">%s</a></li>\n" %
                                          (logurl, logfile.getName()))
+                                if name == 'OpenERP-Test' and logname != 'stdio':
+                                    txt = logfile.getText()
+                                    color = 'exception'
+                                    disp_txt = 'Skipped'
+                                    if txt:
+                                        color = 'success'
+                                        disp_txt = 'Passed'
+                                        if txt.find('Failed') != -1:
+                                                color = 'failure'
+                                                disp_txt = 'Failed'
+                                    data += '<span class="%s">%s</span></br>'%(color, disp_txt)
                             data += "</ol>"
+
                             text = " ".join(s.getText())
                             color = ''
                             if text.find('Failed') != -1:
