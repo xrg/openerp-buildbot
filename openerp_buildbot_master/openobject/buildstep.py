@@ -39,8 +39,7 @@ try:
 except ImportError:
     from StringIO import StringIO
 
-def create_test_step_log(step_object = None, res=SUCCESS, step_name = ''):
-    state = 'pass'
+def create_test_step_log(step_object = None, step_name = ''):
     source = step_object.build.builder.test_ids
     properties = step_object.build.builder.openerp_properties
     openerp_host = properties.get('openerp_host', 'localhost')
@@ -62,34 +61,36 @@ def create_test_step_log(step_object = None, res=SUCCESS, step_name = ''):
     last_revision_id_stored = properties.get(tested_branch_id, {}).get('latest_rev_id','')
     test_id = source.get(revision, False)
     summary = step_object.summaries
+    print "ssssssss",summary
+    for logname, data in summary.items():
+        print logname, data
+        state = data.get('state', 'pass')
+        if step_name in ('bzr-update', 'bzr_merge'):
+            if state == 'fail':
+                test_values = {'failure_reason':'This test has been skipped because the step %s has failed ! \n for more details please refer the Test steps tab.'%(step_name),'state':state}
+                branch_values = {'latest_rev_no':last_revision_no_stored,'latest_rev_id':last_revision_id_stored}
+                openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.lp.branch','write', [int(tested_branch_id)],branch_values)
+                openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.test','write', [int(test_id)],test_values)
+            openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.test','write', [int(test_id)],{'environment':step_object.env_info})
 
-    if step_name in ('bzr-update', 'bzr_merge'):
-        if res == FAILURE:
-            state = 'skip'
-            test_values = {'failure_reason':'This test has been skipped because the step %s has failed ! \n for more details please refer the Test steps tab.'%(step_name),'state':state}
-            branch_values = {'latest_rev_no':last_revision_no_stored,'latest_rev_id':last_revision_id_stored}
-            openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.lp.branch','write', [int(tested_branch_id)],branch_values)
-            openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.test','write', [int(test_id)],test_values)
-        openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.test','write', [int(test_id)],{'environment':step_object.env_info})
-
-    params = {}
-    params['name'] = step_object.name
-    params['test_id'] = int(test_id)
-    if summary.get('WARNING', False):
-        params['warning_log'] = '\n'.join(summary['WARNING'])
-    if summary.get('ERROR', False):
-        params['error_log'] = '\n'.join(summary['ERROR'])
-    if summary.get('CRITICAL', False):
-        params['critical_log'] = '\n'.join(summary['CRITICAL'])
-    if summary.get('INFO', False):
-        params['info_log'] = '\n'.join(summary['INFO'])
-    if summary.get('TEST', False):
-        params['yml_log'] = '\n'.join(summary['TEST'])
-    if summary.get('TRACEBACK', False):
-        params['traceback_detail'] = '\n'.join(summary['TRACEBACK'])
-    params['state'] = state
-    result_id = openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.test.step','create',params)
-    return result_id
+        params = {}
+        params['name'] = logname
+        params['test_id'] = int(test_id)
+        if data.get('WARNING', False):
+            params['warning_log'] = '\n'.join(data['WARNING'])
+        if data.get('ERROR', False):
+            params['error_log'] = '\n'.join(data['ERROR'])
+        if data.get('CRITICAL', False):
+            params['critical_log'] = '\n'.join(data['CRITICAL'])
+        if data.get('INFO', False):
+            params['info_log'] = '\n'.join(data['INFO'])
+        if data.get('TEST', False):
+            params['yml_log'] = '\n'.join(data['TEST'])
+        if data.get('TRACEBACK', False):
+            params['traceback_detail'] = '\n'.join(data['TRACEBACK'])
+        params['state'] = state
+        openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.test.step','create',params)
+    return True
 
 class OpenERPLoggedRemoteCommand(LoggedRemoteCommand):
      def addToLog(self, logname, data):
@@ -104,8 +105,6 @@ class OpenERPTest(LoggingBuildStep):
     flunkOnFailure = True
     flunkingIssues = ["ERROR","CRITICAL"]
     MESSAGES = ("ERROR", "CRITICAL", "WARNING", "TEST", "INFO", "TRACEBACK")
-
-
 
     def describe(self, done=False,success=False,warn=False,fail=False):
         if done:
@@ -131,11 +130,12 @@ class OpenERPTest(LoggingBuildStep):
         self.args = {'port' :port, 'workdir':workdir, 'netport':netport, 'addonsdir':addonsdir, 'logfiles':{}}
         description = ["Performing OpenERP Test..."]
         self.description = description
+        self.summaries = {}
 
     def start(self):
         #TODO FIX:
         # need to change the static slave path
-        self.logfiles = {'createDB':'test_logs/create_db.txt'}
+        self.logfiles = {}
         builddir = self.build.builder.builddir
         full_addons = os.path.normpath(os.getcwd() + '../../openerp_buildbot_slave/build/%s/openerp-addons/'%(builddir))
         for module in os.listdir(full_addons):
@@ -154,11 +154,53 @@ class OpenERPTest(LoggingBuildStep):
         cmd = LoggedRemoteCommand("OpenObjectShell",self.args)
         self.startCommand(cmd)
 
+    def createSummary(self, log):
+        logs = self.cmd.logs
+        buildbotURL = self.build.builder.botmaster.parent.buildbotURL
+
+        for logname, log in logs.items():
+            state = 'pass'
+            if logname == 'stdio':
+                continue
+            log_data = log.getText()
+            summaries = {}
+            [summaries.setdefault(logname,{}).setdefault(m, []) for m in self.MESSAGES]
+            io = StringIO(log_data).readlines()
+            for line in io:
+                if line.find('Failed') != -1:
+                    state = 'fail'
+                if line.find("ERROR") != -1:
+                    pos = line.find("ERROR") + len("ERROR") + 5
+                    m = "ERROR"
+                elif line.find("INFO:") != -1:
+                    pos = line.find("INFO") + len("INFO") + 5
+                    m = "INFO"
+                elif line.find("CRITICAL") != -1:
+                    pos = line.find("CRITICAL") + len("CRITICAL") + 5
+                    m = "CRITICAL"
+                elif line.find("Traceback") != -1:
+                    traceback_log = []
+                    pos = io.index(line)
+                    for line in io[pos:-3]:
+                        traceback_log.append(line)
+                    m = "TRACEBACK"
+                    summaries[logname][m] = traceback_log
+                    break;
+                elif line.find("WARNING") != -1:
+                    pos = line.find("WARNING") + len("WARNING") + 5
+                    m = "WARNING"
+                else:
+                    continue
+                line = line[pos:]
+                summaries[logname][m].append(line)
+            summaries[logname]['state'] = state
+            self.summaries.update(summaries)
+
     def evaluateCommand(self, cmd):
         res = SUCCESS
         if cmd.rc != 0:
             res = FAILURE
-       # create_test_step_log(self, res)
+        create_test_step_log(self)
         return res
 
 class OpenObjectBzr(Bzr):
@@ -194,6 +236,7 @@ class OpenObjectBzr(Bzr):
         self.description = ["updating", "branch %s"%(repourl)]
         self.descriptionDone = ["updated", "branch %s"%(repourl)]
         self.env_info = ''
+        self.summaries = {}
 
     def startVC(self, branch, revision, patch):
         slavever = self.slaveVersion("bzr")
@@ -220,26 +263,29 @@ class OpenObjectBzr(Bzr):
         self.startCommand(cmd)
 
     def createSummary(self, log):
-        counts = {"ERROR": 0}
-        summaries = {"ERROR": []}
+        counts = {}
+        summaries = {}
         io = StringIO(log.getText()).readlines()
+        counts.setdefault("ERROR", 0)
+        summaries.setdefault(self.name, {}).setdefault("ERROR", [])
         for line in io:
             if line.find("ERROR") != -1:
                 pos = line.find("ERROR") + len("ERROR")
                 line = line[pos:]
-                summaries["ERROR"].append(line)
+                summaries[self.name]["ERROR"].append(line)
                 counts["ERROR"] += 1
             else:
                 pass
         self.summaries = summaries
         if counts["ERROR"]:
-            msg = "".join(summaries["ERROR"])
+            msg = "".join(summaries[self.name]["ERROR"])
             self.addCompleteLog("Branch Update  : ERROR", msg)
             self.setProperty("Branch Update : ERROR", counts["ERROR"])
         if sum(counts.values()):
             self.setProperty("Branch Update : MessageCount", sum(counts.values()))
 
     def evaluateCommand(self, cmd):
+        state = 'pass'
         for ch, txt in cmd.logs['stdio'].getChunks():
             if ch == 2:
                 if txt.find('environment')!= -1:
@@ -248,7 +294,9 @@ class OpenObjectBzr(Bzr):
         res = SUCCESS
         if cmd.rc != 0:
             res = FAILURE
-        create_test_step_log(self, res, step_name=self.name)
+            state = 'skip'
+        self.summaries[self.name]['state'] = state
+        create_test_step_log(self, step_name=self.name)
         return res
 
 class OpenObjectSVN(SVN):
@@ -393,6 +441,7 @@ class BzrMerge(LoggingBuildStep):
         description = ["Merging Branch"]
         self.description = description
         self.env_info = ''
+        self.summaries = {}
 
     def start(self):
         s = self.build.getSourceStamp()
@@ -410,26 +459,29 @@ class BzrMerge(LoggingBuildStep):
         self.startCommand(cmd)
 
     def createSummary(self, log):
-        counts = {"ERROR": 0}
-        summaries = {"ERROR": []}
+        counts = {}
+        summaries = {}
+        counts.setdefault("ERROR", 0)
+        summaries.setdefault(self.name, {}).setdefault("ERROR", [])
         io = StringIO(log.getText()).readlines()
         for line in io:
             if line.find("ERROR") != -1:
                 pos = line.find("ERROR") + len("ERROR")
                 line = line[pos:]
-                summaries["ERROR"].append(line)
+                summaries[self.name]["ERROR"].append(line)
                 counts["ERROR"] += 1
             else:
                 pass
         self.summaries = summaries
         if counts["ERROR"]:
-            msg = "".join(summaries["ERROR"])
+            msg = "".join(summaries[self.name]["ERROR"])
             self.addCompleteLog("Bzr Merge : ERROR", msg)
             self.setProperty("Bzr Merge : ERROR", counts["ERROR"])
         if sum(counts.values()):
             self.setProperty("Bzr Merge : MessageCount", sum(counts.values()))
 
     def evaluateCommand(self, cmd):
+        state = 'pass'
         for ch, txt in cmd.logs['stdio'].getChunks():
             if ch == 2:
                 if txt.find('environment')!= -1:
@@ -438,15 +490,15 @@ class BzrMerge(LoggingBuildStep):
         res = SUCCESS
         if cmd.rc != 0:
             res = FAILURE
-        create_test_step_log(self, res, step_name='bzr_merge')
+            state = 'skip'
+        self.summaries[self.name]['state'] = state
+        create_test_step_log(self, step_name='bzr_merge')
         return res
 
 class BzrRevert(LoggingBuildStep):
     name = 'bzr-revert'
     flunkOnFailure = True
     haltOnFailure = True
-    flunkingIssues = ["ERROR","CRITICAL"]
-    MESSAGES = ("ERROR", "CRITICAL", "WARNING", "TEST", "INFO", "TRACEBACK")
 
     def describe(self, done=False,success=False,warn=False,fail=False):
          if done:
@@ -475,6 +527,7 @@ class BzrRevert(LoggingBuildStep):
         # Compute defaults for descriptions:
         description = ["Reverting Branch"]
         self.description = description
+        self.summaries = {}
 
     def start(self):
         self.args['command']=["bzr","revert"]
@@ -482,29 +535,34 @@ class BzrRevert(LoggingBuildStep):
         self.startCommand(cmd)
 
     def createSummary(self, log):
-        counts = {"ERROR": 0}
-        summaries = {"ERROR": []}
+        counts = {}
+        summaries = {}
+        counts.setdefault("ERROR", 0)
+        summaries.setdefault(self.name, {}).setdefault("ERROR", [])
         io = StringIO(log.getText()).readlines()
         for line in io:
             if line.find("ERROR") != -1:
                 pos = line.find("ERROR") + len("ERROR")
                 line = line[pos:]
-                summaries["ERROR"].append(line)
+                summaries[self.name]["ERROR"].append(line)
                 counts["ERROR"] += 1
             else:
                 pass
         self.summaries = summaries
         if counts["ERROR"]:
-            msg = "".join(summaries["ERROR"])
+            msg = "".join(summaries[self.name]["ERROR"])
             self.addCompleteLog("Bzr Merge : ERROR", msg)
             self.setProperty("Bzr Merge : ERROR", counts["ERROR"])
         if sum(counts.values()):
             self.setProperty("Bzr Merge : MessageCount", sum(counts.values()))
 
     def evaluateCommand(self, cmd):
+        state = 'pass'
         res = SUCCESS
         if cmd.rc != 0:
             res = FAILURE
+            state = 'fail'
+        self.summaries[self.name]['state'] = state
         create_test_step_log(self, res)
         return res
 
