@@ -240,7 +240,13 @@
                 <notebook colspan="4">
                   <page string="Logs">
                     <notebook colspan="4">
-                      <page string="Error Log">
+                       <page string="General Log">
+                           <field name="log" colspan="2" nolabel="1"/>
+                       </page>
+                       <page string="Module Quality Log">
+                           <field name="quality_log" colspan="2" nolabel="1"/>
+                       </page>
+                    <!--  <page string="Error Log">
                         <field name="error_log" colspan="2" nolabel="1"/>
                       </page>
                       <page string="Warning Log">
@@ -257,7 +263,8 @@
                       </page>
                       <page string="Traceback">
                         <field name="traceback_detail" nolabel="1" colspan="4"/>
-                      </page>
+                      </page>-->
+
                     </notebook>
                   </page>
                 </notebook>

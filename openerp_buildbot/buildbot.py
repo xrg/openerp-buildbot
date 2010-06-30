@@ -166,13 +166,15 @@ class buildbot_test_step(osv.osv):
     _name = "buildbot.test.step"
     _columns = {
                 'name': fields.char('Name of Step', size=128, help="Name of the Test step"),
-                'test_id': fields.many2one('buildbot.test', 'Test',help="Name of the Test"),
-                'warning_log': fields.text('Warning Log',help="Warning Log"),
-                'error_log': fields.text('Error Log',help="Error Log"),
-                'critical_log': fields.text('Critical Log',help="Critical Log"),
-                'info_log': fields.text('Info Log',help="Information Log"),
-                'yml_log': fields.text('YML-Test Log',help="YML Log"),
-                'traceback_detail': fields.text('Traceback',help="Traceback Detail"),
+                'test_id': fields.many2one('buildbot.test', 'Test', ondelete='cascade', help="Name of the Test"),
+                'log': fields.binary('General Log',help="Log File"),
+                'quality_log':fields.binary("Module's Quality Log",help="Module's Quality Log File"),
+               # 'warning_log': fields.text('Warning Log',help="Warning Log"),
+                #'error_log': fields.text('Error Log',help="Error Log"),
+                #'critical_log': fields.text('Critical Log',help="Critical Log"),
+                #'info_log': fields.text('Info Log',help="Information Log"),
+                #'yml_log': fields.text('YML-Test Log',help="YML Log"),
+                #'traceback_detail': fields.text('Traceback',help="Traceback Detail"),
                 'state': fields.selection([('fail', 'Failed'), ('pass', 'Passed'),('skip', 'Skipped')], "Test Result", readonly=True,help="Final State of the Test Step"),
         }
     _defaults = {

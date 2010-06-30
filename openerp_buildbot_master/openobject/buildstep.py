@@ -61,33 +61,35 @@ def create_test_step_log(step_object = None, step_name = ''):
     last_revision_id_stored = properties.get(tested_branch_id, {}).get('latest_rev_id','')
     test_id = source.get(revision, False)
     summary = step_object.summaries
-    print "ssssssss",summary
     for logname, data in summary.items():
-        print logname, data
         state = data.get('state', 'pass')
         if step_name in ('bzr-update', 'bzr_merge'):
             if state == 'fail':
                 test_values = {'failure_reason':'This test has been skipped because the step %s has failed ! \n for more details please refer the Test steps tab.'%(step_name),'state':state}
                 branch_values = {'latest_rev_no':last_revision_no_stored,'latest_rev_id':last_revision_id_stored}
-                openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.lp.branch','write', [int(tested_branch_id)],branch_values)
-                openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.test','write', [int(test_id)],test_values)
+                openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.lp.branch','write', [int(tested_branch_id)], branch_values)
+                openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.test','write', [int(test_id)], test_values)
             openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.test','write', [int(test_id)],{'environment':step_object.env_info})
 
         params = {}
         params['name'] = logname
         params['test_id'] = int(test_id)
-        if data.get('WARNING', False):
-            params['warning_log'] = '\n'.join(data['WARNING'])
-        if data.get('ERROR', False):
-            params['error_log'] = '\n'.join(data['ERROR'])
-        if data.get('CRITICAL', False):
-            params['critical_log'] = '\n'.join(data['CRITICAL'])
-        if data.get('INFO', False):
-            params['info_log'] = '\n'.join(data['INFO'])
-        if data.get('TEST', False):
-            params['yml_log'] = '\n'.join(data['TEST'])
-        if data.get('TRACEBACK', False):
-            params['traceback_detail'] = '\n'.join(data['TRACEBACK'])
+        if data.get('quality_log', False):
+           params['quality_log'] = '\n'.join(data['quality_log'])
+        if data.get('log', False):
+           params['log'] = '\n'.join(data['log'])
+#        if data.get('WARNING', False):
+#            params['warning_log'] = '\n'.join(data['WARNING'])
+#        if data.get('ERROR', False):
+#            params['error_log'] = '\n'.join(data['ERROR'])
+#        if data.get('CRITICAL', False):
+#            params['critical_log'] = '\n'.join(data['CRITICAL'])
+#        if data.get('INFO', False):
+#            params['info_log'] = '\n'.join(data['INFO'])
+#        if data.get('TEST', False):
+#            params['yml_log'] = '\n'.join(data['TEST'])
+#        if data.get('TRACEBACK', False):
+#            params['traceback_detail'] = '\n'.join(data['TRACEBACK'])
         params['state'] = state
         openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.test.step','create',params)
     return True
@@ -103,8 +105,6 @@ class OpenERPLoggedRemoteCommand(LoggedRemoteCommand):
 class OpenERPTest(LoggingBuildStep):
     name = 'OpenERP-Test'
     flunkOnFailure = True
-    flunkingIssues = ["ERROR","CRITICAL"]
-    MESSAGES = ("ERROR", "CRITICAL", "WARNING", "TEST", "INFO", "TRACEBACK")
 
     def describe(self, done=False,success=False,warn=False,fail=False):
         if done:
@@ -163,37 +163,23 @@ class OpenERPTest(LoggingBuildStep):
             if logname == 'stdio':
                 continue
             log_data = log.getText()
-            summaries = {}
-            [summaries.setdefault(logname,{}).setdefault(m, []) for m in self.MESSAGES]
+            summaries = {logname:{}}
+            general_log = []
+            chk_qlty_log = []
             io = StringIO(log_data).readlines()
             for line in io:
                 if line.find('Failed') != -1:
                     state = 'fail'
-                if line.find("ERROR") != -1:
-                    pos = line.find("ERROR") + len("ERROR") + 5
-                    m = "ERROR"
-                elif line.find("INFO:") != -1:
-                    pos = line.find("INFO") + len("INFO") + 5
-                    m = "INFO"
-                elif line.find("CRITICAL") != -1:
-                    pos = line.find("CRITICAL") + len("CRITICAL") + 5
-                    m = "CRITICAL"
-                elif line.find("Traceback") != -1:
-                    traceback_log = []
-                    pos = io.index(line)
-                    for line in io[pos:-3]:
-                        traceback_log.append(line)
-                    m = "TRACEBACK"
-                    summaries[logname][m] = traceback_log
-                    break;
-                elif line.find("WARNING") != -1:
-                    pos = line.find("WARNING") + len("WARNING") + 5
-                    m = "WARNING"
-                else:
-                    continue
-                line = line[pos:]
-                summaries[logname][m].append(line)
+                if line.find("Check Quality") != -1:
+                    pos = line.find("Check Quality")
+                    for l in io[pos:]:
+                        chk_qlty_log.append(l)
+                    break
+                general_log.append(line)
+
             summaries[logname]['state'] = state
+            summaries[logname]['log'] = general_log
+            summaries[logname]['quality_log'] = chk_qlty_log
             self.summaries.update(summaries)
 
     def evaluateCommand(self, cmd):
@@ -263,24 +249,22 @@ class OpenObjectBzr(Bzr):
         self.startCommand(cmd)
 
     def createSummary(self, log):
-        counts = {}
-        summaries = {}
         io = StringIO(log.getText()).readlines()
-        counts.setdefault("ERROR", 0)
-        summaries.setdefault(self.name, {}).setdefault("ERROR", [])
+        summaries = {self.name:{}}
+        counts = {"log": 0}
         for line in io:
             if line.find("ERROR") != -1:
                 pos = line.find("ERROR") + len("ERROR")
                 line = line[pos:]
-                summaries[self.name]["ERROR"].append(line)
-                counts["ERROR"] += 1
+                summaries[self.name]["log"].append(line)
+                counts["log"] += 1
             else:
                 pass
         self.summaries = summaries
-        if counts["ERROR"]:
-            msg = "".join(summaries[self.name]["ERROR"])
+        if counts["log"]:
+            msg = "".join(summaries[self.name]["log"])
             self.addCompleteLog("Branch Update  : ERROR", msg)
-            self.setProperty("Branch Update : ERROR", counts["ERROR"])
+            self.setProperty("Branch Update : ERROR", counts["log"])
         if sum(counts.values()):
             self.setProperty("Branch Update : MessageCount", sum(counts.values()))
 
@@ -459,24 +443,22 @@ class BzrMerge(LoggingBuildStep):
         self.startCommand(cmd)
 
     def createSummary(self, log):
-        counts = {}
-        summaries = {}
-        counts.setdefault("ERROR", 0)
-        summaries.setdefault(self.name, {}).setdefault("ERROR", [])
+        counts = {"log": 0}
+        summaries = {self.name:{}}
         io = StringIO(log.getText()).readlines()
         for line in io:
             if line.find("ERROR") != -1:
                 pos = line.find("ERROR") + len("ERROR")
                 line = line[pos:]
-                summaries[self.name]["ERROR"].append(line)
-                counts["ERROR"] += 1
+                summaries[self.name]["log"].append(line)
+                counts["log"] += 1
             else:
                 pass
         self.summaries = summaries
-        if counts["ERROR"]:
-            msg = "".join(summaries[self.name]["ERROR"])
+        if counts["log"]:
+            msg = "".join(summaries[self.name]["log"])
             self.addCompleteLog("Bzr Merge : ERROR", msg)
-            self.setProperty("Bzr Merge : ERROR", counts["ERROR"])
+            self.setProperty("Bzr Merge : ERROR", counts["log"])
         if sum(counts.values()):
             self.setProperty("Bzr Merge : MessageCount", sum(counts.values()))
 
@@ -535,24 +517,22 @@ class BzrRevert(LoggingBuildStep):
         self.startCommand(cmd)
 
     def createSummary(self, log):
-        counts = {}
-        summaries = {}
-        counts.setdefault("ERROR", 0)
-        summaries.setdefault(self.name, {}).setdefault("ERROR", [])
+        counts = {"log":0}
+        summaries = {self.name:{}}
         io = StringIO(log.getText()).readlines()
         for line in io:
             if line.find("ERROR") != -1:
                 pos = line.find("ERROR") + len("ERROR")
                 line = line[pos:]
-                summaries[self.name]["ERROR"].append(line)
-                counts["ERROR"] += 1
+                summaries[self.name]["log"].append(line)
+                counts["log"] += 1
             else:
                 pass
         self.summaries = summaries
-        if counts["ERROR"]:
-            msg = "".join(summaries[self.name]["ERROR"])
+        if counts["log"]:
+            msg = "".join(summaries[self.name]["log"])
             self.addCompleteLog("Bzr Merge : ERROR", msg)
-            self.setProperty("Bzr Merge : ERROR", counts["ERROR"])
+            self.setProperty("Bzr Merge : ERROR", counts["log"])
         if sum(counts.values()):
             self.setProperty("Bzr Merge : MessageCount", sum(counts.values()))
 
