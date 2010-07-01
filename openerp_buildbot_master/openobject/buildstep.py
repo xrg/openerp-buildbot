@@ -170,9 +170,11 @@ class OpenERPTest(LoggingBuildStep):
             for line in io:
                 if line.find('Failed') != -1:
                     state = 'fail'
-                if line.find("Check Quality") != -1:
-                    pos = line.find("Check Quality")
+                if line.find("Final score") != -1:
+                    pos = io.index(line)
                     for l in io[pos:]:
+                        if l.find("Final score") != -1 and l.find("</div>") != -1:
+                            l = l[ l.find("</div>") + 6:]
                         chk_qlty_log.append(l)
                     break
                 general_log.append(line)
