@@ -187,14 +187,15 @@ class LatestBuilds(HtmlResource):
 
         data = ""
         data += "<table class='grid' id='latest_builds'>"
-        data +="""<tr class="header" style="vertical-align:center font-weight: bold;font-size: 18px;"><td class='grid-cell' align="center">Tested Branches / Latest Builds</td><td class='grid-cell' align="center" >Build : 5</td><td class='grid-cell' align="center">Build : 4</td>
-                 <td class='grid-cell' align="center">Build : 3</td><td class='grid-cell' align="center">Build : 2</td><td class='grid-cell' align="center">Build : 1</td><td class='grid-cell' align="center">Current Status</td>"""
+        data +="""<tr class="header" style="vertical-align:center font-size: 18px;"><td class='grid-cell' align="center">Branches / Builds</td><td class='grid-cell' align="center" >Build : 1</td><td class='grid-cell' align="center">Build : 2</td>
+                 <td class='grid-cell' align="center">Build : 3</td><td class='grid-cell' align="center">Build : 4</td><td class='grid-cell' align="center">Build : 5</td><td class='grid-cell' align="center">Current Status</td>"""
         for bn in  all_builders:
             base_builder_url = base_builders_url + urllib.quote(bn, safe='')
             builder = status.getBuilder(bn)
             data += "<tr class='grid-row'>\n"
             data += '<td class="grid-cell" align="center"><a href="%s">%s</a></td>\n'%(base_builder_url, html.escape(bn))
             builds = list(builder.generateFinishedBuilds(map_branches(branches),num_builds=5))
+            builds.reverse()
             for build in builds[:5]:
                 url = (base_builder_url + "/builds/%d" % build.getNumber())
                 try:
