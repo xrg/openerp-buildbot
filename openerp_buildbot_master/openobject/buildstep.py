@@ -131,6 +131,7 @@ class OpenERPTest(LoggingBuildStep):
         description = ["Performing OpenERP Test..."]
         self.description = description
         self.summaries = {}
+        self.build_result = SUCCESS
 
     def start(self):
         #TODO FIX:
@@ -170,6 +171,7 @@ class OpenERPTest(LoggingBuildStep):
             for line in io:
                 if line.find('Failed') != -1:
                     state = 'fail'
+                    self.build_result = FAILURE
                 if line.find("Final score") != -1:
                     pos = io.index(line)
                     for l in io[pos:]:
@@ -186,7 +188,7 @@ class OpenERPTest(LoggingBuildStep):
 
     def evaluateCommand(self, cmd):
         res = SUCCESS
-        if cmd.rc != 0:
+        if cmd.rc != 0 or self.build_result == FAILURE:
             res = FAILURE
         create_test_step_log(self)
         return res

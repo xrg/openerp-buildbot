@@ -297,16 +297,16 @@ class OpenObjectStatusResourceBuild(StatusResourceBuild):
                     color = ''
                     if text.find('Failed') != -1:
                         color = 'failure'
-                    elif text.find('Sucessfully') != -1:
+                    elif text.find('Sucessfully') != -1 or text.find('Passed'):
                         color = 'success'
                     elif text.find('Warnings') != -1:
                         color = 'warnings'
                     elif text.find('exception') != -1:
                         color = 'exception'
                     if color:
-                        data += '<span class="%s"> %s</span></ol></td></tr>'%(color, text)
+                        data += '</br><span class="%s"> %s</span></ol></td></tr>'%(color, text)
                     else:
-                        data += '<span>%s</span></ol></td></tr>'%(text)
+                        data += '</br><span>%s</span></ol></td></tr>'%(text)
                 else:
                     data += '<span>Skipped</span></ol></td>'
 
@@ -451,16 +451,16 @@ class OpenObjectStatusResourceBuilder(StatusResourceBuilder):
                             color = ''
                             if text.find('Failed') != -1:
                                 color = 'failure'
-                            elif text.find('Sucessfully') != -1:
+                            elif text.find('Sucessfully') != -1 or text.find('Passed') != -1:
                                 color = 'success'
                             elif text.find('Warnings') != -1:
                                 color = 'warnings'
                             elif text.find('exception') != -1:
                                 color = 'exception'
                             if color:
-                                data += '<span class="%s"> %s</span></td>'%(color,text)
+                                data += '</br><span class="%s"> %s</span></td>'%(color,text)
                             else:
-                                data += '<span>%s</span></td>'%(text)
+                                data += '</br><span>%s</span></td>'%(text)
                         else:
                             data += '<span>Skipped</span></td>'
             data += "</tr>"
