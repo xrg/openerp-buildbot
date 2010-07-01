@@ -187,8 +187,8 @@ class LatestBuilds(HtmlResource):
 
         data = ""
         data += "<table class='grid' id='latest_builds'>"
-        data +="""<tr class='grid-row'><td class='grid-cell' align="center">Tested Branches / Latest Builds</td><td class='grid-cell' align="center" >Build : 5</td><td class='grid-cell' align="center">Build : 4</td>
-                 <td class='grid-cell' align="center">Build : 3</td><td class='grid-cell' align="center">Build : 2</td><td class='grid-cell' align="center">Build : 1</td><td class='grid-cell' align="center">Current Build Status</td>"""
+        data +="""<tr class="header" style="vertical-align:center font-weight: bold;font-size: 18px;"><td class='grid-cell' align="center">Tested Branches / Latest Builds</td><td class='grid-cell' align="center" >Build : 5</td><td class='grid-cell' align="center">Build : 4</td>
+                 <td class='grid-cell' align="center">Build : 3</td><td class='grid-cell' align="center">Build : 2</td><td class='grid-cell' align="center">Build : 1</td><td class='grid-cell' align="center">Current Status</td>"""
         for bn in  all_builders:
             base_builder_url = base_builders_url + urllib.quote(bn, safe='')
             builder = status.getBuilder(bn)
