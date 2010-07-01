@@ -26,7 +26,7 @@ from buildbot.process.buildstep import LoggingBuildStep, LoggedRemoteCommand
 from buildbot.status.builder import SUCCESS, FAILURE, WARNINGS
 from sql import db_connection
 from xmlrpc import buildbot_xmlrpc
-
+import base64
 import pickle
 import os
 from openobject import tools
@@ -75,9 +75,9 @@ def create_test_step_log(step_object = None, step_name = ''):
         params['name'] = logname
         params['test_id'] = int(test_id)
         if data.get('quality_log', False):
-           params['quality_log'] = '\n'.join(data['quality_log'])
+           params['quality_log'] = base64.encodestring('\n'.join(data['quality_log']))
         if data.get('log', False):
-           params['log'] = '\n'.join(data['log'])
+           params['log'] = base64.encodestring('\n'.join(data['log']))
 #        if data.get('WARNING', False):
 #            params['warning_log'] = '\n'.join(data['WARNING'])
 #        if data.get('ERROR', False):
