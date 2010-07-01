@@ -489,11 +489,11 @@ class BzrRevert(LoggingBuildStep):
     def describe(self, done=False,success=False,warn=False,fail=False):
          if done:
             if success:
-                return ['Merge revert %s Sucessfully!'%(self.workdir)]
+                return ['Merge reverted from %s Sucessfully!'%(self.workdir)]
             if warn:
-                return ['Merge revert %s with Warnings!'%(self.workdir)]
+                return ['Merge reverted from %s with Warnings!'%(self.workdir)]
             if fail:
-                return ['Merge revert %s Failed!'%(self.workdir)]
+                return ['Merge revert from %s Failed!'%(self.workdir)]
          return self.description
 
     def getText(self, cmd, results):
