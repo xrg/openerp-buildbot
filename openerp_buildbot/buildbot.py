@@ -118,7 +118,7 @@ class buildbot_test(osv.osv):
     def _get_test_result(self, cr, uid, ids, name, args, context=None):
         res = {}
         for test in self.browse(cr, uid, ids):
-            res[test.id] = 'pass'
+            res[test.id] = 'unknown'
             for step in test.test_step_ids:
                 if step.state == 'fail':
                     res[test.id] = 'fail'
@@ -126,6 +126,8 @@ class buildbot_test(osv.osv):
                 elif step.state == 'skip':
                     res[test.id] = 'skip'
                     break
+                elif step.state == 'pass' and res[test.id] == 'unknown':
+                    res[test.id] = 'pass'
         return res
 
     def _get_test_ids(self, cr, uid, ids, context=None):
@@ -152,13 +154,14 @@ class buildbot_test(osv.osv):
               'rename_files': fields.text('Files Renamed',help="Files Renamed in the Commit"),
               'patch_attached':fields.boolean('Patch Attached', readonly=True,help="Patch Attached in the Commit"),
               'state': fields.function(_get_test_result, method=True, type='selection', string="Test Result",
-                                        selection=[('fail', 'Failed'), ('pass', 'Passed'),('skip', 'Skipped')],store={'buildbot.test.step':(_get_test_ids,['test_id'], 10)},
+                                        selection=[('unknown','Unknown'), ('fail', 'Failed'), ('pass', 'Passed'),('skip', 'Skipped')],
+                                        store={'buildbot.test.step':(_get_test_ids,['test_id'], 10)},
                                         help="Final State of the Test"),
               'test_step_ids':fields.one2many('buildbot.test.step', 'test_id', 'Test Steps'),
               'failure_reason':fields.text('Failure Reason',help="Reason for the failure of the test")
               }
     _defaults = {
-                 'state':'pass'
+                 'state':'unknown'
                  }
 buildbot_test()
 
@@ -175,9 +178,13 @@ class buildbot_test_step(osv.osv):
                 #'info_log': fields.text('Info Log',help="Information Log"),
                 #'yml_log': fields.text('YML-Test Log',help="YML Log"),
                 #'traceback_detail': fields.text('Traceback',help="Traceback Detail"),
-                'state': fields.selection([('fail', 'Failed'), ('pass', 'Passed'),('skip', 'Skipped')], "Test Result", readonly=True,help="Final State of the Test Step"),
+                'state': fields.selection([('unknown','Unknown'), ('fail', 'Failed'), 
+                                            ('pass', 'Passed'),('skip', 'Skipped')], 
+                                            "Test Result", readonly=True, required=True,
+                                            help="Final State of the Test Step"),
         }
     _defaults = {
-                 'state':'pass'
+                 'state':'unknown'
                 }
+    _order = 'id'
 buildbot_test_step()
