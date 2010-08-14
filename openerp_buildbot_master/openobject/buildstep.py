@@ -30,6 +30,8 @@ import base64
 import pickle
 import os
 from openobject import tools
+from twisted.python import log
+
 ignore_module_list = ['bin','Makefile','man','README','setup.cfg','debian','python25-compat','sql','change-loglevel.sh',
         'get-srvstats.sh','setup.py','doc','MANIFEST.in','openerp.log','pixmaps','rpminstall_sh.txt','setup.nsi','win32',
         '.bzrignore','.bzr']
@@ -139,10 +141,13 @@ class OpenERPTest(LoggingBuildStep):
         self.logfiles = {}
         builddir = self.build.builder.builddir
         full_addons = os.path.normpath(os.getcwd() + '../../openerp_buildbot_slave/build/%s/openerp-addons/'%(builddir))
-        for module in os.listdir(full_addons):
-            if module in ['.bzrignore','.bzr']:
-                continue
-            self.logfiles['%s'%module] = ('%s/%s/%s.html'%('test_logs', module, module))
+        try:
+            for module in os.listdir(full_addons):
+                if module in ['.bzrignore','.bzr']:
+                    continue
+                self.logfiles['%s'%module] = ('%s/%s/%s.html'%('test_logs', module, module))
+        except EnvironmentError, e:
+            log.err("Cannot scan modules: %s" % e)
 
         self.args['command']=["make","openerp-test"]
         self.args['logfiles'] = self.logfiles

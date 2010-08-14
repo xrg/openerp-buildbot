@@ -95,11 +95,16 @@ class OpenObjectShell(SlaveShellCommand):
             if 'stable_openobject_server' in args['addonsdir'].split('/'):
                 dirs.append('base')
             else:
-                for dir in os.listdir(workdir):
-                    if dir not in ['.buildbot-sourcedata','.bzrignore','.bzr','.svn','README.txt']:
+                try:
+                    for dir in os.listdir(workdir):
+                        if dir in ['.buildbot-sourcedata','.bzrignore','.bzr','.svn','README.txt']:
+                            continue
                         if dir == 'base':
-                           continue
+                            continue
                         dirs.append(dir)
+                except EnvironmentError, e:
+                    log.err("cannot list %s" % workdir)
+                    pass
 
         commandline = args.get('command', [])
         if addonsdir:

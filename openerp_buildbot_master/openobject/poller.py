@@ -73,9 +73,16 @@ class BzrPoller(service.MultiService, util.ComparableMixin):
         return "BzrPoller watching %s" % self.location
 
     def poll(self):
+        try:
+            self._poll()
+        except Exception, e:
+            log.err("Cannot poll: %s" % e)
+
+    def _poll(self):
         log.msg("BzrPoller polling: %s"%(self.location))
         # this is subclass of bzrlib.branch.Branch
         current_revision = self.branch.revno()
+        log.msg("Current revision: %s" % current_revision)
         if not self.last_revno:
             openerp_host = self.openerp_properties.get('openerp_host', 'localhost')
             openerp_port = self.openerp_properties.get('openerp_port',8069)
@@ -94,7 +101,9 @@ class BzrPoller(service.MultiService, util.ComparableMixin):
 
             self.last_revno = int(tested_branch_data['latest_rev_no'])
         # NOTE: b.revision_history() does network IO, and is blocking.
+        log.msg("Get revision history..")
         revisions = self.branch.revision_history()[self.last_revno:] # each is an id string
+        log.msg("Finished revision history")
         changes = []
         for r in revisions:
             rev = self.branch.repository.get_revision(r)
