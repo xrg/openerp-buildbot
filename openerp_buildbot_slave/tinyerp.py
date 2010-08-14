@@ -28,6 +28,8 @@ import os
 import time
 import socket
 
+raise DeprecationWarning("Don't use!")
+
 admin_passwd = 'admin'
 waittime = 10
 wait_count = 0
