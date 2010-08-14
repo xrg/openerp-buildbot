@@ -453,7 +453,7 @@ class BzrMerge(LoggingBuildStep):
 
     def createSummary(self, log):
         counts = {"log": 0}
-        summaries = {self.name:{}}
+        summaries = {self.name:{'log': [], 'state':None}}
         io = StringIO(log.getText()).readlines()
         for line in io:
             if line.find("ERROR") != -1:
@@ -527,7 +527,7 @@ class BzrRevert(LoggingBuildStep):
 
     def createSummary(self, log):
         counts = {"log":0}
-        summaries = {self.name:{}}
+        summaries = {self.name:{'log': [], 'state':None}}
         io = StringIO(log.getText()).readlines()
         for line in io:
             if line.find("ERROR") != -1:
