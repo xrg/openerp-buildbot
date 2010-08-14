@@ -21,7 +21,7 @@
 ##############################################################################
 
 from buildbot.status.web.base import HtmlResource,map_branches,Box,ICurrentBox,build_get_class,path_to_builder
-from buildbot.status.web.baseweb import WebStatus,OneBoxPerBuilder
+from buildbot.status.web.baseweb import WebStatus
 from buildbot.status.web import baseweb
 from buildbot.status.web.build import StatusResourceBuild,BuildsResource
 from buildbot.status.web.builder import StatusResourceBuilder, StatusResourceAllBuilders
