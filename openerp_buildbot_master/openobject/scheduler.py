@@ -106,6 +106,7 @@ class OpenObjectBuildset(buildset.BuildSet):
 class OpenObjectScheduler(Scheduler):
     def __init__(self, name, branch, treeStableTimer, builderNames,
                  fileIsImportant=None, properties={}, openerp_properties={}):
+        self.unimportantChanges = []
         Scheduler.__init__(self, name=name, branch=branch, treeStableTimer=treeStableTimer, builderNames=builderNames,
                  fileIsImportant=fileIsImportant, properties=properties)
         self.openerp_properties = openerp_properties
