@@ -4,6 +4,7 @@
 #    
 #    OpenERP, Open Source Management Solution
 #    Copyright (C) 2004-2009 Tiny SPRL (<http://tiny.be>).
+#    Copyright (C) 2010 OpenERP SA. (http://www.openerp.com)
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU Affero General Public License as
@@ -21,16 +22,15 @@
 ##############################################################################
 
 import xmlrpclib
-import ConfigParser
+# import ConfigParser
 import optparse
 import sys
-import thread
 import threading
 import os
 import time
 import pickle
 import base64
-import socket
+# import socket
 import subprocess
 import select
 import re
@@ -48,9 +48,18 @@ def to_decode(s):
                 return s.decode('ascii')
             except UnicodeError:
                 return s
+
+class ClientException(Exception):
+    """Define our own exception, to avoid traceback
+    """
+    pass
+
+class ServerException(Exception):
+    pass
+
 # --- cut here
 import logging
-import types
+# import types
 
 def xmlescape(sstr):
     return sstr.replace('<','&lt;').replace('>','&gt;').replace('&','&amp;')
@@ -118,15 +127,31 @@ class server_thread(threading.Thread):
         self.log.info("Server listens %s at %s:%s" % mobj.group(1, 2, 3))
         self._lports[mobj.group(1)] = mobj.group(3)
 
-    def __init__(self, root_path, port, netport, addons_path, pyver=None, timed=False):
+    def __init__(self, root_path, port, netport, addons_path, pyver=None, 
+                srv_mode='v600', timed=False):
         threading.Thread.__init__(self)
         self.root_path = root_path
         self.port = port
         # self.addons_path = addons_path
-        self.args = [ 'python%s' %(pyver or ''), '%sopenerp-server.py' % root_path,
-                    '--httpd-port=%s' % port ,
-                    '--netrpc-port=%s' % netport,
-                    '--addons-path=%s' % addons_path ]
+        self.args = [ 'python%s' %(pyver or ''), '%sopenerp-server.py' % root_path, ]
+        if addons_path:
+            self.args += [ '--addons-path=%s' % addons_path ]
+
+        # TODO: secure transport, persistent ones.
+        if srv_mode == 'v600':
+            self.args.append('--xmlrpc-port=%s' % port )
+            self.args.append('--no-xmlrpcs')
+        elif srv_mode == 'pg84':
+            self.args.append('--httpd-port=%s' % port )
+            self.args.append('--no-httpds')
+        else:
+            raise RuntimeError("Invalid server mode %s" % srv_mode)
+
+        if netport:
+            self.args.append('--netrpc-port=%s' % netport)
+        else:
+            self.args.append('--no-netrpc')
+        
         if timed:
             self.args.insert(0, 'time')
         self.proc = None
@@ -222,42 +247,58 @@ class server_thread(threading.Thread):
         t = 0
         while not self.is_ready:
             if not self.is_running:
-                raise Exception("Server cannot start")
+                raise ServerException("Server cannot start")
             if t > 120:
                 self.stop()
-                raise Exception("Server took too long to start")
+                raise ServerException("Server took too long to start")
             time.sleep(1)
             t += 1
         if self._lports.get('HTTP') != str(self.port):
             self.log.warning("server does not listen HTTP at port %s" % self.port)
         return True
 
-def execute(connector, method, *args):
-    global server
-    res = False
-    if not server.is_ready:
-        print "Server not ready, cannot execute %s" % method
-        return False
+class client_worker(object):
+    """ This object will connect to a server and perform the various tests.
+    
+        It holds some common options.
+    """
+    
+    def __init__(self, uri, options):
+        global server
+        self.log = logging.getLogger('bqi.client')
+        if not server.is_ready:
+            self.log.error("Server not ready, cannot work client")
+            raise RuntimeError()
+        self.uri = uri
+        self.user = options['login']
+        self.pwd = options['pwd']
+        self.dbname = options['dbname']
+        self.super_passwd = 'admin' # options['super_passwd']
+        self.series = options['server_series']
 
-    res = getattr(connector,method)(*args)
-    return res
+    def _execute(self, connector, method, *args):
+        res = getattr(connector,method)(*args)
+        return res
 
-def login(uri, dbname, user, pwd):
-    conn = xmlrpclib.ServerProxy(uri + '/xmlrpc/common')
-    uid = execute(conn,'login',dbname, user, pwd)
-    return uid
+    def _login(self):
+        conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/common')
+        uid = self._execute(conn, 'login', self.dbname, self.user, self.pwd)
+        if not uid:
+            self.log.error("Cannot login as %s@%s" %(self.user, self.pwd))
+        return uid
 
-def import_translate(uri, user, pwd, dbname, translate_in):
-    uid = login(uri, dbname, user, pwd)
-    if uid:
-        conn = xmlrpclib.ServerProxy(uri + '/xmlrpc/wizard')
-        wiz_id = execute(conn,'create',dbname, uid, pwd, 'module.lang.import')
+    def import_translate(self, user, pwd, dbname, translate_in):
+        uid = self._login()
+        if not uid:
+            return False
+        conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/wizard')
+        wiz_id = self._execute(conn, 'create',self.dbname, uid, self.pwd, 'module.lang.import')
         for trans_in in translate_in:
             lang,ext = os.path.splitext(trans_in.split('/')[-1])
             state = 'init'
             datas = {'form':{}}
             while state!='end':
-                res = execute(conn,'execute',dbname, uid, pwd, wiz_id, datas, state, {})
+                res = self._execute(conn,'execute',self.dbname, uid, self.pwd, wiz_id, datas, state, {})
                 if 'datas' in res:
                     datas['form'].update( res['datas'].get('form',{}) )
                 if res['type']=='form':
@@ -274,17 +315,19 @@ def import_translate(uri, user, pwd, dbname, translate_in):
                 elif res['type']=='action':
                     state = res['state']
 
-
-def check_quality(uri, user, pwd, dbname, modules, quality_logs):
-    uid = login(uri, dbname, user, pwd)
-    quality_logs += 'quality-logs'
-    if uid:
-        conn = xmlrpclib.ServerProxy(uri + '/xmlrpc/object')
+    def check_quality(self, modules, quality_logs):
+        uid = self._login(self.uri, self.dbname, self.user, self.pwd)
+        quality_logs += 'quality-logs'
+        if not uid:
+            return False
+        conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/object')
         final = {}
         for module in modules:
             qualityresult = {}
             test_detail = {}
-            quality_result = execute(conn,'execute', dbname, uid, pwd,'module.quality.check','check_quality',module)
+            quality_result = self._execute(conn,'execute', self.dbname, 
+                                uid, self.pwd,
+                                'module.quality.check','check_quality',module)
             detail_html = ''
             html = '''<html><body><a name="TOP"></a>'''
             html +="<h1> Module: %s </h1>"%(quality_result['name'])
@@ -313,96 +356,103 @@ def check_quality(uri, user, pwd, dbname, modules, quality_logs):
         #fp.close()
         #print "LOG PATH%s"%(os.path.realpath('quality_log.pck'))
         return True
-    else:
-        print 'Login Failed...'
-        return False
 
-def get_ostimes(uri, prev=None):
-    try:
-        conn = xmlrpclib.ServerProxy(uri + '/xmlrpc/common')
-        ost = execute(conn,'get_os_time', admin_passwd)
-        if prev is not None:
-            for i in range(0,5):
-                ost[i] -= prev[i]
-        return ost
-    except Exception, e:
-        print "exception:", e
-        return ( 0.0, 0.0, 0.0, 0.0, 0.0 )
-
-
-def wait(id,url=''):
-    progress=0.0
-    sock2 = xmlrpclib.ServerProxy(url+'/xmlrpc/db')
-    while not progress==1.0:
-        progress,users = execute(sock2,'get_progress',admin_passwd, id)
-    return True
+    def get_ostimes(self, prev=None):
+        if self.series not in ('pg84',):
+            self.log.debug("Using client-side os.times()")
+            return os.times()
+        try:
+            conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/common')
+            ost = self._execute(conn,'get_os_time', self.super_passwd)
+            if prev is not None:
+                for i in range(0,5):
+                    ost[i] -= prev[i]
+            return ost
+        except Exception:
+            self.log.exception("Get os times")
+            return ( 0.0, 0.0, 0.0, 0.0, 0.0 )
 
 
-def create_db(uri, dbname, user='admin', pwd='admin', lang='en_US'):
-    conn = xmlrpclib.ServerProxy(uri + '/xmlrpc/db')
-    obj_conn = xmlrpclib.ServerProxy(uri + '/xmlrpc/object')
-    wiz_conn = xmlrpclib.ServerProxy(uri + '/xmlrpc/wizard')
-    login_conn = xmlrpclib.ServerProxy(uri + '/xmlrpc/common')
-    db_list = execute(conn, 'list')
-    if dbname in db_list:
-        raise Exception("Database already exists, drop it first!")
-    id = execute(conn,'create',admin_passwd, dbname, True, lang)
-    wait(id,uri)
-    install_module(uri, dbname, ['base_module_quality'],user=user,pwd=pwd)
-    return True
-
-def drop_db(uri, dbname):
-    conn = xmlrpclib.ServerProxy(uri + '/xmlrpc/db')
-    db_list = execute(conn,'list')
-    if dbname in db_list:
-        execute(conn, 'drop', admin_passwd, dbname)
-    return True
-
-def make_links(uri, uid, dbname, source, destination, module, user, pwd):
-    raise DeprecationWarning
-    if module in ('base','quality_integration_server'):
+    def wait(self, id):
+        progress=0.0
+        conn = xmlrpclib.ServerProxy(self.uri+'/xmlrpc/db')
+        while not progress==1.0:
+            progress,users = self._execute(conn,'get_progress',self.super_passwd, id)
         return True
-    # FIXME: obsolete in 6.0! Better, use the multiple addons paths
-    # feature and not affect our filesystem.
-    if os.path.islink(destination + '/' + module):
-        os.unlink(destination + '/' + module)                
-    for path in source:
-        if os.path.isdir(path + '/' + module):
-            os.symlink(path + '/' + module, destination + '/' + module)
-            obj_conn = xmlrpclib.ServerProxy(uri + '/xmlrpc/object')
-            execute(obj_conn, 'execute', dbname, uid, pwd, 'ir.module.module', 'update_list')
-            module_ids = execute(obj_conn, 'execute', dbname, uid, pwd, 'ir.module.module', 'search', [('name','=',module)])
-            if len(module_ids):
-                data = execute(obj_conn, 'execute', dbname, uid, pwd, 'ir.module.module', 'read', module_ids[0],['name','dependencies_id'])
-                dep_datas = execute(obj_conn, 'execute', dbname, uid, pwd, 'ir.module.module.dependency', 'read', data['dependencies_id'],['name'])
-                for dep_data in dep_datas:
-                    make_links(uri, uid, dbname, source, destination, dep_data['name'], user, pwd)
-    return False
 
-def install_module(uri, dbname, modules, user='admin', pwd='admin'):
-    uid = login(uri, dbname, user, pwd)
-    if not uid:
-        raise Exception('cannot login')
-    
-    # what buttons to press at each state:
-    form_presses = { 'init': 'start', 'next': 'start', 'start': 'end' }
-    if True:
-        obj_conn = xmlrpclib.ServerProxy(uri + '/xmlrpc/object')
-        wizard_conn = xmlrpclib.ServerProxy(uri + '/xmlrpc/wizard')
-        module_ids = execute(obj_conn, 'execute', dbname, uid, pwd, 'ir.module.module', 'search', [('name','in',modules)])
-        if not module_ids:
-	    raise Exception("Cannot find any modules to install!")
-        execute(obj_conn, 'execute', dbname, uid, pwd, 'ir.module.module', 'button_install', module_ids)
-        wiz_id = execute(wizard_conn, 'create', dbname, uid, pwd, 'module.upgrade.simple')
-        state = 'init'
-        datas = {}
-        #while state!='menu':
-        i = 0
+
+    def create_db(self, lang='en_US'):
+        conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/db')
+        # obj_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/object')
+        #wiz_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/wizard')
+        #login_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/common')
+        db_list = self._execute(conn, 'list')
+        if self.dbname in db_list:
+            raise ClientException("Database already exists, drop it first!")
+        id = self._execute(conn,'create',self.super_passwd, self.dbname, True, lang)
+        self.wait(id)
+        if not self.install_module(['base_module_quality',]):
+            self.log.warning("Could not install 'base_module_quality' module.")
+            # but overall pass
+        return True
+
+    def drop_db(self):
+        conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/db')
+        db_list = self._execute(conn,'list')
+        if self.dbname in db_list:
+            self.log.info("Going to drop db: %s", self.dbname)
+            self._execute(conn, 'drop', self.super_passwd, self.dbname)
+            self.log.info("Dropped db: %s", self.dbname)
+            return True
+        else:
+            self.log.error("Not dropping db '%s' because it doesn't exist", self.dbname)
+            return False
+
+    def install_module(self, modules):
+        uid = self._login()
+        if not uid:
+            return False
         
+        # what buttons to press at each state:
+        form_presses = { 'init': 'start', 'next': 'start', 'start': 'end' }
+        
+        obj_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/object')
+        wizard_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/wizard')
+        module_ids = self._execute(obj_conn, 'execute', self.dbname, uid, self.pwd, 
+                        'ir.module.module', 'search', [('name','in',modules)])
+        if not module_ids:
+            self.log.error("Cannot find any of [%s] modules to install!",
+                            ', '.join(modules))
+            return False
+        self._execute(obj_conn, 'execute', self.dbname, uid, self.pwd, 
+                        'ir.module.module', 'button_install', module_ids)
+        wiz_id = self._execute(wizard_conn, 'create', self._dbname, uid, self.pwd, 
+                        'module.upgrade.simple')
+        
+        datas = {}
+        return self.run_wizard(wizard_conn, uid, wiz_id, form_presses, datas)
+        
+    def run_wizard(self, wizard_conn, uid, wiz_id, form_presses, datas):
+        """ Simple Execute of a wizard, press form_presses until end.
+        
+            This tries to go through a wizard, by trying the states found
+            in form_presses. If form_presses = { 'start': 'foo', 'foo': 'end'}
+            then the 'foo' button(=state) will be pressed at 'start', then
+            the 'end' button at state 'foo'.
+            If it sucessfully reaches the 'end', then the wizard will have
+            passed.
+        """
+        
+        state = 'init'
+        log = logging.getLogger("bqi.wizard") #have a separate one.
+        i = 0
+        good_state = True
         while state!='end':
-            res = execute(wizard_conn, 'execute', dbname, uid, pwd, wiz_id, datas, state, {})
+            res = self._execute(wizard_conn, 'execute', self.dbname, uid, self.pwd, 
+                            wiz_id, datas, state, {})
             i += 1
             if i > 100:
+                log.error("Wizard abort after %d steps", i)
                 raise RuntimeError("Too many wizard steps")
             
             next_state = 'end'
@@ -411,38 +461,33 @@ def install_module(uri, dbname, modules, user='admin', pwd='admin'):
                     next_state = form_presses[state]
                 pos_states = [ x[0] for x in res['state'] ]
                 if next_state in pos_states:
-                    print "Pressing button for %s state" % next_state
+                    log.debug("Pressing button for %s state", next_state)
                     state = next_state
                 else:
-                    print "State %s not found in %s, forcing end" % (next_state, pos_states)
+                    log.warning("State %s not found in %s, forcing end", (next_state, pos_states))
                     state = 'end'
+                    good_state = False
             else:
-                print "State:", state, " Res:", res
-        print "Wizard ended in %d steps" % i
-    return True
+                log.debug("State: %s, res: %r", state, " Res:", res)
+        log.debug("Wizard ended in %d steps", i)
+        return good_state
 
-def upgrade_module(uri, dbname, modules, user='admin', pwd='admin'):
-    uid = login(uri, dbname, user, pwd)
-    if uid:
-        obj_conn = xmlrpclib.ServerProxy(uri + '/xmlrpc/object')
-        wizard_conn = xmlrpclib.ServerProxy(uri + '/xmlrpc/wizard')
-        module_ids = execute(obj_conn, 'execute', dbname, uid, pwd, 'ir.module.module', 'search', [('name','in',modules)])
-        execute(obj_conn, 'execute', dbname, uid, pwd, 'ir.module.module', 'button_upgrade', module_ids)
-        wiz_id = execute(wizard_conn, 'create', dbname, uid, pwd, 'module.upgrade.simple')
-        state = 'init'
+    def upgrade_module(self, modules):
+        uid = self._login()
+        if not uid:
+            return False
+        obj_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/object')
+        wizard_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/wizard')
+        module_ids = self.execute(obj_conn, 'execute', self.dbname, uid, self.pwd, 
+                            'ir.module.module', 'search', [('name','in',modules)])
+        self._execute(obj_conn, 'execute', self.dbname, uid, self.pwd, 
+                            'ir.module.module', 'button_upgrade', module_ids)
+        wiz_id = self._execute(wizard_conn, 'create', self.dbname, uid, self.pwd, 
+                            'module.upgrade.simple')
         datas = {}
-        #while state!='menu':
-        while state!='end':
-            res = execute(wizard_conn, 'execute', dbname, uid, pwd, wiz_id, datas, state, {})
-            if state == 'init':
-                state = 'start'
-            elif state == 'start':
-                state = 'end'
-
-    return True
-
-
-
+        form_presses = { 'init':'start', 'start': 'end'}
+        
+        return self.run_wizard(wizard_conn, uid, wiz_id, form_presses, datas)
 
 
 usage = """%prog command [options]
@@ -454,12 +499,19 @@ Basic Commands:
     install-module [<m> ...]   Install module
     upgrade-module [<m> ...]   Upgrade module
     install-translation        Install translation file
-    check-quality  [<m ...]    Calculate quality and dump quality result into quality_log.pck using pickle
+    check-quality  [<m> ...]    Calculate quality and dump quality result 
+                                [ into quality_log.pck using pickle ]
+    multi <cmd> [<cmd> ...]     Execute several of the above commands, at a 
+                                single server instance.
 """
 parser = optparse.OptionParser(usage)
-parser.add_option("--modules", dest="modules", action="append",
+parser.add_option("-m", "--modules", dest="modules", action="append",
                      help="specify modules to install or check quality")
 parser.add_option("--addons-path", dest="addons_path", help="specify the addons path")
+# parser.add_option("--xml-log", dest="xml_log", help="A file to write xml-formatted log to, or 'stdout'")
+# parser.add_option("--txt-log", dest="txt_log", help="A file to write plain log to, or 'stderr'")
+
+
 parser.add_option("--quality-logs", dest="quality_logs", help="specify the path of quality logs files which has to stores")
 parser.add_option("--root-path", dest="root_path", help="specify the root path")
 parser.add_option("-p", "--port", dest="port", help="specify the TCP port", type="int")
@@ -471,54 +523,88 @@ parser.add_option("--translate-in", dest="translate_in",
                      help="specify .po files to import translation terms")
 parser.add_option("--extra-addons", dest="extra_addons",
                      help="specify extra_addons and trunkCommunity modules path ")
+parser.add_option("--server-series", help="Specify argument syntax and options of the server.\nExamples: 'v600', 'pg84'")
 
 (opt, args) = parser.parse_args()
-if len(args) < 1:
-    parser.error("incorrect number of arguments")
-command = args[0]
-if command not in ('start-server','create-db','drop-db','install-module','upgrade-module','check-quality','install-translation'):
-    parser.error("incorrect command")
 
 def die(cond, msg):
     if cond:
         print msg
         sys.exit(1)
 
-lmodules = opt.modules or []
-if command in ('install-module', 'upgrade-module', 'check-quality'):
-    lmodules += args[1:]
-
-die(lmodules and (not opt.db_name),
-        "the modules option cannot be used without the database (-d) option")
-
-die(opt.translate_in and (not opt.db_name),
-        "the translate-in option cannot be used without the database (-d) option")
-
 options = {
-    'addons-path' : opt.addons_path or 'addons',
+    'addons-path' : opt.addons_path or False,
     'quality-logs' : opt.quality_logs or '',
     'root-path' : opt.root_path or '',
     'translate-in': [],
     'port' : opt.port or 8069,
-    'netport':opt.netport or 8070,
-    'database': opt.db_name or 'terp',
-    'modules' : lmodules,
+    'netport':opt.netport or False,
+    'dbname': opt.db_name ,
+    'modules' : opt.modules,
     'login' : opt.login or 'admin',
     'pwd' : opt.pwd or 'admin',
-    'extra-addons':opt.extra_addons or []
+    'extra-addons':opt.extra_addons or [],
+    'server_series': opt.server_series or 'v600'
 }
 
 import logging
 def init_log():
     log = logging.getLogger()
     log.setLevel(logging.DEBUG)
-    hnd = XMLStreamHandler('test.log')
-    log.addHandler(hnd)
+    # TODO 
+    # hnd = XMLStreamHandler('test.log')
+    # log.addHandler(hnd)
     log.addHandler(logging.StreamHandler())
     
 init_log()
 
 logger = logging.getLogger('bqi')
+
+def parse_cmdargs(args):
+    """Parse the non-option arguments into an array of commands
+    
+    The array has entries like ('cmd', [args...])
+    Multiple commands may be specified either with the 'multi'
+    command or with the '--' separator from the last cmd.
+    """
+    global parser
+    ret = []
+    while len(args):
+        command = args[0]
+        #if command.startswith('-'): # TODO
+        #    cmd2 = command[1:]
+        
+        if command not in ('start-server','create-db','drop-db',
+                    'install-module','upgrade-module','check-quality',
+                    'install-translation', 'multi'):
+            parser.error("incorrect command")
+            return
+        args = args[1:]
+        if command == 'multi':
+            ret.extend([(x, []) for x in args])
+            return ret
+        elif command in ('install-module', 'upgrade-module', 'check-quality',
+                        'install-translation'):
+            # Commands that take args
+            cmd_args = []
+            while args and args[0] != '--':
+                cmd_args.append(args[0])
+                args = args[1:]
+            ret.append((command, cmd_args))
+        else:
+            ret.append((command, []))
+        
+    return ret
+
+cmdargs = parse_cmdargs(args)
+if len(cmdargs) < 1:
+    parser.error("You have to specify a command!")
+
+#die(lmodules and (not opt.db_name),
+#        "the modules option cannot be used without the database (-d) option")
+
+die(opt.translate_in and (not opt.db_name),
+        "the translate-in option cannot be used without the database (-d) option")
 
 # Hint:i18n-import=purchase:ar_AR.po+sale:fr_FR.po,nl_BE.po
 if opt.translate_in:
@@ -534,34 +620,54 @@ if opt.translate_in:
 uri = 'http://localhost:' + str(options['port'])
 
 server = server_thread(root_path=options['root-path'], port=options['port'],
-                        netport=options['netport'], addons_path=options['addons-path'])
+                        netport=options['netport'], addons_path=options['addons-path'],
+                        srv_mode=options['server_series'])
 
 logger.info('start of script')
 try:
     server.start_full()
-    ost =  get_ostimes(uri)
+    client = client_worker(uri, options)
+    ost = client.get_ostimes()
     logger.info("Server started at: User: %.3f, Sys: %.3f" % (ost[0], ost[1]))
 
-    if command == 'create-db':
-        create_db(uri, options['database'], options['login'], options['pwd'])
-    if command == 'drop-db':
-        drop_db(uri, options['database'])
-    if command == 'install-module' or (command == 'create-db' and lmodules):
-        install_module(uri, options['database'], options['modules'], options['login'], options['pwd'])
-    if command == 'upgrade-module':
-        upgrade_module(uri, options['database'], options['modules'], options['login'], options['pwd'])
-    if command == 'check-quality':
-        check_quality(uri, options['login'], options['pwd'], options['database'], options['modules'], options['quality-logs'])
-    if command == 'install-translation':
-        import_translate(uri, options['login'], options['pwd'], options['database'], options['translate-in'])
+    ret = True
+    mods = options['modules'] or []
+    for cmd, args in cmdargs:
+        if cmd == 'create-db':
+            ret = client.create_db()
+        elif cmd == 'drop-db':
+            ret = client.drop_db()
+        elif cmd == 'install-module':
+            ret = client.install_module(mods + args)
+        elif cmd == 'upgrade-module':
+            ret = client.upgrade_module(mods+args)
+        elif cmd == 'check-quality':
+            ret = client.check_quality(mods+args, options['quality-logs'])
+        elif cmd == 'install-translation':
+            ret = client.import_translate(options['translate-in'])
+        if not ret:
+            logger.error("Stopping tests because %s failed", cmd)
+            break
 
-    ost =  get_ostimes(uri, ost)
+    ost = client.get_ostimes(ost)
     logger.info("Server ending at: User: %.3f, Sys: %.3f" % (ost[0], ost[1]))
 
     server.stop()
     server.join()
-    sys.exit(0)
-
+    if ret:
+        sys.exit(0)
+    else:
+        sys.exit(3)
+except ServerException, e:
+    logger.error("%s" % e)
+    server.stop()
+    server.join()
+    sys.exit(4)
+except ClientException, e:
+    logger.error("%s" % e)
+    server.stop()
+    server.join()
+    sys.exit(5)
 except xmlrpclib.Fault, e:
     logger.exception('xmlrpc')
     server.stop()
@@ -574,4 +680,5 @@ except Exception, e:
     sys.exit(1)
 
 logger.info('end of script')
+
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
