@@ -114,6 +114,38 @@ class XMLFormatter(logging.Formatter):
 
 # --- cut here
 
+class MachineFormatter(logging.Formatter):
+    """ Machine-parseable log output, in plain text stream.
+    
+    In order to have parsers analyze the output of the logs, have
+    the following format:
+        logger[|level]> msg...
+        + msg after newline
+        :@ First exception line
+        :+ second exception line ...
+    
+    It should be simple and well defined for the other side.
+    """
+    
+    def format(self, record):
+        """ Format to stream """
+        
+        levelstr = ''
+        if record.levelno != logging.INFO:
+            levelstr = '|%d' % record.levelno
+        
+        msgtxt = record.getMessage().replace('\n','\n+ ')
+        s = "%s%s> %s" % ( record.name, levelstr, msgtxt)
+
+        if record.exc_info and not record.exc_text:
+                record.exc_text = self.formatException(record.exc_info)
+
+        if record.exc_text:
+            s+= '\n:@ %s' % record.exc_text.replace('\n','\n:+ ')
+
+        # return s.decode('utf-8')
+        return s
+
 class server_thread(threading.Thread):
     
     def regparser(self, section, regex, funct):
@@ -508,9 +540,9 @@ parser = optparse.OptionParser(usage)
 parser.add_option("-m", "--modules", dest="modules", action="append",
                      help="specify modules to install or check quality")
 parser.add_option("--addons-path", dest="addons_path", help="specify the addons path")
-# parser.add_option("--xml-log", dest="xml_log", help="A file to write xml-formatted log to, or 'stdout'")
-# parser.add_option("--txt-log", dest="txt_log", help="A file to write plain log to, or 'stderr'")
-
+parser.add_option("--xml-log", dest="xml_log", help="A file to write xml-formatted log to")
+parser.add_option("--txt-log", dest="txt_log", help="A file to write plain log to, or 'stderr'")
+parser.add_option("--machine-log", dest="mach_log", help="A file to write machine log stream, or 'stderr'")
 
 parser.add_option("--quality-logs", dest="quality_logs", help="specify the path of quality logs files which has to stores")
 parser.add_option("--root-path", dest="root_path", help="specify the root path")
@@ -549,13 +581,41 @@ options = {
 
 import logging
 def init_log():
+    global opt
     log = logging.getLogger()
     log.setLevel(logging.DEBUG)
-    # TODO 
-    # hnd = XMLStreamHandler('test.log')
-    # log.addHandler(hnd)
-    log.addHandler(logging.StreamHandler())
-    
+    has_stdout = has_stderr = False
+
+    if not (opt.xml_log or opt.txt_log or opt.mach_log):
+        # Default to a txt logger
+        opt.txt_log = 'stderr'
+
+    if opt.xml_log:
+        hnd = XMLStreamHandler(opt.xml_log)
+        log.addHandler(hnd)
+        
+    if opt.txt_log:
+        if opt.txt_log == 'stderr':
+            log.addHandler(logging.StreamHandler())
+            has_stderr = True
+        elif opt.txt_log == 'stdout':
+            log.addHandler(logging.StreamHandler(sys.stdout))
+            has_stdout = True
+        else:
+            log.addHandler(logging.FileHandler(opt.txt_log))
+            #hnd2.setFormatter()
+
+    if opt.mach_log:
+        if opt.mach_log == 'stdout':
+            if has_stdout:
+                raise Exception("Cannot have two loggers at stdout!")
+            hnd3 = logging.StreamHandler(sys.stdout)
+            has_stdout = True
+        else:
+            hnd3 = logging.FileHandler(opt.mach_log)
+        hnd3.setFormatter(MachineFormatter())
+        log.addHandler(hnd3)
+
 init_log()
 
 logger = logging.getLogger('bqi')
@@ -669,7 +729,8 @@ except ClientException, e:
     server.join()
     sys.exit(5)
 except xmlrpclib.Fault, e:
-    logger.exception('xmlrpc')
+    logger.error('xmlrpc exception: %s', e.faultCode.strip())
+    logger.error('xmlrpc +: %s', e.faultString.rstrip())
     server.stop()
     server.join()
     sys.exit(1)
