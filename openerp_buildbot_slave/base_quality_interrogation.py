@@ -133,8 +133,13 @@ class MachineFormatter(logging.Formatter):
         levelstr = ''
         if record.levelno != logging.INFO:
             levelstr = '|%d' % record.levelno
-        
-        msgtxt = record.getMessage().replace('\n','\n+ ')
+
+        try:
+            msgtxt = record.getMessage().replace('\n','\n+ ')
+        except TypeError:
+            print "Message:", record.msg
+            msgtxt = record.msg
+
         s = "%s%s> %s" % ( record.name, levelstr, msgtxt)
 
         if record.exc_info and not record.exc_text:
@@ -159,6 +164,34 @@ class server_thread(threading.Thread):
         self.log.info("Server listens %s at %s:%s" % mobj.group(1, 2, 3))
         self._lports[mobj.group(1)] = mobj.group(3)
 
+    def _set_log_context(self, ctx):
+        if ctx != self.state_dict.get('context', False):
+            self.log_state.info("set context %s", ctx)
+            self.state_dict['context'] = ctx
+
+    def setModuleLoading(self, section, level, mobj):
+        self.state_dict['module'] = mobj.group(1)
+        self.state_dict['module-phase'] = 'init'
+        self._set_log_context("%s.%s" % (mobj.group(1),
+                            self.state_dict['module-mode']))
+        self.state_dict['module-file'] = None
+    
+    def setModuleLoading2(self, section, level, mobj):
+        self.state_dict['module'] = mobj.group(1)
+        self.state_dict['module-phase'] = 'reg'
+        self._set_log_context("%s.%s" % (mobj.group(1),
+                            self.state_dict['module-mode']))
+        self.state_dict['module-file'] = None
+    
+    def setModuleFile(self, section, level, mobj):
+        if mobj.group(2) == 'objects':
+            return
+        self.state_dict['module'] = mobj.group(1)
+        self.state_dict['module-phase'] = 'file'
+        self._set_log_context("%s.%s" % (mobj.group(1),
+                            self.state_dict['module-mode']))
+        self.state_dict['module-file'] = mobj.group(2)
+        
     def __init__(self, root_path, port, netport, addons_path, pyver=None, 
                 srv_mode='v600', timed=False):
         threading.Thread.__init__(self)
@@ -190,6 +223,9 @@ class server_thread(threading.Thread):
         self.is_running = False
         self.is_ready = False
         self._lports = {}
+        # Will hold info about current op. of the server
+        self.state_dict = {'module-mode': 'startup'}
+
         # self.is_terminating = False
         
         # Regular expressions:
@@ -198,6 +234,7 @@ class server_thread(threading.Thread):
         self.log = logging.getLogger('srv.thread')
         self.log_sout = logging.getLogger('server.stdout')
         self.log_serr = logging.getLogger('server.stderr')
+        self.log_state = logging.getLogger('bqi.state') # will receive command-like messages
 
         self.__parsers = {}
         self.regparser('web-services', 
@@ -206,6 +243,13 @@ class server_thread(threading.Thread):
         self.regparser('web-services',
                 re.compile(r'starting (.+) service at ([0-9\.]+) port ([0-9]+)'),
                 self.setListening)
+        self.regparser('init',re.compile(r'module (.+): loading objects$'),
+                self.setModuleLoading)
+        self.regparser('init', re.compile(r'module (.+): registering objects$'),
+                self.setModuleLoading2)
+        self.regparser('init',re.compile(r'module (.+): loading (.+)$'),
+                self.setModuleFile)
+        
 
     def stop(self):
         if (not self.is_running) and (not self.proc):
@@ -339,6 +383,7 @@ class client_worker(object):
         if not uid:
             return False
         conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/wizard')
+        server.state_dict['module-mode'] = 'translate'
         wiz_id = self._execute(conn, 'create',self.dbname, uid, self.pwd, 'module.lang.import')
         for trans_in in translate_in:
             lang,ext = os.path.splitext(trans_in.split('/')[-1])
@@ -373,6 +418,7 @@ class client_worker(object):
         for module in modules:
             qualityresult = {}
             test_detail = {}
+            server.state_dict['module-mode'] = 'quality'
             quality_result = self._execute(conn,'execute', self.dbname, 
                                 uid, self.pwd,
                                 'module.quality.check','check_quality',module)
@@ -466,7 +512,7 @@ class client_worker(object):
         
         # what buttons to press at each state:
         form_presses = { 'init': 'start', 'next': 'start', 'start': 'end' }
-        
+        server.state_dict['module-mode'] = 'install'
         obj_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/object')
         wizard_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/wizard')
         module_ids = self._execute(obj_conn, 'execute', self.dbname, uid, self.pwd, 
@@ -515,11 +561,21 @@ class client_worker(object):
                     log.debug("Pressing button for %s state", next_state)
                     state = next_state
                 else:
-                    log.warning("State %s not found in %s, forcing end", (next_state, pos_states))
+                    log.warning("State %s not found in %s, forcing end", next_state, pos_states)
+                    state = 'end'
+                    good_state = False
+            elif res['type'] == 'action':
+                if state in form_presses:
+                    next_state = form_presses[state]
+                if res['state'] in pos_states:
+                    log.debug("Pressing button for %s state", next_state)
+                    state = next_state
+                else:
+                    log.warning("State %s not found in %s, forcing end", next_state, pos_states)
                     state = 'end'
                     good_state = False
             else:
-                log.debug("State: %s, res: %r", state, " Res:", res)
+                log.debug("State: %s, res: %r", state, res)
         log.debug("Wizard ended in %d steps", i)
         return good_state
 
@@ -527,16 +583,17 @@ class client_worker(object):
         uid = self._login()
         if not uid:
             return False
+        server.state_dict['module-mode'] = 'upgrade'
         obj_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/object')
         wizard_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/wizard')
-        module_ids = self.execute(obj_conn, 'execute', self.dbname, uid, self.pwd, 
+        module_ids = self._execute(obj_conn, 'execute', self.dbname, uid, self.pwd, 
                             'ir.module.module', 'search', [('name','in',modules)])
         self._execute(obj_conn, 'execute', self.dbname, uid, self.pwd, 
                             'ir.module.module', 'button_upgrade', module_ids)
         wiz_id = self._execute(wizard_conn, 'create', self.dbname, uid, self.pwd, 
                             'module.upgrade.simple')
         datas = {}
-        form_presses = { 'init':'start', 'start': 'end'}
+        form_presses = { 'init':'config', 'config': 'end',  'start': 'end'}
         
         return self.run_wizard(wizard_conn, uid, wiz_id, form_presses, datas)
 
