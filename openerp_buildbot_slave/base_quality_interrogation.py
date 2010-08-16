@@ -636,11 +636,13 @@ def parse_cmdargs(args):
         
         if command not in ('start-server','create-db','drop-db',
                     'install-module','upgrade-module','check-quality',
-                    'install-translation', 'multi'):
-            parser.error("incorrect command")
+                    'install-translation', 'multi', '--'):
+            parser.error("incorrect command: %s" % command)
             return
         args = args[1:]
-        if command == 'multi':
+        if command == '--':
+            continue
+        elif command == 'multi':
             ret.extend([(x, []) for x in args])
             return ret
         elif command in ('install-module', 'upgrade-module', 'check-quality',
