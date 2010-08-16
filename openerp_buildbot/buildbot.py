@@ -179,7 +179,8 @@ class buildbot_test_step(osv.osv):
                 #'yml_log': fields.text('YML-Test Log',help="YML Log"),
                 #'traceback_detail': fields.text('Traceback',help="Traceback Detail"),
                 'state': fields.selection([('unknown','Unknown'), ('fail', 'Failed'), 
-                                            ('pass', 'Passed'),('skip', 'Skipped')], 
+                                            ('pass', 'Passed'),('skip', 'Skipped'),
+                                            ('debug','Debug')], 
                                             "Test Result", readonly=True, required=True,
                                             help="Final State of the Test Step"),
         }
