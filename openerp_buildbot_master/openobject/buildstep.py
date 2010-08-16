@@ -211,6 +211,7 @@ class OpenERPTest(LoggingBuildStep):
             bqi_rest = []
             summaries = {}
             bqi_state = 'debug'
+            bqi_context = False
             
             while len(lines):
                 if not lines[0]:
@@ -250,10 +251,24 @@ class OpenERPTest(LoggingBuildStep):
                     server_out.append(bmsg)
                     if bexc:
                         server_out.append(bexc)
+                    if bqi_context:
+                        summaries[bqi_context]['log'].append(bmsg)
+                        if bexc:
+                            summaries[bqi_context]['log'].append(bexc)
                 elif blog == 'server.stderr':
                     server_err.append(bmsg)
                     if bexc:
                         server_err.append(bexc)
+                elif blog == 'bqi.state':
+                    # this is a special logger, which expects us to do sth
+                    # with its lines = commands
+                    if bmsg == 'clear context':
+                        bqi_context = False
+                    elif bmsg.startswith('set context '):
+                        bqi_context = bmsg[len('set context '):]
+                        summaries.setdefault(bqi_context, {'state':'pass', 'log': []})
+                    else:
+                        log.msg("Strange command %r came from b-q-i" % bmsg)
                 else:
                     bqi_rest.append(bmsg)
                     if blevel >= logging.ERROR:
