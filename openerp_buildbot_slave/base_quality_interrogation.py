@@ -164,6 +164,11 @@ class server_thread(threading.Thread):
         self.log.info("Server listens %s at %s:%s" % mobj.group(1, 2, 3))
         self._lports[mobj.group(1)] = mobj.group(3)
 
+    def clear_context(self):
+        if self.state_dict.get('context', False) != False:
+            self.log_state.info("clear context")
+            self.state_dict['context'] = False
+
     def _set_log_context(self, ctx):
         if ctx != self.state_dict.get('context', False):
             self.log_state.info("set context %s", ctx)
@@ -806,6 +811,8 @@ try:
         except Exception, e:
             logger.exception('exc:')
             ret = False
+        
+        server.clear_context()
         
         if (not ret) and ign_result:
             # like make's commands, '-' means ignore result
