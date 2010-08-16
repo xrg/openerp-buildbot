@@ -259,7 +259,7 @@ class OpenERPTest(LoggingBuildStep):
                     if blevel >= logging.ERROR:
                         bqi_state = 'fail'
                     if bexc:
-                        bqi_rest.append(bmsg)
+                        bqi_rest.append(bexc)
             
             summaries['server.out'] = { 'state': 'debug', 'log': server_out }
             if server_err:
