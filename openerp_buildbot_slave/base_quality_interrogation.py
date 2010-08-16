@@ -253,11 +253,26 @@ class server_thread(threading.Thread):
                             for regex, funct in self.__parsers.get(m.group(3),[]):
                                 if isinstance(regex, basestring):
                                     if regex == m.group(4):
-                                        funct(m.group(3), m.group(2), m.group(4))
+                                        if callable(funct):
+                                            funct(m.group(3), m.group(2), m.group(4))
+                                        elif isinstance(funct, tuple):
+                                            logger = logging.getLogger('bqi.'+ funct[0])
+                                            level = funct[1]
+                                            logger.log(level, funct[2])
+                                        else:
+                                            self.log.info(funct)
                                 else:  # elif isinstance(regex, re.RegexObject):
                                     mm = regex.match(m.group(4))
                                     if mm:
-                                        funct(m.group(3), m.group(3), mm)
+                                        if callable(funct):
+                                            funct(m.group(3), m.group(3), mm)
+                                        elif isinstance(funct, tuple):
+                                            logger = logging.getLogger('bqi.'+ funct[0])
+                                            level = funct[1]
+                                            log_args = mm.groups('')
+                                            logger.log(level, funct[2], *log_args)
+                                        else:
+                                            self.log.info(funct, *log_args)
                    
                         # now, print the line at stdout
                         if fdd[fd] is self.proc.stdout:
@@ -346,9 +361,10 @@ class client_worker(object):
                     trans_obj.close()
                 elif res['type']=='action':
                     state = res['state']
+        return True
 
     def check_quality(self, modules, quality_logs):
-        uid = self._login(self.uri, self.dbname, self.user, self.pwd)
+        uid = self._login()
         quality_logs += 'quality-logs'
         if not uid:
             return False
@@ -409,7 +425,9 @@ class client_worker(object):
         progress=0.0
         conn = xmlrpclib.ServerProxy(self.uri+'/xmlrpc/db')
         while not progress==1.0:
+            time.sleep(2.0)
             progress,users = self._execute(conn,'get_progress',self.super_passwd, id)
+            self.log.debug("Progress: %s", progress)
         return True
 
 
@@ -426,6 +444,7 @@ class client_worker(object):
         if not self.install_module(['base_module_quality',]):
             self.log.warning("Could not install 'base_module_quality' module.")
             # but overall pass
+        self.log.info("Successful create of db: %s", self.dbname)
         return True
 
     def drop_db(self):
@@ -458,7 +477,7 @@ class client_worker(object):
             return False
         self._execute(obj_conn, 'execute', self.dbname, uid, self.pwd, 
                         'ir.module.module', 'button_install', module_ids)
-        wiz_id = self._execute(wizard_conn, 'create', self._dbname, uid, self.pwd, 
+        wiz_id = self._execute(wizard_conn, 'create', self.dbname, uid, self.pwd, 
                         'module.upgrade.simple')
         
         datas = {}
@@ -728,7 +747,7 @@ try:
             logger.error('xmlrpc +: %s', e.faultString.rstrip())
             ret = False
         except Exception, e:
-            logger.exception('')
+            logger.exception('exc:')
             ret = False
         
         if (not ret) and ign_result:
