@@ -631,21 +631,27 @@ def parse_cmdargs(args):
     ret = []
     while len(args):
         command = args[0]
-        #if command.startswith('-'): # TODO
-        #    cmd2 = command[1:]
-        
-        if command not in ('start-server','create-db','drop-db',
+        if command == '--':
+            args = args[1:]
+            continue
+
+        if command[0] in ('-', '+'): # TODO
+            cmd2 = command[1:]
+        else:
+            cmd2 = command
+
+        if cmd2 not in ('start-server','create-db','drop-db',
                     'install-module','upgrade-module','check-quality',
-                    'install-translation', 'multi', '--'):
+                    'install-translation', 'multi'):
             parser.error("incorrect command: %s" % command)
             return
         args = args[1:]
         if command == '--':
             continue
-        elif command == 'multi':
+        elif cmd2 == 'multi':
             ret.extend([(x, []) for x in args])
             return ret
-        elif command in ('install-module', 'upgrade-module', 'check-quality',
+        elif cmd2 in ('install-module', 'upgrade-module', 'check-quality',
                         'install-translation'):
             # Commands that take args
             cmd_args = []
@@ -695,21 +701,45 @@ try:
     ret = True
     mods = options['modules'] or []
     for cmd, args in cmdargs:
-        if cmd == 'create-db':
-            ret = client.create_db()
-        elif cmd == 'drop-db':
-            ret = client.drop_db()
-        elif cmd == 'install-module':
-            ret = client.install_module(mods + args)
-        elif cmd == 'upgrade-module':
-            ret = client.upgrade_module(mods+args)
-        elif cmd == 'check-quality':
-            ret = client.check_quality(mods+args, options['quality-logs'])
-        elif cmd == 'install-translation':
-            ret = client.import_translate(options['translate-in'])
+        try:
+            if (not ret) and not cmd.startswith('+'):
+                continue
+            ign_result = cmd.startswith('-')
+            if cmd[0] in ['-', '+']:
+                cmd = cmd[1:]
+
+            if cmd == 'create-db':
+                ret = client.create_db()
+            elif cmd == 'drop-db':
+                ret = client.drop_db()
+            elif cmd == 'install-module':
+                ret = client.install_module(mods + args)
+            elif cmd == 'upgrade-module':
+                ret = client.upgrade_module(mods+args)
+            elif cmd == 'check-quality':
+                ret = client.check_quality(mods+args, options['quality-logs'])
+            elif cmd == 'install-translation':
+                ret = client.import_translate(options['translate-in'])
+        except ClientException, e:
+            logger.error("%s" % e)
+            ret = False
+        except xmlrpclib.Fault, e:
+            logger.error('xmlrpc exception: %s', e.faultCode.strip())
+            logger.error('xmlrpc +: %s', e.faultString.rstrip())
+            ret = False
+        except Exception, e:
+            logger.exception('')
+            ret = False
+        
+        if (not ret) and ign_result:
+            # like make's commands, '-' means ignore result
+            logger.info("Command %s failed, but will continue.", cmd)
+            ret = True
+
         if not ret:
-            logger.error("Stopping tests because %s failed", cmd)
-            break
+            logger.error("Command %s failed, stopping tests.", cmd)
+        
+        # end for
 
     ost = client.get_ostimes(ost)
     logger.info("Server ending at: User: %.3f, Sys: %.3f" % (ost[0], ost[1]))
