@@ -29,6 +29,8 @@ from xmlrpc import buildbot_xmlrpc
 import base64
 import pickle
 import os
+import re
+import logging
 from openobject import tools
 from twisted.python import log
 
@@ -41,7 +43,7 @@ try:
 except ImportError:
     from StringIO import StringIO
 
-def create_test_step_log(step_object = None, step_name = ''):
+def create_test_step_log(step_object = None, step_name = '', cmd=None):
     source = step_object.build.builder.test_ids
     properties = step_object.build.builder.openerp_properties
     openerp_host = properties.get('openerp_host', 'localhost')
@@ -94,6 +96,18 @@ def create_test_step_log(step_object = None, step_name = ''):
 #            params['traceback_detail'] = '\n'.join(data['TRACEBACK'])
         params['state'] = state
         openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.test.step','create',params)
+
+    if not len(step_object.summaries):
+        params = {}
+        params['name'] = step_name
+        params['test_id'] = int(test_id)
+        if cmd:
+            params['log'] = base64.encodestring( ("No logs for command %s(\"%s\")\n"
+                "Command exited with error code %d") % \
+                (cmd.remote_command, ' '.join(cmd.args['command']),cmd.rc))
+        params['state'] = step_object.summaries.get(step_name,{}).get('state','fail') # No out is bad news.
+        openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.test.step','create',params)
+
     return True
 
 class OpenERPLoggedRemoteCommand(LoggedRemoteCommand):
@@ -126,10 +140,12 @@ class OpenERPTest(LoggingBuildStep):
         else:
             return self.describe(True, fail=True)
 
-    def __init__(self, workdir=None, addonsdir=None, netport=8972, port=8869, **kwargs):
+    def __init__(self, workdir=None, dbname=False, addonsdir=None, netport=None, port=8869, **kwargs):
         LoggingBuildStep.__init__(self, **kwargs)
-        self.addFactoryArguments(workdir=workdir, addonsdir=addonsdir, netport=netport, port=port, logfiles={})
-        self.args = {'port' :port, 'workdir':workdir, 'netport':netport, 'addonsdir':addonsdir, 'logfiles':{}}
+        self.addFactoryArguments(workdir=workdir, dbname=dbname, addonsdir=addonsdir, 
+                                netport=netport, port=port, logfiles={})
+        self.args = {'port' :port, 'workdir':workdir, 'dbname': dbname, 
+                    'netport':netport, 'addonsdir':addonsdir, 'logfiles':{}}
         description = ["Performing OpenERP Test..."]
         self.description = description
         self.summaries = {}
@@ -142,32 +158,128 @@ class OpenERPTest(LoggingBuildStep):
         builddir = self.build.builder.builddir
         full_addons = os.path.normpath(os.getcwd() + '../../openerp_buildbot_slave/build/%s/openerp-addons/'%(builddir))
         try:
+            raise NotImplementedError
+            # TODO
             for module in os.listdir(full_addons):
                 if module in ['.bzrignore','.bzr']:
                     continue
                 self.logfiles['%s'%module] = ('%s/%s/%s.html'%('test_logs', module, module))
         except EnvironmentError, e:
             log.err("Cannot scan modules: %s" % e)
+        except NotImplementedError:
+            pass
 
-        self.args['command']=["make","openerp-test"]
         self.args['logfiles'] = self.logfiles
+        
+        # The general part of the b-q-i command
+        self.args['command']=["../../../base_quality_interrogation.py",
+                            "--machine-log=stdout", '--root-path=bin/',
+                            '-d', self.args['dbname']]
         if self.args['addonsdir']:
-            self.args['command'].append("addons-path=%s"%(self.args['addonsdir']))
+            self.args['command'].append("--addons-path=%s"%(self.args['addonsdir']))
         if self.args['netport']:
-            self.args['command'].append("net_port=%s"%(self.args['netport']))
+            self.args['command'].append("--net_port=%s"%(self.args['netport']))
         if self.args['port']:
-            self.args['command'].append("port=%s"%(self.args['port']))
+            self.args['command'].append("--port=%s"%(self.args['port']))
+            
+        # Here goes the test sequence, TODO make custom
+        self.args['command'] += ['--', 'create-db']
+        # self.args['command'] += ['install-module',] + [ modules...]
+        self.args['command'] += ['--', 'check-quality' ] # + [modules]
+        self.args['command'] += ['--', 'drop-db']
         cmd = LoggedRemoteCommand("OpenObjectShell",self.args)
         self.startCommand(cmd)
 
-    def createSummary(self, log):
+    def createSummary(self, plog):
+        global log
         logs = self.cmd.logs
         buildbotURL = self.build.builder.botmaster.parent.buildbotURL
+        bqi_re = re.compile(r'([^\>\|]+)(\|[^\>]+)?\> (.*)$')
+
+        logkeys = logs.keys()
+        
+        if 'stdio' in logkeys:
+            # Here we parse the machine-formatted output of b-q-i
+            # Hopefully, it should be straightforward.
+            lines = logs['stdio'].getText().split('\n')
+            
+            server_out = []
+            server_err = []
+            bqi_rest = []
+            summaries = {}
+            bqi_state = 'debug'
+            
+            while len(lines):
+                if not lines[0]:
+                    lines = lines[1:]
+                    continue
+                mr = bqi_re.match(lines[0])
+                i = 1
+                if not mr:
+                    raise RuntimeError("Stray line %r in bqi output!" % lines[0])
+                blog = mr.group(1)
+                blevel = mr.group(2) or '|20'
+                try:
+                    blevel = int(blevel[1:])
+                except ValueError:
+                    # bqi_rest.append('Strange level %r' % blevel)
+                    pass
+                bmsg = mr.group(3)
+                bexc = None
+                while lines[i] and lines[i].startswith('+ '):
+                    bmsg += '\n'+ lines[i][2:]
+                    i += 1
+                
+                if lines[i] and lines[i].startswith(':@'):
+                    # Exception text follows
+                    bexc = lines[i][3:]
+                    i += 1
+                    while lines[i] and lines[i].startswith(':+ '):
+                        bexc += '\n' + lines[i][3:]
+                        i += 1
+                
+                lines = lines[i:]
+                # Now, process the message we have.
+                
+                if blog == 'server.stdout':
+                    # always log the full log of the server into a
+                    # summary
+                    server_out.append(bmsg)
+                    if bexc:
+                        server_out.append(bexc)
+                elif blog == 'server.stderr':
+                    server_err.append(bmsg)
+                    if bexc:
+                        server_err.append(bexc)
+                else:
+                    bqi_rest.append(bmsg)
+                    if blevel >= logging.ERROR:
+                        bqi_state = 'fail'
+                    if bexc:
+                        bqi_rest.append(bmsg)
+            
+            summaries['server.out'] = { 'state': 'debug', 'log': server_out }
+            if server_err:
+                summaries['server.err'] = { 'state': 'debug', 'log': server_err }
+            if bqi_rest:
+                summaries['bqi.rest'] = { 'state': bqi_state, 'log': bqi_rest }
+                
+            self.summaries.update(summaries)
+            logkeys.remove('stdio')
+            
+        
+        if 'stderr' in logkeys:
+            self.summaries.setdefault('stderr',{'state': 'unknown', 'log': ''})['log'] += logs['stderr'].getText()
+            logkeys.remove('stderr')
+            
+        if len(logkeys):
+            log.err("Remaining keys %s in logs" % (', '.join(logkeys)))
 
         for logname, log in logs.items():
+            break # TODO!
             state = 'pass'
-            if logname == 'stdio':
-                continue
+            #if logname == 'stdio':
+            #    continue
             log_data = log.getText()
             summaries = {logname:{}}
             general_log = []
@@ -189,13 +301,16 @@ class OpenERPTest(LoggingBuildStep):
             summaries[logname]['state'] = state
             summaries[logname]['log'] = general_log
             summaries[logname]['quality_log'] = chk_qlty_log
-            self.summaries.update(summaries)
+            # self.summaries.update(summaries)
 
     def evaluateCommand(self, cmd):
         res = SUCCESS
         if cmd.rc != 0 or self.build_result == FAILURE:
             res = FAILURE
-        create_test_step_log(self)
+        try:
+            create_test_step_log(self, step_name='openerp-test', cmd=cmd)
+        except Exception, e:
+            log.err("Cannot log result of %s to db: %s" % (cmd, e))
         return res
 
 class OpenObjectBzr(Bzr):
