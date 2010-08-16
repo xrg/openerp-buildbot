@@ -183,10 +183,13 @@ class OpenERPTest(LoggingBuildStep):
             self.args['command'].append("--port=%s"%(self.args['port']))
             
         # Here goes the test sequence, TODO make custom
+        self.args['command'] += ['--', '-drop-db']
+        
         self.args['command'] += ['--', 'create-db']
         # self.args['command'] += ['install-module',] + [ modules...]
         self.args['command'] += ['--', 'check-quality' ] # + [modules]
-        self.args['command'] += ['--', 'drop-db']
+        
+        self.args['command'] += ['--', '+drop-db']
         cmd = LoggedRemoteCommand("OpenObjectShell",self.args)
         self.startCommand(cmd)
 
