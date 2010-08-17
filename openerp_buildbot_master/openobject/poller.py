@@ -186,9 +186,10 @@ class OpenObjectChange(Change):
         branch = ""
         branch_link = ''
         if self.branch:
-            i = self.branch.index('launchpad')
-            branch_link = 'https://bazaar.' + self.branch[i:] + '/revision/' + str(revision) + '#'
-            branch = "Branch : <a href='%s'>%s</a><br />\n" % (self.branch,self.branch)
+            if 'launchpad' in branch:
+                i = self.branch.index('launchpad')
+                branch_link = 'https://bazaar.' + self.branch[i:] + '/revision/' + str(revision) + '#'
+                branch = "Branch : <a href='%s'>%s</a><br />\n" % (self.branch,self.branch)
 
         if self.files_added:
             files_added_lbl = "Added files : \n"
