@@ -156,6 +156,9 @@ class server_thread(threading.Thread):
     def regparser(self, section, regex, funct):
         self.__parsers.setdefault(section, []).append( (regex, funct) )
 
+    def regparser_exc(self, etype, erege, funct):
+        self.__exc_parsers.append( (etype, erege, funct))
+
     def setRunning(self, section, level, line):
         self.log.info("Server is ready!")
         self.is_ready = True
@@ -256,6 +259,7 @@ class server_thread(threading.Thread):
         self.log_state = logging.getLogger('bqi.state') # will receive command-like messages
 
         self.__parsers = {}
+        self.__exc_parsers = []
         self.regparser('web-services', 
                 'the server is running, waiting for connections...', 
                 self.setRunning)
@@ -269,6 +273,8 @@ class server_thread(threading.Thread):
         self.regparser('init',re.compile(r'module (.+): loading (.+)$'),
                 self.setModuleFile)
         
+        self.regparser_exc('XMLSyntaxError', re.compile(r'line ([0-9]+), column ([0-9]+)'),
+                            lambda etype, ematch: { 'file-line': ematch.group(1), 'file-col': ematch.group(2)} )
 
     def stop(self):
         if (not self.is_running) and (not self.proc):
@@ -374,24 +380,65 @@ class server_thread(threading.Thread):
         """
         blog = logging.getLogger('bqi.blame')
         
-        s = ''
-        for key, val in self.state_dict.items():
-            if val is not None:
-                s += "%s: %s\n" % (key, val)
+        
+        sdict = self.state_dict.copy()
         
         if exc:
             emsg = ''
             if isinstance(exc, xmlrpclib.Fault):
                 emsg = exc.faultCode
+                # try to get the server-side exception
+                # Note that exc is /not/ the exception object of the server
+                # itself, but the one that was transformed into an xmlrpc
+                # fault and sent to us. So, we can only do string processing
+                # on it.
+                try:
+                    ses = exc.faultString.rstrip().split('\n')[-1]
+                    stype, sstr = ses.split(':',1)
+                    sdict['Exception type'] = stype
+                    
+                    # now, use the parsers to get even more useful information
+                    # from the exception string. They should return a dict
+                    # of keys to append to our blame info.
+                    # First parser to match wins, others will be skipped.
+                    for etype, erege, funct in self.__exc_parsers:
+                        if etype == None or etype == stype:
+                            mm = None
+                            if isinstance(erege, basestring):
+                                mm = (sstr == erege)
+                            else:
+                                mm = erege.search(sstr)
+                            if not mm:
+                                continue
+                        
+                            # we have a match here
+                            red = funct(etype, mm)
+                            if isinstance(red, dict):
+                                sdict.update(red)
+                            else:
+                                self.log.debug("why did parser %r return %r?", funct, red)
+                            break # don't process other handlers
+                    else:
+                        self.log.debug("No exception parser for %s: %s", stype, sstr)
+                
+                except Exception:
+                    self.log.debug("Cannot parse xmlrpc exception: %s" % exc.faultString, exc_info=True)
             elif len(exc.args):
                 emsg = exc.args[0]
+                sdict["Exception type"] = "%s.%s" % (e.__class__.__module__ or '', e.__class__.__name__)
             else:
                 emsg = "%s" % exc # better than str(), works with unicode
+                sdict["Exception type"] = "%s.%s" % (e.__class__.__module__ or '', e.__class__.__name__)
 
             emsg = reduce_homedir(emsg)
-            s += "Exception: %s\n" % emsg.replace('\n', ' ')
-            s += "Exception type: %s.%s\n" % (e.__class__.__module__ or '', e.__class__.__name__)
-        
+            sdict["Exception"] = emsg.replace('\n', ' ')
+
+        s = ''
+        # Format all the blame dict into a string
+        for key, val in sdict.items():
+            if val is not None:
+                s += "%s: %s\n" % (key, val)
+
         blog.info(s.rstrip())
 
 class client_worker(object):
