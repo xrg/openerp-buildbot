@@ -237,15 +237,17 @@
               <form>
                 <field name="name" colspan="2"/>
                 <field name="test_id" colspan="2"/>
+                <field name="state" colspan="2"/>
                 <notebook colspan="4">
-                  <page string="Logs">
-                    <notebook colspan="4">
-                       <page string="General Log">
-                           <field name="log" colspan="2" nolabel="1"/>
-                       </page>
-                       <page string="Module Quality Log">
-                           <field name="quality_log" colspan="2" nolabel="1"/>
-                       </page>
+                    <page string="Summary">
+                        <field name="blame_log" colspan="2" nolabel="1"/>
+                    </page>
+                    <page string="General Log">
+                        <field name="log" colspan="2" nolabel="1"/>
+                    </page>
+                    <page string="Quality Log">
+                        <field name="quality_log" colspan="2" nolabel="1"/>
+                    </page>
                     <!--  <page string="Error Log">
                         <field name="error_log" colspan="2" nolabel="1"/>
                       </page>
@@ -266,9 +268,6 @@
                       </page>-->
 
                     </notebook>
-                  </page>
-                </notebook>
-                <field name="state" colspan="2"/>
               </form>
           </field>
         </record>
