@@ -597,7 +597,7 @@ class client_worker(object):
             self.log.info("Dropped db: %s", self.dbname)
             return True
         else:
-            self.log.error("Not dropping db '%s' because it doesn't exist", self.dbname)
+            self.log.warning("Not dropping db '%s' because it doesn't exist", self.dbname)
             return False
 
     def install_module(self, modules):
