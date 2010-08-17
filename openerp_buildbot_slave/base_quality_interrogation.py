@@ -183,10 +183,16 @@ class server_thread(threading.Thread):
     
     def setModuleLoading2(self, section, level, mobj):
         self.state_dict['module'] = mobj.group(1)
+        
+        # By the 'registering objects' message we just know that the
+        # module is present in the server.
+        # So, reset state, mark module as present
         self.state_dict['module-phase'] = 'reg'
-        self._set_log_context("%s.%s" % (mobj.group(1),
-                            self.state_dict['module-mode']))
         self.state_dict['module-file'] = None
+        self.state_dict.setdefault('regd-modules',[]).append(mobj.group(1))
+        
+        #self._set_log_context("%s.%s" % (mobj.group(1),
+        #                    self.state_dict['module-mode']))
     
     def setModuleFile(self, section, level, mobj):
         if mobj.group(2) == 'objects':
@@ -196,6 +202,8 @@ class server_thread(threading.Thread):
         self._set_log_context("%s.%s" % (mobj.group(1),
                             self.state_dict['module-mode']))
         self.state_dict['module-file'] = mobj.group(2)
+        self.log.debug("We are processing: %s/%s", self.state_dict['module'],
+                self.state_dict['module-file'])
         
     def __init__(self, root_path, port, netport, addons_path, pyver=None, 
                 srv_mode='v600', timed=False, debug=False):
@@ -252,7 +260,7 @@ class server_thread(threading.Thread):
         self.regparser('web-services',
                 re.compile(r'starting (.+) service at ([0-9\.]+) port ([0-9]+)'),
                 self.setListening)
-        self.regparser('init',re.compile(r'module (.+): loading objects$'),
+        self.regparser('init',re.compile(r'module (.+): creating or updating database tables'),
                 self.setModuleLoading)
         self.regparser('init', re.compile(r'module (.+): registering objects$'),
                 self.setModuleLoading2)
