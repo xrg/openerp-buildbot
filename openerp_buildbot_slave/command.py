@@ -89,27 +89,8 @@ class OpenObjectShell(SlaveShellCommand):
         args = self.args
         assert args['workdir'] is not None
         workdir = os.path.join(self.builder.basedir, args['workdir'])
-        addonsdir = args.get('addonsdir', False)
-        if addonsdir:
-            dirs = []
-            if 'stable_openobject_server' in args['addonsdir'].split('/'):
-                dirs.append('base')
-            else:
-                try:
-                    for dir in os.listdir(workdir):
-                        if dir in ['.buildbot-sourcedata','.bzrignore','.bzr','.svn','README.txt']:
-                            continue
-                        if dir == 'base':
-                            continue
-                        dirs.append(dir)
-                except EnvironmentError, e:
-                    log.err("cannot list %s" % workdir)
-                    pass
-
+        # addonsdir = args.get('addonsdir', False)
         commandline = args.get('command', [])
-        if addonsdir:
-            commandline += dirs
-            commandline += [addonsdir]
 
         try:
             openerp_env = test_environment()
@@ -119,6 +100,7 @@ class OpenObjectShell(SlaveShellCommand):
 
         c = ShellCommand(self.builder, commandline,
                          workdir, environ = openERP_environment ,
+                         logEnviron = False,
                          timeout = args.get('timeout', None),
                          sendStdout = args.get('want_stdout', True),
                          sendStderr = args.get('want_stderr', True),
