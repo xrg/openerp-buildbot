@@ -635,6 +635,8 @@ parser = optparse.OptionParser(usage)
 parser.add_option("-m", "--modules", dest="modules", action="append",
                      help="specify modules to install or check quality")
 parser.add_option("--addons-path", dest="addons_path", help="specify the addons path")
+parser.add_option("--homedir", dest="homedir", default=None, 
+                help="The directory, whose absolute path will be stripped from messages.")
 parser.add_option("--xml-log", dest="xml_log", help="A file to write xml-formatted log to")
 parser.add_option("--txt-log", dest="txt_log", help="A file to write plain log to, or 'stderr'")
 parser.add_option("--machine-log", dest="mach_log", help="A file to write machine log stream, or 'stderr'")
@@ -674,8 +676,16 @@ options = {
     'login' : opt.login or 'admin',
     'pwd' : opt.pwd or 'admin',
     'extra-addons':opt.extra_addons or [],
-    'server_series': opt.server_series or 'v600'
+    'server_series': opt.server_series or 'v600',
+    'homedir': '~/'
 }
+
+if opt.homedir:
+    options['homedir'] = os.path.abspath(opt.homedir)+'/'
+
+def reduce_homedir(ste):
+    global options
+    return ste.replace(options['homedir'], '~/')
 
 import logging
 def init_log():
@@ -823,11 +833,11 @@ try:
             elif cmd == 'install-translation':
                 ret = client.import_translate(options['translate-in'])
         except ClientException, e:
-            logger.error("%s" % e)
+            logger.error(reduce_homedir("%s" % e))
             ret = False
         except xmlrpclib.Fault, e:
-            logger.error('xmlrpc exception: %s', e.faultCode.strip())
-            logger.error('xmlrpc +: %s', e.faultString.rstrip())
+            logger.error('xmlrpc exception: %s', reduce_homedir(e.faultCode.strip()))
+            logger.error('xmlrpc +: %s', reduce_homedir(e.faultString.rstrip()))
             ret = False
         except Exception, e:
             logger.exception('exc:')
@@ -855,18 +865,18 @@ try:
     else:
         sys.exit(3)
 except ServerException, e:
-    logger.error("%s" % e)
+    logger.error(reduce_homedir("%s" % e))
     server.stop()
     server.join()
     sys.exit(4)
 except ClientException, e:
-    logger.error("%s" % e)
+    logger.error(reduce_homedir("%s" % e))
     server.stop()
     server.join()
     sys.exit(5)
 except xmlrpclib.Fault, e:
-    logger.error('xmlrpc exception: %s', e.faultCode.strip())
-    logger.error('xmlrpc +: %s', e.faultString.rstrip())
+    logger.error('xmlrpc exception: %s', reduce_homedir( e.faultCode.strip()))
+    logger.error('xmlrpc +: %s', reduce_homedir(e.faultString.rstrip()))
     server.stop()
     server.join()
     sys.exit(1)
