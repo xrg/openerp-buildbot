@@ -604,7 +604,7 @@ class client_worker(object):
         wiz_id = self._execute(wizard_conn, 'create', self.dbname, uid, self.pwd, 
                             'module.upgrade.simple')
         datas = {}
-        form_presses = { 'init':'config', 'config': 'end',  'start': 'end'}
+        form_presses = { 'init': 'start', 'next': 'start',  'config': 'end',  'start': 'end'}
         
         return self.run_wizard(wizard_conn, uid, wiz_id, form_presses, datas)
 
