@@ -65,6 +65,7 @@ def create_test_step_log(step_object = None, step_name = '', cmd=None):
     last_revision_id_stored = properties.get(tested_branch_id, {}).get('latest_rev_id','')
     test_id = source.get(revision, False)
     summary = step_object.summaries
+    test_values = None
     for logname, data in summary.items():
         state = data.get('state', 'pass')
         if step_name in ('bzr-update', 'bzr_merge'):
@@ -82,6 +83,16 @@ def create_test_step_log(step_object = None, step_name = '', cmd=None):
            params['quality_log'] = base64.encodestring('\n'.join(data['quality_log']))
         if data.get('log', False):
            params['log'] = base64.encodestring('\n'.join(data['log']))
+           
+        if data.get('blame', False):
+            params['blame_log'] = data['blame']
+            if not test_values:
+                # By default, only print first failed (blamed) test as reason
+                test_values = {'failure_reason':'%s (at %s)' % \
+                        ( data['blame'].split('\n')[0], step_name),'state':state}
+                openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 
+                        'buildbot.test','write', [int(test_id)], test_values)
+
 #        if data.get('WARNING', False):
 #            params['warning_log'] = '\n'.join(data['WARNING'])
 #        if data.get('ERROR', False):
@@ -95,7 +106,7 @@ def create_test_step_log(step_object = None, step_name = '', cmd=None):
 #        if data.get('TRACEBACK', False):
 #            params['traceback_detail'] = '\n'.join(data['TRACEBACK'])
         params['state'] = state
-        openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.test.step','create',params)
+        openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.test.step', 'create', params)
 
     if not len(step_object.summaries):
         params = {}
@@ -269,6 +280,44 @@ class OpenERPTest(LoggingBuildStep):
                         summaries.setdefault(bqi_context, {'state':'pass', 'log': []})
                     else:
                         log.msg("Strange command %r came from b-q-i" % bmsg)
+                elif blog == 'bqi.blame':
+                    # our precious blame information
+                    blame_dict = {}
+                    
+                    # it is a dict, parse it
+                    for bbline in bmsg.split('\n'):
+                        bkey, bval = bbline.split(':',1)
+                        bkey = bkey.strip()
+                        bval = bval.strip()
+                        blame_dict[bkey] = bval
+                    
+                    if 'module' in blame_dict and 'module-mode' in blame_dict:
+                        sumk = '%s.%s' % ( blame_dict['module'], blame_dict['module-mode'])
+                    else:
+                        sumk = bqi_context
+                    
+                    blame_info = '%s' % blame_dict.get('module','')
+                    if 'module-file' in blame_dict:
+                        blame_info += '/%s' % blame_dict['module-file']
+                        if 'file-line' in blame_dict:
+                            blame_info += ':%s' % blame_dict['file-line']
+                            if 'file-col' in blame_dict:
+                                blame_info += ':%s' % blame_dict['file-col']
+                    blame_info += ': '
+                    if 'Exception type' in blame_dict:
+                        blame_info += '%s: ' % blame_dict['Exception type']
+                    if 'Message' in blame_dict:
+                        blame_info += blame_dict['Message']
+                    elif 'Exception' in blame_dict:
+                        blame_info += blame_dict['Exception']
+                    else:
+                        blame_info += 'FAIL'
+
+                    blame_info += '\n'
+                    summaries.setdefault(sumk, { 'log': [] })
+                    summaries[sumk]['state'] = 'fail'
+                    summaries[sumk].setdefault('blame', '')
+                    summaries[sumk]['blame'] += blame_info
                 else:
                     bqi_rest.append(bmsg)
                     if blevel >= logging.ERROR:
@@ -370,7 +419,7 @@ class OpenObjectBzr(Bzr):
         slavever = self.slaveVersion("bzr")
         if not slavever:
             m = "slave is too old, does not know about bzr"
-            raise BuildSlaveTooOldError(m)
+            raise NotImplementedError(m)
 
         if self.repourl:
         #    assert not branch # we need baseURL= to use branches

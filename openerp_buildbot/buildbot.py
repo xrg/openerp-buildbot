@@ -83,7 +83,7 @@ class buildbot_lp_branch(osv.osv):
         'active': lambda *a: 1,
         }
     _sql_constraints = [
-        ('dbname_build_dir_uniq', 'unique (dbname, build_directory)', 'The database name and build directory must be unique !')
+        # ('dbname_build_dir_uniq', 'unique (dbname, build_directory)', 'The database name and build directory must be unique !')
     ]
 buildbot_lp_branch()
 
@@ -170,6 +170,7 @@ class buildbot_test_step(osv.osv):
     _columns = {
                 'name': fields.char('Name of Step', size=128, help="Name of the Test step"),
                 'test_id': fields.many2one('buildbot.test', 'Test', ondelete='cascade', help="Name of the Test"),
+                'blame_log': fields.text("Summary", help="Quick blame info of thing(s) that failed"),
                 'log': fields.binary('General Log',help="Log File"),
                 'quality_log':fields.binary("Module's Quality Log",help="Module's Quality Log File"),
                # 'warning_log': fields.text('Warning Log',help="Warning Log"),
