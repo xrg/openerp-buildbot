@@ -333,11 +333,13 @@ class OpenERPTest(LoggingBuildStep):
                 
             self.summaries.update(summaries)
             logkeys.remove('stdio')
+            del logs['stdio']
             
         
         if 'stderr' in logkeys:
             self.summaries.setdefault('stderr',{'state': 'unknown', 'log': ''})['log'] += logs['stderr'].getText()
             logkeys.remove('stderr')
+            del logs['stderr']
             
         if len(logkeys):
             log.err("Remaining keys %s in logs" % (', '.join(logkeys)))
@@ -369,6 +371,14 @@ class OpenERPTest(LoggingBuildStep):
             summaries[logname]['log'] = general_log
             summaries[logname]['quality_log'] = chk_qlty_log
             # self.summaries.update(summaries)
+        
+        for lkey, sdict in self.summaries.items():
+            # Put parsed summaries back in logs, with the correct
+            # channel name. Used in web status.
+            if sdict.get('state') == 'fail':
+                self.build_result = FAILURE
+            if sdict.get('log', False):
+                self.addCompleteLog(lkey, '\n'.join(sdict['log']))
 
     def evaluateCommand(self, cmd):
         res = SUCCESS
