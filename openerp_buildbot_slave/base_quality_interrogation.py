@@ -168,6 +168,8 @@ class server_thread(threading.Thread):
         if self.state_dict.get('context', False) != False:
             self.log_state.info("clear context")
             self.state_dict['context'] = False
+        for key in ('module-phase', 'module', 'module-file'):
+            self.state_dict[key] = None
 
     def _set_log_context(self, ctx):
         if ctx != self.state_dict.get('context', False):
@@ -364,6 +366,33 @@ class server_thread(threading.Thread):
         if self._lports.get('HTTP') != str(self.port):
             self.log.warning("server does not listen HTTP at port %s" % self.port)
         return True
+        
+    def dump_blame(self, exc=None):
+        """Dump blame information for sth that went wrong
+        
+        @param exc, the exception object, if available
+        """
+        blog = logging.getLogger('bqi.blame')
+        
+        s = ''
+        for key, val in self.state_dict.items():
+            if val is not None:
+                s += "%s: %s\n" % (key, val)
+        
+        if exc:
+            emsg = ''
+            if isinstance(exc, xmlrpclib.Fault):
+                emsg = exc.faultCode
+            elif len(exc.args):
+                emsg = exc.args[0]
+            else:
+                emsg = "%s" % exc # better than str(), works with unicode
+
+            emsg = reduce_homedir(emsg)
+            s += "Exception: %s\n" % emsg.replace('\n', ' ')
+            s += "Exception type: %s.%s\n" % (e.__class__.__module__ or '', e.__class__.__name__)
+        
+        blog.info(s.rstrip())
 
 class client_worker(object):
     """ This object will connect to a server and perform the various tests.
@@ -834,13 +863,16 @@ try:
                 ret = client.import_translate(options['translate-in'])
         except ClientException, e:
             logger.error(reduce_homedir("%s" % e))
+            server.dump_blame(e)
             ret = False
         except xmlrpclib.Fault, e:
             logger.error('xmlrpc exception: %s', reduce_homedir(e.faultCode.strip()))
             logger.error('xmlrpc +: %s', reduce_homedir(e.faultString.rstrip()))
+            server.dump_blame(e)
             ret = False
         except Exception, e:
             logger.exception('exc:')
+            server.dump_blame(e)
             ret = False
         
         server.clear_context()
