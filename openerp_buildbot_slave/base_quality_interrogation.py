@@ -198,14 +198,18 @@ class server_thread(threading.Thread):
         self.state_dict['module-file'] = mobj.group(2)
         
     def __init__(self, root_path, port, netport, addons_path, pyver=None, 
-                srv_mode='v600', timed=False):
+                srv_mode='v600', timed=False, debug=False):
         threading.Thread.__init__(self)
         self.root_path = root_path
         self.port = port
         # self.addons_path = addons_path
-        self.args = [ 'python%s' %(pyver or ''), '%sopenerp-server.py' % root_path, ]
+        self.args = [ 'python%s' %(pyver or ''), '%sopenerp-server.py' % root_path,]
         if addons_path:
             self.args += [ '--addons-path=%s' % addons_path ]
+        if debug:
+            self.args += [ '--log-level=debug' ]
+        else:
+            self.args += [ '--log-level=test' ]
 
         # TODO: secure transport, persistent ones.
         if srv_mode == 'v600':
@@ -373,7 +377,9 @@ class client_worker(object):
         self.series = options['server_series']
 
     def _execute(self, connector, method, *args):
+        self.log.debug("Sending command '%s' to server", method)
         res = getattr(connector,method)(*args)
+        self.log.debug("Command '%s' returned from server", method)
         return res
 
     def _login(self):
@@ -581,7 +587,7 @@ class client_worker(object):
                     good_state = False
             else:
                 log.debug("State: %s, res: %r", state, res)
-        log.debug("Wizard ended in %d steps", i)
+        log.info("Wizard ended in %d steps", i)
         return good_state
 
     def upgrade_module(self, modules):
@@ -624,6 +630,8 @@ parser.add_option("--addons-path", dest="addons_path", help="specify the addons 
 parser.add_option("--xml-log", dest="xml_log", help="A file to write xml-formatted log to")
 parser.add_option("--txt-log", dest="txt_log", help="A file to write plain log to, or 'stderr'")
 parser.add_option("--machine-log", dest="mach_log", help="A file to write machine log stream, or 'stderr'")
+parser.add_option("--debug", dest="debug", action='store_true', default=False,
+                    help="Enable debugging of both the script and the server")
 
 parser.add_option("--quality-logs", dest="quality_logs", help="specify the path of quality logs files which has to stores")
 parser.add_option("--root-path", dest="root_path", help="specify the root path")
@@ -632,6 +640,7 @@ parser.add_option("--net_port", dest="netport",help="specify the TCP port for ne
 parser.add_option("-d", "--database", dest="db_name", help="specify the database name")
 parser.add_option("--login", dest="login", help="specify the User Login")
 parser.add_option("--password", dest="pwd", help="specify the User Password")
+
 parser.add_option("--translate-in", dest="translate_in",
                      help="specify .po files to import translation terms")
 parser.add_option("--extra-addons", dest="extra_addons",
@@ -664,7 +673,10 @@ import logging
 def init_log():
     global opt
     log = logging.getLogger()
-    log.setLevel(logging.DEBUG)
+    if opt.debug:
+        log.setLevel(logging.DEBUG)
+    else:
+        log.setLevel(logging.INFO)
     has_stdout = has_stderr = False
 
     if not (opt.xml_log or opt.txt_log or opt.mach_log):
@@ -770,7 +782,8 @@ uri = 'http://localhost:' + str(options['port'])
 
 server = server_thread(root_path=options['root-path'], port=options['port'],
                         netport=options['netport'], addons_path=options['addons-path'],
-                        srv_mode=options['server_series'])
+                        srv_mode=options['server_series'],
+                        debug=opt.debug)
 
 logger.info('start of script')
 try:
