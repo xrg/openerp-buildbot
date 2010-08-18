@@ -22,7 +22,7 @@
 
 from buildbot.steps.source import Source, Bzr, SVN
 from buildbot.steps.shell import ShellCommand
-from buildbot.process.buildstep import LoggingBuildStep, LoggedRemoteCommand
+from buildbot.process.buildstep import LoggingBuildStep, LoggedRemoteCommand, LogLineObserver
 from buildbot.status.builder import SUCCESS, FAILURE, WARNINGS
 from sql import db_connection
 from xmlrpc import buildbot_xmlrpc
@@ -129,6 +129,20 @@ class OpenERPLoggedRemoteCommand(LoggedRemoteCommand):
             self.stdio_log = stdio_log = self.addLog("stdio")
             self.useLog(stdio_log, True)
 
+class BqiObserver(LogLineObserver):
+    #_line_re = re.compile(...)
+    numTests = 0
+    finished = False
+     
+    def outLineReceived(self, line):
+        if self.finished:
+            return
+     
+        if line.startswith('bqi.state> set context'):
+            testname = line[21:]
+            self.numTests += 1
+            self.step.setProgress('tests', self.numTests)
+
 class OpenERPTest(LoggingBuildStep):
     name = 'OpenERP-Test'
     flunkOnFailure = True
@@ -161,6 +175,9 @@ class OpenERPTest(LoggingBuildStep):
         self.description = description
         self.summaries = {}
         self.build_result = SUCCESS
+        
+        self.addLogObserver('stdio', BqiObserver())
+        self.progressMetrics += ('tests',)
 
     def start(self):
         #TODO FIX:
@@ -180,6 +197,21 @@ class OpenERPTest(LoggingBuildStep):
         except NotImplementedError:
             pass
 
+        # try to find all modules that have changed:
+        mods_changed = []
+        mods_changed.extend(set([ x.split('/')[0] for x in self.build.allFiles()]))
+        try:
+            todel = []
+            for mc in mods_changed:
+                if not os.path.isdir(os.path.join(full_addons, mc)):
+                    todel.append(mc)
+                if not (os.path.isfile(os.path.join(full_addons, mc,'__openerp__.py')) \
+                    or os.path.isfile(os.path.join(full_addons, mc,'__terp__.py'))):
+                    todel.append(mc)
+            for td in todel:
+                mc.remove(td)
+        except Exception, e:
+            log.err("Cannot prune non-addon dirs: %s" % e)
         self.args['logfiles'] = self.logfiles
         
         # The general part of the b-q-i command
@@ -192,12 +224,16 @@ class OpenERPTest(LoggingBuildStep):
             self.args['command'].append("--net_port=%s"%(self.args['netport']))
         if self.args['port']:
             self.args['command'].append("--port=%s"%(self.args['port']))
-            
+
+        for mc in mods_changed:
+            # put them in -m so that both install-module and check-quality use them.
+            self.args['command'] += [ '-m', str(mc) ]
+
         # Here goes the test sequence, TODO make custom
         self.args['command'] += ['--', '-drop-db']
         
         self.args['command'] += ['--', 'create-db']
-        # self.args['command'] += ['install-module',] + [ modules...]
+        self.args['command'] += ['--', 'install-module']  #+ [ modules...]
         self.args['command'] += ['--', 'check-quality' ] # + [modules]
         
         self.args['command'] += ['--', '+drop-db']
@@ -273,6 +309,7 @@ class OpenERPTest(LoggingBuildStep):
                 elif blog == 'bqi.state':
                     # this is a special logger, which expects us to do sth
                     # with its lines = commands
+                    bmsg = bmsg.rstrip()
                     if bmsg == 'clear context':
                         bqi_context = False
                     elif bmsg.startswith('set context '):
@@ -291,11 +328,15 @@ class OpenERPTest(LoggingBuildStep):
                         bval = bval.strip()
                         blame_dict[bkey] = bval
                     
-                    if 'module' in blame_dict and 'module-mode' in blame_dict:
+                    if 'context' in blame_dict:
+                        sumk = blame_dict['context']
+                    elif 'module' in blame_dict and 'module-mode' in blame_dict:
                         sumk = '%s.%s' % ( blame_dict['module'], blame_dict['module-mode'])
                     else:
                         sumk = bqi_context
-                    
+                    if not sumk:
+                        sumk = 'bqi.rest'
+
                     blame_info = '%s' % blame_dict.get('module','')
                     if 'module-file' in blame_dict:
                         blame_info += '/%s' % blame_dict['module-file']
