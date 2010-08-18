@@ -276,30 +276,38 @@ class OpenObjectStatusResourceBuild(StatusResourceBuild):
                             name))
                 data +='</li></td>'
                 data +="<td class='grid-cell'>"
+                wefailed = False
                 if s.getLogs():
                     data += "  <ol>\n"
                     for logfile in s.getLogs():
                         logname = logfile.getName()
+                        if logname.endswith('.blame'):
+                            continue
                         logurl = req.childLink("steps/%s/logs/%s" %
                                                (urllib.quote(name),
                                                 urllib.quote(logname)))
                         data += ("   <li><a href=\"%s\">%s</a>" %
                                  (logurl, logfile.getName()))
                         if name == 'OpenERP-Test' and logname != 'stdio':
-                            txt = logfile.getText()
-                            color = 'exception'
-                            disp_txt = 'Skipped'
-                            if txt:
-                                color = 'success'
-                                disp_txt = 'Passed'
-                                if txt.find('Failed') != -1:
-                                    color = 'failure'
-                                    disp_txt = 'Failed'
-                            data += ': <span class="%s">%s</span>'%(color, disp_txt)
-			data += "</li>\n"
+                            #txt = logfile.getText()
+                            color = 'success'
+                            disp_txt = 'Passed'
+                            btitle = 'OK'
+                            for blog in s.getLogs():
+                                if blog.getName() != (logname + '.blame'):
+                                    continue
+                                # We found a blame log for this log
+                                color = 'failure'
+                                disp_txt = 'Failed'
+                                btitle = html.escape(blog.getText())
+                                wefailed = True
+                                break
+                            data += ': <span class="%s" title="%s">%s</span>' % \
+                                        (color, btitle, disp_txt)
+                        data += "</li>\n"
                     text = " ".join(s.getText())
                     color = ''
-                    if text.find('Failed') != -1:
+                    if text.find('Failed') != -1 or wefailed:
                         color = 'failure'
                     elif text.find('Sucessfully') != -1 or text.find('Passed'):
                         color = 'success'
@@ -434,22 +442,31 @@ class OpenObjectStatusResourceBuilder(StatusResourceBuilder):
                             data += "  <ol>\n"
                             for logfile in s.getLogs():
                                 logname = logfile.getName()
+                                if logname.endswith('.blame'):
+                                    continue
                                 logurl = req.childLink("builds/%d/steps/%s/logs/%s" %
                                                        (build.getNumber(),urllib.quote(name),
                                                         urllib.quote(logname)))
-                                data += ("  <li><a href=\"%s\">%s</a></li>\n" %
+                                data += ("  <li><a href=\"%s\">%s</a>\n" %
                                          (logurl, logfile.getName()))
                                 if name == 'OpenERP-Test' and logname != 'stdio':
                                     txt = logfile.getText()
-                                    color = 'exception'
-                                    disp_txt = 'Skipped'
-                                    if txt:
-                                        color = 'success'
-                                        disp_txt = 'Passed'
-                                        if txt.find('Failed') != -1:
-                                                color = 'failure'
-                                                disp_txt = 'Failed'
-                                    data += '<span class="%s">%s</span>'%(color, disp_txt)
+                                    color = 'success'
+                                    disp_txt = 'Passed'
+                                    btitle = "OK"
+                                    for blog in s.getLogs():
+                                        if blog.getName() != (logname + '.blame'):
+                                            continue
+                                        # We found a blame log for this log
+                                        color = 'failure'
+                                        disp_txt = 'Failed'
+                                        btitle = html.escape(blog.getText())
+                                        wefailed = True
+                                        break
+                                
+                                    data += ': <span class="%s" title="%s">%s</span>' % \
+                                                (color, btitle, disp_txt)
+                                data += "</li>\n"
                             data += "</ol>"
 
                             text = " ".join(s.getText())
