@@ -180,6 +180,7 @@ class LatestBuilds(HtmlResource):
         building = False
         online = 0
         control = self.getControl(req)
+        req.setHeader('Cache-Control', 'no-cache')
         base_builders_url = self.path_to_root(req) + "buildersresource/"
         builders = req.args.get("builder", status.getBuilderNames())
         branches = [b for b in req.args.get("branch", []) if b]
@@ -189,7 +190,7 @@ class LatestBuilds(HtmlResource):
         data += "<table class='grid' id='latest_builds'>"
         data +="""<tr class="header" style="vertical-align:center font-size: 18px;"><td class='grid-cell' align="center">Branches / Builds</td><td class='grid-cell' align="center" >Build : 1</td><td class='grid-cell' align="center">Build : 2</td>
                  <td class='grid-cell' align="center">Build : 3</td><td class='grid-cell' align="center">Build : 4</td><td class='grid-cell' align="center">Build : 5</td><td class='grid-cell' align="center">Current Status</td>"""
-        for bn in  all_builders:
+        for bn in all_builders:
             base_builder_url = base_builders_url + urllib.quote(bn, safe='')
             builder = status.getBuilder(bn)
             data += "<tr class='grid-row'>\n"
@@ -209,13 +210,13 @@ class LatestBuilds(HtmlResource):
                     if ss.revision:
                         revision = ss.revision
                     label = str(revision) + '-' + ''.join(build.text) + '-' +commiter
-                except:
+                except Exception:
                     label = None
                 if not label:
                     label = "#%d" % build.getNumber()
-                text = ['<a href="%s">%s</a>' % (url, label)]
-                box = Box(text, build.getColor(),class_="LastBuild box %s" % build_get_class(build))
-                data += box.td(class_="grid-cell",align="center")
+                text = ['<a href="%s" title="%s">%s</a>' % (url, build.getReason(), label)]
+                box = Box(text, class_="build%s" % build_get_class(build), align="center")
+                data += box.td()
             for i in range(len(builds),5):
                 data += '<td class="grid-cell" align="center">no build</td>'
             current_box = ICurrentBox(builder).getBox(status)
@@ -245,6 +246,7 @@ class OpenObjectStatusResourceBuild(StatusResourceBuild):
     def body(self, req):
         b = self.build_status
         status = self.getStatus(req)
+        req.setHeader('Cache-Control', 'no-cache')
         projectName = status.getProjectName()
         data = ('<div class="title"><a href="%s">%s</a></div>'
                 % (self.path_to_root(req), projectName))
@@ -281,7 +283,7 @@ class OpenObjectStatusResourceBuild(StatusResourceBuild):
                         logurl = req.childLink("steps/%s/logs/%s" %
                                                (urllib.quote(name),
                                                 urllib.quote(logname)))
-                        data += ("   <li><a href=\"%s\">%s</a></li>\n" %
+                        data += ("   <li><a href=\"%s\">%s</a>" %
                                  (logurl, logfile.getName()))
                         if name == 'OpenERP-Test' and logname != 'stdio':
                             txt = logfile.getText()
@@ -293,7 +295,8 @@ class OpenObjectStatusResourceBuild(StatusResourceBuild):
                                 if txt.find('Failed') != -1:
                                     color = 'failure'
                                     disp_txt = 'Failed'
-                            data += '<span class="%s">%s</span>'%(color, disp_txt)
+                            data += ': <span class="%s">%s</span>'%(color, disp_txt)
+			data += "</li>\n"
                     text = " ".join(s.getText())
                     color = ''
                     if text.find('Failed') != -1:
@@ -381,6 +384,7 @@ class OpenObjectStatusResourceBuilder(StatusResourceBuilder):
         b = self.builder_status
         builder_name = b.getName()
         status = self.getStatus(req)
+        req.setHeader('Cache-Control', 'no-cache')
         control = self.builder_control
 
         projectName = status.getProjectName()
