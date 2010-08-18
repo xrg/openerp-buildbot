@@ -212,7 +212,23 @@ class server_thread(threading.Thread):
         self.state_dict['module-file'] = mobj.group(2)
         self.log.debug("We are processing: %s/%s", self.state_dict['module'],
                 self.state_dict['module-file'])
-        
+    
+    def setTestContext(self, section, level, mobj):
+        self.state_dict['module'] = section.split('.',1)[1]
+        # self.state_dict['module-mode'] = 'test' # no, leave it
+        self._set_log_context("%s.test" % (self.state_dict['module']))
+
+        if level == 'ERROR':
+            self.dump_blame(Exception(mobj.group(0)))
+            
+    def unsetTestContext(self, section, level, mobj):
+        """ After a testing context, we should clear it and reset, if
+            we see an "init" line
+        """
+        if self.state_dict.get('context',False) and \
+                self.state_dict['context'].endswith('.test'):
+            self.clear_context()
+
     def __init__(self, root_path, port, netport, addons_path, pyver=None, 
                 srv_mode='v600', timed=False, debug=False):
         threading.Thread.__init__(self)
@@ -269,6 +285,8 @@ class server_thread(threading.Thread):
         self.regparser('web-services',
                 re.compile(r'starting (.+) service at ([0-9\.]+) port ([0-9]+)'),
                 self.setListening)
+        self.regparser('init',re.compile(r'module (.+):'), self.unsetTestContext)
+        
         self.regparser('init',re.compile(r'module (.+): creating or updating database tables'),
                 self.setModuleLoading)
         self.regparser('init', re.compile(r'module (.+): loading objects$'),
@@ -281,6 +299,7 @@ class server_thread(threading.Thread):
                 self.setModuleLoading2)
         self.regparser('init',re.compile(r'module (.+): loading (.+)$'),
                 self.setModuleFile)
+        self.regparser('tests.*', re.compile(r'.*'), self.setTestContext)
         
         self.regparser_exc('XMLSyntaxError', re.compile(r'line ([0-9]+), column ([0-9]+)'),
                             lambda etype, ematch: { 'file-line': ematch.group(1), 'file-col': ematch.group(2)} )
@@ -349,7 +368,7 @@ class server_thread(threading.Thread):
                                     mm = regex.match(m.group(4))
                                     if mm:
                                         if callable(funct):
-                                            funct(m.group(3), m.group(3), mm)
+                                            funct(m.group(3), m.group(2), mm)
                                         elif isinstance(funct, tuple):
                                             logger = logging.getLogger('bqi.'+ funct[0])
                                             level = funct[1]
@@ -440,10 +459,10 @@ class server_thread(threading.Thread):
                     self.log.debug("Cannot parse xmlrpc exception: %s" % exc.faultString, exc_info=True)
             elif len(exc.args):
                 emsg = exc.args[0]
-                sdict["Exception type"] = "%s.%s" % (e.__class__.__module__ or '', e.__class__.__name__)
+                sdict["Exception type"] = "%s.%s" % (exc.__class__.__module__ or '', exc.__class__.__name__)
             else:
                 emsg = "%s" % exc # better than str(), works with unicode
-                sdict["Exception type"] = "%s.%s" % (e.__class__.__module__ or '', e.__class__.__name__)
+                sdict["Exception type"] = "%s.%s" % (exc.__class__.__module__ or '', exc.__class__.__name__)
 
             emsg = reduce_homedir(emsg)
             sdict["Exception"] = emsg.replace('\n', ' ')
