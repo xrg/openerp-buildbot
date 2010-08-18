@@ -355,6 +355,8 @@ class OpenERPTest(LoggingBuildStep):
                     else:
                         blame_info += 'FAIL'
 
+                    if not self.build.build_status.reason:
+                        self.build.build_status.reason = blame_info.split('\n')[0]
                     blame_info += '\n'
                     summaries.setdefault(sumk, { 'log': [] })
                     summaries[sumk]['state'] = 'fail'
@@ -369,7 +371,7 @@ class OpenERPTest(LoggingBuildStep):
                     if mq:
                         sumk = "%s.test" % mq.group(1)
                         qscore = mq.group(2)
-                        summaries[sumk]['quality_log'] = html
+                        summaries[sumk]['quality_log'] = html_log
                         # TODO use score, too.
                     else:
                         log.err("Invalid first line of quality log: %s" % first_line)
@@ -385,7 +387,7 @@ class OpenERPTest(LoggingBuildStep):
             if server_err:
                 summaries['server.err'] = { 'state': 'debug', 'log': server_err }
             if bqi_rest:
-                summaries['bqi.rest'] = { 'state': bqi_state, 'log': bqi_rest }
+                summaries.setdefault('bqi.rest', {}).update({ 'state': bqi_state, 'log': bqi_rest })
                 
             self.summaries.update(summaries)
             logkeys.remove('stdio')
@@ -435,6 +437,8 @@ class OpenERPTest(LoggingBuildStep):
                 self.build_result = FAILURE
             if sdict.get('log', False):
                 self.addCompleteLog(lkey, '\n'.join(sdict['log']))
+            if sdict.get('blame', False):
+                self.addCompleteLog(lkey+'.blame', sdict['blame'])
 
     def evaluateCommand(self, cmd):
         res = SUCCESS
