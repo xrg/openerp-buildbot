@@ -328,7 +328,13 @@ class server_thread(threading.Thread):
                             continue
                         m = self.linere.match(r)
                         if m:
-                            for regex, funct in self.__parsers.get(m.group(3),[]):
+                            parsers = []
+                            pkeys = ['*', m.group(3) ]
+                            if '.' in m.group(3):
+                                pkeys.append( m.group(3).split('.', 1)[0]+'.*')
+                            for pk in pkeys:
+                                parsers.extend(self.__parsers.get(pk,[]))
+                            for regex, funct in parsers:
                                 if isinstance(regex, basestring):
                                     if regex == m.group(4):
                                         if callable(funct):
