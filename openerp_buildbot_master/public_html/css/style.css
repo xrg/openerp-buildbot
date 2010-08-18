@@ -366,6 +366,24 @@ div.welcome {
     border: none;    
 }
 
+td.buildsuccess {
+    background: green;
+}
+
+td.buildwarnings {
+    background: yellow;
+}
+td.buildfailure {
+    background: red;
+}
+td.buildskipped {
+    background: gray;
+}
+td.buildexception {
+    background: red;
+}
+
+
 .view .separator {
     font-weight: bold;
     border-bottom: 1px solid #666;
