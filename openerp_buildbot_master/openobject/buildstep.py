@@ -245,6 +245,7 @@ class OpenERPTest(LoggingBuildStep):
         logs = self.cmd.logs
         buildbotURL = self.build.builder.botmaster.parent.buildbotURL
         bqi_re = re.compile(r'([^\>\|]+)(\|[^\>]+)?\> (.*)$')
+        qlog_re = re.compile(r'Module: "(.+)", score: (.*)$')
 
         logkeys = logs.keys()
         
@@ -359,6 +360,20 @@ class OpenERPTest(LoggingBuildStep):
                     summaries[sumk]['state'] = 'fail'
                     summaries[sumk].setdefault('blame', '')
                     summaries[sumk]['blame'] += blame_info
+                elif blog == 'bqi.qlogs':
+                    nline = bmsg.index('\n')
+                    first_line = bmsg[:nline].strip()
+                    html_log = bmsg[nline+1:]
+                    
+                    mq = qlog_re.match(first_line)
+                    if mq:
+                        sumk = "%s.test" % mq.group(1)
+                        qscore = mq.group(2)
+                        summaries[sumk]['quality_log'] = html
+                        # TODO use score, too.
+                    else:
+                        log.err("Invalid first line of quality log: %s" % first_line)
+                    
                 else:
                     bqi_rest.append(bmsg)
                     if blevel >= logging.ERROR:
