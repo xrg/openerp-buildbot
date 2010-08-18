@@ -470,7 +470,7 @@ class server_thread(threading.Thread):
         s = ''
         # Format all the blame dict into a string
         for key, val in sdict.items():
-            if val is not None:
+            if val:
                 s += "%s: %s\n" % (key, val)
 
         blog.info(s.rstrip())
@@ -544,6 +544,9 @@ class client_worker(object):
             return False
         conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/object')
         final = {}
+        qlog = logging.getLogger('bqi.qlogs')
+        
+        self.log.debug("Checking quality of modules %s", ', '.join(modules))
         for module in modules:
             qualityresult = {}
             test_detail = {}
@@ -551,6 +554,7 @@ class client_worker(object):
             quality_result = self._execute(conn,'execute', self.dbname, 
                                 uid, self.pwd,
                                 'module.quality.check','check_quality',module)
+            # self.log.debug("Quality result: %r", quality_result)
             detail_html = ''
             html = '''<html><body><a name="TOP"></a>'''
             html +="<h1> Module: %s </h1>"%(quality_result['name'])
@@ -567,17 +571,9 @@ class client_worker(object):
             html += "</ul>"
             html += "%s"%(detail_html)
             html += "</div></body></html>"
-            if not os.path.isdir(quality_logs):
-                os.mkdir(quality_logs)
-            fp = open('%s/%s.html'%(quality_logs,module),'wb')
-            fp.write(to_decode(html))
-            fp.close()
-            #final[quality_result['name']] = (quality_result['final_score'],html,test_detail)
-
-        #fp = open('quality_log.pck','wb')
-        #pck_obj = pickle.dump(final,fp)
-        #fp.close()
-        #print "LOG PATH%s"%(os.path.realpath('quality_log.pck'))
+            
+            qlog.info('Module: "%s", score: %s\n%s', quality_result['name'], 
+                    quality_result['final_score'], html)
         return True
 
     def get_ostimes(self, prev=None):
