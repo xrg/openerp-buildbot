@@ -162,7 +162,10 @@ class server_thread(threading.Thread):
     def setRunning(self, section, level, line):
         self.log.info("Server is ready!")
         self.is_ready = True
-        
+
+    def setClearContext(self, section, level, line):
+        self.clear_context()
+
     def setListening(self, section, level, mobj):
         self.log.info("Server listens %s at %s:%s" % mobj.group(1, 2, 3))
         self._lports[mobj.group(1)] = mobj.group(3)
@@ -268,6 +271,12 @@ class server_thread(threading.Thread):
                 self.setListening)
         self.regparser('init',re.compile(r'module (.+): creating or updating database tables'),
                 self.setModuleLoading)
+        self.regparser('init', re.compile(r'module (.+): loading objects$'),
+                self.setClearContext)
+        self.regparser('init', 'updating modules list', self.setClearContext)
+        self.regparser('init', re.compile(r'.*\: Assertions report:$'),
+                self.setClearContext)
+
         self.regparser('init', re.compile(r'module (.+): registering objects$'),
                 self.setModuleLoading2)
         self.regparser('init',re.compile(r'module (.+): loading (.+)$'),
@@ -582,9 +591,11 @@ class client_worker(object):
             raise ClientException("Database already exists, drop it first!")
         id = self._execute(conn,'create',self.super_passwd, self.dbname, True, lang)
         self.wait(id)
+        server.clear_context()
         if not self.install_module(['base_module_quality',]):
             self.log.warning("Could not install 'base_module_quality' module.")
             # but overall pass
+        server.clear_context()
         self.log.info("Successful create of db: %s", self.dbname)
         return True
 
@@ -606,6 +617,7 @@ class client_worker(object):
             return False
         
         # what buttons to press at each state:
+        self.log.debug("Installing modules: %s", ', '.join(modules))
         form_presses = { 'init': 'start', 'next': 'start', 'start': 'end' }
         server.state_dict['module-mode'] = 'install'
         obj_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/object')
@@ -622,7 +634,9 @@ class client_worker(object):
                         'module.upgrade.simple')
         
         datas = {}
-        return self.run_wizard(wizard_conn, uid, wiz_id, form_presses, datas)
+        ret = self.run_wizard(wizard_conn, uid, wiz_id, form_presses, datas)
+        server.clear_context()
+        return ret
         
     def run_wizard(self, wizard_conn, uid, wiz_id, form_presses, datas):
         """ Simple Execute of a wizard, press form_presses until end.
@@ -690,7 +704,9 @@ class client_worker(object):
         datas = {}
         form_presses = { 'init': 'start', 'next': 'start',  'config': 'end',  'start': 'end'}
         
-        return self.run_wizard(wizard_conn, uid, wiz_id, form_presses, datas)
+        ret = self.run_wizard(wizard_conn, uid, wiz_id, form_presses, datas)
+        server.clear_context()
+        return ret
 
 
 usage = """%prog command [options]
