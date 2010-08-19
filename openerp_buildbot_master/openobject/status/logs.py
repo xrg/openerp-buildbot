@@ -88,7 +88,7 @@ class TextLog(Resource):
             title = "Log File contents"
             data = "<html>\n<head><title>" + title + "</title>\n"
             data += textlog_stylesheet
-        else:
+        else: # TODO!
             title = "Module-Quality-File contents"
             data = "<html>\n<head><title>" + title + "</title>\n"
             data += qualitylog_stylesheet%{'root':BuildbotURL}
