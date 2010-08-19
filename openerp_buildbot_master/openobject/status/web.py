@@ -555,7 +555,8 @@ class OpenObjectStatusResourceBuilder(OOStatusHelper,StatusResourceBuilder):
         
         for name, subname in step_tname:
             if subname:
-                data += '<tr><td>%s<br/>%s</td>' % (name, subname)
+                data += '<tr><td>%s<br/><a href="%s">%s</a></td>' % \
+                    (name, self._req_fmt(req, mrange="%s%%" % subname), subname)
             else:
                 data += "<tr><td>%s</td>" % name
             for build in builds:
