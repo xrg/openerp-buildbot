@@ -100,7 +100,7 @@ class OpenObjectShell(SlaveShellCommand):
 
         c = ShellCommand(self.builder, commandline,
                          workdir, environ = openERP_environment ,
-                         logEnviron = False,
+                         # logEnviron = False,
                          timeout = args.get('timeout', None),
                          sendStdout = args.get('want_stdout', True),
                          sendStderr = args.get('want_stderr', True),
