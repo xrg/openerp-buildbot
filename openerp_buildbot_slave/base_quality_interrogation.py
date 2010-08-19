@@ -27,6 +27,7 @@ import optparse
 import sys
 import threading
 import os
+import signal
 import time
 import pickle
 import base64
@@ -314,7 +315,10 @@ class server_thread(threading.Thread):
             self.log.warning("Program is not running")
         else:
             self.log.info("Terminating..")
-            self.proc.terminate()
+            if not hasattr(self.proc,'terminate'):
+                os.kill(self.proc.pid, signal.SIGTERM)
+            else:
+                self.proc.terminate()
             self.log.info('Terminated.')
             
             # TODO: kill if not terminate right.
