@@ -407,10 +407,11 @@ class server_thread(threading.Thread):
             self.log.warning("server does not listen HTTP at port %s" % self.port)
         return True
         
-    def dump_blame(self, exc=None):
+    def dump_blame(self, exc=None, ekeys=None):
         """Dump blame information for sth that went wrong
         
-        @param exc, the exception object, if available
+        @param exc the exception object, if available
+        @param ekeys extra blame keys to dump
         """
         blog = logging.getLogger('bqi.blame')
         
@@ -427,9 +428,30 @@ class server_thread(threading.Thread):
                 # fault and sent to us. So, we can only do string processing
                 # on it.
                 try:
-                    ses = exc.faultString.rstrip().split('\n')[-1]
-                    stype, sstr = ses.split(':',1)
-                    sdict['Exception type'] = stype
+                    faultLines = exc.faultString.rstrip().split('\n')
+                    lfl = len(faultLines)-1
+                    
+                    while lfl > 0:
+                        if not faultLines[lfl]:
+                            lfl -= 1
+                            continue
+                        if ':' not in faultLines[lfl][:20]:
+                            lfl -= 1
+                            continue
+                        break
+
+                    if lfl < 0:
+                        stype = ''
+                        sstr = '\n'.join(faultlines[-2])
+                    else:
+                        ses = faultLines[lfl]
+                        stype, sstr = ses.split(':',1)
+                        if '--' in sstr:
+                            stype = 'osv.%s' % (sstr.split('--')[1].strip())
+                            emsg = ' '.join(faultLines[lfl+1:])
+                    
+                    if stype:
+                        sdict['Exception type'] = stype
                     
                     # now, use the parsers to get even more useful information
                     # from the exception string. They should return a dict
@@ -467,6 +489,8 @@ class server_thread(threading.Thread):
             emsg = reduce_homedir(emsg)
             sdict["Exception"] = emsg.replace('\n', ' ')
 
+        if ekeys:
+            sdict.update(ekeys)
         s = ''
         # Format all the blame dict into a string
         for key, val in sdict.items():
@@ -643,14 +667,57 @@ class client_worker(object):
         server.state_dict['module-mode'] = 'install'
         obj_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/object')
         wizard_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/wizard')
+        
+        bad_mids = self._execute(obj_conn, 'execute', self.dbname, uid, self.pwd, 
+                        'ir.module.module', 'search', 
+                        [('name','in',modules), ('state','=','uninstallable')])
         module_ids = self._execute(obj_conn, 'execute', self.dbname, uid, self.pwd, 
                         'ir.module.module', 'search', [('name','in',modules)])
         if not module_ids:
             self.log.error("Cannot find any of [%s] modules to install!",
                             ', '.join(modules))
             return False
-        self._execute(obj_conn, 'execute', self.dbname, uid, self.pwd, 
-                        'ir.module.module', 'button_install', module_ids)
+        
+        # Read the names of modules, so that we can identify them.
+        mod_names_res = self._execute(obj_conn, 'execute', self.dbname, uid, self.pwd, 
+                        'ir.module.module', 'read', module_ids,
+                        ['name'])
+        mod_names = {}
+        for mr in mod_names_res:
+            mod_names[mr['id']] = mr['name']
+
+        # self.log.debug("Module names: %r", mod_names)
+        
+        if bad_mids:
+            bad_names = ', '.join([ mod_names[id] for id in bad_mids])
+            self.log.warning("Following modules are not installable: %s", bad_names)
+
+        if True: # just for the block
+            missing_mos = []
+            for mo in modules:
+                if mo not in mod_names.values():
+                    missing_mos.append(mo)
+            if missing_mos:
+                server.dump_blame(ekeys= { 'context': 'bqi.rest', 'severity': 'warning',
+                        'module-phase': False, 'module': False,
+                        'Message': 'The following modules are not found: %s' % \
+                            ', '.join(missing_mos)
+                        })
+        
+        for mid in module_ids:
+            if mid in bad_mids:
+                continue
+            try:
+                # We have to try one-by-one, because we want to be able to
+                # recover from an exception.
+                self._execute(obj_conn, 'execute', self.dbname, uid, self.pwd, 
+                            'ir.module.module', 'button_install', [mid,])
+            except xmlrpclib.Fault, e:
+                logger.error('xmlrpc exception: %s', reduce_homedir(e.faultCode.strip()))
+                logger.error('xmlrpc +: %s', reduce_homedir(e.faultString.rstrip()))
+                server.dump_blame(e, ekeys={ 'context': 'bqi.rest',
+                            'module': mod_names[mid], 'severity': 'error'})
+
         wiz_id = self._execute(wizard_conn, 'create', self.dbname, uid, self.pwd, 
                         'module.upgrade.simple')
         
