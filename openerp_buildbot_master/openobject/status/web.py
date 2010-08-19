@@ -48,10 +48,9 @@ baseweb.HEADER = '''
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en-gb" >
     <head>
         <title>OpenERP Integration Server</title>
-        <meta content="text/html; charset=iso-8859-1" http-equiv="Content-Type"/>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type"/>
         <meta content="index, follow" name="robots"/>
         <link rel="stylesheet" href="%(root)scss/styles.css" type="text/css" />
-        <meta content="text/html; charset=utf-8" http-equiv="content-type"/>
         <link type="%(root)simage/x-icon" rel="shortcut icon" href="%(root)sfavicon.ico"/>
         <!-- Open Object Css File Start -->
         <link type="text/css" href="%(root)scss/style.css" rel="stylesheet"/>

@@ -87,10 +87,12 @@ class TextLog(Resource):
         if self.logname == 'stdio':
             title = "Log File contents"
             data = "<html>\n<head><title>" + title + "</title>\n"
+            data += '<meta content="text/html; charset=utf-8" http-equiv="Content-Type"/>'
             data += textlog_stylesheet
         else:
             title = "Module-Quality-File contents"
             data = "<html>\n<head><title>" + title + "</title>\n"
+            data += '<meta content="text/html; charset=utf-8" http-equiv="Content-Type"/>'
             data += qualitylog_stylesheet%{'root':BuildbotURL}
         data += "</head>\n"
         data += "<body vlink=\"#800080\">\n"
