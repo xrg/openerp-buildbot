@@ -260,6 +260,9 @@ class OpenERPTest(LoggingBuildStep):
             summaries = {}
             bqi_state = 'debug'
             bqi_context = False
+            # The order that logs appeared, try to preserve in status.logs
+            # May have duplicates.
+            log_order = [ 'bqi.rest', 'server.out', 'server.err', ]
             
             while len(lines):
                 if not lines[0]:
@@ -300,6 +303,7 @@ class OpenERPTest(LoggingBuildStep):
                     if bexc:
                         server_out.append(bexc)
                     if bqi_context:
+                        log_order.append(bqi_context)
                         summaries[bqi_context]['log'].append(bmsg)
                         if bexc:
                             summaries[bqi_context]['log'].append(bexc)
@@ -359,6 +363,7 @@ class OpenERPTest(LoggingBuildStep):
                         self.build.build_status.reason = blame_info.split('\n')[0]
                     blame_info += '\n'
                     summaries.setdefault(sumk, { 'log': [] })
+                    log_order.append(sumk)
                     summaries[sumk]['state'] = 'fail'
                     summaries[sumk].setdefault('blame', '')
                     summaries[sumk]['blame'] += blame_info
@@ -371,6 +376,14 @@ class OpenERPTest(LoggingBuildStep):
                     if mq:
                         sumk = "%s.test" % mq.group(1)
                         qscore = mq.group(2)
+                        log_order.apppend(sumk)
+                        test_res = True
+                        try:
+                            # Hard-coded criterion!
+                            test_res = float(qscore) > 0.30
+                        except ValueError:
+                            pass
+                        summaries.setdefault(sumk, {'state': test_res, 'log':[], })
                         summaries[sumk]['quality_log'] = html_log
                         # TODO use score, too.
                     else:
@@ -402,35 +415,21 @@ class OpenERPTest(LoggingBuildStep):
         if len(logkeys):
             log.err("Remaining keys %s in logs" % (', '.join(logkeys)))
 
-        for logname, log in logs.items():
-            break # TODO!
-            state = 'pass'
-            #if logname == 'stdio':
-            #    continue
-            log_data = log.getText()
-            summaries = {logname:{}}
-            general_log = []
-            chk_qlty_log = []
-            io = StringIO(log_data).readlines()
-            for line in io:
-                if line.find('Failed') != -1:
-                    state = 'fail'
-                    self.build_result = FAILURE
-                if line.find("Final score") != -1:
-                    pos = io.index(line)
-                    for l in io[pos:]:
-                        if l.find("Final score") != -1 and l.find("</div>") != -1:
-                            l = l[ l.find("</div>") + 6:]
-                        chk_qlty_log.append(l)
-                    break
-                general_log.append(line)
+        for lkey in self.summaries.keys():
+            # Make sure log_order has all our summaries
+            if lkey not in log_order:
+                log_order.append(lkey)
 
-            summaries[logname]['state'] = state
-            summaries[logname]['log'] = general_log
-            summaries[logname]['quality_log'] = chk_qlty_log
-            # self.summaries.update(summaries)
-        
-        for lkey, sdict in self.summaries.items():
+        logs_done = []
+        for lkey in log_order:
+            if lkey in logs_done:
+                continue
+            if lkey not in self.summaries:
+                # we have the first hard-coded keys, which may not exist
+                continue
+            logs_done.append(lkey)
+            sdict = self.summaries[lkey]
+
             # Put parsed summaries back in logs, with the correct
             # channel name. Used in web status.
             if sdict.get('state') == 'fail':
@@ -439,10 +438,12 @@ class OpenERPTest(LoggingBuildStep):
                 self.addCompleteLog(lkey, '\n'.join(sdict['log']))
             if sdict.get('blame', False):
                 self.addCompleteLog(lkey+'.blame', sdict['blame'])
+            # TODO: quality log?
 
     def evaluateCommand(self, cmd):
         res = SUCCESS
         if cmd.rc != 0 or self.build_result == FAILURE:
+            # TODO: more results from b-q-i, it has discrete exit codes.
             res = FAILURE
         try:
             create_test_step_log(self, step_name='openerp-test', cmd=cmd)
