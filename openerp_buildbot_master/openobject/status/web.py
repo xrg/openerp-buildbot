@@ -35,6 +35,14 @@ from buildbot import version, util
 
 ROOT_PATH = '.'
 
+def get_args_int(args, name, default=0):
+    if args.get(name) is None:
+        return default
+    try:
+        return int(args.get(name,[default,])[0])
+    except (ValueError, TypeError):
+        return default
+
 baseweb.HEADER = '''
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en-gb" >
@@ -185,19 +193,26 @@ class LatestBuilds(HtmlResource):
         builders = req.args.get("builder", status.getBuilderNames())
         branches = [b for b in req.args.get("branch", []) if b]
         all_builders = [html.escape(bn) for bn in builders]
+        num_cols = get_args_int(req.args, 'num', 5)
+        
 
         data = ""
         data += "<table class='grid' id='latest_builds'>"
-        data +="""<tr class="header" style="vertical-align:center font-size: 18px;"><td class='grid-cell' align="center">Branches / Builds</td><td class='grid-cell' align="center" >Build : 1</td><td class='grid-cell' align="center">Build : 2</td>
-                 <td class='grid-cell' align="center">Build : 3</td><td class='grid-cell' align="center">Build : 4</td><td class='grid-cell' align="center">Build : 5</td><td class='grid-cell' align="center">Current Status</td>"""
+        data += '<tr class="header" style="vertical-align:center font-size: 18px;"><td class="grid-cell" align="center">Branches / Builds</td>'
+        for num in range(num_cols):
+            data+= '<td class="grid-cell" align="center" >Build: %s</td>' % (num + 1)
+        data += '<td class="grid-cell" align="center">Current Status</td>'
+        
         for bn in all_builders:
             base_builder_url = base_builders_url + urllib.quote(bn, safe='')
             builder = status.getBuilder(bn)
             data += "<tr class='grid-row'>\n"
             data += '<td class="grid-cell" align="center"><a href="%s">%s</a></td>\n'%(base_builder_url, html.escape(bn))
-            builds = list(builder.generateFinishedBuilds(map_branches(branches),num_builds=5))
+            # It is difficult to do paging here, because we are already iterating over the
+            # builders, so won't have the same build names or rev-ids.
+            builds = list(builder.generateFinishedBuilds(map_branches(branches),num_builds=num_cols))
             builds.reverse()
-            for build in builds[:5]:
+            for build in builds[:num_cols]:
                 url = (base_builder_url + "/builds/%d" % build.getNumber())
                 try:
                     ss = build.getSourceStamp()
@@ -217,7 +232,7 @@ class LatestBuilds(HtmlResource):
                 text = ['<a href="%s" title="%s">%s</a>' % (url, build.getReason(), label)]
                 box = Box(text, class_="build%s" % build_get_class(build), align="center")
                 data += box.td()
-            for i in range(len(builds),5):
+            for i in range(len(builds),num_cols):
                 data += '<td class="grid-cell" align="center">no build</td>'
             current_box = ICurrentBox(builder).getBox(status)
             data += current_box.td(class_="grid-cell",align="center")
@@ -239,7 +254,126 @@ class LatestBuilds(HtmlResource):
                 data += make_force_build_form(forceURL, True)
         return data
 
-class OpenObjectStatusResourceBuild(StatusResourceBuild):
+class OOStatusHelper(object):
+    """ Helper functions for OpenObjectStatusResourceBuild, OpenObjectStatusResourceBuilder
+    """
+    _base_logs = ('stdio', 'stderr', 'bqi.rest', 'bqi.rest.blame', 
+                    'server.out', 'server.err',
+                    'interrupt', 'err.html', 'err.text')
+
+    def _get_step_names(self, build, step_tname):
+        """Put the step names for build in step_tname struct
+        
+           The format is ('name', 'substep-name' or False)
+        """
+        
+        for step in build.getSteps():
+            name = step.getName()
+            if (name, False) not in step_tname:
+                step_tname.append((name,False))
+            if name == 'OpenERP-Test':
+                for slog in step.getLogs():
+                    sname = slog.getName()
+                    if sname in self._base_logs:
+                        continue
+                    sname = sname.split('.',1)[0]
+                    if (name, sname) not in step_tname:
+                        step_tname.append((name, sname))
+
+    def _req_fmt(self, req, **kwargs):
+        """ Format a url like req's request, but also with some args
+        """
+        
+        args = req.args.copy()
+        for key, val in kwargs.items():
+            args[key] = [val,]
+        args_pairs = []
+        args_str = ''
+        for key, vals in args.items():
+            args_pairs.append('%s=%s' % (key, urllib.quote(str(vals[0]))))
+        if args_pairs:
+            args_str += '?' + '&'.join(args_pairs)
+        return req.path + args_str
+
+    def _iter_td(self, req, name, subname, build, is_build=False):
+        """ Get the "td" block for some build.steps
+        """
+        
+        data = ''
+        data += "<td>"
+        found = False
+        for s in build.getSteps():
+            slogs = []
+            if s.getName() != name:
+                continue
+            if name == 'OpenERP-Test':
+                for slog in s.getLogs():
+                    if (subname is False and slog.getName() in self._base_logs) \
+                            or subname == (slog.getName().split('.',1)[0]):
+                        slogs.append(slog)
+            else:
+                slogs = s.getLogs()
+        
+            if not slogs:
+                continue
+            
+            found = True
+            data += "  <ol>\n"
+            for logfile in slogs:
+                logname = logfile.getName()
+                if logname.endswith('.blame'):
+                    continue
+                if not is_build:
+                    logurl = req.childLink("builds/%d/steps/%s/logs/%s" %
+                            (build.getNumber(),urllib.quote(name),
+                            urllib.quote(logname)))
+                else:
+                    logurl = req.childLink("steps/%s/logs/%s" %
+                            (urllib.quote(name), urllib.quote(logname)))
+                data += ("  <li><a href=\"%s\">%s</a>\n" %
+                            (logurl, logfile.getName()))
+                if name == 'OpenERP-Test' and logname not in ('stdio', 'server.out',):
+                    txt = logfile.getText()
+                    color = 'success'
+                    disp_txt = 'Passed'
+                    btitle = "OK"
+                    for blog in s.getLogs():
+                        if blog.getName() != (logname + '.blame'):
+                            continue
+                        # We found a blame log for this log
+                        color = 'failure'
+                        disp_txt = 'Failed'
+                        btitle = html.escape(blog.getText())
+                        wefailed = True
+                        break
+                
+                    data += ': <span class="%s" title="%s">%s</span>' % \
+                                (color, btitle, disp_txt)
+                data += "</li>\n"
+            data += "</ol>"
+
+            if not subname:
+                text = " ".join(s.getText())
+                color = ''
+                if text.find('Failed') != -1:
+                    color = 'failure'
+                elif text.find('Sucessfully') != -1 or text.find('Passed') != -1:
+                    color = 'success'
+                elif text.find('Warnings') != -1:
+                    color = 'warnings'
+                elif text.find('exception') != -1:
+                    color = 'exception'
+                if color:
+                    data += '<span class="%s"> %s</span></td>'%(color,text)
+                else:
+                    data += '<span>%s</span></td>'%(text)
+
+        if not found:
+            data += '<span>n/a</span>'
+        data += '</td>'
+        return data
+
+class OpenObjectStatusResourceBuild(OOStatusHelper,StatusResourceBuild):
     def __init__(self, build_status=None, build_control=None, builder_control=None):
         StatusResourceBuild.__init__(self, build_status, build_control, builder_control)
 
@@ -265,65 +399,21 @@ class OpenObjectStatusResourceBuild(StatusResourceBuild):
             revision = ss.revision
         data += "<table class='grid' id='build_detail'>"
         data += "<tr class='grid-header'><td class='grid-cell'><span>%s</span></td>"%(builder_name)
-        data += "<td class='grid-cell'><span>%s-%s</span></td></tr>"% (html.escape(str(revision)),commiter)
-        if b.getLogs():
-            for s in b.getSteps():
-                name = s.getName()
-                data += "<tr class='grid-row'>"
-                data += "<td class='grid-cell'>"
-                data += (" <li><a href=\"%s\">%s</a>\n"
-                         % (req.childLink("steps/%s" % urllib.quote(name)),
-                            name))
-                data +='</li></td>'
-                data +="<td class='grid-cell'>"
-                wefailed = False
-                if s.getLogs():
-                    data += "  <ol>\n"
-                    for logfile in s.getLogs():
-                        logname = logfile.getName()
-                        if logname.endswith('.blame'):
-                            continue
-                        logurl = req.childLink("steps/%s/logs/%s" %
-                                               (urllib.quote(name),
-                                                urllib.quote(logname)))
-                        data += ("   <li><a href=\"%s\">%s</a>" %
-                                 (logurl, logfile.getName()))
-                        if name == 'OpenERP-Test' and logname != 'stdio':
-                            #txt = logfile.getText()
-                            color = 'success'
-                            disp_txt = 'Passed'
-                            btitle = 'OK'
-                            for blog in s.getLogs():
-                                if blog.getName() != (logname + '.blame'):
-                                    continue
-                                # We found a blame log for this log
-                                color = 'failure'
-                                disp_txt = 'Failed'
-                                btitle = html.escape(blog.getText())
-                                wefailed = True
-                                break
-                            data += ': <span class="%s" title="%s">%s</span>' % \
-                                        (color, btitle, disp_txt)
-                        data += "</li>\n"
-                    text = " ".join(s.getText())
-                    color = ''
-                    if text.find('Failed') != -1 or wefailed:
-                        color = 'failure'
-                    elif text.find('Sucessfully') != -1 or text.find('Passed'):
-                        color = 'success'
-                    elif text.find('Warnings') != -1:
-                        color = 'warnings'
-                    elif text.find('exception') != -1:
-                        color = 'exception'
-                    if color:
-                        data += '<br><span class="%s"> %s</span></ol></td></tr>'%(color, text)
-                    else:
-                        data += '<br><span>%s</span></ol></td></tr>'%(text)
-                else:
-                    data += '<span>Skipped</span></ol></td>'
+        data += "<td class='grid-cell'><span>%s<br/>%s</span></td></tr>"% (html.escape(str(revision)),commiter)
+        
+        step_tname = []
+        self._get_step_names(b, step_tname)
 
-            data += "</ol></table>"
+        for name, subname in step_tname:
+            if subname:
+                data += '<tr class="grid-row"><td class="grid-cell">%s<br/>%s</td>' % (name, subname)
+            else:
+                data += '<tr class="grid-row"><td class="grid-cell">%s</td>' % name
+            data += self._iter_td(req, name, subname, b, is_build=True)
+            data += "</tr>"
+        data += " </table>"
 
+        # TODO all blame summaries
         if ss.changes:
             data += "<h2>All Changes</h2>\n"
             data += "<ol>\n"
@@ -353,7 +443,7 @@ class OpenObjectBuildsResource(BuildsResource):
                                            self.builder_control)
         return HtmlResource.getChild(self, path, req)
 
-class OpenObjectStatusResourceBuilder(StatusResourceBuilder):
+class OpenObjectStatusResourceBuilder(OOStatusHelper,StatusResourceBuilder):
 
     def __init__(self, builder_status=None, builder_control=None):
         StatusResourceBuilder.__init__(self, builder_status, builder_control)
@@ -401,20 +491,32 @@ class OpenObjectStatusResourceBuilder(StatusResourceBuilder):
 
         data += "<h1>Builder: %s</h1>\n" % html.escape(builder_name)
 
-        # Then a section with the last 5 builds, with the most recent build
+        base_builder_url = self.path_to_root(req) + "buildersresource/" + urllib.quote(builder_name, safe='')
+        # Then a section with the last n builds, with the most recent build
         # distinguished from the rest.
+        num_cols = get_args_int(req.args, 'num', 5)
+        max_buildnum = get_args_int(req.args, 'max', None)
 
-
-        step_name = []
+        step_tname = []
         builds = []
 
-        for build in b.generateFinishedBuilds(num_builds=5):
+        for build in b.generateFinishedBuilds(num_builds=num_cols, max_buildnum=max_buildnum):
             if build not in builds:
                 builds.append(build)
-            for step in build.getSteps():
-                name = step.getName()
-                if name not in step_name:
-                    step_name.append(name)
+            self._get_step_names(build, step_tname)
+        
+        if req.args.get('mrange',False):
+            mrange = req.args['mrange'][0]
+            if mrange.endswith('%'):
+                mrange=mrange[:-1]
+                step_tname = filter( lambda sn: sn[1] is False or sn[1].startswith(mrange), step_tname)
+            elif '-' in mrange:
+                mmin, mmax = mrange.split('-', 1)
+                mmax += 'zzzz'  # so that a-b gets up to bzzar..
+                step_tname = filter( lambda sn: sn[1] is False or (sn[1] >= mmin and sn[1] <= mmax) , step_tname)
+            else:
+                step_tname = filter( lambda sn: sn[1] is False or (sn[1] == mrange) , step_tname)
+
         if not builds:
             data += "<h2>Recent Builds:No Builds</h2>\n"
         else:
@@ -423,68 +525,41 @@ class OpenObjectStatusResourceBuilder(StatusResourceBuilder):
         for build in builds:
             ss = build.getSourceStamp()
             commiter = ""
+            revision = '?'
+            hback = ''
+            hnext = ''
             if list(build.getResponsibleUsers()):
                 for who in build.getResponsibleUsers():
                     commiter += "%s" % html.escape(who)
             else:
                 commiter += "No Commiter Found !"
             if ss.revision:
-                revision = ss.revision
-            data += "<th><span>%s-%s</span></th>"% (html.escape(str(revision)),commiter)
-        data += "</tr>"
-        for name in step_name:
-            data += "<tr><td>%s</td>"%name
-            for build in builds:
-                data += "<td>"
-                for s in build.getSteps():
-                    if s.getName() == name:
-                        if s.getLogs():
-                            data += "  <ol>\n"
-                            for logfile in s.getLogs():
-                                logname = logfile.getName()
-                                if logname.endswith('.blame'):
-                                    continue
-                                logurl = req.childLink("builds/%d/steps/%s/logs/%s" %
-                                                       (build.getNumber(),urllib.quote(name),
-                                                        urllib.quote(logname)))
-                                data += ("  <li><a href=\"%s\">%s</a>\n" %
-                                         (logurl, logfile.getName()))
-                                if name == 'OpenERP-Test' and logname != 'stdio':
-                                    txt = logfile.getText()
-                                    color = 'success'
-                                    disp_txt = 'Passed'
-                                    btitle = "OK"
-                                    for blog in s.getLogs():
-                                        if blog.getName() != (logname + '.blame'):
-                                            continue
-                                        # We found a blame log for this log
-                                        color = 'failure'
-                                        disp_txt = 'Failed'
-                                        btitle = html.escape(blog.getText())
-                                        wefailed = True
-                                        break
-                                
-                                    data += ': <span class="%s" title="%s">%s</span>' % \
-                                                (color, btitle, disp_txt)
-                                data += "</li>\n"
-                            data += "</ol>"
+                revision = html.escape(str(ss.revision))
+            
+            data += "<th><span>"
+            
+            url = (base_builder_url + "/builds/%d" % build.getNumber())
+            data += '<a href="%s">#%d rev: %s</a><br/>%s' % \
+                    (url, build.getNumber(), revision, commiter)
 
-                            text = " ".join(s.getText())
-                            color = ''
-                            if text.find('Failed') != -1:
-                                color = 'failure'
-                            elif text.find('Sucessfully') != -1 or text.find('Passed') != -1:
-                                color = 'success'
-                            elif text.find('Warnings') != -1:
-                                color = 'warnings'
-                            elif text.find('exception') != -1:
-                                color = 'exception'
-                            if color:
-                                data += '<span class="%s"> %s</span></td>'%(color,text)
-                            else:
-                                data += '<span>%s</span></td>'%(text)
-                        else:
-                            data += '<span>Skipped</span></td>'
+            if build.getNumber() > 0 and (build is builds[-1]):
+                data += '</span><br/><a href="%s">prev builds&gt;</a></th>' % \
+                    (self._req_fmt(req, max=(build.getNumber()-1)), )
+            elif max_buildnum is not None and max_buildnum <= build.getNumber() \
+                    and (build is builds[0]):
+                data += '</span><br/><a href="%s">&lt;next builds</a><span>' % \
+                (self._req_fmt(req, max=(build.getNumber()+ num_cols)), )
+            else:
+                data += '</span></th>'
+        data += "</tr>"
+        
+        for name, subname in step_tname:
+            if subname:
+                data += '<tr><td>%s<br/>%s</td>' % (name, subname)
+            else:
+                data += "<tr><td>%s</td>" % name
+            for build in builds:
+                data += self._iter_td(req, name, subname, build)
             data += "</tr>"
         data += " </table>"
         return data
