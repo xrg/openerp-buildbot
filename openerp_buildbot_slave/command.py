@@ -127,8 +127,6 @@ class OpenObjectBzr(Bzr):
     def sourcedirIsUpdateable(self):
         if os.path.exists(os.path.join(self.builder.basedir, self.srcdir, ".buildbot-patched")):
             return False
-        if self.revision:
-            return True
-        return os.path.isdir(os.path.join(self.builder.basedir,self.srcdir, ".bzr"))
+        return Bzr.sourcedirIsUpdateable(self)
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
