@@ -175,7 +175,7 @@ class server_thread(threading.Thread):
         if self.state_dict.get('context', False) != False:
             self.log_state.info("clear context")
             self.state_dict['context'] = False
-        for key in ('module-phase', 'module', 'module-file'):
+        for key in ('module-phase', 'module', 'module-file', 'severity'):
             self.state_dict[key] = None
 
     def _set_log_context(self, ctx):
@@ -719,13 +719,14 @@ class client_worker(object):
             except xmlrpclib.Fault, e:
                 logger.error('xmlrpc exception: %s', reduce_homedir(e.faultCode.strip()))
                 logger.error('xmlrpc +: %s', reduce_homedir(e.faultString.rstrip()))
-                server.dump_blame(e, ekeys={ 'context': 'bqi.rest',
+                server.dump_blame(e, ekeys={ 'context': '%s.install' % mod_names[mid],
                             'module': mod_names[mid], 'severity': 'error'})
 
         wiz_id = self._execute(wizard_conn, 'create', self.dbname, uid, self.pwd, 
                         'module.upgrade.simple')
         
         datas = {}
+        server.state_dict['severity'] = 'blocking'
         ret = self.run_wizard(wizard_conn, uid, wiz_id, form_presses, datas)
         server.clear_context()
         return ret
