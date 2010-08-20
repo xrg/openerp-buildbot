@@ -165,12 +165,17 @@ class OpenERPTest(LoggingBuildStep):
         else:
             return self.describe(True, fail=True)
 
-    def __init__(self, workdir=None, dbname=False, addonsdir=None, netport=None, port=8869, **kwargs):
+    def __init__(self, workdir=None, dbname=False, addonsdir=None, 
+                    netport=None, port=8869,
+                    black_modules=None,
+                    **kwargs):
         LoggingBuildStep.__init__(self, **kwargs)
         self.addFactoryArguments(workdir=workdir, dbname=dbname, addonsdir=addonsdir, 
-                                netport=netport, port=port, logfiles={})
+                                netport=netport, port=port, logfiles={},
+                                black_modules=(black_modules or []))
         self.args = {'port' :port, 'workdir':workdir, 'dbname': dbname, 
-                    'netport':netport, 'addonsdir':addonsdir, 'logfiles':{}}
+                    'netport':netport, 'addonsdir':addonsdir, 'logfiles':{},
+                    'black_modules': (black_modules or [])}
         description = ["Performing OpenERP Test..."]
         self.description = description
         self.summaries = {}
@@ -185,17 +190,6 @@ class OpenERPTest(LoggingBuildStep):
         self.logfiles = {}
         builddir = self.build.builder.builddir
         full_addons = os.path.normpath(os.getcwd() + '../../openerp_buildbot_slave/build/%s/openerp-addons/'%(builddir))
-        try:
-            raise NotImplementedError
-            # TODO
-            for module in os.listdir(full_addons):
-                if module in ['.bzrignore','.bzr']:
-                    continue
-                self.logfiles['%s'%module] = ('%s/%s/%s.html'%('test_logs', module, module))
-        except EnvironmentError, e:
-            log.err("Cannot scan modules: %s" % e)
-        except NotImplementedError:
-            pass
 
         # try to find all modules that have changed:
         mods_changed = []
@@ -203,13 +197,16 @@ class OpenERPTest(LoggingBuildStep):
         try:
             todel = []
             for mc in mods_changed:
+                if mc in self.args['black_modules']:
+                    todel.append(mc)
+                    continue
                 if not os.path.isdir(os.path.join(full_addons, mc)):
                     todel.append(mc)
                 if not (os.path.isfile(os.path.join(full_addons, mc,'__openerp__.py')) \
                     or os.path.isfile(os.path.join(full_addons, mc,'__terp__.py'))):
                     todel.append(mc)
             for td in todel:
-                mc.remove(td)
+                mods_changed.remove(td)
         except Exception, e:
             log.err("Cannot prune non-addon dirs: %s" % e)
         self.args['logfiles'] = self.logfiles
