@@ -43,6 +43,43 @@ try:
 except ImportError:
     from StringIO import StringIO
 
+af_severities =  { 'warning': 1, 'error': 3, 'exception': 4,
+            'critical': 8 , 'blocking': 10 }
+
+def append_fail(flist, blames, suffix=None, fmax=None):
+    """ Append blames to the flist, in order of severity
+    
+        @param suffix add that to each blame added
+        @param max  Don't let flist grow more than max
+        @return True if flist has changed
+    """
+    
+    found = False
+    for blame, bsev in blames:
+        fi = 0
+        while fi < len(flist):
+            if flist[fi][1] < bsev:
+                break
+            fi += 1
+        
+        if fmax and fi >= fmax:
+            break
+        if suffix:
+            blame += suffix
+        flist.insert(fi, (blame, bsev))
+        found = True
+
+    if found and fmax:
+        while len(flist) > fmax:
+            flist.pop()
+            # note that we have to use fns, rather than flist = flist[:]
+    
+    return found
+
+def blist2str(blist):
+    blist = filter( lambda x: isinstance(x, tuple), blist)
+    return '\n'.join([ x[0] for x in blist])
+
 def create_test_step_log(step_object = None, step_name = '', cmd=None):
     source = step_object.build.builder.test_ids
     properties = step_object.build.builder.openerp_properties
@@ -66,6 +103,7 @@ def create_test_step_log(step_object = None, step_name = '', cmd=None):
     test_id = source.get(revision, False)
     summary = step_object.summaries
     test_values = None
+    fail_reasons = []
     for logname, data in summary.items():
         state = data.get('state', 'pass')
         if step_name in ('bzr-update', 'bzr_merge'):
@@ -85,11 +123,12 @@ def create_test_step_log(step_object = None, step_name = '', cmd=None):
            params['log'] = base64.encodestring('\n'.join(data['log']))
            
         if data.get('blame', False):
-            params['blame_log'] = data['blame']
-            if not test_values:
+            params['blame_log'] = blist2str(data['blame'])
+            if append_fail(fail_reasons, data['blame'], \
+                    suffix=' (at %s)' % step_name, fmax=5):
                 # By default, only print first failed (blamed) test as reason
-                test_values = {'failure_reason':'%s (at %s)' % \
-                        ( data['blame'].split('\n')[0], step_name),'state':state}
+                test_values = {'failure_reason': blist2str(fail_reasons),
+                                'state':state}
                 openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 
                         'buildbot.test','write', [int(test_id)], test_values)
 
@@ -255,6 +294,7 @@ class OpenERPTest(LoggingBuildStep):
             server_err = []
             bqi_rest = []
             summaries = {}
+            blame_list = []
             bqi_state = 'debug'
             bqi_context = False
             # The order that logs appeared, try to preserve in status.logs
@@ -340,12 +380,17 @@ class OpenERPTest(LoggingBuildStep):
                         sumk = 'bqi.rest'
 
                     blame_info = '%s' % blame_dict.get('module','')
+                    blame_sev = 3 # error
                     if 'module-file' in blame_dict:
                         blame_info += '/%s' % blame_dict['module-file']
                         if 'file-line' in blame_dict:
                             blame_info += ':%s' % blame_dict['file-line']
                             if 'file-col' in blame_dict:
                                 blame_info += ':%s' % blame_dict['file-col']
+                    if 'severity' in blame_dict:
+                        blame_info += '[%s]' % blame_dict['severity']
+                        blame_sev = af_severities.get(blame_dict['severity'], 3)
+
                     blame_info += ': '
                     if 'Exception type' in blame_dict:
                         blame_info += '%s: ' % blame_dict['Exception type']
@@ -356,14 +401,13 @@ class OpenERPTest(LoggingBuildStep):
                     else:
                         blame_info += 'FAIL'
 
-                    if not self.build.build_status.reason:
-                        self.build.build_status.reason = blame_info.split('\n')[0]
-                    blame_info += '\n'
+                    if append_fail(blame_list, [(blame_info, blame_sev),], fmax=5):
+                        self.build.build_status.reason = blist2str(blame_list)
                     summaries.setdefault(sumk, { 'log': [] })
                     log_order.append(sumk)
                     summaries[sumk]['state'] = 'fail'
-                    summaries[sumk].setdefault('blame', '')
-                    summaries[sumk]['blame'] += blame_info
+                    summaries[sumk].setdefault('blame', [])
+                    summaries[sumk]['blame'].append( (blame_info, blame_sev) )
                 elif blog == 'bqi.qlogs':
                     nline = bmsg.index('\n')
                     first_line = bmsg[:nline].strip()
@@ -431,10 +475,14 @@ class OpenERPTest(LoggingBuildStep):
             # channel name. Used in web status.
             if sdict.get('state') == 'fail':
                 self.build_result = FAILURE
+            if sdict.get('blame', False):
+                self.addCompleteLog(lkey+'.blame', blist2str(sdict['blame']))
+                if not 'log' in sdict:
+                    # put an empty log in steps that have a blame,
+                    # so that they appear
+                    sdict['log'] = [' ',]
             if sdict.get('log', False):
                 self.addCompleteLog(lkey, '\n'.join(sdict['log']))
-            if sdict.get('blame', False):
-                self.addCompleteLog(lkey+'.blame', sdict['blame'])
             # TODO: quality log?
 
     def evaluateCommand(self, cmd):
