@@ -412,7 +412,23 @@ class OpenObjectStatusResourceBuild(OOStatusHelper,StatusResourceBuild):
             data += "</tr>"
         data += " </table>"
 
-        # TODO all blame summaries
+        bdata = ''
+        for sstep in b.getSteps():
+            sbdata = ''
+            for slog in sstep.getLogs():
+                slname = slog.getName()
+                if not slname.endswith('.blame'):
+                    continue
+                sbdata += '<h4>%s</h4>\n<ul>' % html.escape(slname[:-6])
+                for bline in slog.getText().split('\n'):
+                    sbdata += '<li>%s</li>\n' % html.escape(bline)
+                sbdata += '</ul>\n'
+
+            if sbdata:
+                bdata += '<h3>%s</h3>\n%s' % (sstep.getName(), sbdata)
+        if bdata:
+            data += '<h2>All trouble info</h2>\n' + bdata
+
         if ss.changes:
             data += "<h2>All Changes</h2>\n"
             data += "<ol>\n"
