@@ -228,7 +228,7 @@ class LatestBuilds(HtmlResource):
                     label = None
                 if not label:
                     label = "#%d" % build.getNumber()
-                text = ['<a href="%s" title="%s">%s</a>' % (url, build.getReason(), label)]
+                text = ['<a href="%s" title="%s">%s</a>' % (url, html.escape(build.getReason()), label)]
                 box = Box(text, class_="build%s" % build_get_class(build), align="center")
                 data += box.td()
             for i in range(len(builds),num_cols):
