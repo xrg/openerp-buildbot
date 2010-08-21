@@ -557,7 +557,7 @@ class OpenObjectBzr(Bzr):
 
     def createSummary(self, log):
         io = StringIO(log.getText()).readlines()
-        summaries = {self.name:{}}
+        summaries = {self.name:{'log': []}}
         counts = {"log": 0}
         for line in io:
             if line.find("ERROR") != -1:
