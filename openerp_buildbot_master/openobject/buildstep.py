@@ -519,11 +519,12 @@ class OpenObjectBzr(Bzr):
             return self.describe(True, fail=True)
 
     def __init__(self, repourl=None, baseURL=None,
-                 defaultBranch=None,workdir=None, mode='update', alwaysUseLatest=True, timeout=40*60, retry=None,**kwargs):
-        LoggingBuildStep.__init__(self, **kwargs)
+                 defaultBranch=None,workdir=None, mode='update', alwaysUseLatest=True, 
+                 timeout=40*60, retry=None, **kwargs):
+        # LoggingBuildStep.__init__(self, **kwargs)
         Bzr.__init__(self, repourl=repourl, baseURL=baseURL,
                    defaultBranch=defaultBranch,workdir=workdir,mode=mode,alwaysUseLatest=alwaysUseLatest,timeout=timeout,
-                   retry=retry,**kwargs)
+                   retry=retry, **kwargs)
         self.name = 'bzr-update'
         self.branch = repourl
         self.description = ["updating", "branch %s"%(repourl)]
