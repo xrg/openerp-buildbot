@@ -43,7 +43,7 @@ try:
 except ImportError:
     from StringIO import StringIO
 
-af_severities =  { 'warning': 1, 'error': 3, 'exception': 4,
+blame_severities =  { 'warning': 1, 'error': 3, 'exception': 4,
             'critical': 8 , 'blocking': 10 }
 
 def append_fail(flist, blames, suffix=None, fmax=None):
@@ -389,7 +389,7 @@ class OpenERPTest(LoggingBuildStep):
                                 blame_info += ':%s' % blame_dict['file-col']
                     if 'severity' in blame_dict:
                         blame_info += '[%s]' % blame_dict['severity']
-                        blame_sev = af_severities.get(blame_dict['severity'], 3)
+                        blame_sev = blame_severities.get(blame_dict['severity'], 3)
 
                     blame_info += ': '
                     if 'Exception type' in blame_dict:
@@ -501,14 +501,15 @@ class OpenObjectBzr(Bzr):
     haltOnFailure = True
 
     def describe(self, done=False,success=False,warn=False,fail=False):
-         if done:
+        branch_short = self.branch.replace('https://launchpad.net/','lp:')
+        if done:
             if success:
-                return ['Updated branch %s Sucessfully!'%(self.branch)]
+                return ['Updated branch %s Sucessfully!' % ( branch_short)]
             if warn:
-                return ['Updated branch %s with Warnings!'%(self.branch)]
+                return ['Updated branch %s with Warnings!' % (branch_short)]
             if fail:
-                return ['Updated branch %s Failed!'%(self.branch)]
-         return self.description
+                return ['Updated branch %s Failed!' % (branch_short)]
+        return self.description
 
     def getText(self, cmd, results):
         if results == SUCCESS:

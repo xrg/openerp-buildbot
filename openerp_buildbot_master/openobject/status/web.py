@@ -29,9 +29,11 @@ from twisted.web import html
 import xmlrpclib
 import pickle
 import os
+import re
 from lxml import etree
 import urllib, time
 from buildbot import version, util
+from openobject.buildstep import blame_severities
 
 ROOT_PATH = '.'
 
@@ -259,6 +261,8 @@ class OOStatusHelper(object):
     _base_logs = ('stdio', 'stderr', 'bqi.rest', 'bqi.rest.blame', 
                     'server.out', 'server.err',
                     'interrupt', 'err.html', 'err.text')
+                    
+    _blame_re = re.compile(r'\[(.+)\]\: ')
 
     def _get_step_names(self, build, step_tname):
         """Put the step names for build in step_tname struct
@@ -299,8 +303,9 @@ class OOStatusHelper(object):
         """
         
         data = ''
-        data += "<td>"
         found = False
+        found_class = None
+        found_sev = 0
         for s in build.getSteps():
             slogs = []
             if s.getName() != name:
@@ -342,7 +347,21 @@ class OOStatusHelper(object):
                         # We found a blame log for this log
                         color = 'failure'
                         disp_txt = 'Failed'
-                        btitle = html.escape(blog.getText())
+                        blame_txt = blog.getText()
+                        # We inspect the first line (already sorted) of the 
+                        # blame to locate top severity
+                        bm = self._blame_re.search(blame_txt.split('\n')[0])
+                        if bm: #
+                            if blame_severities.get(bm.group(1), 3) > found_sev:
+                                # This blame is worse than the previous ones
+                                found_sev = blame_severities.get(bm.group(1), 3)
+                                found_class = bm.group(1) or 'error'
+                        else:
+                            # Default severity, at blame line, is error
+                            if found_sev < 3:
+                                found_sev = 3
+                                found_class = 'error'
+                        btitle = html.escape(blame_txt)
                         wefailed = True
                         break
                 
@@ -363,13 +382,16 @@ class OOStatusHelper(object):
                 elif text.find('exception') != -1:
                     color = 'exception'
                 if color:
-                    data += '<span class="%s"> %s</span></td>'%(color,text)
+                    data += '<span class="%s"> %s</span>'%(color,text)
                 else:
-                    data += '<span>%s</span></td>'%(text)
+                    data += '<span>%s</span>'%(text)
 
         if not found:
             data += '<span>n/a</span>'
-        data += '</td>'
+        if found_class:
+            data = ('<td class="grid-cell-%s">' % (found_class,)) + data + '</td>\n'
+        else:
+            data = '<td class="grid-cell-ok">' + data + '</td>\n'
         return data
 
 class OpenObjectStatusResourceBuild(OOStatusHelper,StatusResourceBuild):
@@ -409,7 +431,7 @@ class OpenObjectStatusResourceBuild(OOStatusHelper,StatusResourceBuild):
             else:
                 data += '<tr class="grid-row"><td class="grid-cell">%s</td>' % name
             data += self._iter_td(req, name, subname, b, is_build=True)
-            data += "</tr>"
+            data += "</tr>\n"
         data += " </table>"
 
         bdata = ''

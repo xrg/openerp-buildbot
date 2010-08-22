@@ -366,21 +366,24 @@ div.welcome {
     border: none;    
 }
 
+/* TODO: improve..
+*/
 td.buildsuccess {
-    background: green;
+    background: #B0FFB0;
 }
 
 td.buildwarnings {
-    background: yellow;
+    background: #B0FFFF;
 }
 td.buildfailure {
-    background: red;
+    background: #FFB0B0;
+    border: 2px solid red;
 }
 td.buildskipped {
     background: gray;
 }
 td.buildexception {
-    background: red;
+    background: #FF8080;
 }
 
 

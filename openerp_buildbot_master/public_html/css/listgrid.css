@@ -30,6 +30,23 @@
     border: 1px solid #E3E3E3;
 }
 
+.grid-cell-ok {
+    padding: 0px 0px;
+    background: white;
+    border: 1px solid #E3E3E3;
+}
+
+.grid-cell-error {
+    padding: 0px 0px;
+    background: #FFE3E3;
+    border: 2px solid #E30000;
+}
+
+/* TODO: .grid-cell-[warning, exception, critical, blocking] 
+
+*/
+
+
 .grid-cell2 {
     padding: 0px 0px;    
     border-bottom: 1px solid #E3E3E3;
