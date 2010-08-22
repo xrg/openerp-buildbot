@@ -8,7 +8,7 @@ from buildbot.slave.registry import registerSlaveCommand
 
 import command
 
-basedir = os.path.join(os.path.normpath(os.path.dirname(__file__)),'build')
+basedir = os.path.abspath(os.path.join(os.path.normpath(os.path.dirname(__file__)),'build'))
 buildmaster_host = '127.0.0.1'
 port = 8999
 slavename = 'openerp_bot'
