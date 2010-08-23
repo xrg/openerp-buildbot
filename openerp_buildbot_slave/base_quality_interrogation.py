@@ -154,8 +154,15 @@ class MachineFormatter(logging.Formatter):
 
 class server_thread(threading.Thread):
     
-    def regparser(self, section, regex, funct):
-        self.__parsers.setdefault(section, []).append( (regex, funct) )
+    def regparser(self, section, regex, funct, multiline=False):
+        """ Register a parser for server's output.
+        @param section the name of the logger that we try to match, can be *
+        @param regex A regular expression to match, or a plain string
+        @param funct A callable to execute on match, or a string to log, or
+                    a tuple(bqi-class, log_level, string ) to log.
+        @param multiline If true, this output can span multiple lines
+        """
+        self.__parsers.setdefault(section, []).append( (regex, funct, multiline) )
 
     def regparser_exc(self, etype, erege, funct):
         self.__exc_parsers.append( (etype, erege, funct))
@@ -265,6 +272,7 @@ class server_thread(threading.Thread):
         self.is_running = False
         self.is_ready = False
         self._lports = {}
+        self._io_bufs = {} # Buffers for stdin, stdio processing
         # Will hold info about current op. of the server
         self.state_dict = {'module-mode': 'startup'}
 
@@ -305,6 +313,116 @@ class server_thread(threading.Thread):
         self.regparser_exc('XMLSyntaxError', re.compile(r'line ([0-9]+), column ([0-9]+)'),
                             lambda etype, ematch: { 'file-line': ematch.group(1), 'file-col': ematch.group(2)} )
 
+    def _io_flush(self):
+        """ Process any remaining data in _io_bufs
+        """
+
+        for fd in self._io_bufs.keys():
+            r = self._io_bufs[fd]
+        
+            if r.endswith("\n"):
+                r = r[:-1]
+
+            if not r:
+                continue
+
+            m = self.linere.match(r)
+            if m:
+                self._io_process(fd, m, False)
+
+            # now, print the line at stdout
+            if fd is self.proc.stdout.fileno():
+                olog = self.log_sout
+            else:
+                olog = self.log_serr
+            olog.info(r)
+
+            # Reset the buffer
+            self._io_bufs[fd] = ''
+
+        return # end of _io_flush()
+        
+    def _io_read(self, fd, fd_obj):
+        """ Read data from fd_obj into _io_bufs[fd] and process
+        """
+        rl = fd_obj.readline()
+        if not rl:
+            return
+        
+        mmatch = self.linere.match(rl)
+        if mmatch:
+            # we don't append this line, but process the previous
+            # data.
+            self._io_flush()
+            if self._io_process(fd, mmatch, True):
+                # It is a single line message that was processed.
+                if fd_obj is self.proc.stdout:
+                    olog = self.log_sout
+                else:
+                    olog = self.log_serr
+                # Log and go, don't buffer
+                olog.info(rl)
+                return
+        
+        self._io_bufs[fd] += rl # with trailing newline
+
+    def _io_process(self, fd, mmatch, first_try):
+        """Process an input log line mmatch, from fd 
+        
+            @return if the line has been processed.
+        """
+        
+        may_process = False # Need to process now.
+        parsers = []
+        pkeys = ['*', mmatch.group(3) ]
+        if '.' in mmatch.group(3):
+            pkeys.append( mmatch.group(3).split('.', 1)[0]+'.*')
+        for pk in pkeys:
+            parsers.extend(self.__parsers.get(pk,[]))
+        
+        pmatches = [] # we will put all matched parsers here.
+        for regex, funct, multiline in parsers:
+            if isinstance(regex, basestring):
+                if regex == mmatch.group(4):
+                    if (not first_try) or (not multiline):
+                        may_process = True
+                    pmatches.append((regex, funct, None) )
+            else:  # elif isinstance(regex, re.RegexObject):
+                mm = regex.match(mmatch.group(4))
+                if mm:
+                    if (not first_try) or (not multiline):
+                        may_process = True
+                    pmatches.append((regex, funct, mm) )
+
+        # Finished matching here.
+        
+        if (not pmatches) or not may_process:
+            return False
+        
+        # When just one of the parsers is positive, we have to
+        # process all of them now, because won't buffer for multiline.
+        
+        for regex, funct, mm in pmatches:
+            if callable(funct):
+                funct(mmatch.group(3), mmatch.group(2), mm or mmatch.group(4))
+            elif isinstance(funct, tuple):
+                logger = logging.getLogger('bqi.'+ funct[0])
+                level = funct[1]
+                if mm:
+                    log_args = mm.groups('')
+                else:
+                    log_args = []
+                logger.log(level, funct[2], *log_args)
+            else:
+                if mm:
+                    log_args = mm.groups('')
+                else:
+                    log_args = []
+
+                self.log.info(funct, *log_args)
+
+        return True
+
     def stop(self):
         if (not self.is_running) and (not self.proc):
             time.sleep(2)
@@ -335,6 +453,9 @@ class server_thread(threading.Thread):
             pob.register(self.proc.stderr)
             fdd = { self.proc.stdout.fileno(): self.proc.stdout ,
                     self.proc.stderr.fileno(): self.proc.stderr }
+                    
+            self._io_bufs = { self.proc.stdout.fileno(): '',
+                    self.proc.stderr.fileno(): '' }
         
             while True:
                 self.proc.poll()
@@ -344,50 +465,9 @@ class server_thread(threading.Thread):
                 p = pob.poll(10000)
                 for fd, event in p:
                     if event == select.POLLIN:
-                        r = fdd[fd].readline()
-                        if r.endswith("\n"):
-                            r = r[:-1]
-                        if not r:
-                            continue
-                        m = self.linere.match(r)
-                        if m:
-                            parsers = []
-                            pkeys = ['*', m.group(3) ]
-                            if '.' in m.group(3):
-                                pkeys.append( m.group(3).split('.', 1)[0]+'.*')
-                            for pk in pkeys:
-                                parsers.extend(self.__parsers.get(pk,[]))
-                            for regex, funct in parsers:
-                                if isinstance(regex, basestring):
-                                    if regex == m.group(4):
-                                        if callable(funct):
-                                            funct(m.group(3), m.group(2), m.group(4))
-                                        elif isinstance(funct, tuple):
-                                            logger = logging.getLogger('bqi.'+ funct[0])
-                                            level = funct[1]
-                                            logger.log(level, funct[2])
-                                        else:
-                                            self.log.info(funct)
-                                else:  # elif isinstance(regex, re.RegexObject):
-                                    mm = regex.match(m.group(4))
-                                    if mm:
-                                        if callable(funct):
-                                            funct(m.group(3), m.group(2), mm)
-                                        elif isinstance(funct, tuple):
-                                            logger = logging.getLogger('bqi.'+ funct[0])
-                                            level = funct[1]
-                                            log_args = mm.groups('')
-                                            logger.log(level, funct[2], *log_args)
-                                        else:
-                                            self.log.info(funct, *log_args)
-                   
-                        # now, print the line at stdout
-                        if fdd[fd] is self.proc.stdout:
-                            olog = self.log_sout
-                        else:
-                            olog = self.log_serr
-                        olog.info(r)
-
+                        self._io_read(fd, fdd[fd])
+        
+            self._io_flush()
             self.is_ready = False
             self.log.info("Finished server with: %d", self.proc.returncode)
         finally:
@@ -635,6 +715,7 @@ class client_worker(object):
         # obj_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/object')
         #wiz_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/wizard')
         #login_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/common')
+        server.state_dict['severity'] = 'blocking'
         db_list = self._execute(conn, 'list')
         if self.dbname in db_list:
             raise ClientException("Database already exists, drop it first!")
@@ -722,11 +803,11 @@ class client_worker(object):
                 server.dump_blame(e, ekeys={ 'context': '%s.install' % mod_names[mid],
                             'module': mod_names[mid], 'severity': 'error'})
 
+        server.state_dict['severity'] = 'blocking'
         wiz_id = self._execute(wizard_conn, 'create', self.dbname, uid, self.pwd, 
                         'module.upgrade.simple')
         
         datas = {}
-        server.state_dict['severity'] = 'blocking'
         ret = self.run_wizard(wizard_conn, uid, wiz_id, form_presses, datas)
         server.clear_context()
         return ret
@@ -1068,6 +1149,11 @@ except xmlrpclib.Fault, e:
     server.stop()
     server.join()
     sys.exit(1)
+except KeyboardInterrupt:
+    logger.error("Received Interrupt signal, exiting")
+    server.stop()
+    server.join()
+    sys.exit(6)
 except Exception, e:
     logger.exception('')
     server.stop()
