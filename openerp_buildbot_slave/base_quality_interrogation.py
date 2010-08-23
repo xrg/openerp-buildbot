@@ -228,7 +228,12 @@ class server_thread(threading.Thread):
 
         if level == 'ERROR':
             self.dump_blame(Exception(mobj.group(0)))
-            
+        elif level == 'WARNING':
+            sdic = { 'severity': 'warning', 
+                    'Message': mobj.group(0).replace('\n',' '),
+                   }
+            self.dump_blame(ekeys=sdic)
+
     def unsetTestContext(self, section, level, mobj):
         """ After a testing context, we should clear it and reset, if
             we see an "init" line
@@ -308,7 +313,7 @@ class server_thread(threading.Thread):
                 self.setModuleLoading2)
         self.regparser('init',re.compile(r'module (.+): loading (.+)$'),
                 self.setModuleFile)
-        self.regparser('tests.*', re.compile(r'.*'), self.setTestContext)
+        self.regparser('tests.*', re.compile(r'.*'), self.setTestContext, multiline=True)
         
         self.regparser_exc('XMLSyntaxError', re.compile(r'line ([0-9]+), column ([0-9]+)'),
                             lambda etype, ematch: { 'file-line': ematch.group(1), 'file-col': ematch.group(2)} )
