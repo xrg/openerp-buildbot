@@ -206,14 +206,17 @@ class OpenERPTest(LoggingBuildStep):
 
     def __init__(self, workdir=None, dbname=False, addonsdir=None, 
                     netport=None, port=8869,
+                    force_modules=None,
                     black_modules=None,
                     **kwargs):
         LoggingBuildStep.__init__(self, **kwargs)
         self.addFactoryArguments(workdir=workdir, dbname=dbname, addonsdir=addonsdir, 
                                 netport=netport, port=port, logfiles={},
+                                force_modules=(force_modules or []),
                                 black_modules=(black_modules or []))
         self.args = {'port' :port, 'workdir':workdir, 'dbname': dbname, 
                     'netport':netport, 'addonsdir':addonsdir, 'logfiles':{},
+                    'force_modules': (force_modules or []),
                     'black_modules': (black_modules or [])}
         description = ["Performing OpenERP Test..."]
         self.description = description
@@ -232,7 +235,18 @@ class OpenERPTest(LoggingBuildStep):
 
         # try to find all modules that have changed:
         mods_changed = []
-        mods_changed.extend(set([ x.split('/')[0] for x in self.build.allFiles()]))
+        if self.args['force_modules']:
+            mods_changed += filter( lambda x: x != '*', self.args['force_modules'])
+
+        if self.args['force_modules'] and '*' in self.args['force_modules']:
+            # Special directive: scan and try all modules
+            for modpath in os.listdir(full_addons):
+                if (os.path.isfile(os.path.join(full_addons, modpath,'__openerp__.py')) \
+                    or os.path.isfile(os.path.join(full_addons, modpath,'__terp__.py'))):
+                        mods_changed.append(modpath)
+        else:
+            mods_changed.extend(set([ x.split('/')[0] for x in self.build.allFiles()]))
+
         try:
             todel = []
             for mc in mods_changed:
@@ -241,11 +255,12 @@ class OpenERPTest(LoggingBuildStep):
                     continue
                 if not os.path.isdir(os.path.join(full_addons, mc)):
                     todel.append(mc)
-                if not (os.path.isfile(os.path.join(full_addons, mc,'__openerp__.py')) \
+                elif not (os.path.isfile(os.path.join(full_addons, mc,'__openerp__.py')) \
                     or os.path.isfile(os.path.join(full_addons, mc,'__terp__.py'))):
                     todel.append(mc)
             for td in todel:
-                mods_changed.remove(td)
+                if td in mods_changed: # prevent double-deletions
+                    mods_changed.remove(td)
         except Exception, e:
             log.err("Cannot prune non-addon dirs: %s" % e)
         self.args['logfiles'] = self.logfiles
