@@ -329,6 +329,21 @@ class server_thread(threading.Thread):
             m = self.linere.match(r)
             if m:
                 self._io_process(fd, m, False)
+            elif r.startswith("Traceback (most recent call last):") \
+                    and fd is self.proc.stderr.fileno():
+                # Stray, fatal exception may appear on stderr
+                try:
+                    traceb, excs = r.rsplit('\n',1)
+                    exc_type, exc_msg = excs.split(':',1)
+                    exc_msg = reduce_homedir(exc_msg)
+                    traceb = reduce_homedir(traceb)
+                    sdic = { 'Exception type': exc_type, 'Exception': exc_msg,
+                            'Traceback': traceb }
+                    self._decode_tb(traceb, sdic)
+                    self.dump_blame(ekeys=sdic)
+                except Exception:
+                    self.log.debug("Cannot decode stderr", exc_info=True)
+                    pass
 
             # now, print the line at stdout
             if fd is self.proc.stdout.fileno():
@@ -361,6 +376,8 @@ class server_thread(threading.Thread):
                 else:
                     olog = self.log_serr
                 # Log and go, don't buffer
+                if rl.endswith('\n'):
+                    rl = rl[:-1]
                 olog.info(rl)
                 return
         
@@ -423,6 +440,29 @@ class server_thread(threading.Thread):
 
         return True
 
+    def _decode_tb(self, traceb, sdic):
+        """ Decode a traceback and store info in sdic
+        """
+        tbre= re.compile(r'File "(.+)", line ([0-9]+)')
+        blines = []
+        if not traceb:
+            return
+        if isinstance(traceb, basestring):
+            blines = traceb.split('\n')
+        else:
+            blines = list(traceb[:])
+        blines.reverse()
+        for line in blines:
+            line = line.strip()
+            if line == '^':
+                continue
+            tm = tbre.match(line)
+            if tm:
+                sdic['module-file'] = tm.group(1)
+                sdic['file-line'] = tm.group(2)
+                break
+        return
+
     def stop(self):
         if (not self.is_running) and (not self.proc):
             time.sleep(2)
@@ -476,6 +516,7 @@ class server_thread(threading.Thread):
     def start_full(self):
         """ start and wait until server is up, ready to serve
         """
+        self.state_dict['severity'] = 'blocking'
         self.start()
         time.sleep(1)
         t = 0
