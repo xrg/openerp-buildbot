@@ -78,6 +78,8 @@ class buildbot_lp_branch(osv.osv):
                 'merge_server': fields.boolean('Merge with Server', help="Whether you want the branch to be merged with Trunk Server"),
                 'merge_extra_addons': fields.boolean('Merge with Extra Addons', help="Whether you want the branch to be merged with Trunk Extra-Addons"),
                 'merge_community_addons': fields.boolean('Merge with Community Addons',help="Whether you want the branch to be merged with Community Addons"),
+                'addons_include': fields.text('Include addons', help="Space-separated list of addons to always test"),
+                'addons_exclude': fields.text('Exclude addons', help="Never test these addons, blacklist. Space-separated"),
                 }
     _defaults = {
         'active': lambda *a: 1,
@@ -96,6 +98,8 @@ class buildbot_lp_project(osv.osv):
                 'tester_server_branch_id': fields.many2one('buildbot.lp.branch', 'Tester Server Branch', required=True,  help="Tester Branch for Server"),
                 'root_branch_id': fields.many2one('buildbot.lp.branch', 'Root Branch', required=True),
                 'branch_ids':fields.one2many('buildbot.lp.branch','lp_project_id','Branches', help="Launchpad Branches"),
+                'addons_include': fields.text('Include addons', help="Space-separated list of addons to always test"),
+                'addons_exclude': fields.text('Exclude addons', help="Never test these addons, blacklist. Space-separated"),
                 }
 buildbot_lp_project()
 
@@ -104,10 +108,15 @@ class buildbot_lp_branch(osv.osv):
     _inherit = "buildbot.lp.branch"
     _columns = {
                 'lp_project_id': fields.many2one('buildbot.lp.project', 'LP Project', help="Launchpad Project"),
+                # Needed for our buildbot client, that will want to fetch just with a read()
+                'lp_project_name': fields.related('lp_project_id', 'name', type='char', relation='buildbot.lp.project', string='Project name'),
                 'test_server_branch_name': fields.related('lp_project_id','tester_server_branch_id','name',type='char', relation='buildbot.lp.project', string='Tester Server Branch'),
                 'test_server_branch_url' : fields.related('lp_project_id','tester_server_branch_id','url',type='char', relation='buildbot.lp.project', string='Tester Server Url'),
                 'test_addons_branch_name': fields.related('lp_project_id','tester_addons_branch_id','name',type='char', relation='buildbot.lp.project', string='Tester Addons Branch'),
                 'test_addons_branch_url' : fields.related('lp_project_id','tester_addons_branch_id','url',type='char', relation='buildbot.lp.project', string='Tester Addons Url'),
+                
+                'project_addons_include': fields.related('lp_project_id', 'addons_include', type='text', relation='buildbot.lp.project', string='Project include', readonly=True),
+                'project_addons_exclude': fields.related('lp_project_id', 'addons_exclude', type='text', relation='buildbot.lp.project', string='Project exclude', readonly=True),
                 }
 buildbot_lp_branch()
 
