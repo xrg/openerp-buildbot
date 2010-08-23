@@ -124,6 +124,14 @@ class OpenObjectBzr(Bzr):
         self.command = c
         return c.start()
 
+    def doClobber(self, dummy, dirname, chmodDone=False):
+        # Bzr class wouldn't check that, because it assumes dirname == workdir,
+        # so already created.
+        d = os.path.join(self.builder.basedir, dirname)
+        if not os.path.exists(d):
+            return defer.succeed(0)
+        return Bzr.doClobber(self, dummy, dirname, chmodDone=chmodDone)
+
     def sourcedirIsUpdateable(self):
         if os.path.exists(os.path.join(self.builder.basedir, self.srcdir, ".buildbot-patched")):
             return False
