@@ -98,6 +98,12 @@
                  <field name="latest_rev_no"/>
                  <field name="latest_rev_id"/>
             </page>
+            <page string="Addons tuning">
+                <field name="addons_include" colspan="4"/>
+                <field name="addons_exclude" colspan="4"/>
+                <field name="project_addons_include" colspan="4"/>
+                <field name="project_addons_exclude" colspan="4"/>
+            </page>
           </notebook>
               </form>
           </field>
@@ -285,6 +291,10 @@
                 <field name="tester_server_branch_id" domain="[('is_test_branch', '=', True)]"/>
                 <field name="tester_addons_branch_id" domain="[('is_test_branch', '=', True)]"/>
                 <field name="root_branch_id" domain="[('is_root_branch', '=', True)]"/>
+                <group string="Addons tuning" col="2" colspan="4">
+                    <field name="addons_include" height="50"/>
+                    <field name="addons_exclude" height="50"/>
+                </group>
                 <field name="branch_ids"  nolabel="1" colspan="4" domain="[('is_test_branch', '=', False), ('is_root_branch', '=', False)]">
                   <tree string="Branches">
                       <field name="name"/>
