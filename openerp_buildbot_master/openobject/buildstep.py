@@ -284,8 +284,9 @@ class OpenERPTest(LoggingBuildStep):
         self.args['command'] += ['--', '-drop-db']
         
         self.args['command'] += ['--', 'create-db']
-        self.args['command'] += ['--', 'install-module']  #+ [ modules...]
-        self.args['command'] += ['--', 'check-quality' ] # + [modules]
+        if len(mods_changed):
+            self.args['command'] += ['--', 'install-module']  #+ [ modules...]
+            self.args['command'] += ['--', 'check-quality' ] # + [modules]
         
         self.args['command'] += ['--', '+drop-db']
         cmd = LoggedRemoteCommand("OpenObjectShell",self.args)
