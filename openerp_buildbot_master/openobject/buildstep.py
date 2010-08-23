@@ -417,7 +417,7 @@ class OpenERPTest(LoggingBuildStep):
                     if mq:
                         sumk = "%s.test" % mq.group(1)
                         qscore = mq.group(2)
-                        log_order.apppend(sumk)
+                        log_order.append(sumk)
                         test_res = True
                         try:
                             # Hard-coded criterion!
