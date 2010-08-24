@@ -334,7 +334,7 @@ class OOStatusHelper(object):
                 else:
                     logurl = req.childLink("steps/%s/logs/%s" %
                             (urllib.quote(name), urllib.quote(logname)))
-                data += ("  <li><a href=\"%s\">%s</a>\n" %
+                data += ("<li><a href=\"%s\">%s</a>\n" %
                             (logurl, logfile.getName()))
                 if name == 'OpenERP-Test' and logname not in ('stdio', 'server.out',):
                     txt = logfile.getText()
@@ -558,7 +558,7 @@ class OpenObjectStatusResourceBuilder(OOStatusHelper,StatusResourceBuilder):
             data += "<h2>Recent Builds:No Builds</h2>\n"
         else:
             data += "<h2>Recent Builds:</h2>\n"
-            data += "<table border='1'><tr><th>Commiter <br> / Steps</th>"
+            data += '<table border="1" class="grid"><tr><th>Commiter <br> / Steps</th>'
         for build in builds:
             ss = build.getSourceStamp()
             commiter = ""

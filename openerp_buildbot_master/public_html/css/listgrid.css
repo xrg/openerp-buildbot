@@ -13,6 +13,11 @@
     background-color: white;
 }
 
+.grid ol {
+    margin-left: 1.5em;
+    /* improve me */
+}
+
 .grid-row:hover {
     /*background-color: #F3F3F3;*/
 }
