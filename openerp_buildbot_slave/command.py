@@ -116,9 +116,11 @@ class OpenObjectShell(SlaveShellCommand):
 class OpenObjectBzr(Bzr):
     def doVCUpdate(self):
         if self.revision:
-            command = [self.vcexe, 'pull', self.sourcedata.split('\n')[0],'-r',str(self.revision)]
+            command = [self.vcexe, 'pull', self.sourcedata.split('\n')[0],
+                        '-q', '--overwrite',
+                        '-r', str(self.revision)]
         else:
-            command = [self.vcexe, 'update']
+            command = [self.vcexe, 'update', '-q']
         srcdir = os.path.join(self.builder.basedir, self.srcdir)
         c = ShellCommand(self.builder, command, srcdir, sendRC=False, timeout=self.timeout)
         self.command = c
@@ -135,6 +137,9 @@ class OpenObjectBzr(Bzr):
     def sourcedirIsUpdateable(self):
         if os.path.exists(os.path.join(self.builder.basedir, self.srcdir, ".buildbot-patched")):
             return False
-        return Bzr.sourcedirIsUpdateable(self)
+        # contrary to base class, we allow update when self.revision
+        return (not self.sourcedirIsPatched() and
+                os.path.isdir(os.path.join(self.builder.basedir,
+                                           self.srcdir, ".bzr")))
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
