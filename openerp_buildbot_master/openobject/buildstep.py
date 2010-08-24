@@ -245,7 +245,39 @@ class OpenERPTest(LoggingBuildStep):
                     or os.path.isfile(os.path.join(full_addons, modpath,'__terp__.py'))):
                         mods_changed.append(modpath)
         else:
-            mods_changed.extend(set([ x.split('/')[0] for x in self.build.allFiles()]))
+            more_mods = []
+            for chg in self.build.allChanges():
+                more_mods.extend(chg.allModules())
+            try:
+                olmods_found = []
+                for sbuild in self.build.builder.builder_status.generateFinishedBuilds(num_builds=10):
+                    log.msg("Scanning back build %d" % sbuild.getNumber())
+                    for sstep in sbuild.getSteps():
+                        if sstep.getName() != 'OpenERP-Test':
+                            continue
+                        # We will try to guess the status from the logs,
+                        # just like the web-status does.
+                        
+                        for slog in sstep.getLogs():
+                            if not slog.getName().endswith('.blame'):
+                                continue
+                            if slog.getName().startswith('bqi.'):
+                                continue
+                            # Hopefully, the first part of the name is a
+                            # module!
+                            olmods_found.append(slog.getName().split('.',1)[0])
+                        
+                        if len(olmods_found):
+                            log.msg("Found these modules that failed last time: %s" % \
+                                    ','.join(olmods_found))
+                            more_mods.extend(olmods_found)
+                            break
+                
+                    if len(olmods_found):  # this loop, too.
+                        break
+            except Exception, e:
+                log.err("Could not figure old failures: %s" % e)
+            mods_changed.extend(set(more_mods))
 
         try:
             todel = []
