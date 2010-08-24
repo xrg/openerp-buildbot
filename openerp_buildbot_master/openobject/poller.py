@@ -161,8 +161,14 @@ class OpenObjectChange(Change):
         self.files_removed = [f[0] for f in revision_delta.removed]
         self.ch = revision_delta
         self.revision_id = revision_id
-        files =  self.files_added + self.files_modified + [f[1] for f in self.files_renamed] + self.files_removed
+        files = self.files_added + self.files_modified + [f[1] for f in self.files_renamed] + self.files_removed
+        self.all_modules = list(set([ x.split('/')[0] for x in files]))
         Change.__init__(self, who=who, files=files, comments=comments, isdir=isdir, links=links,revision=revision, when=when, branch=branch)
+
+    def allModules(self):
+        """ Return the list of all the modules that must have changed
+        """
+        return self.all_modules
 
     def asHTML(self):
         files_added = []
