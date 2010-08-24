@@ -64,7 +64,7 @@ baseweb.HEADER = '''
     </head>
 <body>
 
-            <table width="1004" border="0" cellspacing="0" cellpadding="0">
+            <table width="100%%" border="0" cellspacing="0" cellpadding="0">
             <tr>
                 <td width="202"><a href="http://openobject.com" alt="Open Object - Free Management Solution Logo"/><img src="%(root)simages/openobject.jpg" border="0"/></a></td>
                 <td width="335"><div align="right"><img src="%(root)simages/picture.jpg" width="242" height="68" /></div></td>
@@ -91,7 +91,7 @@ baseweb.HEADER = '''
             </tr>
             </table>
 
-            <table width="1004" border="0" cellspacing="0" cellpadding="0" id="menu_header">
+            <table width="100%%" border="0" cellspacing="0" cellpadding="0" id="menu_header">
             <tr>
                 <td width="141" id="menu_header_menu" nowrap="nowrap"></td>
                 <td nowrap="nowrap" align="left" height="25px"></td>
@@ -108,19 +108,19 @@ baseweb.HEAD_ELEMENTS = [
 baseweb.BODY_ATTRS = {}
 
 baseweb.FOOTER = '''
-            <table width="1004" border="0" align="center" cellpadding="0" cellspacing="0">
+            <table width="100%%" border="0" align="center" cellpadding="0" cellspacing="0">
                 <tr>
                     <td valign="top" align="right"><img src="%(root)simages/fourmis.jpg"/></td>
                 </tr>
             </table>
 
-            <table border="0" width="1004" cellpadding="0" cellspacing="0">
+            <table border="0" width="100%%" cellpadding="0" cellspacing="0">
                 <tr height="1">
                     <td width="1004" bgcolor="#D6D6D6"></td>
                 </tr>
             </table>
 
-            <table border="0" width="1004" cellpadding="5" cellspacing="0">
+            <table border="0" width="100%%" cellpadding="5" cellspacing="0">
                 <tr>
                     <td bgcolor="#ffffff">
                         <div class="footertext">
@@ -198,10 +198,10 @@ class LatestBuilds(HtmlResource):
         
 
         data = ""
-        data += "<table class='grid' id='latest_builds'>"
+        data += '<table class="grid" width="100%" id="latest_builds">'
         data += '<tr class="header" style="vertical-align:center font-size: 18px;"><td class="grid-cell" align="center">Branches / Builds</td>'
         for num in range(num_cols):
-            data+= '<td class="grid-cell" align="center" >Build: %s</td>' % (num + 1)
+            data+= '<td class="grid-cell" align="center" >Build: %s</td>' % ( (0-num) or 'Last')
         data += '<td class="grid-cell" align="center">Current Status</td>'
         
         for bn in all_builders:
@@ -212,7 +212,7 @@ class LatestBuilds(HtmlResource):
             # It is difficult to do paging here, because we are already iterating over the
             # builders, so won't have the same build names or rev-ids.
             builds = list(builder.generateFinishedBuilds(map_branches(branches),num_builds=num_cols))
-            builds.reverse()
+            # builds.reverse()
             for build in builds[:num_cols]:
                 url = (base_builder_url + "/builds/%d" % build.getNumber())
                 try:
