@@ -97,7 +97,7 @@ class TextLog(Resource):
         data += "</head>\n"
         data += "<body vlink=\"#800080\">\n"
         texturl = request.childLink("text")
-        if self.logname == 'stdio':
+        if True:
             data += '<a href="%s">(view as text)</a><br />\n' % texturl
         data += "<pre>\n"
         return data
@@ -105,8 +105,8 @@ class TextLog(Resource):
     def content(self, entries):
         spanfmt = '<span class="%s">%s</span>'
         data = ""
-        if self.logname != 'stdio':
-            self.asText = True
+        #if self.logname != 'stdio':
+        #    self.asText = True
         for type, entry in entries:
             if self.asText:
                 if type != builder.HEADER:
