@@ -227,7 +227,7 @@ class server_thread(threading.Thread):
         self._set_log_context("%s.test" % (self.state_dict['module']))
 
         if level == 'ERROR':
-            self.dump_blame(Exception(mobj.group(0)))
+            self.dump_blame(ekeys={ 'Exception': mobj.group(0).split('\n')[0]})
         elif level == 'WARNING':
             sdic = { 'severity': 'warning', 
                     'Message': mobj.group(0).replace('\n',' '),
@@ -284,7 +284,7 @@ class server_thread(threading.Thread):
         # self.is_terminating = False
         
         # Regular expressions:
-        self.linere = re.compile(r'\[(.*)\] ([A-Z]+):([\w\.-]+):(.*)$')
+        self.linere = re.compile(r'\[(.*)\] ([A-Z]+):([\w\.-]+):(.*)$', re.DOTALL)
         
         self.log = logging.getLogger('srv.thread')
         self.log_sout = logging.getLogger('server.stdout')
@@ -306,14 +306,14 @@ class server_thread(threading.Thread):
         self.regparser('init', re.compile(r'module (.+): loading objects$'),
                 self.setClearContext)
         self.regparser('init', 'updating modules list', self.setClearContext)
-        self.regparser('init', re.compile(r'.*\: Assertions report:$'),
+        self.regparser('init', re.compile(r'.*\: Assertions report:$', re.DOTALL),
                 self.setClearContext)
 
         self.regparser('init', re.compile(r'module (.+): registering objects$'),
                 self.setModuleLoading2)
         self.regparser('init',re.compile(r'module (.+): loading (.+)$'),
                 self.setModuleFile)
-        self.regparser('tests.*', re.compile(r'.*'), self.setTestContext, multiline=True)
+        self.regparser('tests.*', re.compile(r'.*', re.DOTALL), self.setTestContext, multiline=True)
         
         self.regparser_exc('XMLSyntaxError', re.compile(r'line ([0-9]+), column ([0-9]+)'),
                             lambda etype, ematch: { 'file-line': ematch.group(1), 'file-col': ematch.group(2)} )
@@ -325,7 +325,7 @@ class server_thread(threading.Thread):
         for fd in self._io_bufs.keys():
             r = self._io_bufs[fd]
         
-            if r.endswith("\n"):
+            while r.endswith("\n"):
                 r = r[:-1]
 
             if not r:
@@ -405,12 +405,12 @@ class server_thread(threading.Thread):
         pmatches = [] # we will put all matched parsers here.
         for regex, funct, multiline in parsers:
             if isinstance(regex, basestring):
-                if regex == mmatch.group(4):
+                if regex == mmatch.group(4).rstrip():
                     if (not first_try) or (not multiline):
                         may_process = True
                     pmatches.append((regex, funct, None) )
             else:  # elif isinstance(regex, re.RegexObject):
-                mm = regex.match(mmatch.group(4))
+                mm = regex.match(mmatch.group(4).rstrip())
                 if mm:
                     if (not first_try) or (not multiline):
                         may_process = True
