@@ -960,5 +960,47 @@ class LintTest(LoggingBuildStep):
         cmd.useLog(self.stderr_log, True)
         self.startCommand(cmd)
 
+class BzrStatTest(LoggingBuildStep):
+    """Step to perform lint-check on changed files
+    """
+    name = 'Bzr stats'
+    flunkOnFailure = False
+
+    def describe(self, done=False,success=False,warn=False,fail=False):
+         if done:
+            if success:
+                return ['Bzr stats finished!']
+            if warn:
+                return ['Warnings at bzr stats !']
+            if fail:
+                return ['Bzr stats Failed !']
+         return self.description
+
+    def getText(self, cmd, results):
+        if results == SUCCESS:
+            return self.describe(True, success=True)
+        elif results == WARNINGS:
+            return self.describe(True, warn=True)
+        else:
+            return self.describe(True, fail=True)
+
+
+    def __init__(self, workdir=None, **kwargs):
+
+        LoggingBuildStep.__init__(self, **kwargs)
+        self.addFactoryArguments(workdir=workdir)
+        self.args = {'workdir': workdir, }
+        # Compute defaults for descriptions:
+        description = ["Performing bzr stats"]
+        self.description = description
+
+    def start(self):
+        self.args['command']=["../../../bzr-diffstat.sh",]
+
+        cmd = StdErrRemoteCommand("OpenObjectShell", self.args)
+        self.stderr_log = self.addLog("stderr")
+        cmd.useLog(self.stderr_log, True)
+        self.startCommand(cmd)
+
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
