@@ -705,29 +705,36 @@ class client_worker(object):
             qualityresult = {}
             test_detail = {}
             server.state_dict['module-mode'] = 'quality'
-            quality_result = self._execute(conn,'execute', self.dbname, 
-                                uid, self.pwd,
-                                'module.quality.check','check_quality',module)
-            # self.log.debug("Quality result: %r", quality_result)
-            detail_html = ''
-            html = '''<html><body><a name="TOP"></a>'''
-            html +="<h1> Module: %s </h1>"%(quality_result['name'])
-            html += "<h2> Final score: %s</h2>"%(quality_result['final_score'])
-            html += "<div id='tabs'>"
-            html += "<ul>"
-            for x,y,detail in quality_result['check_detail_ids']:
-                test = detail.get('name')
-                msg = detail.get('message','')
-                score = round(float(detail.get('score',0)),2)
-                html += "<li><a href=\"#%s\">%s</a></li>"%(test.replace(' ','-'),test)
-                detail_html +='''<div id=\"%s\"><h3>%s (Score : %s)</h3><font color=red><h5>%s</h5></font>%s</div>'''%(test.replace(' ', '-'), test, score, msg, detail.get('detail', ''))
-                test_detail[test] = (score,msg,detail.get('detail',''))
-            html += "</ul>"
-            html += "%s"%(detail_html)
-            html += "</div></body></html>"
-            
-            qlog.info('Module: "%s", score: %s\n%s', quality_result['name'], 
-                    quality_result['final_score'], html)
+            try:
+                quality_result = self._execute(conn,'execute', self.dbname, 
+                                    uid, self.pwd,
+                                    'module.quality.check','check_quality',module)
+                # self.log.debug("Quality result: %r", quality_result)
+                detail_html = ''
+                html = '''<html><body><a name="TOP"></a>'''
+                html +="<h1> Module: %s </h1>"%(quality_result['name'])
+                html += "<h2> Final score: %s</h2>"%(quality_result['final_score'])
+                html += "<div id='tabs'>"
+                html += "<ul>"
+                for x,y,detail in quality_result['check_detail_ids']:
+                    test = detail.get('name')
+                    msg = detail.get('message','')
+                    score = round(float(detail.get('score',0)),2)
+                    html += "<li><a href=\"#%s\">%s</a></li>"%(test.replace(' ','-'),test)
+                    detail_html +='''<div id=\"%s\"><h3>%s (Score : %s)</h3><font color=red><h5>%s</h5></font>%s</div>'''%(test.replace(' ', '-'), test, score, msg, detail.get('detail', ''))
+                    test_detail[test] = (score,msg,detail.get('detail',''))
+                html += "</ul>"
+                html += "%s"%(detail_html)
+                html += "</div></body></html>"
+                
+                qlog.info('Module: "%s", score: %s\n%s', quality_result['name'], 
+                        quality_result['final_score'], html)
+            except xmlrpclib.Fault, e:
+                self.log.error('xmlrpc exception: %s', reduce_homedir(e.faultCode.strip()))
+                self.log.error('xmlrpc +: %s', reduce_homedir(e.faultString.rstrip()))
+                server.dump_blame(e, ekeys={ 'context': '%s.qlog' % module,
+                            'module': module, 'severity': 'warning'})
+            # and continue with other modules..
         return True
 
     def get_ostimes(self, prev=None):
