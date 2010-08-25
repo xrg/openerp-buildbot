@@ -124,7 +124,21 @@ class OpenObjectBzr(Bzr):
         srcdir = os.path.join(self.builder.basedir, self.srcdir)
         c = ShellCommand(self.builder, command, srcdir, sendRC=False, timeout=self.timeout)
         self.command = c
-        return c.start()
+        d = c.start()
+        d.addCallback(self.doVCClean)
+        return d
+
+    def doVCClean(self, res=None):
+        """ Clean the repository after some pull or update
+        
+        This will remove untracked files (eg. *.pyc, junk) from the repo dir.
+        """
+        command = [self.vcexe, 'clean-tree', '-q', '--force', '--unknown', '--detritus']
+        srcdir = os.path.join(self.builder.basedir, self.srcdir)
+        c = ShellCommand(self.builder, command, srcdir, sendRC=False, timeout=self.timeout)
+        self.command = c
+        d = c.start()
+        return d
 
     def doClobber(self, dummy, dirname, **kwargs):
         # Bzr class wouldn't check that, because it assumes dirname == workdir,
@@ -138,8 +152,8 @@ class OpenObjectBzr(Bzr):
         if os.path.exists(os.path.join(self.builder.basedir, self.srcdir, ".buildbot-patched")):
             return False
         # contrary to base class, we allow update when self.revision
-        return (not self.sourcedirIsPatched() and
+        return (not self.sourcedirIsPatched()) and \
                 os.path.isdir(os.path.join(self.builder.basedir,
-                                           self.srcdir, ".bzr")))
+                                           self.srcdir, ".bzr"))
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
