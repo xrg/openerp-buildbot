@@ -523,7 +523,7 @@ class server_thread(threading.Thread):
         """
         self.state_dict['severity'] = 'blocking'
         self.start()
-        time.sleep(1)
+        time.sleep(2.0)
         t = 0
         while not self.is_ready:
             if not self.is_running:
