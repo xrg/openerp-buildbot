@@ -531,7 +531,8 @@ class OpenERPTest(LoggingBuildStep):
                     sdict['log'] = [' ',]
             if sdict.get('log', False):
                 self.addCompleteLog(lkey, '\n'.join(sdict['log']))
-            # TODO: quality log?
+            if 'quality_log' in sdict:
+                self.addHTMLLog(lkey + '.qlog', sdict['quality_log'])
 
     def evaluateCommand(self, cmd):
         res = SUCCESS
