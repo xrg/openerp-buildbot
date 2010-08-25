@@ -336,7 +336,9 @@ class OOStatusHelper(object):
                             (urllib.quote(name), urllib.quote(logname)))
                 data += ("<li><a href=\"%s\">%s</a>\n" %
                             (logurl, logfile.getName()))
-                if name == 'OpenERP-Test' and logname not in ('stdio', 'server.out',):
+                if name == 'OpenERP-Test' \
+                    and logname not in ('stdio', 'server.out', 'server.err') \
+                    and not logname.endswith('.qlog'):
                     txt = logfile.getText()
                     color = 'success'
                     disp_txt = 'Passed'
