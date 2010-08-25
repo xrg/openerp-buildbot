@@ -168,6 +168,13 @@ class OpenERPLoggedRemoteCommand(LoggedRemoteCommand):
             self.stdio_log = stdio_log = self.addLog("stdio")
             self.useLog(stdio_log, True)
 
+class StdErrRemoteCommand(LoggedRemoteCommand):
+    """Variation of LoggedRemoteCommand that separates stderr
+    """
+
+    def addStderr(self, data):
+        self.logs['stderr'].addStderr(data)
+
 class BqiObserver(LogLineObserver):
     #_line_re = re.compile(...)
     numTests = 0
@@ -909,5 +916,49 @@ class BzrRevert(LoggingBuildStep):
         self.summaries[self.name]['state'] = state
         create_test_step_log(self, res)
         return res
+
+class LintTest(LoggingBuildStep):
+    """Step to perform lint-check on changed files
+    """
+    name = 'Lint test'
+    flunkOnFailure = False
+
+    def describe(self, done=False,success=False,warn=False,fail=False):
+         if done:
+            if success:
+                return ['Lint test passed !']
+            if warn:
+                return ['Lint test has Warnings !']
+            if fail:
+                return ['Lint test Failed !']
+         return self.description
+
+    def getText(self, cmd, results):
+        if results == SUCCESS:
+            return self.describe(True, success=True)
+        elif results == WARNINGS:
+            return self.describe(True, warn=True)
+        else:
+            return self.describe(True, fail=True)
+
+
+    def __init__(self, workdir=None, **kwargs):
+
+        LoggingBuildStep.__init__(self, **kwargs)
+        self.addFactoryArguments(workdir=workdir)
+        self.args = {'workdir': workdir, }
+        # Compute defaults for descriptions:
+        description = ["Performing lint check"]
+        self.description = description
+
+    def start(self):
+        self.args['command']=["../../../file-lint.sh",]
+        self.args['command'] += [ str(x) for x in self.build.allFiles()]
+
+        cmd = StdErrRemoteCommand("OpenObjectShell", self.args)
+        self.stderr_log = self.addLog("stderr")
+        cmd.useLog(self.stderr_log, True)
+        self.startCommand(cmd)
+
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
