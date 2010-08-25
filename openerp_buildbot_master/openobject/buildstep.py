@@ -208,16 +208,19 @@ class OpenERPTest(LoggingBuildStep):
                     netport=None, port=8869,
                     force_modules=None,
                     black_modules=None,
+                    test_mode='full',
                     **kwargs):
         LoggingBuildStep.__init__(self, **kwargs)
         self.addFactoryArguments(workdir=workdir, dbname=dbname, addonsdir=addonsdir, 
                                 netport=netport, port=port, logfiles={},
                                 force_modules=(force_modules or []),
-                                black_modules=(black_modules or []))
+                                black_modules=(black_modules or []),
+                                test_mode=test_mode)
         self.args = {'port' :port, 'workdir':workdir, 'dbname': dbname, 
                     'netport':netport, 'addonsdir':addonsdir, 'logfiles':{},
                     'force_modules': (force_modules or []),
-                    'black_modules': (black_modules or [])}
+                    'black_modules': (black_modules or []),
+                    'test_mode': test_mode}
         description = ["Performing OpenERP Test..."]
         self.description = description
         self.summaries = {}
@@ -249,6 +252,8 @@ class OpenERPTest(LoggingBuildStep):
             for chg in self.build.allChanges():
                 more_mods.extend(chg.allModules())
             try:
+                if self.args['test_mode'] == 'changed-only':
+                    raise Exception('Skipped')
                 olmods_found = []
                 for sbuild in self.build.builder.builder_status.generateFinishedBuilds(num_builds=10):
                     log.msg("Scanning back build %d" % sbuild.getNumber())
@@ -318,7 +323,8 @@ class OpenERPTest(LoggingBuildStep):
         self.args['command'] += ['--', 'create-db']
         if len(mods_changed):
             self.args['command'] += ['--', 'install-module']  #+ [ modules...]
-            self.args['command'] += ['--', 'check-quality' ] # + [modules]
+            if self.args['test_mode'] not in ('install',):
+                self.args['command'] += ['--', 'check-quality' ] # + [modules]
         
         self.args['command'] += ['--', '+drop-db']
         cmd = LoggedRemoteCommand("OpenObjectShell",self.args)

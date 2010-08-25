@@ -115,9 +115,19 @@ class buildbot_lp_branch(osv.osv):
                 'test_addons_branch_name': fields.related('lp_project_id','tester_addons_branch_id','name',type='char', relation='buildbot.lp.project', string='Tester Addons Branch'),
                 'test_addons_branch_url' : fields.related('lp_project_id','tester_addons_branch_id','url',type='char', relation='buildbot.lp.project', string='Tester Addons Url'),
                 
+                'test_mode': fields.selection(  [('full', 'Full test'), 
+                                            ('install', 'Install-only'), 
+                                            ('changed-only', 'Changed only'),
+                                            ('no-bqi', 'No OpenERP-Test')],
+                                        string="Test mode", required=True, 
+                                        help="Kind of tests to perform on this branch"),
                 'project_addons_include': fields.related('lp_project_id', 'addons_include', type='text', relation='buildbot.lp.project', string='Project include', readonly=True),
                 'project_addons_exclude': fields.related('lp_project_id', 'addons_exclude', type='text', relation='buildbot.lp.project', string='Project exclude', readonly=True),
                 }
+    _defaults = {
+        'test_mode': 'full',
+        }
+
 buildbot_lp_branch()
 
 class buildbot_test(osv.osv):

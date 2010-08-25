@@ -87,6 +87,7 @@
               <field name="build_directory"/>
               <field name="port"/>
                  <field name="netport"/>
+                <field name="test_mode" />
                  </page>
                  <page string="Merge Settings">
               <field name="merge_addons"/>
