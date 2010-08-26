@@ -263,6 +263,7 @@ class server_thread(threading.Thread):
         elif srv_mode == 'pg84':
             self.args.append('--httpd-port=%s' % port )
             self.args.append('--no-httpds')
+            self.args.append('-Dtests.nonfatal=True')
         else:
             raise RuntimeError("Invalid server mode %s" % srv_mode)
 
