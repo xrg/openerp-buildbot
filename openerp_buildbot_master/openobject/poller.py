@@ -138,7 +138,7 @@ html_tmpl = """
 Changed at : <b>%(at)s</b><br />
 %(branch)s
 %(revision_id)s
-Revision No:%(revision)s
+Revision No: %(revision)s
 </p>
 
 %(files_added)s
@@ -192,10 +192,19 @@ class OpenObjectChange(Change):
         branch = ""
         branch_link = ''
         if self.branch:
-            if 'launchpad' in branch:
-                i = self.branch.index('launchpad')
-                branch_link = 'https://bazaar.' + self.branch[i:] + '/revision/' + str(revision) + '#'
-                branch = "Branch : <a href='%s'>%s</a><br />\n" % (self.branch,self.branch)
+            # Decode source url to a web-vcs interface
+            if self.branch.startswith('https://code.launchpad.net/'):
+                branch_link = 'http://bazaar.launchpad.net/%s/revision/%s' % \
+                    (self.branch[27:], str(revision))
+            elif self.branch.startswith('lp:'):
+                branch_link = 'http://bazaar.launchpad.net/%s/revision/%s' % \
+                    (self.branch[3:], str(revision))
+            # elif  some other repo...
+            
+            if branch_link:
+                branch = "Branch : <a href='%s'>%s</a><br/>\n" % (branch_link, self.branch)
+            else:
+                branch = '<!-- no web for %s -->'  % self.branch
 
         if self.files_added:
             files_added_lbl = "Added files : \n"

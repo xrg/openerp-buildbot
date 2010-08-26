@@ -136,6 +136,26 @@ baseweb.FOOTER = '''
 </html>
 '''
 
+_eml_re = re.compile(r'(.+) ?\<.+\> *$')
+
+def reduce_eml(aeml):
+    """Print just the name of a committer, from email address format"""
+    global _eml_re
+    try:
+        m = _eml_re.match(aeml.strip())
+        if m:
+            return m.group(1)
+        return repr(aeml)
+    except Exception:
+        pass
+    return aeml
+
+def last_change(ss, short=False):
+    if ss.changes:
+        return ss.changes[-1].getTime()
+    else:
+        return ''
+
 class BugGraph(HtmlResource):
 
     title = "Bug Graph"
@@ -220,17 +240,20 @@ class LatestBuilds(HtmlResource):
                     commiter = ""
                     if list(build.getResponsibleUsers()):
                         for who in build.getResponsibleUsers():
-                            commiter += "%s" % html.escape(who)
+                            commiter += "%s" % html.escape(reduce_eml(who))
                     else:
                         commiter += "No Commiter Found !"
                     if ss.revision:
                         revision = ss.revision
-                    label = str(revision) + '-' + ''.join(build.text) + '-' +commiter
+                    label = '%s-%s: %s' % (str(revision), commiter, ''.join(build.text))
                 except Exception:
                     label = None
                 if not label:
                     label = "#%d" % build.getNumber()
-                text = ['<a href="%s" title="%s">%s</a>' % (url, html.escape(build.getReason()), label)]
+                tftime = time.strftime('%a %d, %H:%M:%S', time.localtime(build.getTimes()[1]))
+                ttitle = 'Test at: %s\n%s' %(tftime, html.escape(build.getReason()))
+                text = ['<a href="%s" title="%s">%s</a><br/>%s' % \
+                        (url, ttitle, label, last_change(ss, True))]
                 box = Box(text, class_="build%s" % build_get_class(build), align="center")
                 data += box.td()
             for i in range(len(builds),num_cols):
@@ -412,6 +435,12 @@ class OpenObjectStatusResourceBuild(OOStatusHelper,StatusResourceBuild):
                  % (builder_name, b.getNumber()))
         ss = b.getSourceStamp()
         commiter = ""
+        
+        (t_start, t_finish) = b.getTimes()
+        data += '<p>Started at: %s, finished at %s</p>' % \
+            (time.strftime('%a %d, %H:%M:%S', time.localtime(t_start)), 
+            time.strftime('%a %d, %H:%M:%S', time.localtime(t_finish)))
+        
         if list(b.getResponsibleUsers()):
             for who in b.getResponsibleUsers():
                 commiter += "%s" % html.escape(who)
@@ -568,7 +597,7 @@ class OpenObjectStatusResourceBuilder(OOStatusHelper,StatusResourceBuilder):
             hnext = ''
             if list(build.getResponsibleUsers()):
                 for who in build.getResponsibleUsers():
-                    commiter += "%s" % html.escape(who)
+                    commiter += "%s" % html.escape(reduce_eml(who))
             else:
                 commiter += "No Commiter Found !"
             if ss.revision:
@@ -577,8 +606,9 @@ class OpenObjectStatusResourceBuilder(OOStatusHelper,StatusResourceBuilder):
             data += "<th><span>"
             
             url = (base_builder_url + "/builds/%d" % build.getNumber())
-            data += '<a href="%s">#%d rev: %s</a><br/>%s' % \
-                    (url, build.getNumber(), revision, commiter)
+            data += '<a href="%s">#%d rev: %s</a> %s<br/>%s' % \
+                    (url, build.getNumber(), revision,
+                    last_change(ss), commiter)
 
             if build.getNumber() > 0 and (build is builds[-1]):
                 data += '</span><br/><a href="%s">prev builds&gt;</a></th>' % \
