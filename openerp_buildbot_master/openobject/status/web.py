@@ -408,9 +408,8 @@ class OpenObjectStatusResourceBuild(OOStatusHelper,StatusResourceBuild):
         data = ('<div class="title"><a href="%s">%s</a></div>'
                 % (self.path_to_root(req), projectName))
         builder_name = b.getBuilder().getName()
-        data += ("<h1><a href=\"%s\">Builder %s</a>: Build #%d</h1>"
-                 % (path_to_builder(req, b.getBuilder()),
-                    builder_name, b.getNumber()))
+        data += ("<h1>Builder %s: Build #%d</h1>"
+                 % (builder_name, b.getNumber()))
         ss = b.getSourceStamp()
         commiter = ""
         if list(b.getResponsibleUsers()):
