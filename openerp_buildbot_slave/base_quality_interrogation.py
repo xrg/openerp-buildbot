@@ -483,9 +483,24 @@ class server_thread(threading.Thread):
                 os.kill(self.proc.pid, signal.SIGTERM)
             else:
                 self.proc.terminate()
-            self.log.info('Terminated.')
             
-            # TODO: kill if not terminate right.
+            i = 0
+            while self.proc.returncode is None:
+                i += 1
+                if i == 0:
+                    pass
+                elif i == 2:
+                    self.log.warning("Server didn't die, sending second term signal..")
+                    os.kill(self.proc.pid, signal.SIGTERM)
+                elif i > 3:
+                    self.log.warning("Server didn't die, sending a kill signal..")
+                    os.kill(self.proc.pid, signal.SIGKILL)
+                else:
+                    self.log.info("Waiting the server to terminate for %s sec..", (i*5))
+                time.sleep(5)
+
+            self.log.info('Terminated.')
+
         
     def run(self):
         try:
