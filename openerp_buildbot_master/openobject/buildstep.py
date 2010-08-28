@@ -607,7 +607,7 @@ class OpenObjectBzr(Bzr):
         else:
             self.args['repourl'] = self.baseURL + self.branch # self.baseURL + branch
 
-        if  self.args['repourl'] == branch:
+        if self.args['repourl'] == branch:
             self.args['revision'] = revision
         else:
             self.args['revision'] = None
