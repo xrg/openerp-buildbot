@@ -26,6 +26,10 @@ for FNAME in "$@" ; do
 		fi
 	;;
 	*.xml)
+		if grep -HnF -m 10 '*-*' "$FNAME" ; then
+		    echo "Not ready to commit: $FNAME" >&2
+		    EXIT_CODE=1
+		fi
 		if ! xmllint --noout --nowarning "$FNAME" ; then
 			echo "XmlLint failed for: $FNAME" >&2
 			EXIT_CODE=1
