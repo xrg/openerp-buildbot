@@ -817,10 +817,8 @@ class client_worker(object):
         
         # what buttons to press at each state:
         self.log.debug("Installing modules: %s", ', '.join(modules))
-        form_presses = { 'init': 'start', 'next': 'start', 'start': 'end' }
         server.state_dict['module-mode'] = 'install'
         obj_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/object')
-        wizard_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/wizard')
         
         bad_mids = self._execute(obj_conn, 'execute', self.dbname, uid, self.pwd, 
                         'ir.module.module', 'search', 
@@ -873,13 +871,47 @@ class client_worker(object):
                             'module': mod_names[mid], 'severity': 'error'})
 
         server.state_dict['severity'] = 'blocking'
-        wiz_id = self._execute(wizard_conn, 'create', self.dbname, uid, self.pwd, 
-                        'module.upgrade.simple')
-        
-        datas = {}
-        ret = self.run_wizard(wizard_conn, uid, wiz_id, form_presses, datas)
+        ret = self._modules_upgrade(uid)
         server.clear_context()
         return ret
+
+        
+    def _modules_upgrade(self, uid):
+        """ Perform the modules upgrade wizard, for ones previously selected
+        """
+        obj_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/object')
+        wizard_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/wizard')
+
+        wiz_id = False
+        ret = False
+        try:
+            form_presses = { 'init': 'start', 'next': 'start',  'config': 'end',  'start': 'end'}
+            wiz_id = self._execute(wizard_conn, 'create', self.dbname, uid, self.pwd, 
+                            'module.upgrade.simple')
+            datas = {}
+            ret = self.run_wizard(wizard_conn, uid, wiz_id, form_presses, datas)
+            return True
+        except xmlrpclib.Fault, e:
+            if e.faultCode == 'wizard.module.upgrade.simple\\':
+                self.log.debug("Could not find the old-style wizard for module upgrade, trying the new one")
+                wiz_id = False
+            else:
+                raise
+
+        try:
+            wiz_id = self._execute(obj_conn, 'execute', self.dbname, uid, self.pwd, 
+                            'base.module.upgrade', 'create', {})
+        except xmlrpclib.Fault, e:
+            raise ServerException("No usable wizard for module upgrade found, cannot continue")
+
+        ret = self._execute(obj_conn, 'execute', self.dbname, uid, self.pwd,
+                        'base.module.upgrade', 'upgrade_module', [wiz_id,], {})
+        self.log.debug("Upgrade wizard returned: %r", ret)
+        
+        assert ret, "The upgrade wizard must return some dict, like redirect to the config view"
+        return True
+
+        
         
     def run_wizard(self, wizard_conn, uid, wiz_id, form_presses, datas):
         """ Simple Execute of a wizard, press form_presses until end.
@@ -942,12 +974,9 @@ class client_worker(object):
                             'ir.module.module', 'search', [('name','in',modules)])
         self._execute(obj_conn, 'execute', self.dbname, uid, self.pwd, 
                             'ir.module.module', 'button_upgrade', module_ids)
-        wiz_id = self._execute(wizard_conn, 'create', self.dbname, uid, self.pwd, 
-                            'module.upgrade.simple')
-        datas = {}
-        form_presses = { 'init': 'start', 'next': 'start',  'config': 'end',  'start': 'end'}
         
-        ret = self.run_wizard(wizard_conn, uid, wiz_id, form_presses, datas)
+        server.state_dict['severity'] = 'blocking'
+        ret = self._modules_upgrade(uid)
         server.clear_context()
         return ret
 
