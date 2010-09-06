@@ -5,6 +5,9 @@ PYFLAKES=$(dirname "$0")/pyflakes2.py
 
 EXIT_CODE=0
 for FNAME in "$@" ; do
+	if [ ! -f "$FNAME" ] ; then
+	    continue
+	fi
 	case $(basename "$FNAME") in
 	*.py)
 		$PYFLAKES "$FNAME" ; EXIT=$?
@@ -33,6 +36,12 @@ for FNAME in "$@" ; do
 		if ! xmllint --noout --nowarning "$FNAME" ; then
 			echo "XmlLint failed for: $FNAME" >&2
 			EXIT_CODE=1
+		fi
+	;;
+	*.rml)
+		if ! xmllint --noout --nowarning "$FNAME" ; then
+			echo "XmlLint failed for: $FNAME"
+			exit 1
 		fi
 	;;
 	*.po)
