@@ -892,7 +892,7 @@ class client_worker(object):
             ret = self.run_wizard(wizard_conn, uid, wiz_id, form_presses, datas)
             return True
         except xmlrpclib.Fault, e:
-            if e.faultCode == 'wizard.module.upgrade.simple\\':
+            if e.faultCode == 'wizard.module.upgrade.simple':
                 self.log.debug("Could not find the old-style wizard for module upgrade, trying the new one")
                 wiz_id = False
             else:
