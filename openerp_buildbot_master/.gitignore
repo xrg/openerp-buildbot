@@ -1,4 +1,4 @@
 /bugs.pck
 /changes.pck
-/twistd.log
+/twistd.log*
 /twistd.pid
