@@ -426,6 +426,12 @@ class OpenERPTest(LoggingBuildStep):
                     
                     # it is a dict, parse it
                     for bbline in bmsg.split('\n'):
+                        if ':' not in bbline:
+                            # If some stderr is printed after the blame,
+                            # the shell process will falsely attach it to the
+                            # bqi.blame line, and hence corrupt it. 
+                            # Once we see it, we know it is not bqi.blame content.
+                            break
                         bkey, bval = bbline.split(':',1)
                         bkey = bkey.strip()
                         bval = bval.strip()
