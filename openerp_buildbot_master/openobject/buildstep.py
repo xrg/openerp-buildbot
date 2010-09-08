@@ -25,7 +25,6 @@ from buildbot.steps.shell import ShellCommand
 from buildbot.process.buildstep import LoggingBuildStep, LoggedRemoteCommand, LogLineObserver
 from buildbot.status.builder import SUCCESS, FAILURE, WARNINGS
 from sql import db_connection
-from xmlrpc import buildbot_xmlrpc
 import base64
 import pickle
 import os

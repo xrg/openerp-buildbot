@@ -28,7 +28,6 @@ from buildbot.changes.changes import Change
 
 from bzrlib.branch import Branch
 import bzrlib
-from xmlrpc import buildbot_xmlrpc
 
 class BzrPoller(service.MultiService, util.ComparableMixin):
     """This source will poll a Bzr repository for changes and submit them to
