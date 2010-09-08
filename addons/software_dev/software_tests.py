@@ -65,8 +65,7 @@ class software_buildseries(osv.osv):
         
         'package_id': fields.many2one('software_dev.package', 'Package', required=True),
         'branch_id': fields.many2one('software_dev.branch', 'Rolling branch', required=True,
-                help="One of the Package's branches, that is used to test against different commits",
-                # domain=[('id', 'in', 'package_id.component_ids.branch_id')],
+                help="One branch, that is used to test against different commits.",
                 ),
         'builder_id': fields.many2one('software_dev.builder', 
                 string='Builder', required=True,
