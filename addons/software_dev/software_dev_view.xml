@@ -83,7 +83,9 @@
               <form>
                 <field name="name"/>
 		<field name="rtype"/>
+		<field name="host_family"/>
                 <field name="base_url" colspan="4" />
+                <field name="browse_url" colspan="4" />
                 <field name="repo_ids" colspan="4" />
               </form>
           </field>
@@ -143,8 +145,24 @@
                 <newline />
                 <field name="repo_id"/>
                 <field name="sub_url"/>
+                <field name="fetch_url" />
+		<field name="browse_url" />
                 <field name="description" colspan="4"/>
               </form>
+          </field>
+        </record>
+
+        <record id="view_softdev_branch_tree" model="ir.ui.view">
+          <field name="name">Code branches</field>
+            <field name="model">software_dev.branch</field>
+            <field name="type">tree</field>
+            <field name="arch" type="xml">
+              <tree>
+                <field name="repo_id"/>
+                <field name="name"/>
+                <field name="tech_code"/>
+                <field name="fetch_url" />
+              </tree>
           </field>
         </record>
 
@@ -249,11 +267,11 @@
             <field name="model">software_dev.filechange</field>
             <field name="type">tree</field>
             <field name="arch" type="xml">
-              <form>
+              <tree>
 		<field name="commit_id" />
                 <field name="filename"/>
                 <field name="ctype" />
-              </form>
+              </tree>
           </field>
         </record>
 

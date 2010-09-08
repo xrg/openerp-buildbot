@@ -25,6 +25,8 @@ from osv import fields, osv
 repo_types = [('git', 'Git'), ('bzr', 'Bazaar'), ('hg', 'Mercurial'), 
         ('svn', 'Subversion')]
 
+repo_families = [('github', 'Github'), ('lp', 'Launchpad'), ('gitweb', 'Git Web') ]
+
 class software_repohost(osv.osv):
     """ A host can contain repositories
     
@@ -36,7 +38,12 @@ class software_repohost(osv.osv):
         'name': fields.char('Name', required=True, size=64),
         'rtype': fields.selection(repo_types, 'Main Repo Type'),
         'base_url': fields.char('Location', size=1024),
+        'browse_url': fields.char('Browse url', size=1024,
+                help="The base url of web-browse service, if available"),
         'repo_ids': fields.one2many('software_dev.repo', 'host_id', 'Repositories'),
+        'host_family': fields.selection(repo_families, 'Host type',
+                help="A \"family\" of hosts this belongs to. The technology of the server." \
+                    "Used to automatically compute urls and behaviour" ),
     }
 
     _defaults = {
@@ -62,6 +69,38 @@ software_repo()
 class software_branch(osv.osv):
     _name = 'software_dev.branch'
     _description = 'Code branch'
+    
+    def _get_fetch_url(self, cr, uid, ids, name, args, context=None):
+        res = {}
+        for b in self.browse(cr, uid, ids, context=context):
+            family = b.repo_id.host_id.host_family
+            url = None
+            if family == 'github':
+                url = "github..."
+                # TODO
+            elif family == 'lp':
+                url = b.repo_id.host_id.base_url or 'lp:'
+                if b.sub_url.startswith('~'):
+                    url += b.sub_url
+                else:
+                    url += b.repo_id.base_url + '/'+ b.sub_url
+            else:
+                url = b.sub_url
+            res[b.id] = url
+        return res
+    
+    def _get_browse_url(self, cr, uid, ids, name, args, context=None):
+        res = {}
+        for b in self.browse(cr, uid, ids, context=context):
+            family = b.repo_id.host_id.host_family
+            if family == 'github':
+                res[b.id] = "github..."
+                # TODO
+            else:
+                res[b.id] = b.sub_url
+        return res
+    
+
     _columns = {
         'name': fields.char('Branch Name', required=True, size=64),
         'tech_code': fields.char('Tech name', size=128, select=1),
@@ -69,7 +108,12 @@ class software_branch(osv.osv):
         'description': fields.text('Description'),
         'sub_url': fields.char('Branch URL', size=1024, required=True, 
                     help="Location of branch, sometimes relative to repository"),
-        # 'fetch_url': fields.function(_get_fetch_url, "Fetch URL", ...
+        'fetch_url': fields.function(_get_fetch_url, string="Fetch URL",
+                    type="char", method=True, readonly=True, size=1024,
+                    help="The complete url used in the VCS to fetch that branch"),
+        'browse_url': fields.function(_get_browse_url, string="Browse URL",
+                    type="char", method=True, readonly=True, size=1024,
+                    help="A http browse url, if available"),
     }
 
     _defaults = {
@@ -90,7 +134,8 @@ class software_user(osv.osv):
 
 
     _columns = {
-        'name': fields.function(_get_name, store=False),
+        'name': fields.function(_get_name, string='Name', method=True, 
+                    type='char', store=False, readonly=True),
         'host_id': fields.many2one('software_dev.repohost', 'Host', required=True,
                     select=1,
                     help="The host, aka. service where this user logs in"),
