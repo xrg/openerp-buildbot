@@ -216,7 +216,7 @@ class software_filechange(osv.osv):
 software_filechange()
 
 
-class software_component2():
+class software_component2(osv.osv):
     """ Enhance the software component object with branch/commit fields
     """
     _inherit = "software_dev.component"
@@ -231,4 +231,6 @@ class software_component2():
     _defaults = {
         'update_rev': True,
     }
+
+software_component2()
 #eof

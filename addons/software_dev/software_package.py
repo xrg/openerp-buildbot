@@ -47,7 +47,8 @@ class software_package(osv.osv):
         'name': fields.char('Name', required=True, size=64),
         'description': fields.text('Description'),
         'component_ids': fields.many2many('software_dev.component', 
-            'software_dev_pack_comp_rel', 'pkg_id', 'comp_id'),
+            'software_dev_pack_comp_rel', 'pkg_id', 'comp_id', 
+            string="Components"),
         'project_id': fields.many2one('project.project', 'Related project'),
     }
 
