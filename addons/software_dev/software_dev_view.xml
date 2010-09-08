@@ -1,0 +1,269 @@
+<?xml version="1.0"?>
+<openerp>
+    <data>
+
+    <menuitem id="softdev_menu" name="Software Development" 
+	icon="terp-tools" groups="project.group_project_manager"
+	sequence="10" parent="base.menu_main_pm" />
+    <menuitem id="softdev_config" name="Configuration" 
+	parent="softdev_menu" sequence="30" groups="project.group_project_manager" />
+
+    <menuitem id="softdev_main_repos" name="Repositories Configuration" 
+	parent="softdev_config" sequence="30"
+	groups="project.group_project_manager" />
+
+    </data>
+    <data>
+
+    <!-- Packages -->
+        <record id="view_softdev_pkg_form" model="ir.ui.view">
+          <field name="name">Software Packages</field>
+            <field name="model">software_dev.package</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+              <form>
+                <field name="name"/>
+                <field name="description" />
+                <field name="project_id" />
+                <field name="component_ids" colspan="4" />
+              </form>
+          </field>
+        </record>
+
+        <record id="action_softdev_pkg" model="ir.actions.act_window">
+          <field name="name">Software Packages</field>
+          <field name="type">ir.actions.act_window</field>
+            <field name="res_model">software_dev.package</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+         </record>
+
+	<menuitem id="softdev_packages" name="Packages" 
+	    action="action_softdev_pkg"
+	    parent="softdev_config" sequence="10"
+	    groups="project.group_project_manager" />
+
+    <!-- components -->
+        <record id="view_softdev_comp_form" model="ir.ui.view">
+          <field name="name">Package Components</field>
+            <field name="model">software_dev.component</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+              <form>
+                <field name="name"/>
+                <field name="tech_code" />
+                <field name="dest_path" colspan="4" />
+                <field name="branch_id"/>
+                <field name="commit_id"/>
+                <field name="update_rev"/>
+                <field name="description" colspan="4" />
+              </form>
+          </field>
+        </record>
+
+        <record id="action_softdev_comp" model="ir.actions.act_window">
+          <field name="name">Package Components</field>
+          <field name="type">ir.actions.act_window</field>
+            <field name="res_model">software_dev.component</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+         </record>
+
+	<menuitem id="softdev_components" name="Components" 
+	    action="action_softdev_comp"
+	    parent="softdev_config" sequence="20" 
+	    groups="project.group_project_manager" />
+
+    <!-- repo hosts -->
+        <record id="view_softdev_host_form" model="ir.ui.view">
+          <field name="name">Repository Hosts</field>
+            <field name="model">software_dev.repohost</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+              <form>
+                <field name="name"/>
+		<field name="rtype"/>
+                <field name="base_url" colspan="4" />
+                <field name="repo_ids" colspan="4" />
+              </form>
+          </field>
+        </record>
+
+        <record id="action_softdev_host" model="ir.actions.act_window">
+          <field name="name">Repository Hosts</field>
+          <field name="type">ir.actions.act_window</field>
+            <field name="res_model">software_dev.repohost</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+         </record>
+
+	<menuitem id="softdev_repohosts" name="Hosts" 
+	    action="action_softdev_host"
+	    parent="softdev_main_repos" sequence="10" 
+	    groups="project.group_project_manager" />
+
+    <!-- repo -->
+        <record id="view_softdev_repo_form" model="ir.ui.view">
+          <field name="name">Software Repositories</field>
+            <field name="model">software_dev.repo</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+              <form>
+                <field name="name"/>
+                <field name="rtype"/>
+                <field name="host_id"/>
+                <field name="base_url" colspan="4"/>
+                <field name="branch_ids" colspan="4" />
+              </form>
+          </field>
+        </record>
+
+        <record id="action_softdev_repo" model="ir.actions.act_window">
+          <field name="name">Software Repositories</field>
+          <field name="type">ir.actions.act_window</field>
+            <field name="res_model">software_dev.repo</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+         </record>
+
+	<menuitem id="softdev_repos" name="Repositories"
+	    action="action_softdev_repo"
+	    parent="softdev_main_repos" sequence="20" 
+	    groups="project.group_project_manager" />
+
+    <!-- branch -->
+        <record id="view_softdev_branch_form" model="ir.ui.view">
+          <field name="name">Code branches</field>
+            <field name="model">software_dev.branch</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+              <form>
+                <field name="name"/>
+                <field name="tech_code"/>
+                <newline />
+                <field name="repo_id"/>
+                <field name="sub_url"/>
+                <field name="description" colspan="4"/>
+              </form>
+          </field>
+        </record>
+
+        <record id="action_softdev_branch" model="ir.actions.act_window">
+          <field name="name">Code branches</field>
+          <field name="type">ir.actions.act_window</field>
+            <field name="res_model">software_dev.branch</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+         </record>
+
+	<menuitem id="softdev_branch" name="Code branches"
+	    action="action_softdev_branch"
+	    parent="softdev_config" sequence="40" 
+	    groups="project.group_project_manager" />
+
+    <!--user -->
+        <record id="view_softdev_vuser_form" model="ir.ui.view">
+          <field name="name">VCS Users</field>
+            <field name="model">software_dev.vcs_user</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+              <form>
+                <field name="name"/>
+                <field name="employee_id"/>
+                <newline/>
+                <field name="host_id"/>
+                <field name="userid"/>
+              </form>
+          </field>
+        </record>
+
+        <record id="action_softdev_vuser" model="ir.actions.act_window">
+          <field name="name">VCS Users</field>
+          <field name="type">ir.actions.act_window</field>
+            <field name="res_model">software_dev.vcs_user</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+         </record>
+
+	<menuitem id="softdev_vuser" name="VCS Users"
+	    action="action_softdev_vuser"
+	    parent="softdev_main_repos" sequence="50" 
+	    groups="project.group_project_manager" />
+
+    <!--commit -->
+        <record id="view_softdev_commit_form" model="ir.ui.view">
+          <field name="name">Code Commits</field>
+            <field name="model">software_dev.commit</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+              <form>
+                <field name="branch_id"/>
+		<field name="date"/>
+                <field name="name" colspan="4"/>
+                <field name="revno"/>
+                <field name="ctype"/>
+                <field name="parent_id" />
+                <field name="tag_descr"/>
+                <field name="hash"/>
+                <newline />
+                <field name="comitter_id"/>
+                <field name="author_ids" colspan="4"/>
+                <field name="change_ids" colspan="4"/>
+                <field name="contained_commit_ids" colspan="4"/>
+              </form>
+          </field>
+        </record>
+
+        <record id="action_softdev_commit" model="ir.actions.act_window">
+          <field name="name">Code Commits</field>
+          <field name="type">ir.actions.act_window</field>
+            <field name="res_model">software_dev.commit</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+         </record>
+
+	<menuitem id="softdev_commmits" name="Commits" 
+	    action="action_softdev_commit"
+	    parent="softdev_menu" sequence="20" 
+	    groups="software_dev.group_softdev_user" />
+
+    <!-- change -->
+        <record id="view_softdev_change_form" model="ir.ui.view">
+          <field name="name">File changes</field>
+            <field name="model">software_dev.filechange</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+              <form>
+		<field name="commit_id" />
+		<newline />
+                <field name="filename"/>
+                <field name="ctype" />
+                <field name="lines_add" />
+                <field name="lines_rem" />
+              </form>
+          </field>
+        </record>
+
+        <record id="view_softdev_change_tree" model="ir.ui.view">
+          <field name="name">File changes</field>
+            <field name="model">software_dev.filechange</field>
+            <field name="type">tree</field>
+            <field name="arch" type="xml">
+              <form>
+		<field name="commit_id" />
+                <field name="filename"/>
+                <field name="ctype" />
+              </form>
+          </field>
+        </record>
+
+	<record id="action_softdev_filechange" model="ir.actions.act_window">
+	    <field name="name">File changes</field>
+	    <field name="type">ir.actions.act_window</field>
+	    <field name="res_model">software_dev.filechange</field>
+	    <field name="view_type">form</field>
+	    <field name="view_mode">tree,form</field>
+	</record>
+
+</data>
+</openerp>

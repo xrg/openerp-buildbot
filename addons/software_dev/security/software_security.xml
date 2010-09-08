@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<openerp>
+<data>
+
+    <record id="group_softdev_user" model="res.groups">
+        <field name="name">Software Development / User</field>
+    </record>
+
+
+</data>
+</openerp>
