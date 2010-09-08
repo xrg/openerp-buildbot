@@ -22,7 +22,7 @@
 import software_package
 import software_code
 
-#import software_tests
+import software_tests
 # import software_bbot
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

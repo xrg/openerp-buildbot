@@ -23,9 +23,9 @@
             <field name="arch" type="xml">
               <form>
                 <field name="name"/>
-                <field name="description" />
                 <field name="project_id" />
                 <field name="component_ids" colspan="4" />
+                <field name="description" colspan="4" />
               </form>
           </field>
         </record>
@@ -282,6 +282,92 @@
 	    <field name="view_type">form</field>
 	    <field name="view_mode">tree,form</field>
 	</record>
+
+    <!-- Build Groups -->
+        <record id="view_softdev_bgrp_form" model="ir.ui.view">
+          <field name="name">Build Groups</field>
+            <field name="model">software_dev.buildgroup</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+              <form>
+                <field name="name"/>
+                <field name="sequence" />
+                <field name="public" />
+                <field name="description" colspan="4" />
+              </form>
+          </field>
+        </record>
+
+        <record id="action_softdev_bgrp" model="ir.actions.act_window">
+          <field name="name">Build Groups</field>
+          <field name="type">ir.actions.act_window</field>
+            <field name="res_model">software_dev.buildgroup</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+         </record>
+
+	<menuitem id="softdev_buildbgroup" name="Build Groups" 
+	    action="action_softdev_bgrp"
+	    parent="softdev_config" sequence="70"
+	    groups="project.group_project_manager" />
+
+    <!-- Builders -->
+        <record id="view_softdev_builder_form" model="ir.ui.view">
+          <field name="name">Builders</field>
+            <field name="model">software_dev.builder</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+              <form>
+                <field name="name"/>
+                <field name="description" colspan="4" />
+              </form>
+          </field>
+        </record>
+
+        <record id="action_softdev_builder" model="ir.actions.act_window">
+          <field name="name">Builders</field>
+          <field name="type">ir.actions.act_window</field>
+            <field name="res_model">software_dev.builder</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+         </record>
+
+	<menuitem id="softdev_builder" name="Builders" 
+	    action="action_softdev_builder"
+	    parent="softdev_config" sequence="70"
+	    groups="project.group_project_manager" />
+
+    <!-- Build series -->
+        <record id="view_softdev_bseries_form" model="ir.ui.view">
+          <field name="name">Build Series</field>
+            <field name="model">software_dev.buildseries</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+              <form>
+                <field name="name"/>
+                <field name="sequence" />
+                <field name="group_id" />
+                <field name="package_id"/>
+                <field name="branch_id" />
+                <field name="builder_id" />
+                <field name="is_distinct"/>
+                <field name="description" colspan="4" />
+              </form>
+          </field>
+        </record>
+
+        <record id="action_softdev_bseries" model="ir.actions.act_window">
+          <field name="name">Build Series</field>
+          <field name="type">ir.actions.act_window</field>
+            <field name="res_model">software_dev.buildseries</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+         </record>
+
+	<menuitem id="softdev_buildseries" name="Build Series" 
+	    action="action_softdev_bseries"
+	    parent="softdev_config" sequence="80"
+	    groups="project.group_project_manager" />
 
 </data>
 </openerp>
