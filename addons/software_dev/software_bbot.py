@@ -19,10 +19,30 @@
 #
 ##############################################################################
 
-import software_package
-import software_code
+from tools.translate import _
+from osv import fields, osv
 
-import software_tests
-import software_bbot
+class software_buildbot(osv.osv):
+    _name = 'software_dev.buildbot'
+    _inherits = { 'software_dev.builder': 'builder_id' }
+    
+    _columns = {
+        'builder_id': fields.many2one('software_dev.builder', 'Builder', required=True, readonly=True),
+        'tech_code': fields.char('Code', size=64, required=True, select=1),
+        'attribute_ids': fields.one2many('software_dev.battr', 'bbot_id', 'Attributes'),
+    }
 
-# vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
+    _sql_constraints = [ ('code_uniq', 'UNIQUE(tech_code)', 'The tech code must be unique.'), ]
+
+software_buildbot()
+
+class software_battr(osv.osv):
+    _name = 'software_dev.battr'
+    _columns = {
+        'bbot_id': fields.many2one('software_dev.buildbot', 'BuildBot', required=True, select=1),
+        'name': fields.char('Name', size=64, required=True, select=1),
+        'value': fields.char('Value', size=256),
+        }
+    
+software_battr()
+

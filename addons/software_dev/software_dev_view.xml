@@ -369,5 +369,66 @@
 	    parent="softdev_config" sequence="80"
 	    groups="project.group_project_manager" />
 
+    <!-- Buildbot Attributes -->
+        <record id="view_softdev_bbot_attr_form" model="ir.ui.view">
+          <field name="name">Buildbot Attributes</field>
+            <field name="model">software_dev.battr</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+              <form>
+                <field name="name"/>
+                <field name="value"/>
+              </form>
+          </field>
+        </record>
+
+        <record id="view_softdev_bbot_attr_tree" model="ir.ui.view">
+          <field name="name">Buildbot Attributes</field>
+            <field name="model">software_dev.battr</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+              <tree editable="bottom">
+                <field name="name"/>
+                <field name="value"/>
+              </tree>
+          </field>
+        </record>
+
+        <record id="action_softdev_bbot_attr" model="ir.actions.act_window">
+          <field name="name">Buildbot Attributes</field>
+          <field name="type">ir.actions.act_window</field>
+            <field name="res_model">software_dev.battr</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+         </record>
+
+    <!-- Build Bots -->
+        <record id="view_softdev_bbots_form" model="ir.ui.view">
+          <field name="name">Build Bots</field>
+            <field name="model">software_dev.buildbot</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+              <form>
+		<field name="name"/>
+                <field name="tech_code"/>
+                <field name="attribute_ids" colspan="4" />
+                <field name="description" colspan="4" />
+              </form>
+          </field>
+        </record>
+
+        <record id="action_softdev_buildbots" model="ir.actions.act_window">
+          <field name="name">Build Bots</field>
+          <field name="type">ir.actions.act_window</field>
+            <field name="res_model">software_dev.buildbot</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+         </record>
+
+	<menuitem id="softdev_buildbots" name="Build bots" 
+	    action="action_softdev_buildbots"
+	    parent="softdev_config" sequence="90"
+	    groups="project.group_project_manager" />
+
 </data>
 </openerp>

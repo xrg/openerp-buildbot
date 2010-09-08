@@ -6,6 +6,9 @@
         <field name="name">Software Development / User</field>
     </record>
 
+    <record id="group_softdev_bot" model="res.groups">
+        <field name="name">Software Development / Bot</field>
+    </record>
 
 </data>
 </openerp>

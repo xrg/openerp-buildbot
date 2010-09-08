@@ -34,6 +34,7 @@ builds and testing into the ERP.
     'init_xml': [],
     'update_xml': [
         'security/software_security.xml',
+        'security/ir.model.access.csv',
         'software_dev_view.xml',
         'software_dev_data.xml',
     ],
