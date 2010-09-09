@@ -24,6 +24,7 @@ import buildstep
 import poller
 import status
 import tools
-import xmlrpc
+import rpc
+import master_keeper
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
