@@ -43,6 +43,25 @@ class software_battr(osv.osv):
         'name': fields.char('Name', size=64, required=True, select=1),
         'value': fields.char('Value', size=256),
         }
-    
+
 software_battr()
+
+class software_bbot_slave(osv.osv):
+    """ A buildbot slave
+    """
+    _name = 'software_dev.bbslave'
+    
+    _columns = {
+        'bbot_id': fields.many2one('software_dev.buildbot', 'Master bot', required=True),
+        'name': fields.char('Name', size=64, required=True, select=1),
+        'tech_code': fields.char('Code', size=64, required=True, select=1),
+        'password': fields.char('Secret', size=128, required=True,
+                    help="The secret code used by the slave to connect to the master"),
+        #'property_ids': fields.one2many('software_dev.bsattr', 'bslave_id', 'Properties'),
+    }
+
+    _sql_constraints = [ ('code_uniq', 'UNIQUE(tech_code)', 'The tech code must be unique.'), ]
+
+software_bbot_slave()
+
 

@@ -430,5 +430,35 @@
 	    parent="softdev_config" sequence="90"
 	    groups="project.group_project_manager" />
 
+    <!-- Build Slaves -->
+        <record id="view_softdev_bbslave_form" model="ir.ui.view">
+          <field name="name">Build Slaves</field>
+            <field name="model">software_dev.bbslave</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+              <form>
+                <field name="name"/>
+                <field name="bbot_id" />
+                <newline />
+                <field name="tech_code"/>
+                <field name="password"/>
+                <!-- <field name="property_ids" colspan="4" /> -->
+              </form>
+          </field>
+        </record>
+
+        <record id="action_softdev_bbslaves" model="ir.actions.act_window">
+          <field name="name">Build Slaves</field>
+          <field name="type">ir.actions.act_window</field>
+            <field name="res_model">software_dev.bbslave</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+         </record>
+
+	<menuitem id="softdev_bbslaves" name="Build Slaves" 
+	    action="action_softdev_bbslaves"
+	    parent="softdev_config" sequence="100"
+	    groups="project.group_project_manager" />
+
 </data>
 </openerp>
