@@ -77,6 +77,20 @@ class software_buildbot(osv.osv):
         
         return ret
 
+    def get_builders(self, cr, uid, ids, context=None):
+        """ Return a complete dict with the builders for this bot
+        
+        Sample:
+           name: name
+           slavename
+           build_dir
+           branch_url
+           tstimer
+           steps [ (name, { props}) ]
+        """
+        ret = []
+        return ret
+
 software_buildbot()
 
 class software_battr(osv.osv):
