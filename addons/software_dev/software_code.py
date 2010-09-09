@@ -58,6 +58,10 @@ class software_repo(osv.osv):
         'host_id': fields.many2one('software_dev.repohost', 'Host', required=True),
         'rtype': fields.selection(repo_types, 'Type', required=True),
         'base_url': fields.char('Location', size=1024),
+        'proxy_location': fields.char('Proxy location', size=1024,
+                help="A local path where this repository is replicated, for caching"),
+        'slave_proxy_url': fields.char('Slave proxy url', size=1024,
+                help="The url from which a slave bot can fetch the proxied repository content"),                
         'branch_ids': fields.one2many('software_dev.branch', 'repo_id', 'Branches'),
     }
 
@@ -104,13 +108,15 @@ class software_branch(osv.osv):
     _columns = {
         'name': fields.char('Branch Name', required=True, size=64),
         'tech_code': fields.char('Tech name', size=128, select=1),
+        'poll_interval': fields.integer('Poll interval',
+                    help="Seconds interval to look for changes"),
         'repo_id': fields.many2one('software_dev.repo', 'Repository', required=True, select=1),
         'description': fields.text('Description'),
         'sub_url': fields.char('Branch URL', size=1024, required=True, 
                     help="Location of branch, sometimes relative to repository"),
         'fetch_url': fields.function(_get_fetch_url, string="Fetch URL",
                     type="char", method=True, readonly=True, size=1024,
-                    help="The complete url used in the VCS to fetch that branch"),
+                    help="The complete url used in the VCS to fetch that branch. For the master."),
         'browse_url': fields.function(_get_browse_url, string="Browse URL",
                     type="char", method=True, readonly=True, size=1024,
                     help="A http browse url, if available"),

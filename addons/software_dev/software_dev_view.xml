@@ -114,6 +114,8 @@
                 <field name="name"/>
                 <field name="rtype"/>
                 <field name="host_id"/>
+                <field name="proxy_location" />
+                <field name="slave_proxy_url" />
                 <field name="base_url" colspan="4"/>
                 <field name="branch_ids" colspan="4" />
               </form>
@@ -144,6 +146,7 @@
                 <field name="tech_code"/>
                 <newline />
                 <field name="repo_id"/>
+                <field name="poll_interval" />
                 <field name="sub_url"/>
                 <field name="fetch_url" />
 		<field name="browse_url" />
