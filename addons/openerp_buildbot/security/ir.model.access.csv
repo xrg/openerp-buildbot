@@ -1,0 +1,9 @@
+"id","name","model_id:id","group_id:id","perm_read","perm_write","perm_create","perm_unlink"
+"access_bot_bot","software_dev.bot.bot","model_software_dev_buildbot","group_softdev_bot",1,0,0,0
+"access_bot_battr","software_dev.bot.battr","model_software_dev_battr","group_softdev_bot",1,0,0,0
+"access_bot_commit","software_dev.bot.commit","model_software_dev_commit","group_softdev_bot",1,1,1,0
+"access_bot_filechange","software_dev.bot.filechange","model_software_dev_filechange","group_softdev_bot",1,1,1,0
+"access_bot_slave","software_dev.bot.bbslave","model_software_dev_bbslave","group_softdev_bot",1,0,0,0
+"access_bot_bseries","software_dev.bot.bseries","model_software_dev_buildseries","group_softdev_bot",1,0,0,0
+"access_bot_test","software_dev.bot.teststep","model_software_dev_teststep","group_softdev_bot",1,0,0,0
+"access_bot_tsattr","software_dev.bot.tsattr","model_software_dev_tsattr","group_softdev_bot",1,0,0,0

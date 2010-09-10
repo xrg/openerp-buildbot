@@ -17,7 +17,6 @@ from buildbot.buildslave import BuildSlave
 from openobject.scheduler import OpenObjectScheduler, OpenObjectAnyBranchScheduler
 from openobject.buildstep import OpenObjectBzr, OpenObjectSVN, BzrMerge, BzrRevert, OpenERPTest, LintTest, BzrStatTest
 from openobject.poller import BzrPoller
-from openobject.repostep import BzrMirrorStep #, GitMirrorStep
 import rpc
 
 from twisted.python import log, reflect
@@ -85,42 +84,17 @@ class Keeper(object):
         polled_brs = bbot_obj.get_polled_branches([self.bbot_id])
         print "got polled brs:", polled_brs
         
-        mirror_steps = [] 
         for pbr in polled_brs:
             pmode = pbr.get('mode','branch')
-            if pmode == 'repo':
-                # setup and maintain a mirror repo
-                raise NotImplementedError
-            elif pmode == 'branch':
+            if pmode == 'branch':
                 # Maintain a branch 
                 if pbr['rtype'] == 'bzr':
-                    if pbr.get('mirrored', False):
-                        mrs = BzrMirrorStep(repo_base=pbr['repo_base'],
-                                        branch_path=pbr['branch_path'], fetch_url=['fetch_url'])
-                        mirror_steps.append(mrs)
-                        fetch_url = mrs.get_fetch_url()
-                    else:
-                        fetch_url = pbr['fetch_url']
+                    fetch_url = pbr['fetch_url']
                     
                     c['change_source'].append(BzrPoller(fetch_url, keeper=self))
                 else:
                     raise NotImplementedError("No support for %s repos yet" % pbr['rtype'])
-        
-        if mirror_steps:
-            # If we mirror any repositories, we need a special builder for them
-            mfact = BuildFactory()
-            # note that *all* steps will be in the same factory, i.e. executed
-            # in series.
-            for step in mirror_steps:
-                mfact.addStep(step)
-            c['builders'].append( { 'name': 'Code repositories mirroring',
-                'factory': factory,
-                'builddir': 'repos',
-                })
-            c['schedulers'].append(Periodic(name="Update code mirrors",
-                        builderNames=['Code repositories mirroring',],
-                        periodicBuildTimer=300)) #default to 5min
-            
+
         # Get the tests that have to be performed:
         builders = bbot_obj.get_builders([self.bbot_id])
         

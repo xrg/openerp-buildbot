@@ -1,0 +1,332 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+    <data>
+    <menuitem id="softdev_config" name="Configuration" 
+	parent="buildbot_menu" sequence="30" groups="project.group_project_manager" />
+
+    <!--user -->
+        <record id="view_softdev_vuser_form" model="ir.ui.view">
+          <field name="name">VCS Users</field>
+            <field name="model">software_dev.vcs_user</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+              <form>
+                <field name="name"/>
+                <newline/>
+                <field name="userid"/>
+              </form>
+          </field>
+        </record>
+
+        <record id="action_softdev_vuser" model="ir.actions.act_window">
+          <field name="name">VCS Users</field>
+          <field name="type">ir.actions.act_window</field>
+            <field name="res_model">software_dev.vcs_user</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+         </record>
+
+	<menuitem id="softdev_vuser" name="VCS Users"
+	    action="action_softdev_vuser"
+	    parent="softdev_config" sequence="50" 
+	    groups="project.group_project_manager" />
+
+    <!--commit -->
+        <record id="view_softdev_commit_form" model="ir.ui.view">
+          <field name="name">Code Commits</field>
+            <field name="model">software_dev.commit</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+              <form>
+                <field name="branch_id"/>
+		<field name="date"/>
+                <field name="name" colspan="4"/>
+                <field name="revno"/>
+                <field name="ctype"/>
+                <field name="parent_id" />
+                <field name="hash"/>
+                <newline />
+                <field name="comitter_id"/>
+                <field name="author_ids" colspan="4"/>
+                <field name="change_ids" colspan="4"/>
+              </form>
+          </field>
+        </record>
+
+        <record id="action_softdev_commit" model="ir.actions.act_window">
+          <field name="name">Code Commits</field>
+          <field name="type">ir.actions.act_window</field>
+            <field name="res_model">software_dev.commit</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+         </record>
+
+	<menuitem id="softdev_commmits" name="Commits" 
+	    action="action_softdev_commit"
+	    parent="buildbot_menu" sequence="20" 
+	    groups="group_softdev_user" />
+
+    <!-- change -->
+        <record id="view_softdev_change_form" model="ir.ui.view">
+          <field name="name">File changes</field>
+            <field name="model">software_dev.filechange</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+              <form>
+		<field name="commit_id" />
+		<newline />
+                <field name="filename"/>
+                <field name="ctype" />
+                <field name="lines_add" />
+                <field name="lines_rem" />
+              </form>
+          </field>
+        </record>
+
+        <record id="view_softdev_change_tree" model="ir.ui.view">
+          <field name="name">File changes</field>
+            <field name="model">software_dev.filechange</field>
+            <field name="type">tree</field>
+            <field name="arch" type="xml">
+              <tree>
+		<field name="commit_id" />
+                <field name="filename"/>
+                <field name="ctype" />
+              </tree>
+          </field>
+        </record>
+
+	<record id="action_softdev_filechange" model="ir.actions.act_window">
+	    <field name="name">File changes</field>
+	    <field name="type">ir.actions.act_window</field>
+	    <field name="res_model">software_dev.filechange</field>
+	    <field name="view_type">form</field>
+	    <field name="view_mode">tree,form</field>
+	</record>
+
+    <!-- Build Groups -->
+        <record id="view_softdev_bgrp_form" model="ir.ui.view">
+          <field name="name">Build Groups</field>
+            <field name="model">software_dev.buildgroup</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+              <form>
+                <field name="name"/>
+                <field name="sequence" />
+                <field name="public" />
+                <field name="description" colspan="4" />
+              </form>
+          </field>
+        </record>
+
+        <record id="action_softdev_bgrp" model="ir.actions.act_window">
+          <field name="name">Build Groups</field>
+          <field name="type">ir.actions.act_window</field>
+            <field name="res_model">software_dev.buildgroup</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+         </record>
+
+	<menuitem id="softdev_buildbgroup" name="Build Groups" 
+	    action="action_softdev_bgrp"
+	    parent="softdev_config" sequence="70"
+	    groups="project.group_project_manager" />
+
+    <!-- Build series -->
+        <record id="view_softdev_bseries_form" model="ir.ui.view">
+          <field name="name">Build Series</field>
+            <field name="model">software_dev.buildseries</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+              <form>
+                <field name="name"/>
+                <field name="sequence" />
+                <field name="group_id" />
+                <field name="branch_url" />
+                <field name="builder_id" />
+                <field name="test_ids" />
+                <field name="is_distinct"/>
+                <field name="is_build" />
+                <field name="target_path" />
+                <field name="latest_commit_id" />
+                <field name="dep_branch_ids" colspan="4" />
+                <field name="description" colspan="4" />
+              </form>
+          </field>
+        </record>
+
+        <record id="action_softdev_bseries" model="ir.actions.act_window">
+          <field name="name">Build Series</field>
+          <field name="type">ir.actions.act_window</field>
+            <field name="res_model">software_dev.buildseries</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+         </record>
+
+	<menuitem id="softdev_buildseries" name="Build Series" 
+	    action="action_softdev_bseries"
+	    parent="softdev_config" sequence="80"
+	    groups="project.group_project_manager" />
+
+
+    <!-- Test step Attributes -->
+        <record id="view_softdev_tstep_attr_form" model="ir.ui.view">
+          <field name="name">Test Step Attributes</field>
+            <field name="model">software_dev.tsattr</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+              <form>
+                <field name="name"/>
+                <field name="value"/>
+              </form>
+          </field>
+        </record>
+
+        <record id="view_softdev_tstep_attr_tree" model="ir.ui.view">
+          <field name="name">Test step Attributes</field>
+            <field name="model">software_dev.tsattr</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+              <tree editable="bottom">
+                <field name="name"/>
+                <field name="value"/>
+              </tree>
+          </field>
+        </record>
+
+        <record id="action_softdev_tstep_attr" model="ir.actions.act_window">
+          <field name="name">Test Step Attributes</field>
+          <field name="type">ir.actions.act_window</field>
+            <field name="res_model">software_dev.tsattr</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+         </record>
+
+    <!-- Test Steps -->
+        <record id="view_softdev_tsteps_form" model="ir.ui.view">
+          <field name="name">Software Test Steps</field>
+            <field name="model">software_dev.teststep</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+              <form>
+                <field name="sequence" />
+                <field name="name"/>
+                <!-- <field name="test_id" /> -->
+                <field name="attribute_ids" colspan="4"/>
+              </form>
+          </field>
+        </record>
+
+        <record id="view_softdev_tsteps_tree" model="ir.ui.view">
+          <field name="name">Software Test Steps</field>
+            <field name="model">software_dev.teststep</field>
+            <field name="type">tree</field>
+            <field name="arch" type="xml">
+              <tree>
+                <field name="sequence" />
+                <field name="name"/>
+              </tree>
+          </field>
+        </record>
+
+        <record id="action_softdev_teststep" model="ir.actions.act_window">
+          <field name="name">Software Test Steps</field>
+          <field name="type">ir.actions.act_window</field>
+            <field name="res_model">software_dev.teststep</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+         </record>
+
+    <!-- Buildbot Attributes -->
+        <record id="view_softdev_bbot_attr_form" model="ir.ui.view">
+          <field name="name">Buildbot Attributes</field>
+            <field name="model">software_dev.battr</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+              <form>
+                <field name="name"/>
+                <field name="value"/>
+              </form>
+          </field>
+        </record>
+
+        <record id="view_softdev_bbot_attr_tree" model="ir.ui.view">
+          <field name="name">Buildbot Attributes</field>
+            <field name="model">software_dev.battr</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+              <tree editable="bottom">
+                <field name="name"/>
+                <field name="value"/>
+              </tree>
+          </field>
+        </record>
+
+        <record id="action_softdev_bbot_attr" model="ir.actions.act_window">
+          <field name="name">Buildbot Attributes</field>
+          <field name="type">ir.actions.act_window</field>
+            <field name="res_model">software_dev.battr</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+         </record>
+
+    <!-- Build Bots -->
+        <record id="view_softdev_bbots_form" model="ir.ui.view">
+          <field name="name">Build Bots</field>
+            <field name="model">software_dev.buildbot</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+              <form>
+		<field name="name"/>
+                <field name="tech_code"/>
+                <field name="attribute_ids" colspan="4" />
+                <field name="description" colspan="4" />
+              </form>
+          </field>
+        </record>
+
+        <record id="action_softdev_buildbots" model="ir.actions.act_window">
+          <field name="name">Build Bots</field>
+          <field name="type">ir.actions.act_window</field>
+            <field name="res_model">software_dev.buildbot</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+         </record>
+
+	<menuitem id="softdev_buildbots" name="Build bots" 
+	    action="action_softdev_buildbots"
+	    parent="softdev_config" sequence="90"
+	    groups="project.group_project_manager" />
+
+    <!-- Build Slaves -->
+        <record id="view_softdev_bbslave_form" model="ir.ui.view">
+          <field name="name">Build Slaves</field>
+            <field name="model">software_dev.bbslave</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+              <form>
+                <field name="name"/>
+                <field name="bbot_id" />
+                <newline />
+                <field name="tech_code"/>
+                <field name="password"/>
+                <!-- <field name="property_ids" colspan="4" /> -->
+              </form>
+          </field>
+        </record>
+
+        <record id="action_softdev_bbslaves" model="ir.actions.act_window">
+          <field name="name">Build Slaves</field>
+          <field name="type">ir.actions.act_window</field>
+            <field name="res_model">software_dev.bbslave</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+         </record>
+
+	<menuitem id="softdev_bbslaves" name="Build Slaves" 
+	    action="action_softdev_bbslaves"
+	    parent="softdev_config" sequence="100"
+	    groups="project.group_project_manager" />
+
+</data>
+</openerp>
