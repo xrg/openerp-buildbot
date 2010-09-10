@@ -11,9 +11,17 @@
     on the fly, without any reload or so.
 """
 
-import rpc
 import logging
 from buildbot.buildslave import BuildSlave
+
+from openobject.scheduler import OpenObjectScheduler, OpenObjectAnyBranchScheduler
+from openobject.buildstep import OpenObjectBzr, OpenObjectSVN, BzrMerge, BzrRevert, OpenERPTest, LintTest, BzrStatTest
+from openobject.poller import BzrPoller
+from openobject.repostep import BzrMirrorStep #, GitMirrorStep
+import rpc
+
+from twisted.python import log, reflect
+from buildbot import util
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -30,9 +38,10 @@ class Keeper(object):
         # some necessary definitions in the dict:
         c['projectName'] = "OpenERP-Test"
         c['buildbotURL'] = "http://test.openobject.com/"
+        c['db_url'] = 'openerp://'
+        c['slavePortnum'] = 'tcp:8999:interface=127.0.0.1'
 
         c['slaves'] = []
-        c['slavePortnum'] = 'tcp:8999:interface=127.0.0.1'
 
         c['schedulers'] = []
         c['builders'] = []
@@ -47,11 +56,17 @@ class Keeper(object):
         assert bbot_id, "No buildbot for %r exists!" % db_props.get('code','buildbot')
         self.bbot_id = bbot_id[0]
         
+        
     def reset(self):
         """ Reload the configuration
         """
         print "Keeper reset"
         c = self.bmconfig
+        c['slaves'] = []
+        c['schedulers'] = []
+        c['builders'] = []
+        c['change_source']=[]
+        
         bbot_attr_obj = rpc.RpcProxy('software_dev.battr')
         bids = bbot_attr_obj.search([('bbot_id','=', self.bbot_id)])
         if bids:
@@ -70,6 +85,81 @@ class Keeper(object):
         polled_brs = bbot_obj.get_polled_branches([self.bbot_id])
         print "got polled brs:", polled_brs
         
+        mirror_steps = [] 
+        for pbr in polled_brs:
+            pmode = pbr.get('mode','branch')
+            if pmode == 'repo':
+                # setup and maintain a mirror repo
+                raise NotImplementedError
+            elif pmode == 'branch':
+                # Maintain a branch 
+                if pbr['rtype'] == 'bzr':
+                    if pbr.get('mirrored', False):
+                        mrs = BzrMirrorStep(repo_base=pbr['repo_base'],
+                                        branch_path=pbr['branch_path'], fetch_url=['fetch_url'])
+                        mirror_steps.append(mrs)
+                        fetch_url = mrs.get_fetch_url()
+                    else:
+                        fetch_url = pbr['fetch_url']
+                    
+                    c['change_source'].append(BzrPoller(fetch_url, keeper=self))
+                else:
+                    raise NotImplementedError("No support for %s repos yet" % pbr['rtype'])
+        
+        if mirror_steps:
+            # If we mirror any repositories, we need a special builder for them
+            mfact = BuildFactory()
+            # note that *all* steps will be in the same factory, i.e. executed
+            # in series.
+            for step in mirror_steps:
+                mfact.addStep(step)
+            c['builders'].append( { 'name': 'Code repositories mirroring',
+                'factory': factory,
+                'builddir': 'repos',
+                })
+            c['schedulers'].append(Periodic(name="Update code mirrors",
+                        builderNames=['Code repositories mirroring',],
+                        periodicBuildTimer=300)) #default to 5min
+            
+        # Get the tests that have to be performed:
+        builders = bbot_obj.get_builders([self.bbot_id])
+        
+        dic_steps = { 'OpenERP-Test': OpenERPTest,
+                'BzrMerge': BzrMerge,
+                }
+
+        for bld in builders:
+            factory = BuildFactory()
+           
+            for bstep in bld['steps']:
+                assert bstep[0] in dic_steps, "Unknown step %s" % bstep[0]
+                kwargs = bstep[1].copy()
+                # TODO manipulate some of them
+                if 'locks' in kwargs:
+                   pass # TODO
+                if 'keeper' in kwargs:
+                    kwargs['keeper'] = self
+
+                print "Adding step %s(%r)" % (bstep[0], kwargs)
+                klass = dic_steps[bstep[0]]
+                factory.addStep(klass(**kwargs))
+               
+            c['builders'].append({
+                'name' : bld['name'],
+                'slavename' : bld['slavename'],
+                'builddir': bld['builddir'],
+                'factory': factory
+            })
+
+            # FIXME
+            c['schedulers'].append(
+                OpenObjectScheduler(name = "Scheduler for %s" %(bld['name']),
+                                    builderNames = [bld['name'], ],
+                                    branch = bld['branch_url'],
+                                    treeStableTimer = bld['tstimer'],
+                                    keeper=self)
+                                )
+
         # We should be ok by now..
 
     def __del__(self):
@@ -79,18 +169,64 @@ class Keeper(object):
         except Exception: pass
 
 
-if False:
-    # --- Do not edit past this
-    openerp = buildbot_xmlrpc(host=properties['openerp_host'], port=properties['openerp_port'], dbname=properties['openerp_dbname'])
-    openerp_uid = openerp.execute('common','login',  openerp.dbname, properties['openerp_userid'], properties['openerp_userpwd'])
-    if not openerp_uid:
-        raise RuntimeError("Cannot login to db, check %s@%s credentials!" % \
-                (properties['openerp_userid'], properties['openerp_dbname']))
-    testing_branches_ids = openerp.execute('object', 'execute', openerp.dbname, openerp_uid, properties['openerp_userpwd'], 'buildbot.lp.branch','search',[('is_test_branch','=',False), ('is_root_branch','=',False)])
-    if not testing_branches_ids:
-        log.msg("No branches were detected at the db!")
-    testing_branches = openerp.execute('object', 'execute', openerp.dbname, openerp_uid, properties['openerp_userpwd'], 'buildbot.lp.branch','read',testing_branches_ids)
+class DBSpec_OpenERP(object):
+    """
+    A specification for the database type and other connection parameters.
+    """
 
+    # List of connkw arguments that are applicable to the connection pool only
+    pool_args = ["max_idle"]
+    def __init__(self, dbapiName, *connargs, **connkw):
+        # special-case 'sqlite3', replacing it with the available implementation
+        self.dbapiName = dbapiName
+        self.connargs = connargs
+        self.connkw = connkw
+
+    @classmethod
+    def from_url(cls, url, basedir=None):
+        return cls('OpenERP')
+
+    def get_dbapi(self):
+        """
+        Get the dbapi module used for this connection (for things like
+        exceptions and module-global attributes
+        """
+        return None  #reflect.namedModule(self.dbapiName)
+
+    def get_sync_connection(self):
+        """
+        Get a synchronous connection to the specified database.  This returns
+        a simple DBAPI connection object.
+        """
+        
+        conn = False
+        return conn
+
+    def get_async_connection_pool(self):
+        """
+        Get an asynchronous (adbapi) connection pool for the specified
+        database.
+        """
+        return False
+
+    def get_maxidle(self):
+        default = None
+        return self.connkw.get("max_idle", default)
+        
+    def get_connector(self):
+        import connector
+        return connector.OERPConnector(self)
+        
+    def get_schemaManager(self, basedir):
+        return False
+
+from buildbot.db import dbspec
+
+dbspec.cur_dbspec = DBSpec_OpenERP
+print "Replaced dbspec!\n"
+
+
+if False:
     # TODO!!
 
     # locks.debuglog = log.msg
