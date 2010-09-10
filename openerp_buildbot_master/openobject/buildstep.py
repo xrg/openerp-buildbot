@@ -24,7 +24,6 @@ from buildbot.steps.source import Source, Bzr, SVN
 from buildbot.steps.shell import ShellCommand
 from buildbot.process.buildstep import LoggingBuildStep, LoggedRemoteCommand, LogLineObserver
 from buildbot.status.builder import SUCCESS, FAILURE, WARNINGS
-from sql import db_connection
 import base64
 import pickle
 import os
@@ -33,9 +32,6 @@ import logging
 from openobject import tools
 from twisted.python import log
 
-ignore_module_list = ['bin','Makefile','man','README','setup.cfg','debian','python25-compat','sql','change-loglevel.sh',
-        'get-srvstats.sh','setup.py','doc','MANIFEST.in','openerp.log','pixmaps','rpminstall_sh.txt','setup.nsi','win32',
-        '.bzrignore','.bzr']
 try:
     import cStringIO
     StringIO = cStringIO.StringIO

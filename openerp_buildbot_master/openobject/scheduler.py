@@ -22,8 +22,7 @@
 
 from buildbot.scheduler import AnyBranchScheduler,Scheduler
 from sourcestamp import OpenObjectSourceStamp
-from buildbot import buildset
-from xmlrpc import buildbot_xmlrpc
+# from buildbot import buildset
 from datetime import datetime
 import binascii
 
@@ -86,7 +85,7 @@ def create_test_log(source, properties):
         openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'ir.attachment', 'create', data_attach)
     return result_id
 
-class OpenObjectBuildset(buildset.BuildSet):
+class OpenObjectBuildset(object): # TODO buildset.BuildSet):
     def __init__(self, builderNames, source, reason=None, bsid=None,
                  properties=None, openerp_properties={}):
         buildset.BuildSet.__init__(self, builderNames=builderNames, source=source, reason=reason, bsid=bsid, properties=properties)
@@ -105,11 +104,12 @@ class OpenObjectBuildset(buildset.BuildSet):
 
 class OpenObjectScheduler(Scheduler):
     def __init__(self, name, branch, treeStableTimer, builderNames,
-                 fileIsImportant=None, properties={}, openerp_properties={}):
+                 fileIsImportant=None, properties=None, openerp_properties=None):
         self.unimportantChanges = []
         Scheduler.__init__(self, name=name, branch=branch, treeStableTimer=treeStableTimer, builderNames=builderNames,
                  fileIsImportant=fileIsImportant, properties=properties)
         self.openerp_properties = openerp_properties
+
     def fireTimer(self):
         # clear out our state
         self.timer = None
