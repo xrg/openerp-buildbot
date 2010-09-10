@@ -61,8 +61,16 @@ class software_buildbot(osv.osv):
             """Format the branch info into a dictionary
             """
             dret = {}
-            dret['branch_name'] = branch_bro.tech_code
+            dret['rtype'] = branch_bro.repo_id.rtype
+            dret['branch_path'] = branch_bro.tech_code or \
+                    (branch_bro.sub_url.replace('/','_'))
             dret['fetch_url'] = branch_bro.fetch_url
+            dret['poll_interval'] = branch_bro.poll_interval
+            
+            if branch_bro.repo_id.proxy_location:
+                dret['mirrored'] = True
+                dret['repo_base'] = branch_bro.repo_id.proxy_location
+            
             return dret
 
         for bser in bseries_obj.browse(cr, uid, series_ids, context=ctx):
