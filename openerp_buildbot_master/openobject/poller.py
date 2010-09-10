@@ -29,7 +29,10 @@ from buildbot.changes.changes import Change
 from bzrlib.branch import Branch
 import bzrlib
 
-class BzrPoller(service.MultiService, util.ComparableMixin):
+import bzr_poller
+
+# -----------------
+class OldBzrPoller(service.MultiService, util.ComparableMixin):
     """This source will poll a Bzr repository for changes and submit them to
     the change master."""
     implements(interfaces.IChangeSource)
@@ -131,6 +134,8 @@ class BzrPoller(service.MultiService, util.ComparableMixin):
         for c in changes:
             self.parent.addChange(c)
         log.msg("BzrPoller finished polling, %d changes found" % len(changes))
+
+# ------------------
 
 html_tmpl = """
 <p>Changed by : <b>%(who)s</b><br />
@@ -238,4 +243,15 @@ class OpenObjectChange(Change):
                    'branch'  : branch,
                    'comments': html.PRE(self.comments) }
         return html_tmpl % kwargs
+        
+        
+class BzrPoller(bzr_poller.BzrPoller):
+    def __init__(self, url, poll_interval=10*60, blame_merge_author=False,
+                    branch_name=None, category=None, keeper=None):
+        bzr_poller.BzrPoller.__init__(self, url=url, poll_interval=poll_interval,
+                    blame_merge_author=blame_merge_author,
+                    branch_name=branch_name, category=category)
+        self.keeper = keeper
+
+
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

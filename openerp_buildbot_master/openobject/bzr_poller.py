@@ -169,10 +169,15 @@ class BzrPoller(buildbot.changes.base.ChangeSource,
             ourbranch = self.url
         else:
             ourbranch = self.branch_name
-        for change in reversed(self.parent.changes):
-            if change.branch == ourbranch:
-                self.last_revision = change.revision
-                break
+        last_cid = self.parent.getLatestChangeNumberNow(branch=ourbranch)
+        if last_cid:
+            change = self.parent.getChangeNumberedNow(last_cid)
+            assert change.branch == ourbranch
+            self.last_revision = change.revision
+            # We *assume* here that the last change registered with the
+            # branch is a head earlier than our current revision.
+            # But, it might happen that the repo is diverged and that change
+            # is no longer in the history...
         else:
             self.last_revision = None
         self.polling = False
