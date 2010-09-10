@@ -39,6 +39,58 @@ class software_group(osv.osv):
     }
 software_group()
 
+class software_test(osv.osv):
+    """A scenario that has to be tested on some package
+    """
+    _name = 'software_dev.test'
+    _description = 'Software test'
+    _columns = {
+        'name': fields.char('Name', required=True, size=64),
+        'description': fields.text('Description'),
+        'predef_test': fields.char('Fixed test', size=64,
+                help="A special name which causes a predefined test"),
+        'step_ids':  fields.one2many('software_dev.teststep', 'test_id', 'Steps'),
+    }
+
+    _defaults = {
+    }
+    
+software_test()
+
+class software_teststep(osv.osv):
+    """A scenario that has to be tested on some package
+    """
+    _name = 'software_dev.teststep'
+    _description = 'Software Test Step'
+    _order = "sequence, id"
+    _columns = {
+        'test_id': fields.many2one('software_dev.test', 'Test', 
+                required=True, select=1),
+        'sequence': fields.integer('Sequence', required=True),
+        'name': fields.char('Name', required=True, size=64),
+        'attribute_ids': fields.one2many('software_dev.tsattr', 'tstep_id', 'Attributes'),
+    }
+
+    _defaults = {
+    }
+    
+software_teststep()
+
+class software_tsattr(osv.osv):
+    """ Test step attribute
+    
+        Raw name-value pairs for the test step
+    """
+    _name = 'software_dev.tsattr'
+    _columns = {
+        'tstep_id': fields.many2one('software_dev.teststep', 'Test Step', required=True, select=1),
+        'name': fields.char('Name', size=64, required=True),
+        'value': fields.char('Value', size=256),
+        }
+
+software_tsattr()
+
+
 class software_builder(osv.osv):
     _name = 'software_dev.builder'
     _description = 'Software Builder'
@@ -72,6 +124,8 @@ class software_buildseries(osv.osv):
                 help="Machine that will build this series"),
         'sequence': fields.integer('Sequence', required=True),
         # 'attribute_ids': fields.one2many('software_dev.attr.bseries', '' TODO)
+        'test_id': fields.many2one('software_dev.test', 'Test', 
+                help="The test to perform. Steps are configured in the test."),
     }
 
     _defaults = {

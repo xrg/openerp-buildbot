@@ -353,6 +353,7 @@
                 <field name="package_id"/>
                 <field name="branch_id" />
                 <field name="builder_id" />
+                <field name="test_id" />
                 <field name="is_distinct"/>
                 <field name="description" colspan="4" />
               </form>
@@ -371,6 +372,102 @@
 	    action="action_softdev_bseries"
 	    parent="softdev_config" sequence="80"
 	    groups="project.group_project_manager" />
+
+
+    <!-- Test step Attributes -->
+        <record id="view_softdev_tstep_attr_form" model="ir.ui.view">
+          <field name="name">Test Step Attributes</field>
+            <field name="model">software_dev.tsattr</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+              <form>
+                <field name="name"/>
+                <field name="value"/>
+              </form>
+          </field>
+        </record>
+
+        <record id="view_softdev_tstep_attr_tree" model="ir.ui.view">
+          <field name="name">Test step Attributes</field>
+            <field name="model">software_dev.tsattr</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+              <tree editable="bottom">
+                <field name="name"/>
+                <field name="value"/>
+              </tree>
+          </field>
+        </record>
+
+        <record id="action_softdev_tstep_attr" model="ir.actions.act_window">
+          <field name="name">Test Step Attributes</field>
+          <field name="type">ir.actions.act_window</field>
+            <field name="res_model">software_dev.tsattr</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+         </record>
+
+    <!-- Tests -->
+        <record id="view_softdev_tests_form" model="ir.ui.view">
+          <field name="name">Software Tests</field>
+            <field name="model">software_dev.test</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+              <form>
+                <field name="name"/>
+                <field name="step_ids" colspan="4"/>
+                <field name="description" colspan="4" />
+              </form>
+          </field>
+        </record>
+
+        <record id="action_softdev_test" model="ir.actions.act_window">
+          <field name="name">Software Tests</field>
+          <field name="type">ir.actions.act_window</field>
+            <field name="res_model">software_dev.test</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+         </record>
+
+	<menuitem id="softdev_tests" name="Software Tests" 
+	    action="action_softdev_test"
+	    parent="softdev_config" sequence="30"
+	    groups="project.group_project_manager" />
+
+    <!-- Test Steps -->
+        <record id="view_softdev_tsteps_form" model="ir.ui.view">
+          <field name="name">Software Test Steps</field>
+            <field name="model">software_dev.teststep</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+              <form>
+                <field name="sequence" />
+                <field name="name"/>
+                <!-- <field name="test_id" /> -->
+                <field name="attribute_ids" colspan="4"/>
+              </form>
+          </field>
+        </record>
+
+        <record id="view_softdev_tsteps_tree" model="ir.ui.view">
+          <field name="name">Software Test Steps</field>
+            <field name="model">software_dev.teststep</field>
+            <field name="type">tree</field>
+            <field name="arch" type="xml">
+              <tree>
+                <field name="sequence" />
+                <field name="name"/>
+              </tree>
+          </field>
+        </record>
+
+        <record id="action_softdev_teststep" model="ir.actions.act_window">
+          <field name="name">Software Test Steps</field>
+          <field name="type">ir.actions.act_window</field>
+            <field name="res_model">software_dev.teststep</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+         </record>
 
     <!-- Buildbot Attributes -->
         <record id="view_softdev_bbot_attr_form" model="ir.ui.view">
