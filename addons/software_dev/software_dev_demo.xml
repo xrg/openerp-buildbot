@@ -1,6 +1,171 @@
 <?xml version="1.0"?>
 <openerp>
-<data>
-
-</data>
+	<data>
+		<record id="software_dev_component_latestaddons0" model="software_dev.component">
+			<field model="software_dev.branch" name="branch_id" search="[('name', '=', u'Trunk addons')]"/>
+			<field name="name">Latest addons</field>
+			<field eval="1" name="update_rev"/>
+			<field name="dest_path">addons</field>
+		</record>
+	</data>
+	<data noupdate="1">
+		<record id="software_dev_package_openerp0" model="software_dev.package">
+			<field name="project_id" ref="project.project_project_9"/>
+			<field name="name">OpenERP</field>
+			<field eval="[(6,0,[ref('software_dev_component_latestaddons0')])]" name="component_ids"/>
+		</record>
+	</data>
+	<data>
+		<record id="software_dev_repohost_launchpad0" model="software_dev.repohost">
+			<field name="name">Launchpad</field>
+			<field name="rtype">bzr</field>
+			<field name="host_family">lp</field>
+		</record>
+		<record id="software_dev_repo_openerpaddons0" model="software_dev.repo">
+			<field name="name">OpenERP Addons</field>
+			<field name="rtype">bzr</field>
+			<field name="base_url">openobject-addons</field>
+			<field model="software_dev.repohost" name="host_id" search="[('name', '=', u'Launchpad')]"/>
+		</record>
+		<record id="software_dev_branch_trunkaddons0" model="software_dev.branch">
+			<field model="software_dev.repo" name="repo_id" search="[('name', '=', u'OpenERP Addons')]"/>
+			<field name="sub_url">trunk</field>
+			<field eval="10" name="poll_interval"/>
+			<field name="name">Trunk addons</field>
+		</record>
+		<record id="software_dev_repo_openerpserver0" model="software_dev.repo">
+			<field name="name">OpenERP server</field>
+			<field name="rtype">bzr</field>
+			<field model="software_dev.repohost" name="host_id" search="[('name', '=', u'Launchpad')]"/>
+		</record>
+		<record id="software_dev_repo_openerpextraaddons0" model="software_dev.repo">
+			<field name="name">OpenERP extra Addons</field>
+			<field name="rtype">bzr</field>
+			<field model="software_dev.repohost" name="host_id" search="[('name', '=', u'Launchpad')]"/>
+		</record>
+		<record id="software_dev_repo_openerpbuildbot0" model="software_dev.repo">
+			<field name="name">OpenERP buildbot</field>
+			<field name="rtype">bzr</field>
+			<field model="software_dev.repohost" name="host_id" search="[('name', '=', u'Launchpad')]"/>
+		</record>
+	</data>
+	<data>
+		<record id="software_dev_repo_openerpaddons1" model="software_dev.repo">
+			<field name="name">OpenERP Addons</field>
+			<field name="rtype">bzr</field>
+			<field name="base_url">openobject-addons</field>
+			<field name="host_id" ref="software_dev_repohost_launchpad0"/>
+		</record>
+		<record id="software_dev_branch_trunkaddons1" model="software_dev.branch">
+			<field model="software_dev.repo" name="repo_id" search="[('name', '=', u'OpenERP Addons')]"/>
+			<field name="sub_url">trunk</field>
+			<field eval="10" name="poll_interval"/>
+			<field name="name">Trunk addons</field>
+		</record>
+	</data>
+	<data>
+		<record id="software_dev_repo_openerpserver1" model="software_dev.repo">
+			<field name="name">OpenERP server</field>
+			<field name="rtype">bzr</field>
+			<field name="host_id" ref="software_dev_repohost_launchpad0"/>
+		</record>
+	</data>
+	<data>
+		<record id="software_dev_repo_openerpextraaddons1" model="software_dev.repo">
+			<field name="name">OpenERP extra Addons</field>
+			<field name="rtype">bzr</field>
+			<field name="host_id" ref="software_dev_repohost_launchpad0"/>
+		</record>
+	</data>
+	<data>
+		<record id="software_dev_repo_openerpbuildbot1" model="software_dev.repo">
+			<field name="name">OpenERP buildbot</field>
+			<field name="rtype">bzr</field>
+			<field name="host_id" ref="software_dev_repohost_launchpad0"/>
+		</record>
+	</data>
+	<data>
+		<record id="software_dev_branch_trunkaddons2" model="software_dev.branch">
+			<field name="repo_id" ref="software_dev_repo_openerpaddons1"/>
+			<field name="sub_url">trunk</field>
+			<field eval="10" name="poll_interval"/>
+			<field name="name">Trunk addons</field>
+		</record>
+	</data>
+	<data>
+		<record id="software_dev_builder_buildbotroot0" model="software_dev.builder">
+			<field name="name">Buildbot Root</field>
+		</record>
+	</data>
+	<data>
+		<record id="software_dev_builder_buildbot0" model="software_dev.builder">
+			<field name="name">Buildbot 1</field>
+		</record>
+	</data>
+	<data>
+		<record id="software_dev_buildseries_testinglatestaddons0" model="software_dev.buildseries">
+			<field name="branch_id" ref="software_dev_branch_trunkaddons2"/>
+			<field eval="0" name="is_distinct"/>
+			<field name="name">Testing latest addons</field>
+			<field eval="10" name="sequence"/>
+			<field name="builder_id" ref="software_dev_builder_buildbot0"/>
+			<field name="package_id" ref="software_dev_package_openerp0"/>
+			<field model="software_dev.test" name="test_id" search="[('name', '=', u'Full OpenERP')]"/>
+		</record>
+	</data>
+	<data>
+		<record id="software_dev_battr_test0" model="software_dev.battr">
+			<field model="software_dev.buildbot" name="bbot_id" search="[('name', '=', u'Buildbot 1')]"/>
+			<field name="name">test1</field>
+			<field name="value">test1 value</field>
+		</record>
+	</data>
+	<data>
+		<record id="software_dev_buildbot_buildbot0" model="software_dev.buildbot">
+			<field name="name">Buildbot 1</field>
+			<field name="tech_code">buildbot</field>
+		</record>
+		<record id="software_dev_battr_test1" model="software_dev.battr">
+			<field model="software_dev.buildbot" name="bbot_id" search="[('name', '=', u'Buildbot 1')]"/>
+			<field name="name">test1</field>
+			<field name="value">test1 value</field>
+		</record>
+	</data>
+	<data>
+		<record id="software_dev_bbslave_localslave0" model="software_dev.bbslave">
+			<field name="bbot_id" ref="software_dev_buildbot_buildbot0"/>
+			<field name="password">secret</field>
+			<field name="name">Local slave</field>
+			<field name="tech_code">buildbot</field>
+		</record>
+	</data>
+	<data>
+		<record id="software_dev_test_fullopenerp0" model="software_dev.test">
+			<field name="name">Full OpenERP</field>
+		</record>
+		<record id="software_dev_teststep_pylint0" model="software_dev.teststep">
+			<field model="software_dev.test" name="test_id" search="[('name', '=', u'Full OpenERP')]"/>
+			<field name="name">pylint</field>
+			<field eval="1" name="sequence"/>
+		</record>
+		<record id="software_dev_teststep_openerptest0" model="software_dev.teststep">
+			<field model="software_dev.test" name="test_id" search="[('name', '=', u'Full OpenERP')]"/>
+			<field name="name">OpenERP-Test</field>
+			<field eval="2" name="sequence"/>
+		</record>
+	</data>
+	<data>
+		<record id="software_dev_teststep_pylint1" model="software_dev.teststep">
+			<field name="test_id" ref="software_dev_test_fullopenerp0"/>
+			<field name="name">pylint</field>
+			<field eval="1" name="sequence"/>
+		</record>
+	</data>
+	<data>
+		<record id="software_dev_teststep_openerptest1" model="software_dev.teststep">
+			<field name="test_id" ref="software_dev_test_fullopenerp0"/>
+			<field name="name">OpenERP-Test</field>
+			<field eval="2" name="sequence"/>
+		</record>
+	</data>
 </openerp>
