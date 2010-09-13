@@ -76,6 +76,8 @@ class software_buildbot(osv.osv):
         'description': fields.text('Description'),
         'tech_code': fields.char('Code', size=64, required=True, select=1),
         'attribute_ids': fields.one2many('software_dev.battr', 'bbot_id', 'Attributes'),
+        'slave_ids': fields.one2many('software_dev.bbslave', 'bbot_id', 'Test Steps', 
+                help="The test steps to perform."),
     }
 
     _sql_constraints = [ ('code_uniq', 'UNIQUE(tech_code)', 'The tech code must be unique.'), ]
@@ -102,7 +104,7 @@ class software_buildbot(osv.osv):
             dret['rtype'] = 'bzr'
             dret['branch_path'] = bser.target_path
             dret['fetch_url'] = bser.branch_url
-            dret['poll_interval'] = bser.poll_interval
+            dret['poll_interval'] = 600 # bser.poll_interval
             ret.append(dret)
 
         return ret
@@ -119,6 +121,36 @@ class software_buildbot(osv.osv):
            steps [ (name, { props}) ]
         """
         ret = []
+        bs_obj = self.pool.get('software_dev.buildseries')
+        bids = bs_obj.search(cr, uid, [('builder_id', 'in', ids)], context=context)
+        for bldr in bs_obj.browse(cr, uid, bids, context=context):
+            bret = { 'name': bldr.name,
+                    'slavename': bldr.builder_id.slave_ids[0].tech_code,
+                    'builddir': bldr.target_path, #TODO
+                    'steps': [],
+                    'branch_url': bldr.branch_url,
+                    'tstimer': 30,
+                    }
+            # Now, build the steps:
+            for bdep in bldr.dep_branch_ids:
+                bret['steps'].append( ('OpenObjectBzr', {
+                        'repourl': bdep.branch_url, 'mode':'update',
+                        'workdir': bdep.target_path,
+                        'alwaysUseLatest': True
+                        }) )
+            
+            bret['steps'].append( ('OpenObjectBzr', {
+                        'repourl': bldr.branch_url, 'mode':'update',
+                        'workdir': bldr.target_path,
+                        'alwaysUseLatest': False }) )
+            for tstep in bldr.test_ids:
+                rname = tstep.name
+                rattr = {}
+                for tattr in tstep.attribute_ids:
+                    rattr[tattr['name']] = tattr['value'] #strings only, so far
+                bret['steps'].append((rname, rattr))
+        
+            ret.append(bret)
         return ret
 
 software_buildbot()
