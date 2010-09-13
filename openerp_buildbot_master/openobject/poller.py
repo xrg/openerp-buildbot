@@ -157,22 +157,22 @@ Comments : %(comments)s
 """
 from twisted.web import html
 class OpenObjectChange(Change):
-    def __init__(self, who, revision_delta, revision_id, comments, files=[],  isdir=0, links=[],
-                 revision=None, when=None, branch=None):
-        self.files_added = [f[0] for f in revision_delta.added]
-        self.files_modified = [f[0] for f in revision_delta.modified]
-        self.files_renamed = [(f[0],f[1]) for f in revision_delta.renamed]
-        self.files_removed = [f[0] for f in revision_delta.removed]
-        self.ch = revision_delta
-        self.revision_id = revision_id
-        files = self.files_added + self.files_modified + [f[1] for f in self.files_renamed] + self.files_removed
-        self.all_modules = list(set([ x.split('/')[0] for x in files]))
-        Change.__init__(self, who=who, files=files, comments=comments, isdir=isdir, links=links,revision=revision, when=when, branch=branch)
+    def __init__(self, **kwargs):
+        self.branch_id = kwargs.get('branch_id')
+        assert self.branch_id
+        del kwargs['branch_id']
+        # self.all_modules = list(set([ x.split('/')[0] for x in files]))
+        Change.__init__(self, **kwargs)
 
     def allModules(self):
         """ Return the list of all the modules that must have changed
         """
         return self.all_modules
+
+    def asDict(self):
+        res = Change.asDict(self)
+        res['branch_id'] = self.branch_id
+        return res
 
     def asHTML(self):
         files_added = []
@@ -246,10 +246,13 @@ class OpenObjectChange(Change):
         
         
 class BzrPoller(bzr_poller.BzrPoller):
+    _change_class = OpenObjectChange
+    
     def __init__(self, url, poll_interval=10*60, blame_merge_author=False,
-                    branch_name=None, category=None, keeper=None):
+                    branch_name=None, branch_id=None, category=None, keeper=None):
         bzr_poller.BzrPoller.__init__(self, url=url, poll_interval=poll_interval,
                     blame_merge_author=blame_merge_author,
+                    branch_id=branch_id,
                     branch_name=branch_name, category=category)
         self.keeper = keeper
 

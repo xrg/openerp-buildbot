@@ -146,9 +146,10 @@ class BzrPoller(buildbot.changes.base.ChangeSource,
                 buildbot.util.ComparableMixin):
 
     compare_attrs = ['url']
+    _change_class = buildbot.changes.changes.Change
 
     def __init__(self, url, poll_interval=10*60, blame_merge_author=False,
-                    branch_name=None, category=None):
+                    branch_name=None, branch_id=None, category=None):
         # poll_interval is in seconds, so default poll_interval is 10
         # minutes.
         # bzr+ssh://bazaar.launchpad.net/~launchpad-pqm/launchpad/devel/
@@ -160,6 +161,7 @@ class BzrPoller(buildbot.changes.base.ChangeSource,
         self.loop = twisted.internet.task.LoopingCall(self.poll)
         self.blame_merge_author = blame_merge_author
         self.branch_name = branch_name
+        self.branch_id = branch_id
         self.category = category
 
     def startService(self):
@@ -169,7 +171,7 @@ class BzrPoller(buildbot.changes.base.ChangeSource,
             ourbranch = self.url
         else:
             ourbranch = self.branch_name
-        last_cid = self.parent.getLatestChangeNumberNow(branch=ourbranch)
+        last_cid = self.parent.getLatestChangeNumberNow(branch=self.branch_id)
         if last_cid:
             change = self.parent.getChangeNumberedNow(last_cid)
             assert change.branch == ourbranch
@@ -213,7 +215,7 @@ class BzrPoller(buildbot.changes.base.ChangeSource,
             else:
                 for change in changes:
                     yield self.addChange(
-                        buildbot.changes.changes.Change(**change))
+                        self._change_class(**change))
                     self.last_revision = change['revision']
         finally:
             self.polling = False
@@ -227,6 +229,7 @@ class BzrPoller(buildbot.changes.base.ChangeSource,
         if (self.last_revision is None or
             change['revision'] > self.last_revision):
             change['branch'] = branch_name
+            change['branch_id'] = self.branch_id
             change['category'] = self.category
             changes.append(change)
             if self.last_revision is not None:

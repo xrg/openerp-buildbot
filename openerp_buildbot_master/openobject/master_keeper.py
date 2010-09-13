@@ -91,7 +91,9 @@ class Keeper(object):
                 if pbr['rtype'] == 'bzr':
                     fetch_url = pbr['fetch_url']
                     
-                    c['change_source'].append(BzrPoller(fetch_url, keeper=self))
+                    c['change_source'].append(BzrPoller(fetch_url,
+                            branch_name=pbr.get('branch_name', None),
+                            branch_id=pbr['branch_id'], keeper=self))
                 else:
                     raise NotImplementedError("No support for %s repos yet" % pbr['rtype'])
 

@@ -110,6 +110,8 @@ class software_buildbot(osv.osv):
 
         for bser in bseries_obj.browse(cr, uid, series_ids, context=ctx):
             dret = {}
+            dret['branch_id'] = bser.id
+            dret['branch_name'] = bser.name
             dret['rtype'] = 'bzr'
             dret['branch_path'] = bser.target_path
             dret['fetch_url'] = bser.branch_url
@@ -317,7 +319,7 @@ class software_commit(osv.osv):
         new_vals = {
             'name': cdict['comments'],
             'date': datetime.fromtimestamp(cdict['when']),
-            'branch_id': cdict['branch'],
+            'branch_id': cdict['branch_id'],
             'comitter_id': user_obj.get_user(cr, uid, cdict['who'], context=context),
             'revno': cdict['rev'],
             
