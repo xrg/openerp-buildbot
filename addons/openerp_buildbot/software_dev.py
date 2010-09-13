@@ -21,7 +21,7 @@
 
 from tools.translate import _
 from osv import fields, osv
-
+from datetime import datetime
 
 class software_group(osv.osv):
     _name = 'software_dev.buildgroup'
@@ -66,6 +66,15 @@ class software_user(osv.osv):
     
     _sql_constraints = [ ('user_uniq', 'UNIQUE(userid)', 'User id must be unique.'), ]
    
+    def get_user(self, cr, uid, userid, context=None):
+        """Return the id of the user with that name, even create one
+        """
+        ud = self.search(cr, uid, [('userid', '=', userid)], context=context)
+        if ud:
+            return ud[0]
+        else:
+            return self.create(cr, uid, { 'userid': userid }, context=context)
+
 software_user()
 
 class software_buildbot(osv.osv):
@@ -299,6 +308,25 @@ class software_commit(osv.osv):
     _defaults = {
         'ctype': 'reg',
     }
+    
+    def submit_change(self, cr, uid, cdict, context=None):
+        """ Submit full info for a commit, in a dictionary
+        """
+        assert isinstance(cdict, dict)
+        user_obj = self.pool.get('software_dev.vcs_user')
+        new_vals = {
+            'name': cdict['comments'],
+            'date': datetime.fromtimestamp(cdict['when']),
+            'branch_id': cdict['branch'],
+            'comitter_id': user_obj.get_user(cr, uid, cdict['who'], context=context),
+            'revno': cdict['rev'],
+            
+            }
+        for cf in cdict['files']:
+            # TODO: files
+            pass
+        cid = self.create(cr, uid, new_vals, context=context)
+        return cid
 
 software_commit()
 

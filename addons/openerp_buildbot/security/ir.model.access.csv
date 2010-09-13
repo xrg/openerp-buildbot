@@ -8,3 +8,5 @@
 "access_bot_test","software_dev.bot.teststep","model_software_dev_teststep","group_softdev_bot",1,0,0,0
 "access_bot_tsattr","software_dev.bot.tsattr","model_software_dev_tsattr","group_softdev_bot",1,0,0,0
 "access_bot_sched","software_dev.bot.scheduler","model_software_dev_buildscheduler","group_softdev_bot",1,1,1,1
+"access_bot_group","software_dev.bot.group","model_software_dev_buildgroup","group_softdev_bot",1,1,1,1
+"access_bot_vuser","software_dev.bot.vuser","model_software_dev_vcs_user","group_softdev_bot",1,1,1,1
