@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from twisted.python import log, threadable
-from twisted.internet import defer
+from twisted.internet import defer, threads
 from buildbot import util
 
 from buildbot.util import collections as bbcollections
@@ -17,6 +17,13 @@ import rpc
 
 class Token: # used for _start_operation/_end_operation
     pass
+
+def cleanupDict(cdict):
+    for key in cdict:
+        if cdict[key] is None:
+            cdict[key] = False
+        elif isinstance(cdict[key], dict):
+            cleanupDict(cdict[key])
 
 class OERPConnector(util.ComparableMixin):
     # this will refuse to create the database: use 'create-master' for that
@@ -73,6 +80,32 @@ class OERPConnector(util.ComparableMixin):
         the database's version"""
         return 0
 
+    def runInteraction(self, interaction, *args, **kwargs):
+        assert self._started
+        self._pending_operation_count += 1
+        start = self._getCurrentTime()
+        t = self._start_operation()
+        
+        d = threads.deferToThread(self._runInteraction,
+                                    interaction, *args, **kwargs)
+        d.addBoth(self._runInteraction_done, start, t)
+        return d
+
+    def _runInteraction(self, interaction, *args, **kwargs):
+        trans = Token()
+        result = interaction(trans, *args, **kwargs)
+        return result
+        
+    def runInteractionNow(self, interaction, *args, **kwargs):
+        # synchronous+blocking version of runInteraction()
+        assert self._started
+        return self._runInteraction(interaction, *args, **kwargs)
+
+    def _runInteraction_done(self, res, start, t):
+        self._end_operation(t)
+        self._pending_operation_count -= 1
+        return res
+
     def _start_operation(self):
         t = Token()
         self._active_operations.add(t)
@@ -112,7 +145,12 @@ class OERPConnector(util.ComparableMixin):
 
     def addChangeToDatabase(self, change):
         change_obj = rpc.RpcProxy('software_dev.commit')
-        change.number = change_obj.submit_change(change.asDict())
+        cdict = change.asDict()
+        cleanupDict(cdict)
+        for f in cdict['files']:
+            cleanupDict(f)
+        print 'Change:', cdict
+        change.number = change_obj.submit_change(cdict)
 
         self.notify("add-change", change.number)
         self._change_cache.add(change.number, change)
@@ -383,9 +421,13 @@ class OERPConnector(util.ComparableMixin):
                 # create a new row, with the latest changeid (so it won't try
                 # to process all of the old changes) new Schedulers are
                 # supposed to ignore pre-existing Changes
-                max_ids = change_obj.search([], offset=0, limit=1, order='id desc')
+                max_ids = change_obj.search([], 0, 1, 'id desc')
                 # TODO: really all changes?
-                max_changeid = _one_or_else(max_ids, 0)
+                
+                if max_ids:
+                    max_changeid = max_ids[0]
+                else:
+                    max_changeid = 0
                 state = scheduler.get_initial_state(max_changeid)
                 state_json = json.dumps(state)
                 sid = sched_obj.create( { 'name': name,
@@ -397,8 +439,9 @@ class OERPConnector(util.ComparableMixin):
 
     def scheduler_get_state(self, schedulerid, t):
         sched_obj = rpc.RpcProxy('software_dev.buildscheduler')
-        res = sched_obj.read(['state_dic'], schedulerid)
-        state_json = res[schedulerid]['state_dic']
+        res = sched_obj.read(schedulerid, ['state_dic'])
+        print "REs:", res
+        state_json = res['state_dic']
         assert state_json is not None
         return json.loads(state_json)
 
@@ -415,6 +458,7 @@ class OERPConnector(util.ComparableMixin):
         if ss.ssid is not None:
             return ss.ssid
         patchid = None
+        raise NotImplementedError
         if ss.patch:
             patchlevel = ss.patch[0]
             diff = ss.patch[1]
@@ -441,6 +485,7 @@ class OERPConnector(util.ComparableMixin):
                         external_idstring=None):
         # this creates both the BuildSet and the associated BuildRequests
         now = self._getCurrentTime()
+        raise NotImplementedError
         t.execute(self.quoteq("INSERT INTO buildsets"
                               " (external_idstring, reason,"
                               "  sourcestampid, submitted_at)"
@@ -466,12 +511,14 @@ class OERPConnector(util.ComparableMixin):
         return bsid
 
     def scheduler_classify_change(self, schedulerid, number, important, t):
+        raise NotImplementedError
         q = self.quoteq("INSERT INTO scheduler_changes"
                         " (schedulerid, changeid, important)"
                         " VALUES (?,?,?)")
         t.execute(q, (schedulerid, number, bool(important)))
 
     def scheduler_get_classified_changes(self, schedulerid, t):
+        raise NotImplementedError
         q = self.quoteq("SELECT changeid, important"
                         " FROM scheduler_changes"
                         " WHERE schedulerid=?")
@@ -487,6 +534,7 @@ class OERPConnector(util.ComparableMixin):
         return (important, unimportant)
 
     def scheduler_retire_changes(self, schedulerid, changeids, t):
+        raise NotImplementedError
         while changeids:
             # sqlite has a maximum of 999 parameters, but we'll try to come in far
             # short of that
@@ -505,6 +553,7 @@ class OERPConnector(util.ComparableMixin):
                   (bsid, schedulerid, 1))
 
     def scheduler_get_subscribed_buildsets(self, schedulerid, t):
+        raise NotImplementedError
         # returns list of (bsid, ssid, complete, results) pairs
         t.execute(self.quoteq("SELECT bs.id, "
                               "  bs.sourcestampid, bs.complete, bs.results"
@@ -517,6 +566,7 @@ class OERPConnector(util.ComparableMixin):
         return t.fetchall()
 
     def scheduler_unsubscribe_buildset(self, schedulerid, buildsetid, t):
+        raise NotImplementedError
         t.execute(self.quoteq("UPDATE scheduler_upstream_buildsets"
                               " SET active=0"
                               " WHERE buildsetid=? AND schedulerid=?"),
@@ -526,6 +576,7 @@ class OERPConnector(util.ComparableMixin):
 
     def getBuildRequestWithNumber(self, brid, t=None):
         assert isinstance(brid, (int, long))
+        raise NotImplementedError
         if t:
             br = self._txn_getBuildRequestWithNumber(t, brid)
         else:
@@ -555,6 +606,7 @@ class OERPConnector(util.ComparableMixin):
         return br
 
     def get_buildername_for_brid(self, brid):
+        raise NotImplementedError
         assert isinstance(brid, (int, long))
         return self.runInteractionNow(self._txn_get_buildername_for_brid, brid)
     def _txn_get_buildername_for_brid(self, t, brid):
@@ -569,6 +621,7 @@ class OERPConnector(util.ComparableMixin):
 
     def get_unclaimed_buildrequests(self, buildername, old, master_name,
                                     master_incarnation, t, limit=None):
+        raise NotImplementedError
         q = ("SELECT br.id"
              " FROM buildrequests AS br, buildsets AS bs"
              " WHERE br.buildername=? AND br.complete=0"
@@ -589,6 +642,7 @@ class OERPConnector(util.ComparableMixin):
                             t=None):
         if not brids:
             return
+        raise NotImplementedError
         if t:
             self._txn_claim_buildrequests(t, now, master_name,
                                           master_incarnation, brids)
@@ -597,6 +651,7 @@ class OERPConnector(util.ComparableMixin):
                                    now, master_name, master_incarnation, brids)
     def _txn_claim_buildrequests(self, t, now, master_name, master_incarnation,
                                  brids):
+        raise NotImplementedError
         while brids:
             batch, brids = brids[:100], brids[100:]
             q = self.quoteq("UPDATE buildrequests"
@@ -610,6 +665,7 @@ class OERPConnector(util.ComparableMixin):
         return self.runInteractionNow(self._txn_build_started, brid, buildnumber)
     def _txn_build_started(self, t, brid, buildnumber):
         now = self._getCurrentTime()
+        raise NotImplementedError
         t.execute(self.quoteq("INSERT INTO builds (number, brid, start_time)"
                               " VALUES (?,?,?)"),
                   (buildnumber, brid, now))
@@ -621,6 +677,7 @@ class OERPConnector(util.ComparableMixin):
         return self.runInteractionNow(self._txn_build_finished, bids)
     def _txn_build_finished(self, t, bids):
         now = self._getCurrentTime()
+        raise NotImplementedError
         while bids:
             batch, bids = bids[:100], bids[100:]
             q = self.quoteq("UPDATE builds SET finish_time = ?"
@@ -632,6 +689,7 @@ class OERPConnector(util.ComparableMixin):
         return self.runInteractionNow(self._txn_get_build_info, bid)
     def _txn_get_build_info(self, t, bid):
         # brid, buildername, buildnum
+        raise NotImplementedError
         t.execute(self.quoteq("SELECT b.brid,br.buildername,b.number"
                               " FROM builds AS b, buildrequests AS br"
                               " WHERE b.id=? AND b.brid=br.id"),
@@ -644,6 +702,7 @@ class OERPConnector(util.ComparableMixin):
     def get_buildnums_for_brid(self, brid):
         return self.runInteractionNow(self._txn_get_buildnums_for_brid, brid)
     def _txn_get_buildnums_for_brid(self, t, brid):
+        raise NotImplementedError
         t.execute(self.quoteq("SELECT number FROM builds WHERE brid=?"),
                   (brid,))
         return [number for (number,) in t.fetchall()]
@@ -653,6 +712,7 @@ class OERPConnector(util.ComparableMixin):
     def _txn_resubmit_buildreqs(self, t, brids):
         # the interrupted build that gets resubmitted will still have the
         # same submitted_at value, so it should be re-started first
+        raise NotImplementedError
         while brids:
             batch, brids = brids[:100], brids[100:]
             q = self.quoteq("UPDATE buildrequests"
@@ -668,6 +728,7 @@ class OERPConnector(util.ComparableMixin):
         now = self._getCurrentTime()
         #q = self.db.quoteq("DELETE FROM buildrequests WHERE id IN "
         #                   + self.db.parmlist(len(brids)))
+        raise NotImplementedError
         while brids:
             batch, brids = brids[:100], brids[100:]
 
@@ -697,7 +758,9 @@ class OERPConnector(util.ComparableMixin):
         # buildset will appear complete and SUCCESS-ful). But we haven't
         # thought it through enough to be sure. So for now, "cancel" means
         # "mark as complete and FAILURE".
+        raise NotImplementedError
         while brids:
+            
             batch, brids = brids[:100], brids[100:]
 
             if True:
@@ -726,6 +789,7 @@ class OERPConnector(util.ComparableMixin):
         self.notify("modify-buildset", *bsids)
 
     def _check_buildset(self, t, bsid, now):
+        raise NotImplementedError
         q = self.quoteq("SELECT br.complete,br.results"
                         " FROM buildsets AS bs, buildrequests AS br"
                         " WHERE bs.complete=0"
@@ -761,6 +825,7 @@ class OERPConnector(util.ComparableMixin):
     def examine_buildset(self, bsid):
         return self.runInteractionNow(self._txn_examine_buildset, bsid)
     def _txn_examine_buildset(self, t, bsid):
+        raise NotImplementedError
         # "finished" means complete=1 for all builds. Return False until
         # all builds are complete, then True.
         # "successful" means complete=1 and results!=FAILURE for all builds.
@@ -786,11 +851,13 @@ class OERPConnector(util.ComparableMixin):
     def get_active_buildset_ids(self):
         return self.runInteractionNow(self._txn_get_active_buildset_ids)
     def _txn_get_active_buildset_ids(self, t):
+        raise NotImplementedError
         t.execute("SELECT id FROM buildsets WHERE complete=0")
         return [bsid for (bsid,) in t.fetchall()]
     def get_buildset_info(self, bsid):
         return self.runInteractionNow(self._txn_get_buildset_info, bsid)
     def _txn_get_buildset_info(self, t, bsid):
+        raise NotImplementedError
         q = self.quoteq("SELECT external_idstring, reason, sourcestampid,"
                         "       complete, results"
                         " FROM buildsets WHERE id=?")
@@ -805,12 +872,14 @@ class OERPConnector(util.ComparableMixin):
         return None # shouldn't happen
 
     def get_pending_brids_for_builder(self, buildername):
+        raise NotImplementedError
         return self.runInteractionNow(self._txn_get_pending_brids_for_builder,
                                       buildername)
     def _txn_get_pending_brids_for_builder(self, t, buildername):
         # "pending" means unclaimed and incomplete. When a build is returned
         # to the pool (self.resubmit_buildrequests), the claimed_at= field is
         # reset to zero.
+        raise NotImplementedError
         t.execute(self.quoteq("SELECT id FROM buildrequests"
                               " WHERE buildername=? AND"
                               "  complete=0 AND claimed_at=0"),
@@ -824,7 +893,6 @@ class OERPConnector(util.ComparableMixin):
 
     def setChangeCacheSize(self, max_size):
         self._change_cache.setMaxSize(max_size)
-
 
 threadable.synchronize(OERPConnector)
 #eof
