@@ -7,3 +7,4 @@
 "access_bot_bseries","software_dev.bot.bseries","model_software_dev_buildseries","group_softdev_bot",1,0,0,0
 "access_bot_test","software_dev.bot.teststep","model_software_dev_teststep","group_softdev_bot",1,0,0,0
 "access_bot_tsattr","software_dev.bot.tsattr","model_software_dev_tsattr","group_softdev_bot",1,0,0,0
+"access_bot_sched","software_dev.bot.scheduler","model_software_dev_buildscheduler","group_softdev_bot",1,1,1,1

@@ -302,4 +302,17 @@ class software_buildseries2(osv.osv):
 
 software_buildseries2()
 
+class software_buildscheduler(osv.osv):
+    _name = 'software_dev.buildscheduler'
+    _description = 'Build Scheduler'
+    _columns = {
+        'name': fields.char('Name', required=True, size=256, select=1),
+        'class_name': fields.char('Class name', size=256, required=True),
+        'state_dic': fields.text('State'),
+    }
+
+    _sql_constraints = [( 'name_class_uniq', 'UNIQUE(class_name, name)', 'Cannot reuse name at the same scheduler class.'), ]
+
+software_buildscheduler()
+
 #eof

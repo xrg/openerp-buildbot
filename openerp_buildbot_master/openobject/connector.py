@@ -118,26 +118,20 @@ class OERPConnector(util.ComparableMixin):
         self._change_cache.add(change.number, change)
 
     def changeEventGenerator(self, branches=[], categories=[], committers=[], minTime=0):
-        q = "SELECT changeid FROM changes"
-        args = []
-        if branches or categories or committers:
-            q += " WHERE "
-            pieces = []
-            if branches:
-                pieces.append("branch IN %s" % self.parmlist(len(branches)))
-                args.extend(list(branches))
-            if categories:
-                pieces.append("category IN %s" % self.parmlist(len(categories)))
-                args.extend(list(categories))
-            if committers:
-                pieces.append("author IN %s" % self.parmlist(len(committers)))
-                args.extend(list(committers))
-            if minTime:
-                pieces.append("when_timestamp > %d" % minTime)
-            q += " AND ".join(pieces)
-        q += " ORDER BY changeid DESC"
-        rows = self.runQueryNow(q, tuple(args))
-        for (changeid,) in rows:
+        change_obj = rpc.RpcProxy('software_dev.commit')
+        domain = []
+        
+        if branches:
+            domain.append( ('branch_id', 'in', branches) )
+        # if categories: Not Implemented yet
+        #    domain.append( ('category_id', 'in', categories) )
+        
+        if committers:
+            domain.append( ('comitter_id', 'in', committers ) )
+        
+        rows = change_obj.search(domain, 0, None, 'id desc')
+        
+        for changeid in rows:
             yield self.getChangeNumberedNow(changeid)
 
     def getLatestChangeNumberNow(self, branch=None, t=None):
@@ -153,12 +147,20 @@ class OERPConnector(util.ComparableMixin):
         c = self._change_cache.get(changeid)
         if c:
             return c
-        if t:
-            c = self._txn_getChangeNumberedNow(t, changeid)
-        else:
-            c = self.runInteractionNow(self._txn_getChangeNumberedNow, changeid)
+        
+        change_obj = rpc.RpcProxy('software_dev.commit')
+        res = change_obj.read(changeid, ['',])
+
+        c = Change(who=who, files=files, comments=comments, isdir=isdir,
+                   links=links, revision=revision, when=when,
+                   branch=branch, category=category, revlink=revlink,
+                   repository=repository, project=project)
+        c.properties.updateFromProperties(p)
+        c.number = changeid
+
         self._change_cache.add(changeid, c)
         return c
+
     def _txn_getChangeNumberedNow(self, t, changeid):
         q = self.quoteq("SELECT author, comments,"
                         " is_dir, branch, revision, revlink,"
@@ -167,6 +169,7 @@ class OERPConnector(util.ComparableMixin):
                         " FROM changes WHERE changeid = ?")
         t.execute(q, (changeid,))
         rows = t.fetchall()
+        raise NotImplementedError
         if not rows:
             return None
         (who, comments,
@@ -188,12 +191,6 @@ class OERPConnector(util.ComparableMixin):
 
         p = self.get_properties_from_db("change_properties", "changeid",
                                         changeid, t)
-        c = Change(who=who, files=files, comments=comments, isdir=isdir,
-                   links=links, revision=revision, when=when,
-                   branch=branch, category=category, revlink=revlink,
-                   repository=repository, project=project)
-        c.properties.updateFromProperties(p)
-        c.number = changeid
         return c
 
     def getChangeByNumber(self, changeid):
@@ -366,33 +363,19 @@ class OERPConnector(util.ComparableMixin):
     # Scheduler manipulation methods
 
     def addSchedulers(self, added):
-        raise NotImplementedError # FIXME
+        sched_obj = rpc.RpcProxy('software_dev.buildscheduler')
+        change_obj = rpc.RpcProxy('software_dev.commit')
         for scheduler in added:
             name = scheduler.name
             assert name
             
+            
             class_name = "%s.%s" % (scheduler.__class__.__module__,
                     scheduler.__class__.__name__)
-            q = self.quoteq("""
-                SELECT schedulerid, class_name FROM schedulers WHERE
-                    name=? AND
-                    (class_name=? OR class_name='')
-                    """)
-            t.execute(q, (name, class_name))
-            row = t.fetchone()
-            if row:
-                sid, db_class_name = row
-                if db_class_name == '':
-                    # We're updating from an old schema where the class name
-                    # wasn't stored.
-                    # Update this row's class name and move on
-                    q = self.quoteq("""UPDATE schedulers SET class_name=?
-                        WHERE schedulerid=?""")
-                    t.execute(q, (class_name, sid))
-                elif db_class_name != class_name:
-                    # A different scheduler is being used with this name.
-                    # Ignore the old scheduler and create a new one
-                    sid = None
+            
+            sids = sched_obj.search([('name', '=', name), ('class_name','=', class_name)])
+            if sids:
+                sid = sids[0]
             else:
                 sid = None
 
@@ -400,31 +383,29 @@ class OERPConnector(util.ComparableMixin):
                 # create a new row, with the latest changeid (so it won't try
                 # to process all of the old changes) new Schedulers are
                 # supposed to ignore pre-existing Changes
-                q = ("SELECT changeid FROM changes"
-                     " ORDER BY changeid DESC LIMIT 1")
-                t.execute(q)
-                max_changeid = _one_or_else(t.fetchall(), 0)
+                max_ids = change_obj.search([], offset=0, limit=1, order='id desc')
+                # TODO: really all changes?
+                max_changeid = _one_or_else(max_ids, 0)
                 state = scheduler.get_initial_state(max_changeid)
                 state_json = json.dumps(state)
-                q = self.quoteq("INSERT INTO schedulers"
-                                " (name, class_name, state)"
-                                "  VALUES (?,?,?)")
-                t.execute(q, (name, class_name, state_json))
-                sid = t.lastrowid
+                sid = sched_obj.create( { 'name': name,
+                                'class_name': class_name,
+                                'state_dic': state } )
+
             log.msg("scheduler '%s' got id %d" % (scheduler.name, sid))
             scheduler.schedulerid = sid
 
     def scheduler_get_state(self, schedulerid, t):
-        q = self.quoteq("SELECT state FROM schedulers WHERE schedulerid=?")
-        t.execute(q, (schedulerid,))
-        state_json = _one_or_else(t.fetchall())
+        sched_obj = rpc.RpcProxy('software_dev.buildscheduler')
+        res = sched_obj.read(['state_dic'], schedulerid)
+        state_json = res[schedulerid]['state_dic']
         assert state_json is not None
         return json.loads(state_json)
 
     def scheduler_set_state(self, schedulerid, t, state):
+        sched_obj = rpc.RpcProxy('software_dev.buildscheduler')
         state_json = json.dumps(state)
-        q = self.quoteq("UPDATE schedulers SET state=? WHERE schedulerid=?")
-        t.execute(q, (state_json, schedulerid))
+        sched_obj.write([schedulerid,], {'state_dic': state_json })
 
     def get_sourcestampid(self, ss, t):
         """Given a SourceStamp (which may or may not have an ssid), make sure
