@@ -48,7 +48,7 @@ class software_user(osv.osv):
     def _get_name(self, cr, uid, ids, name, args, context=None):
         res = {}
         for b in self.browse(cr, uid, ids, context=context):
-            res[b.id] = (b.employee_id and b.employee_id.name) or b.userid
+            res[b.id] = b.userid
         return res
 
 
