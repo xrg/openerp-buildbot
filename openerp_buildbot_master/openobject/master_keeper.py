@@ -13,7 +13,7 @@
 
 import logging
 from buildbot.buildslave import BuildSlave
-
+from buildbot.process import factory
 from openobject.scheduler import OpenObjectScheduler, OpenObjectAnyBranchScheduler
 from openobject.buildstep import OpenObjectBzr, OpenObjectSVN, BzrMerge, BzrRevert, OpenERPTest, LintTest, BzrStatTest
 from openobject.poller import BzrPoller
@@ -99,11 +99,15 @@ class Keeper(object):
         builders = bbot_obj.get_builders([self.bbot_id])
         
         dic_steps = { 'OpenERP-Test': OpenERPTest,
+                'OpenObjectBzr': OpenObjectBzr,
+                'BzrRevert': BzrRevert,
+                'BzrStatTest': BzrStatTest,
+                'LintTest': LintTest,
                 'BzrMerge': BzrMerge,
                 }
 
         for bld in builders:
-            factory = BuildFactory()
+            fact = factory.BuildFactory()
            
             for bstep in bld['steps']:
                 assert bstep[0] in dic_steps, "Unknown step %s" % bstep[0]
@@ -116,13 +120,13 @@ class Keeper(object):
 
                 print "Adding step %s(%r)" % (bstep[0], kwargs)
                 klass = dic_steps[bstep[0]]
-                factory.addStep(klass(**kwargs))
+                fact.addStep(klass(**kwargs))
                
             c['builders'].append({
                 'name' : bld['name'],
                 'slavename' : bld['slavename'],
                 'builddir': bld['builddir'],
-                'factory': factory
+                'factory': fact,
             })
 
             # FIXME
@@ -131,6 +135,7 @@ class Keeper(object):
                                     builderNames = [bld['name'], ],
                                     branch = bld['branch_url'],
                                     treeStableTimer = bld['tstimer'],
+                                    properties={},
                                     keeper=self)
                                 )
 
