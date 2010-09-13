@@ -104,11 +104,11 @@ class OpenObjectBuildset(object): # TODO buildset.BuildSet):
 
 class OpenObjectScheduler(Scheduler):
     def __init__(self, name, branch, treeStableTimer, builderNames,
-                 fileIsImportant=None, properties=None, openerp_properties=None):
+                 fileIsImportant=None, properties=None, keeper=None):
         self.unimportantChanges = []
         Scheduler.__init__(self, name=name, branch=branch, treeStableTimer=treeStableTimer, builderNames=builderNames,
                  fileIsImportant=fileIsImportant, properties=properties)
-        self.openerp_properties = openerp_properties
+        self.keeper = keeper
 
     def fireTimer(self):
         # clear out our state
