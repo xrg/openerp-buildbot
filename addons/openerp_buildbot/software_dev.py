@@ -22,6 +22,7 @@
 from tools.translate import _
 from osv import fields, osv
 from datetime import datetime
+import time
 
 class software_group(osv.osv):
     _name = 'software_dev.buildgroup'
@@ -316,6 +317,7 @@ class software_commit(osv.osv):
         """
         assert isinstance(cdict, dict)
         user_obj = self.pool.get('software_dev.vcs_user')
+        fchange_obj = self.pool.get('software_dev.filechange')
         new_vals = {
             'name': cdict['comments'],
             'date': datetime.fromtimestamp(cdict['when']),
@@ -324,11 +326,57 @@ class software_commit(osv.osv):
             'revno': cdict['rev'],
             
             }
-        for cf in cdict['files']:
-            # TODO: files
-            pass
         cid = self.create(cr, uid, new_vals, context=context)
+         
+        if cdict.get('filesb'):
+            # try to submit from the detailed files member
+            for cf in cdict['filesb']:
+                fval = { 'commit_id': cid,
+                    'filename': cf['filename'],
+                    'ctype': cf.get('ctype', 'm'),
+                    'lines_add': cf.get('lines_add', 0),
+                    'lines_rem': cf.get('lines_rem', 0),
+                    }
+                fchange_obj.create(cr, uid, fval, context=context)
+                
+        else: # use the compatible list, eg. when migrating
+            for cf in cdict['files']:
+                fval = { 'commit_id': cid,
+                    'filename': cf['name'],
+                    }
+                fchange_obj.create(cr, uid, fval, context=context)
         return cid
+
+    def getChanges(self, cr, uid, ids, context=None):
+        """ Format the commits into a dictionary
+        """
+        ret = []
+        for cmt in self.browse(cr, uid, ids, context=context):
+            if isinstance(cmt.date, basestring):
+                dt = cmt.date.rsplit('.',1)[0]
+                tdate = time.mktime(time.strptime(dt, '%Y-%m-%d %H:%M:%S'))
+            else:
+                tdate = time.mktime(cmt.date)
+            cdict = {
+                'id': cmt.id,
+                'comments': cmt.name,
+                'when': tdate,
+                'branch_id': cmt.branch_id.id,
+                'who': cmt.comitter_id.userid,
+                'revision': cmt.revno,
+                'hash': cmt.hash,
+                'filesb': [],
+                }
+            for cf in cmt.change_ids:
+                cdict['filesb'].append( {
+                        'filename': cf.filename,
+                        'ctype': cf.ctype,
+                        'lines_add': cf.lines_add,
+                        'lines_rem': cf.lines_rem,
+                        })
+            
+            ret.append(cdict)
+        return ret
 
 software_commit()
 
@@ -371,10 +419,30 @@ class software_buildscheduler(osv.osv):
         'name': fields.char('Name', required=True, size=256, select=1),
         'class_name': fields.char('Class name', size=256, required=True),
         'state_dic': fields.text('State'),
+        'change_ids': fields.one2many('software_dev.sched_change', 'sched_id', 'Changes'),
     }
 
     _sql_constraints = [( 'name_class_uniq', 'UNIQUE(class_name, name)', 'Cannot reuse name at the same scheduler class.'), ]
 
 software_buildscheduler()
+
+class software_schedchange(osv.osv):
+    """ Connect a commit to a scheduler and if the sched is interested in it
+    """
+    _name = 'software_dev.sched_change'
+    _description = 'Commit at Scheduler'
+    _columns = {
+        'commit_id': fields.many2one('software_dev.commit','Commit', required=True),
+        'sched_id': fields.many2one('software_dev.buildscheduler','Scheduler', required=True, select=1),
+        'important': fields.boolean('Is important', required=True, 
+                    help="If true, this change will trigger a build, else just recorded."),
+    }
+    _defaults = {
+        'important': True,
+    }
+    
+    _sql_constraints = [( 'commit_sched_uniq', 'UNIQUE(commit_id, sched_id)', 'A commit can only be at a scheduler once'), ]
+
+software_schedchange()
 
 #eof

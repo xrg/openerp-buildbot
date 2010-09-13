@@ -5,7 +5,8 @@ from twisted.internet import defer, threads
 from buildbot import util
 
 from buildbot.util import collections as bbcollections
-from buildbot.changes.changes import Change
+# from buildbot.changes.changes import Change
+from poller import OpenObjectChange
 from buildbot.sourcestamp import SourceStamp
 from buildbot.buildrequest import BuildRequest
 from buildbot.process.properties import Properties
@@ -174,10 +175,10 @@ class OERPConnector(util.ComparableMixin):
 
     def getLatestChangeNumberNow(self, branch=None, t=None):
         change_obj = rpc.RpcProxy('software_dev.commit')
-        res = change_obj.search([], 0, 1, "id desc")
+        res = change_obj.search([('branch_id','=', branch)], 0, 1, "id desc")
         if (not res) or not res[0]:
             return None
-        return res[0][0]
+        return res[0]
 
     def getChangeNumberedNow(self, changeid, t=None):
         # this is a synchronous/blocking version of getChangeByNumber
@@ -186,50 +187,7 @@ class OERPConnector(util.ComparableMixin):
         if c:
             return c
         
-        change_obj = rpc.RpcProxy('software_dev.commit')
-        res = change_obj.read(changeid, ['',])
-
-        c = Change(who=who, files=files, comments=comments, isdir=isdir,
-                   links=links, revision=revision, when=when,
-                   branch=branch, category=category, revlink=revlink,
-                   repository=repository, project=project)
-        c.properties.updateFromProperties(p)
-        c.number = changeid
-
-        self._change_cache.add(changeid, c)
-        return c
-
-    def _txn_getChangeNumberedNow(self, t, changeid):
-        q = self.quoteq("SELECT author, comments,"
-                        " is_dir, branch, revision, revlink,"
-                        " when_timestamp, category,"
-                        " repository, project"
-                        " FROM changes WHERE changeid = ?")
-        t.execute(q, (changeid,))
-        rows = t.fetchall()
-        raise NotImplementedError
-        if not rows:
-            return None
-        (who, comments,
-         isdir, branch, revision, revlink,
-         when, category, repository, project) = rows[0]
-        branch = str_or_none(branch)
-        revision = str_or_none(revision)
-        q = self.quoteq("SELECT link FROM change_links WHERE changeid=?")
-        t.execute(q, (changeid,))
-        rows = t.fetchall()
-        links = [row[0] for row in rows]
-        links.sort()
-
-        q = self.quoteq("SELECT filename FROM change_files WHERE changeid=?")
-        t.execute(q, (changeid,))
-        rows = t.fetchall()
-        files = [row[0] for row in rows]
-        files.sort()
-
-        p = self.get_properties_from_db("change_properties", "changeid",
-                                        changeid, t)
-        return c
+        return self.runInteractionNow(self._get_change_num, changeid)
 
     def getChangeByNumber(self, changeid):
         # return a Deferred that fires with a Change instance, or None if
@@ -238,46 +196,32 @@ class OERPConnector(util.ComparableMixin):
         c = self._change_cache.get(changeid)
         if c:
             return defer.succeed(c)
-        d1 = self.runQuery(self.quoteq("SELECT author, comments,"
-                                       " is_dir, branch, revision, revlink,"
-                                       " when_timestamp, category,"
-                                       " repository, project"
-                                       " FROM changes WHERE changeid = ?"),
-                           (changeid,))
-        d2 = self.runQuery(self.quoteq("SELECT link FROM change_links"
-                                       " WHERE changeid=?"),
-                           (changeid,))
-        d3 = self.runQuery(self.quoteq("SELECT filename FROM change_files"
-                                       " WHERE changeid=?"),
-                           (changeid,))
-        d4 = self.runInteraction(self._txn_get_properties_from_db,
-                "change_properties", "changeid", changeid)
-        d = defer.gatherResults([d1,d2,d3,d4])
-        d.addCallback(self._getChangeByNumber_query_done, changeid)
-        return d
+        
+        return self.runInteraction(self._get_change_num, changeid)
 
-    def _getChangeByNumber_query_done(self, res, changeid):
-        (rows, link_rows, file_rows, properties) = res
-        if not rows:
-            return None
-        (who, comments,
-         isdir, branch, revision, revlink,
-         when, category, repository, project) = rows[0]
-        branch = str_or_none(branch)
-        revision = str_or_none(revision)
-        links = [row[0] for row in link_rows]
-        links.sort()
-        files = [row[0] for row in file_rows]
-        files.sort()
+    def _get_change_num(self, trans, changeid):
+        change_obj = rpc.RpcProxy('software_dev.commit')
+        if isinstance(changeid, (list, tuple)):
+            cids = changeid
+        else:
+            cids = [changeid,]
+        res = change_obj.getChanges(cids)
+        
+        ret = []
+        for cdict in res:
+            print "will get change:", cdict
+            c = OpenObjectChange(**cdict)
 
-        c = Change(who=who, files=files, comments=comments, isdir=isdir,
-                   links=links, revision=revision, when=when,
-                   branch=branch, category=category, revlink=revlink,
-                   repository=repository, project=project)
-        c.properties.updateFromProperties(properties)
-        c.number = changeid
-        self._change_cache.add(changeid, c)
-        return c
+            # TODO
+            # p = self.get_properties_from_db("change_properties", "changeid",
+            #                            changeid, t)
+
+            self._change_cache.add(cdict['id'], c)
+            ret.append(c)
+        if isinstance(changeid, (list, tuple)):
+            return ret
+        else:
+            return ret[0]
 
     def getChangesGreaterThan(self, last_changeid, t=None):
         """Return a Deferred that fires with a list of all Change instances
@@ -285,39 +229,30 @@ class OERPConnector(util.ComparableMixin):
         useful for catching up with everything that's happened since you last
         called this function."""
         assert last_changeid >= 0
-        if t:
-            return self._txn_getChangesGreaterThan(t, last_changeid)
-        else:
-            return self.runInteractionNow(self._txn_getChangesGreaterThan,
-                                          last_changeid)
-    def _txn_getChangesGreaterThan(self, t, last_changeid):
-        q = self.quoteq("SELECT changeid FROM changes WHERE changeid > ?")
-        t.execute(q, (last_changeid,))
+        
+        change_obj = rpc.RpcProxy('software_dev.commit')
+        cids = change_obj.search([('id', '>', last_changeid)])
         changes = [self.getChangeNumberedNow(changeid, t)
-                   for (changeid,) in t.fetchall()]
+                   for changeid in cids]
         changes.sort(key=lambda c: c.number)
         return changes
 
     def getChangeIdsLessThanIdNow(self, new_changeid):
         """Return a list of all extant change id's less than the given value,
         sorted by number."""
-        def txn(t):
-            q = self.quoteq("SELECT changeid FROM changes WHERE changeid < ?")
-            t.execute(q, (new_changeid,))
-            changes = [changeid for (changeid,) in t.fetchall()]
-            changes.sort()
-            return changes
-        return self.runInteractionNow(txn)
+        change_obj = rpc.RpcProxy('software_dev.commit')
+        cids = change_obj.search([('id', '<', last_changeid)])
+        changes = [self.getChangeNumberedNow(changeid, t)
+                   for changeid in cids]
+        changes.sort(key=lambda c: c.number)
+        return changes
 
     def removeChangeNow(self, changeid):
         """Thoroughly remove a change from the database, including all dependent
         tables"""
-        def txn(t):
-            for table in ('changes', 'scheduler_changes', 'sourcestamp_changes',
-                          'change_files', 'change_links', 'change_properties'):
-                q = self.quoteq("DELETE FROM %s WHERE changeid = ?" % table)
-                t.execute(q, (changeid,))
-        return self.runInteractionNow(txn)
+        change_obj = rpc.RpcProxy('software_dev.commit')
+        change_obj.unlink([changeid,])
+        return None
 
     def getChangesByNumber(self, changeids):
         return defer.gatherResults([self.getChangeByNumber(changeid)
@@ -430,6 +365,7 @@ class OERPConnector(util.ComparableMixin):
                     max_changeid = 0
                 state = scheduler.get_initial_state(max_changeid)
                 state_json = json.dumps(state)
+                print "writting state:", state_json
                 sid = sched_obj.create( { 'name': name,
                                 'class_name': class_name,
                                 'state_dic': state } )
@@ -448,6 +384,7 @@ class OERPConnector(util.ComparableMixin):
     def scheduler_set_state(self, schedulerid, t, state):
         sched_obj = rpc.RpcProxy('software_dev.buildscheduler')
         state_json = json.dumps(state)
+        print "writing state:", state_json
         sched_obj.write([schedulerid,], {'state_dic': state_json })
 
     def get_sourcestampid(self, ss, t):
@@ -511,38 +448,33 @@ class OERPConnector(util.ComparableMixin):
         return bsid
 
     def scheduler_classify_change(self, schedulerid, number, important, t):
-        raise NotImplementedError
-        q = self.quoteq("INSERT INTO scheduler_changes"
-                        " (schedulerid, changeid, important)"
-                        " VALUES (?,?,?)")
-        t.execute(q, (schedulerid, number, bool(important)))
+        scha_obj = rpc.RpcProxy('software_dev.sched_change')
+        scha_obj.create({'commit_id': number, 'sched_id': schedulerid, 'important': important})
 
     def scheduler_get_classified_changes(self, schedulerid, t):
-        raise NotImplementedError
-        q = self.quoteq("SELECT changeid, important"
-                        " FROM scheduler_changes"
-                        " WHERE schedulerid=?")
-        t.execute(q, (schedulerid,))
-        important = []
-        unimportant = []
-        for (changeid, is_important) in t.fetchall():
-            c = self.getChangeNumberedNow(changeid, t)
-            if is_important:
-                important.append(c)
-            else:
-                unimportant.append(c)
+        scha_obj = rpc.RpcProxy('software_dev.sched_change')
+        
+        # one time for important ones
+        sids = scha_obj.search([('sched_id','=', schedulerid), ('important','=',True)])
+        res = scha_obj.read(sids, ['commit_id'])
+        
+        important = self._get_change_num(Token(), [ r['commit_id'] for r in res])
+        print "Found important: ", important
+
+        # And one more time for unimportant ones
+        sids = scha_obj.search([('sched_id','=', schedulerid), ('important','=', False)])
+        res = scha_obj.read(sids, ['commit_id'])
+        unimportant = self._get_change_num(Token(), [ r['commit_id'] for r in res])
+        
         return (important, unimportant)
 
     def scheduler_retire_changes(self, schedulerid, changeids, t):
-        raise NotImplementedError
-        while changeids:
-            # sqlite has a maximum of 999 parameters, but we'll try to come in far
-            # short of that
-            batch, changeids = changeids[:100], changeids[100:]
-            t.execute(self.quoteq("DELETE FROM scheduler_changes"
-                                  " WHERE schedulerid=? AND changeid IN ")
-                      + self.parmlist(len(batch)),
-                      (schedulerid,) + tuple(batch))
+        scha_obj = rpc.RpcProxy('software_dev.sched_change')
+        
+        # one time for important ones
+        sids = scha_obj.search([('sched_id','=', schedulerid), 
+                        ('commit_id','in',changeids)])
+        res = scha_obj.unlink(sids)
 
     def scheduler_subscribe_to_buildset(self, schedulerid, bsid, t):
         # scheduler_get_subscribed_buildsets(schedulerid) will return

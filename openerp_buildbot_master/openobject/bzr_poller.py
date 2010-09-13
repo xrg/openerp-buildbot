@@ -174,7 +174,7 @@ class BzrPoller(buildbot.changes.base.ChangeSource,
         last_cid = self.parent.getLatestChangeNumberNow(branch=self.branch_id)
         if last_cid:
             change = self.parent.getChangeNumberedNow(last_cid)
-            assert change.branch == ourbranch
+            assert change.branch_id == self.branch_id, "%r != %r" % (change.branch_id, self.branch_id)
             self.last_revision = change.revision
             # We *assume* here that the last change registered with the
             # branch is a head earlier than our current revision.

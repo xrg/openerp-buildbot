@@ -158,11 +158,17 @@ Comments : %(comments)s
 from twisted.web import html
 class OpenObjectChange(Change):
     def __init__(self, **kwargs):
-        self.branch_id = kwargs.get('branch_id')
-        assert self.branch_id
-        del kwargs['branch_id']
+        self.branch_id = kwargs.pop('branch_id')
+        self.filesb = kwargs.pop('filesb',[])
+        self.hash = kwargs.pop('hash', None)
+        self.number = kwargs.pop('id', None)
+        files = kwargs.pop('files', False)
+        if not files:
+            files = [ x['filename'] for x in self.filesb ]
+        who = kwargs.pop('who', '')
+        comments = kwargs.pop('comments', '')
         # self.all_modules = list(set([ x.split('/')[0] for x in files]))
-        Change.__init__(self, **kwargs)
+        Change.__init__(self, who, files, comments, **kwargs)
 
     def allModules(self):
         """ Return the list of all the modules that must have changed
@@ -172,6 +178,10 @@ class OpenObjectChange(Change):
     def asDict(self):
         res = Change.asDict(self)
         res['branch_id'] = self.branch_id
+        if self.hash:
+            res['hash'] = self.hash
+        if self.filesb:
+            res['filesb'] = self.filesb
         return res
 
     def asHTML(self):
