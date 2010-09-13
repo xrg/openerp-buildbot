@@ -220,12 +220,7 @@ class BzrPoller(buildbot.changes.base.ChangeSource,
 
     def getRawChanges(self):
         branch = bzrlib.branch.Branch.open_containing(self.url)[0]
-        if self.branch_name is FULL:
-            branch_name = self.url
-        elif self.branch_name is SHORT:
-            branch_name = branch.nick
-        else: # presumably a string or maybe None
-            branch_name = self.branch_name
+        branch_name = self.branch_name
         changes = []
         change = generate_change(
             branch, blame_merge_author=self.blame_merge_author)
