@@ -136,7 +136,7 @@ class software_buildbot(osv.osv):
         bs_obj = self.pool.get('software_dev.buildseries')
         bids = bs_obj.search(cr, uid, [('builder_id', 'in', ids), ('is_build','=',True)], context=context)
         for bldr in bs_obj.browse(cr, uid, bids, context=context):
-            bret = { 'name': bldr.name,
+            bret = { 'name': bldr.buildername,
                     'slavename': bldr.builder_id.slave_ids[0].tech_code,
                     'builddir': bldr.target_path, #TODO
                     'steps': [],
@@ -208,6 +208,21 @@ class software_buildseries(osv.osv):
     """
     _name = 'software_dev.buildseries'
     _description = 'Build Series'
+    
+    def _get_buildername(self, cr, uid, ids, name, args, context=None):
+        """ A builder name is a unique str of something being built at the bbot
+        """
+        res = {}
+        for b in self.browse(cr, uid, ids, context=context):
+            comps = []
+            if b.group_id:
+                comps.append(b.group_id.name)
+            if b.builder_id:
+                comps.append(b.builder_id.tech_code)
+            comps.append(b.name)
+            res[b.id] = '/'.join(comps)
+        return res
+
     _columns = {
         'name': fields.char('Name', required=True, size=64),
         'description': fields.text('Description'),
@@ -233,6 +248,8 @@ class software_buildseries(osv.osv):
             'software_dev_branch_dep_rel', 'end_branch_id', 'dep_branch_id',
             string="Dependencies",
             help="Branches that are built along with this branch"),
+        'buildername': fields.function(_get_buildername, string='Builder name',
+                method=True, type='char', readonly=True),
     }
 
     _defaults = {
@@ -495,7 +512,7 @@ class software_buildset(osv.osv):
         'reason': fields.char('Reason', size=256),
         
         #`sourcestampid` INTEGER NOT NULL,
-        'submitted_at': fields.datetime('Submitted at', required=True),
+        'submitted_at': fields.datetime('Submitted at', required=False),
         'complete': fields.boolean('Complete', required=True),
         'complete_at': fields.datetime('Complete At'),
         'results': fields.integer('Results'),
@@ -555,7 +572,7 @@ class software_bbuild(osv.osv):
     def _get_buildername(self, cr, uid, ids, name, args, context=None):
         res = {}
         for b in self.browse(cr, uid, ids, context=context):
-            res[b.id] = b.branch_id.builder_id.tech_code
+            res[b.id] = b.branch_id.buildername
         return res
 
     _columns = {
@@ -565,7 +582,7 @@ class software_bbuild(osv.osv):
         'build_start_time': fields.datetime('Build start time'),
         'build_finish_time': fields.datetime('Build finish time'),
         'buildername': fields.function(_get_buildername, string='Builder name',
-                method=True, type='char', readonly=True),
+                method=True, type='char', readonly=True, size=512, store=True),
     }
     
 software_bbuild()
