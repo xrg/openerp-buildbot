@@ -274,56 +274,36 @@ class OERPConnector(util.ComparableMixin):
 
     # SourceStamp-manipulating methods
 
-    def getSourceStampNumberedNow(self, ssid, t=None):
+    def getSourceStampNumberedNow(self, ssid, t=None, old_res=None):
         assert isinstance(ssid, (int, long))
         ss = self._sourcestamp_cache.get(ssid)
         if ss:
             return ss
-        if t:
-            ss = self._txn_getSourceStampNumbered(t, ssid)
-        else:
-            ss = self.runInteractionNow(self._txn_getSourceStampNumbered,
-                                           ssid)
-        self._sourcestamp_cache.add(ssid, ss)
-        return ss
-
-    def _txn_getSourceStampNumbered(self, t, ssid):
+        
         assert isinstance(ssid, (int, long))
-        t.execute(self.quoteq("SELECT branch,revision,patchid,project,repository"
-                              " FROM sourcestamps WHERE id=?"),
-                  (ssid,))
-        r = t.fetchall()
-        if not r:
+        
+        if not old_res:
+            res = sstamp_obj.read(ssid)
+        else:
+            res = old_res
+        if not res:
             return None
-        (branch_u, revision_u, patchid, project, repository) = r[0]
-        branch = str_or_none(branch_u)
-        revision = str_or_none(revision_u)
+
+        branch = res['branch_id'][0]
+        revision = res.get('revno', False) or res.get('hash', '')
 
         patch = None
-        if patchid is not None:
-            t.execute(self.quoteq("SELECT patchlevel,patch_base64,subdir"
-                                  " FROM patches WHERE id=?"),
-                      (patchid,))
-            r = t.fetchall()
-            assert len(r) == 1
-            (patch_level, patch_text_base64, subdir_u) = r[0]
-            patch_text = base64.b64decode(patch_text_base64)
-            if subdir_u:
-                patch = (patch_level, patch_text, str(subdir_u))
-            else:
-                patch = (patch_level, patch_text)
+        #if patchid is not None:
+        #    raise NotImplementedError
 
-        t.execute(self.quoteq("SELECT changeid FROM sourcestamp_changes"
-                              " WHERE sourcestampid=?"
-                              " ORDER BY changeid ASC"),
-                  (ssid,))
-        r = t.fetchall()
         changes = None
-        if r:
-            changes = [self.getChangeNumberedNow(changeid, t)
-                       for (changeid,) in r]
-        ss = SourceStamp(branch, revision, patch, changes, project=project, repository=repository)
+        
+        changeid = ssid
+        changes = [self.getChangeNumberedNow(changeid, t), ]
+        ss = SourceStamp(branch, revision, patch, changes )
+            # project=project, repository=repository)
         ss.ssid = ssid
+        self._sourcestamp_cache.add(ssid, ss)
         return ss
 
     # Properties methods
@@ -382,7 +362,7 @@ class OERPConnector(util.ComparableMixin):
                 print "writting state:", state_json
                 sid = sched_obj.create( { 'name': name,
                                 'class_name': class_name,
-                                'state_dic': state } )
+                                'state_dic': state_json } )
 
             log.msg("scheduler '%s' got id %d" % (scheduler.name, sid))
             scheduler.schedulerid = sid
@@ -439,6 +419,7 @@ class OERPConnector(util.ComparableMixin):
 
     def scheduler_classify_change(self, schedulerid, number, important, t):
         scha_obj = rpc.RpcProxy('software_dev.sched_change')
+        print "Classify change %s at %s as important=%s" %( number, schedulerid, important)
         scha_obj.create({'commit_id': number, 'sched_id': schedulerid, 'important': important})
 
     def scheduler_get_classified_changes(self, schedulerid, t):
@@ -461,6 +442,7 @@ class OERPConnector(util.ComparableMixin):
     def scheduler_retire_changes(self, schedulerid, changeids, t):
         scha_obj = rpc.RpcProxy('software_dev.sched_change')
         
+        print "Retire changes:", changeids
         # one time for important ones
         sids = scha_obj.search([('sched_id','=', schedulerid), 
                         ('commit_id','in',changeids)])
@@ -469,12 +451,15 @@ class OERPConnector(util.ComparableMixin):
     def scheduler_subscribe_to_buildset(self, schedulerid, bsid, t):
         # scheduler_get_subscribed_buildsets(schedulerid) will return
         # information about all buildsets that were subscribed this way
+        print "Subscribe to buildset", bsid
+        raise NotImplementedError
         t.execute(self.quoteq("INSERT INTO scheduler_upstream_buildsets"
                               " (buildsetid, schedulerid, active)"
                               " VALUES (?,?,?)"),
                   (bsid, schedulerid, 1))
 
     def scheduler_get_subscribed_buildsets(self, schedulerid, t):
+        print "Get subscribed buildsets"
         raise NotImplementedError
         # returns list of (bsid, ssid, complete, results) pairs
         t.execute(self.quoteq("SELECT bs.id, "
@@ -488,6 +473,7 @@ class OERPConnector(util.ComparableMixin):
         return t.fetchall()
 
     def scheduler_unsubscribe_buildset(self, schedulerid, buildsetid, t):
+        print "Unsubscribe buildset"
         raise NotImplementedError
         t.execute(self.quoteq("UPDATE scheduler_upstream_buildsets"
                               " SET active=0"
@@ -497,32 +483,24 @@ class OERPConnector(util.ComparableMixin):
     # BuildRequest-manipulation methods
 
     def getBuildRequestWithNumber(self, brid, t=None):
+        print "getBuildRequestWithNumber", brid
+
         assert isinstance(brid, (int, long))
-        raise NotImplementedError
-        if t:
-            br = self._txn_getBuildRequestWithNumber(t, brid)
-        else:
-            br = self.runInteractionNow(self._txn_getBuildRequestWithNumber,
-                                        brid)
-        return br
-    def _txn_getBuildRequestWithNumber(self, t, brid):
-        assert isinstance(brid, (int, long))
-        t.execute(self.quoteq("SELECT br.buildsetid, bs.reason,"
-                              " bs.sourcestampid, br.buildername,"
-                              " bs.submitted_at, br.priority"
-                              " FROM buildrequests AS br, buildsets AS bs"
-                              " WHERE br.id=? AND br.buildsetid=bs.id"),
-                  (brid,))
-        r = t.fetchall()
-        if not r:
+        
+        breq_obj = rpc.RpcProxy('software_dev.commit')
+        res = breq_obj.read(brid)
+        
+        if not res:
             return None
-        (bsid, reason, ssid, builder_name, submitted_at, priority) = r[0]
-        ss = self.getSourceStampNumberedNow(ssid, t)
-        properties = self.get_properties_from_db("buildset_properties",
-                                                 "buildsetid", bsid, t)
-        br = BuildRequest(reason, ss, builder_name, properties)
-        br.submittedAt = submitted_at
-        br.priority = priority
+        ssid = brid # short-wire
+        ss = self.getSourceStampNumberedNow(ssid, t, res)
+        # properties = self.get_properties_from_db("buildset_properties",
+        #                                          "buildsetid", bsid, t)
+        properties = {}
+        bsid = brid
+        br = BuildRequest(res['reason'], ss, res['buildername'], properties)
+        br.submittedAt = res['submitted_at']
+        br.priority = res['priority']
         br.id = brid
         br.bsid = bsid
         return br
@@ -531,18 +509,22 @@ class OERPConnector(util.ComparableMixin):
         breq_obj = rpc.RpcProxy('software_dev.commit')
         
         res = breq_obj.read(brid, ['buildername'])
-        if not r:
+        if not res:
             return None
-        return r['buildername']
+        return res['buildername']
 
     def get_unclaimed_buildrequests(self, buildername, old, master_name,
                                     master_incarnation, t, limit=None):
         breq_obj = rpc.RpcProxy('software_dev.commit')
         
-        bids = breq_obj.search([('branch_id.builder_id.tech_code', '=', buildername),
-                        ('complete', '=', False), '|', ('claimed_at', '<', time2str(old)),
+        print "Get unclaimed buildrequests for %s after %s" % (buildername, time2str(old))
+        bids = breq_obj.search([('buildername', '=', buildername),
+                        ('complete', '=', False), 
+                        '|', '|' , ('claimed_at','=', False), ('claimed_at', '<', time2str(old)),
                         '&', ('claimed_by_name', '=', master_name),
-                        ('claimed_by_incarnation', '!=', master_incarnation)], 0, limit, 'priority DESC, submitted_at')
+                        ('claimed_by_incarnation', '!=', master_incarnation)], 
+                        0, limit or False, 'priority DESC, submitted_at')
+        print "Got %d unclaimed buildrequests" % len(bids)
         requests = [self.getBuildRequestWithNumber(bid, t)
                     for bid in bids]
         return requests
@@ -552,6 +534,7 @@ class OERPConnector(util.ComparableMixin):
         if not brids:
             return
         breq_obj = rpc.RpcProxy('software_dev.commit')
+        print "Claim buildrequests"
         
         vals = { 'claimed_at': time2str(now),
                 'claimed_by_name': master_name,
@@ -562,7 +545,7 @@ class OERPConnector(util.ComparableMixin):
     def build_started(self, brid, buildnumber):
         now = self._getCurrentTime()
         build_obj = rpc.RpcProxy('software_dev.commit')
-        vals = { 'build_number': buildnumber, 'start_time': time2str(now) }
+        vals = { 'build_number': buildnumber, 'build_start_time': time2str(now) }
         build_obj.write(brid, vals)
         bid = brid  # one table is used for everything
         self.notify("add-build", bid)
@@ -571,7 +554,7 @@ class OERPConnector(util.ComparableMixin):
     def builds_finished(self, bids):
         now = self._getCurrentTime()
         build_obj = rpc.RpcProxy('software_dev.commit')
-        vals = { 'finish_time': time2str(now) }
+        vals = { 'build_finish_time': time2str(now) }
         build_obj.write(bids, vals)
 
     def get_build_info(self, bid):
@@ -616,6 +599,7 @@ class OERPConnector(util.ComparableMixin):
             #                " WHERE br.buildsetid=bs.id AND bs.complete=0"
             #                "  AND br.id in " (brids)
             
+            t = None
             for bsid in bsids:
                 self._check_buildset(t, bsid, now)
         self.notify("retire-buildrequest", *brids)
@@ -733,6 +717,7 @@ class OERPConnector(util.ComparableMixin):
         return None # shouldn't happen
 
     def get_pending_brids_for_builder(self, buildername):
+        print "Get pending brids"
         raise NotImplementedError
         return self.runInteractionNow(self._txn_get_pending_brids_for_builder,
                                       buildername)
