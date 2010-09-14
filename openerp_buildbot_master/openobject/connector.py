@@ -409,54 +409,30 @@ class OERPConnector(util.ComparableMixin):
         if ss.ssid is not None:
             return ss.ssid
         patchid = None
-        raise NotImplementedError
-        if ss.patch:
-            patchlevel = ss.patch[0]
-            diff = ss.patch[1]
-            subdir = None
-            if len(ss.patch) > 2:
-                subdir = ss.patch[2]
-            q = self.quoteq("INSERT INTO patches"
-                            " (patchlevel, patch_base64, subdir)"
-                            " VALUES (?,?,?)")
-            t.execute(q, (patchlevel, base64.b64encode(diff), subdir))
-            patchid = t.lastrowid
-        t.execute(self.quoteq("INSERT INTO sourcestamps"
-                              " (branch, revision, patchid, project, repository)"
-                              " VALUES (?,?,?,?,?)"),
-                  (ss.branch, ss.revision, patchid, ss.project, ss.repository))
-        ss.ssid = t.lastrowid
-        q2 = self.quoteq("INSERT INTO sourcestamp_changes"
-                         " (sourcestampid, changeid) VALUES (?,?)")
-        for c in ss.changes:
-            t.execute(q2, (ss.ssid, c.number))
+        # the sourcestamp is crippled to equal the change
+        ss.ssid = ss.changes[0].number
         return ss.ssid
 
     def create_buildset(self, ssid, reason, properties, builderNames, t,
                         external_idstring=None):
         # this creates both the BuildSet and the associated BuildRequests
         now = self._getCurrentTime()
-        raise NotImplementedError
-        t.execute(self.quoteq("INSERT INTO buildsets"
-                              " (external_idstring, reason,"
-                              "  sourcestampid, submitted_at)"
-                              " VALUES (?,?,?,?)"),
-                  (external_idstring, reason, ssid, now))
-        bsid = t.lastrowid
-        for propname, propvalue in properties.properties.items():
-            encoded_value = json.dumps(propvalue)
-            t.execute(self.quoteq("INSERT INTO buildset_properties"
-                                  " (buildsetid, property_name, property_value)"
-                                  " VALUES (?,?,?)"),
-                      (bsid, propname, encoded_value))
+        bset_obj = rpc.RpcProxy('software_dev.commit')
+        
+        vals = { # sourcestamp:
+                'submitted_at': time2str(now),
+                }
+        if external_idstring:
+            vals['external_idstring'] = external_idstring
+        if reason:
+            vals['reason'] = reason
+        bsid = ssid  # buildset == sourcestamp == change
+        bset_obj.write(bsid, vals)
+        # TODO: properties
+        # TODO: respect builderNames
         brids = []
-        for bn in builderNames:
-            t.execute(self.quoteq("INSERT INTO buildrequests"
-                                  " (buildsetid, buildername, submitted_at)"
-                                  " VALUES (?,?,?)"),
-                      (bsid, bn, now))
-            brid = t.lastrowid
-            brids.append(brid)
+        brid = ssid     # buildrequest == sourcestamp
+        brids.append(brid)
         self.notify("add-buildset", bsid)
         self.notify("add-buildrequest", *brids)
         return bsid
@@ -552,18 +528,12 @@ class OERPConnector(util.ComparableMixin):
         return br
 
     def get_buildername_for_brid(self, brid):
-        raise NotImplementedError
-        assert isinstance(brid, (int, long))
-        return self.runInteractionNow(self._txn_get_buildername_for_brid, brid)
-    def _txn_get_buildername_for_brid(self, t, brid):
-        assert isinstance(brid, (int, long))
-        t.execute(self.quoteq("SELECT buildername FROM buildrequests"
-                              " WHERE id=?"),
-                  (brid,))
-        r = t.fetchall()
+        breq_obj = rpc.RpcProxy('software_dev.commit')
+        
+        res = breq_obj.read(brid, ['buildername'])
         if not r:
             return None
-        return r[0][0]
+        return r['buildername']
 
     def get_unclaimed_buildrequests(self, buildername, old, master_name,
                                     master_incarnation, t, limit=None):
@@ -630,7 +600,6 @@ class OERPConnector(util.ComparableMixin):
 
     def retire_buildrequests(self, brids, results):
         now = self._getCurrentTime()
-        raise NotImplementedError
         breq_obj = rpc.RpcProxy('software_dev.commit')
         # remember: buildrequest == build in our schema
         vals = { 'complete': 1, 'results': results,
@@ -653,45 +622,32 @@ class OERPConnector(util.ComparableMixin):
         self.notify("modify-buildset", *bsids)
 
     def cancel_buildrequests(self, brids):
-        return self.runInteractionNow(self._txn_cancel_buildrequest, brids)
-    def _txn_cancel_buildrequest(self, t, brids):
+        
         # TODO: we aren't entirely sure if it'd be safe to just delete the
         # buildrequest: what else might be waiting on it that would then just
         # hang forever?. _check_buildset() should handle it well (an empty
         # buildset will appear complete and SUCCESS-ful). But we haven't
         # thought it through enough to be sure. So for now, "cancel" means
         # "mark as complete and FAILURE".
+        breq_obj = rpc.RpcProxy('software_dev.commit')
+        vals = { 'complete': True, 'results': FAILURE,
+                'complete_at': time2str(now) }
+        breq_obj.write(brids, vals)
         raise NotImplementedError
-        while brids:
-            
-            batch, brids = brids[:100], brids[100:]
 
-            if True:
-                now = self._getCurrentTime()
-                q = self.quoteq("UPDATE buildrequests"
-                                " SET complete=1, results=?, complete_at=?"
-                                " WHERE id IN " + self.parmlist(len(batch)))
-                t.execute(q, [FAILURE, now]+batch)
-            else:
-                q = self.quoteq("DELETE FROM buildrequests"
-                                " WHERE id IN " + self.parmlist(len(batch)))
-                t.execute(q, batch)
-
-            # now, does this cause any buildsets to complete?
-            q = self.quoteq("SELECT bs.id"
-                            " FROM buildsets AS bs, buildrequests AS br"
-                            " WHERE br.buildsetid=bs.id AND bs.complete=0"
-                            "  AND br.id in "
-                            + self.parmlist(len(batch)))
-            t.execute(q, batch)
-            bsids = [bsid for (bsid,) in t.fetchall()]
-            for bsid in bsids:
-                self._check_buildset(t, bsid, now)
+        # now, does this cause any buildsets to complete?
+        
+        bsids = brids
+        for bsid in bsids:
+            self._check_buildset(t, bsid, now)
 
         self.notify("cancel-buildrequest", *brids)
         self.notify("modify-buildset", *bsids)
 
     def _check_buildset(self, t, bsid, now):
+        return True
+        # Since there is no difference from buildset->buildrequest, 
+        # nothing to do.
         raise NotImplementedError
         q = self.quoteq("SELECT br.complete,br.results"
                         " FROM buildsets AS bs, buildrequests AS br"
@@ -726,6 +682,8 @@ class OERPConnector(util.ComparableMixin):
         return dict(t.fetchall())
 
     def examine_buildset(self, bsid):
+        return True
+
         return self.runInteractionNow(self._txn_examine_buildset, bsid)
     def _txn_examine_buildset(self, t, bsid):
         raise NotImplementedError
