@@ -107,7 +107,7 @@ class software_buildbot(osv.osv):
         found_branches = []   # ids of branches we have made so far
 
         bseries_obj = self.pool.get('software_dev.buildseries')
-        series_ids = bseries_obj.search(cr, uid, [('builder_id','in',ids)], context=ctx)  # :(
+        series_ids = bseries_obj.search(cr, uid, [('builder_id','in',ids), ('is_build','=',True)], context=ctx)  # :(
 
         for bser in bseries_obj.browse(cr, uid, series_ids, context=ctx):
             dret = {}
@@ -134,13 +134,14 @@ class software_buildbot(osv.osv):
         """
         ret = []
         bs_obj = self.pool.get('software_dev.buildseries')
-        bids = bs_obj.search(cr, uid, [('builder_id', 'in', ids)], context=context)
+        bids = bs_obj.search(cr, uid, [('builder_id', 'in', ids), ('is_build','=',True)], context=context)
         for bldr in bs_obj.browse(cr, uid, bids, context=context):
             bret = { 'name': bldr.name,
                     'slavename': bldr.builder_id.slave_ids[0].tech_code,
                     'builddir': bldr.target_path, #TODO
                     'steps': [],
                     'branch_url': bldr.branch_url,
+                    'branch_name': bldr.name,
                     'tstimer': 30,
                     }
             # Now, build the steps:
@@ -399,6 +400,7 @@ class software_commit(osv.osv):
                 'comments': cmt.name,
                 'when': tdate,
                 'branch_id': cmt.branch_id.id,
+                'branch': cmt.branch_id.name,
                 'who': cmt.comitter_id.userid,
                 'revision': cmt.revno,
                 'hash': cmt.hash,
