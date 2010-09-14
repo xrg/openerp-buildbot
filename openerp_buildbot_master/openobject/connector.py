@@ -165,7 +165,6 @@ class OERPConnector(util.ComparableMixin):
         cleanupDict(cdict)
         for f in cdict['files']:
             cleanupDict(f)
-        print 'Change:', cdict
         change.number = change_obj.submit_change(cdict)
 
         self.notify("add-change", change.number)
@@ -473,13 +472,13 @@ class OERPConnector(util.ComparableMixin):
         sids = scha_obj.search([('sched_id','=', schedulerid), ('important','=',True)])
         res = scha_obj.read(sids, ['commit_id'])
         
-        important = self._get_change_num(Token(), [ r['commit_id'] for r in res])
+        important = self._get_change_num(Token(), [ r['commit_id'][0] for r in res])
         print "Found important: ", important
 
         # And one more time for unimportant ones
         sids = scha_obj.search([('sched_id','=', schedulerid), ('important','=', False)])
         res = scha_obj.read(sids, ['commit_id'])
-        unimportant = self._get_change_num(Token(), [ r['commit_id'] for r in res])
+        unimportant = self._get_change_num(Token(), [ r['commit_id'][0] for r in res])
         
         return (important, unimportant)
 
