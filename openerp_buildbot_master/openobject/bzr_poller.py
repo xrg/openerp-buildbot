@@ -62,6 +62,9 @@ Contact Information
 Maintainer/author: gary.poster@canonical.com
 """
 
+import urllib
+import urlparse
+
 import buildbot.util
 import buildbot.changes.base
 import buildbot.changes.changes
@@ -113,32 +116,42 @@ def generate_change(branch,
         old_revid = branch.get_rev_id(old_revno)
     repository = branch.repository
     new_rev = repository.get_revision(new_revid)
+    gaas = []
     if blame_merge_author:
         # this is a pqm commit or something like it
-        change['who'] = repository.get_revision(
-            new_rev.parent_ids[-1]).get_apparent_author()
+        gaas = repository.get_revision(
+            new_rev.parent_ids[-1]).get_apparent_authors()
     else:
-        change['who'] = new_rev.get_apparent_author()
+        gaas = new_rev.get_apparent_authors()
+    
+    change['who'] = gaas[0]
+    change['authors'] = gaas[1:]
     # maybe useful to know:
     # name, email = bzrtools.config.parse_username(change['who'])
     change['comments'] = new_rev.message
     change['revision'] = new_revno
+    change['hash'] = new_revid
     files = change['files'] = []
+    filesb = change['filesb'] = []
     changes = repository.revision_tree(new_revid).changes_from(
         repository.revision_tree(old_revid))
-    for (collection, name) in ((changes.added, 'ADDED'),
-                               (changes.removed, 'REMOVED'),
-                               (changes.modified, 'MODIFIED')):
+    for (collection, name, ctype) in ((changes.added, 'ADDED', 'a'),
+                               (changes.removed, 'REMOVED', 'd'),
+                               (changes.modified, 'MODIFIED', 'm')):
         for info in collection:
             path = info[0]
             kind = info[2]
             files.append(' '.join([path, kind, name]))
+            filesb.append({'filename': path, 'ctype': ctype, 
+                        'lines_add':0, 'lines_rem':0 })
     for info in changes.renamed:
         oldpath, newpath, id, kind, text_modified, meta_modified = info
         elements = [oldpath, kind,'RENAMED', newpath]
         if text_modified or meta_modified:
             elements.append('MODIFIED')
         files.append(' '.join(elements))
+        filesb.append({'filename': oldpath, 'ctype': 'r',
+                        'lines_add':0, 'lines_rem':0 })
     return change
 
 
@@ -156,6 +169,8 @@ class BzrPoller(buildbot.changes.base.ChangeSource,
         # works, lp:~launchpad-pqm/launchpad/devel/ doesn't without help.
         if url.startswith('lp:'):
             url = 'bzr+ssh://bazaar.launchpad.net/' + url[3:]
+        elif url.startswith('/'):
+           url = 'file://' + url
         self.url = url
         self.poll_interval = poll_interval
         self.loop = twisted.internet.task.LoopingCall(self.poll)
@@ -175,7 +190,7 @@ class BzrPoller(buildbot.changes.base.ChangeSource,
         if last_cid:
             change = self.parent.getChangeNumberedNow(last_cid)
             assert change.branch_id == self.branch_id, "%r != %r" % (change.branch_id, self.branch_id)
-            self.last_revision = change.revision
+            self.last_revision = int(change.revision)
             # We *assume* here that the last change registered with the
             # branch is a head earlier than our current revision.
             # But, it might happen that the repo is diverged and that change
@@ -213,6 +228,7 @@ class BzrPoller(buildbot.changes.base.ChangeSource,
                 # we'll try again next poll.  Meanwhile, let's report.
                 twisted.python.log.err()
             else:
+                twisted.python.log.msg("We have %d changes" % len(changes))
                 for change in changes:
                     yield self.addChange(
                         self._change_class(**change))
@@ -238,6 +254,8 @@ class BzrPoller(buildbot.changes.base.ChangeSource,
                         branch, new_revno=change['revision']-1,
                         blame_merge_author=self.blame_merge_author)
                     change['branch'] = branch_name
+                    change['branch_id'] = self.branch_id
+                    change.setdefault('category', self.category)
                     changes.append(change)
         changes.reverse()
         return changes

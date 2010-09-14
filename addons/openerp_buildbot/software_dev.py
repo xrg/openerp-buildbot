@@ -284,8 +284,38 @@ class software_commit(osv.osv):
     """
     _name = 'software_dev.commit'
     _description = 'Code Commit'
+    
+    def _get_name(self, cr, uid, ids, name, args, context=None):
+        res = {}
+        for b in self.browse(cr, uid, ids, context=context):
+            name = ''
+            if b.revno:
+                name += '#%s ' % b.revno
+            elif b.hash:
+                name += '%s ' % b.hash[:8]
+            name += b.subject
+            res[b.id] = name
+        return res
+
+    def name_search(self, cr, uid, name='', args=None, operator='ilike',  context=None, limit=None):
+        if args is None:
+            args = []
+        if operator in ('ilike', 'like'):
+            op2 = '='
+        elif operator in ('not ilike', 'not like'):
+            op2 = '!='
+        else:
+            op2 = operator
+        domain = args + ['|', '|', ('hash', operator, name), ('revno', op2, name),
+                        ('subject', operator, name)]
+        return super(software_commit, self).name_search(cr, uid, None, domain,
+                        operator=operator, limit=limit, context=context)
+
     _columns = {
-        'name': fields.char('Message', required=True, size=2048),
+        'name': fields.function(_get_name, string='Name', size=512,
+                method=True, type='char', readonly=True),
+        'subject': fields.char('Subject', required=True, size=256),
+        'description': fields.text('Description'),
         'date': fields.datetime('Date', required=True),
         'branch_id': fields.many2one('software_dev.buildseries', 'Branch', required=True, select=1),
         'hash': fields.char('Hash', size=1024, select=1,
@@ -318,13 +348,20 @@ class software_commit(osv.osv):
         assert isinstance(cdict, dict)
         user_obj = self.pool.get('software_dev.vcs_user')
         fchange_obj = self.pool.get('software_dev.filechange')
+        
+        clines = cdict['comments'].split('\n',1)
+        subj = clines[0]
+        descr = '\n'.join(clines[1:])
         new_vals = {
-            'name': cdict['comments'],
+            'subject': subj,
+            'description': descr,
             'date': datetime.fromtimestamp(cdict['when']),
             'branch_id': cdict['branch_id'],
             'comitter_id': user_obj.get_user(cr, uid, cdict['who'], context=context),
             'revno': cdict['rev'],
-            
+            'hash': cdict.get('hash', False),
+            'authors': [ user_obj.get_user(cr, uid, usr, context=context)
+                            for usr in cdict.get('authors', []) ],
             }
         cid = self.create(cr, uid, new_vals, context=context)
          
@@ -389,7 +426,8 @@ class software_filechange(osv.osv):
     _name = 'software_dev.filechange'
     _description = 'Code File Change'
     _columns = {
-        'commit_id': fields.many2one('software_dev.commit','Commit', required=True),
+        'commit_id': fields.many2one('software_dev.commit','Commit', 
+                required=True, ondelete='cascade'),
         'filename': fields.char('File Name', required=True, size=1024, select=1),
         'ctype': fields.selection(change_types, 'Change type', required=True,
                 help="The type of change that occured to the file"),
@@ -397,6 +435,7 @@ class software_filechange(osv.osv):
         'lines_rem': fields.integer('Lines removed'),
     }
     _defaults = {
+        'ctype': 'm',
     }
     
     _sql_constraints = [( 'commit_file_uniq', 'UNIQUE(commit_id, filename)', 'Commit cannot contain same file twice'), ]
@@ -444,5 +483,89 @@ class software_schedchange(osv.osv):
     _sql_constraints = [( 'commit_sched_uniq', 'UNIQUE(commit_id, sched_id)', 'A commit can only be at a scheduler once'), ]
 
 software_schedchange()
+
+
+class software_buildset(osv.osv):
+    _inherit = 'software_dev.commit'
+    
+    _columns = {
+        'external_idstring': fields.char('Ext ID', size=256),
+        'reason': fields.char('Reason', size=256),
+        
+        #`sourcestampid` INTEGER NOT NULL,
+        'submitted_at': fields.datetime('Submitted at', required=True),
+        'complete': fields.boolean('Complete', required=True),
+        'complete_at': fields.datetime('Complete At'),
+        'results': fields.integer('Results'),
+    }
+
+    _defaults = {
+        'complete': False,
+    }
+
+software_buildset()
+
+class software_buildrequest(osv.osv):
+    _inherit = 'software_dev.commit'
+    
+    _columns = {
+        # every BuildRequest has a BuildSet
+        # the sourcestampid and reason live in the BuildSet
+        # 'buildsetid': ...
+
+        # 'buildername': ...
+
+        'priority': fields.integer('Priority', required=True),
+
+        # claimed_at is the time at which a master most recently asserted that
+        # it is responsible for running the build: this will be updated
+        # periodically to maintain the claim
+        'claimed_at': fields.datetime('Claimed at'),
+
+        # claimed_by indicates which buildmaster has claimed this request. The
+        # 'name' contains hostname/basedir, and will be the same for subsequent
+        # runs of any given buildmaster. The 'incarnation' contains bootime/pid,
+        # and will be different for subsequent runs. This allows each buildmaster
+        # to distinguish their current claims, their old claims, and the claims
+        # of other buildmasters, to treat them each appropriately.
+        'claimed_by_name': fields.char('Claimed by name',size=256),
+        'claimed_by_incarnation': fields.char('Incarnation',size=256),
+
+        # 'complete': fields.integer()
+
+        # results is only valid when complete==1
+        # 'results': fields.integer('Results'),
+        # 'submitted_at': fields.datetime('Submitted at', required=True),
+        # 'complete_at': fields.datetime('Complete At'),
+    }
+
+    _defaults = {
+        'priority': 0,
+    }
+
+software_buildrequest()
+
+class software_bbuild(osv.osv):
+    """A buildbot build
+    """
+    _inherit = "software_dev.commit"
+
+    def _get_buildername(self, cr, uid, ids, name, args, context=None):
+        res = {}
+        for b in self.browse(cr, uid, ids, context=context):
+            res[b.id] = b.branch_id.builder_id.tech_code
+        return res
+
+    _columns = {
+        'build_number': fields.integer('Build number', select=1),
+        # 'number' is scoped to both the local buildmaster and the buildername
+        # 'br_id' matches buildrequests.id
+        'build_start_time': fields.datetime('Build start time'),
+        'build_finish_time': fields.datetime('Build finish time'),
+        'buildername': fields.function(_get_buildername, string='Builder name',
+                method=True, type='char', readonly=True),
+    }
+    
+software_bbuild()
 
 #eof

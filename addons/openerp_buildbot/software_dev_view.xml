@@ -26,10 +26,10 @@
             <field name="view_mode">tree,form</field>
          </record>
 
-	<menuitem id="softdev_vuser" name="VCS Users"
-	    action="action_softdev_vuser"
-	    parent="softdev_config" sequence="50" 
-	    groups="project.group_project_manager" />
+        <menuitem id="softdev_vuser" name="VCS Users"
+            action="action_softdev_vuser"
+            parent="softdev_config" sequence="50" 
+            groups="project.group_project_manager" />
 
     <!--commit -->
         <record id="view_softdev_commit_form" model="ir.ui.view">
@@ -39,8 +39,10 @@
             <field name="arch" type="xml">
               <form>
                 <field name="branch_id"/>
-		<field name="date"/>
+                <field name="date"/>
                 <field name="name" colspan="4"/>
+                <field name="subject" colspan="4" />
+                <field name="description" colspan="4" />
                 <field name="revno"/>
                 <field name="ctype"/>
                 <field name="parent_id" />
@@ -50,6 +52,21 @@
                 <field name="author_ids" colspan="4"/>
                 <field name="change_ids" colspan="4"/>
               </form>
+          </field>
+        </record>
+
+        <record id="view_softdev_commit_tree" model="ir.ui.view">
+          <field name="name">Code Commits</field>
+            <field name="model">software_dev.commit</field>
+            <field name="type">tree</field>
+            <field name="arch" type="xml">
+              <tree>
+                <field name="branch_id"/>
+                <field name="date"/>
+                <field name="subject"/>
+                <field name="comitter_id"/>
+                <field name="hash"/>
+              </tree>
           </field>
         </record>
 
@@ -73,8 +90,8 @@
             <field name="type">form</field>
             <field name="arch" type="xml">
               <form>
-		<field name="commit_id" />
-		<newline />
+                <field name="commit_id" />
+                <newline />
                 <field name="filename"/>
                 <field name="ctype" />
                 <field name="lines_add" />
@@ -89,20 +106,20 @@
             <field name="type">tree</field>
             <field name="arch" type="xml">
               <tree>
-		<field name="commit_id" />
+                <field name="commit_id" />
                 <field name="filename"/>
                 <field name="ctype" />
               </tree>
           </field>
         </record>
 
-	<record id="action_softdev_filechange" model="ir.actions.act_window">
-	    <field name="name">File changes</field>
-	    <field name="type">ir.actions.act_window</field>
-	    <field name="res_model">software_dev.filechange</field>
-	    <field name="view_type">form</field>
-	    <field name="view_mode">tree,form</field>
-	</record>
+        <record id="action_softdev_filechange" model="ir.actions.act_window">
+            <field name="name">File changes</field>
+            <field name="type">ir.actions.act_window</field>
+            <field name="res_model">software_dev.filechange</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+        </record>
 
     <!-- Build Groups -->
         <record id="view_softdev_bgrp_form" model="ir.ui.view">
@@ -163,10 +180,10 @@
             <field name="view_mode">tree,form</field>
          </record>
 
-	<menuitem id="softdev_buildseries" name="Build Series" 
-	    action="action_softdev_bseries"
-	    parent="softdev_config" sequence="80"
-	    groups="project.group_project_manager" />
+        <menuitem id="softdev_buildseries" name="Build Series" 
+            action="action_softdev_bseries"
+            parent="softdev_config" sequence="80"
+            groups="project.group_project_manager" />
 
 
     <!-- Test step Attributes -->

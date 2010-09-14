@@ -16,6 +16,21 @@ from buildbot.util import json
 
 import rpc
 
+from datetime import datetime
+import time
+
+def str2time(ddate):
+    if isinstance(ddate, basestring):
+        dt = ddate.rsplit('.',1)[0]
+        tdate = time.mktime(time.strptime(dt, '%Y-%m-%d %H:%M:%S'))
+    else:
+        tdate = time.mktime(ddate)
+    return tdate
+    
+def time2str(ddate):
+    tdate = datetime.fromtimestamp(ddate)
+    return tdate.strftime('%Y-%m-%d %H:%M:%S')
+
 class Token: # used for _start_operation/_end_operation
     pass
 
@@ -553,129 +568,86 @@ class OERPConnector(util.ComparableMixin):
 
     def get_unclaimed_buildrequests(self, buildername, old, master_name,
                                     master_incarnation, t, limit=None):
-        raise NotImplementedError
-        q = ("SELECT br.id"
-             " FROM buildrequests AS br, buildsets AS bs"
-             " WHERE br.buildername=? AND br.complete=0"
-             " AND br.buildsetid=bs.id"
-             " AND (br.claimed_at<?"
-             "      OR (br.claimed_by_name=?"
-             "          AND br.claimed_by_incarnation!=?))"
-             " ORDER BY br.priority DESC,bs.submitted_at ASC")
-        if limit:
-            q += " LIMIT %s" % limit
-        t.execute(self.quoteq(q),
-                (buildername, old, master_name, master_incarnation))
-        requests = [self.getBuildRequestWithNumber(brid, t)
-                    for (brid,) in t.fetchall()]
+        breq_obj = rpc.RpcProxy('software_dev.commit')
+        
+        bids = breq_obj.search([('branch_id.builder_id.tech_code', '=', buildername),
+                        ('complete', '=', False), '|', ('claimed_at', '<', time2str(old)),
+                        '&', ('claimed_by_name', '=', master_name),
+                        ('claimed_by_incarnation', '!=', master_incarnation)], 0, limit, 'priority DESC, submitted_at')
+        requests = [self.getBuildRequestWithNumber(bid, t)
+                    for bid in bids]
         return requests
 
     def claim_buildrequests(self, now, master_name, master_incarnation, brids,
                             t=None):
         if not brids:
             return
-        raise NotImplementedError
-        if t:
-            self._txn_claim_buildrequests(t, now, master_name,
-                                          master_incarnation, brids)
-        else:
-            self.runInteractionNow(self._txn_claim_buildrequests,
-                                   now, master_name, master_incarnation, brids)
-    def _txn_claim_buildrequests(self, t, now, master_name, master_incarnation,
-                                 brids):
-        raise NotImplementedError
-        while brids:
-            batch, brids = brids[:100], brids[100:]
-            q = self.quoteq("UPDATE buildrequests"
-                            " SET claimed_at = ?,"
-                            "     claimed_by_name = ?, claimed_by_incarnation = ?"
-                            " WHERE id IN " + self.parmlist(len(batch)))
-            qargs = [now, master_name, master_incarnation] + list(batch)
-            t.execute(q, qargs)
+        breq_obj = rpc.RpcProxy('software_dev.commit')
+        
+        vals = { 'claimed_at': time2str(now),
+                'claimed_by_name': master_name,
+                'claimed_by_incarnation': master_incarnation,
+                }
+        breq_obj.write(brids, vals)
 
     def build_started(self, brid, buildnumber):
-        return self.runInteractionNow(self._txn_build_started, brid, buildnumber)
-    def _txn_build_started(self, t, brid, buildnumber):
         now = self._getCurrentTime()
-        raise NotImplementedError
-        t.execute(self.quoteq("INSERT INTO builds (number, brid, start_time)"
-                              " VALUES (?,?,?)"),
-                  (buildnumber, brid, now))
-        bid = t.lastrowid
+        build_obj = rpc.RpcProxy('software_dev.commit')
+        vals = { 'build_number': buildnumber, 'start_time': time2str(now) }
+        build_obj.write(brid, vals)
+        bid = brid  # one table is used for everything
         self.notify("add-build", bid)
         return bid
 
     def builds_finished(self, bids):
-        return self.runInteractionNow(self._txn_build_finished, bids)
-    def _txn_build_finished(self, t, bids):
         now = self._getCurrentTime()
-        raise NotImplementedError
-        while bids:
-            batch, bids = bids[:100], bids[100:]
-            q = self.quoteq("UPDATE builds SET finish_time = ?"
-                            " WHERE id IN " + self.parmlist(len(batch)))
-            qargs = [now] + list(batch)
-            t.execute(q, qargs)
+        build_obj = rpc.RpcProxy('software_dev.commit')
+        vals = { 'finish_time': time2str(now) }
+        build_obj.write(bids, vals)
 
     def get_build_info(self, bid):
-        return self.runInteractionNow(self._txn_get_build_info, bid)
-    def _txn_get_build_info(self, t, bid):
         # brid, buildername, buildnum
-        raise NotImplementedError
-        t.execute(self.quoteq("SELECT b.brid,br.buildername,b.number"
-                              " FROM builds AS b, buildrequests AS br"
-                              " WHERE b.id=? AND b.brid=br.id"),
-                  (bid,))
-        res = t.fetchall()
+        build_obj = rpc.RpcProxy('software_dev.commit')
+        res = build_obj.read(bid, ['buildername', 'build_number' ])
         if res:
-            return res[0]
+            return (res['id'], res['buildername'], res['build_number'])
         return (None,None,None)
 
     def get_buildnums_for_brid(self, brid):
-        return self.runInteractionNow(self._txn_get_buildnums_for_brid, brid)
-    def _txn_get_buildnums_for_brid(self, t, brid):
-        raise NotImplementedError
-        t.execute(self.quoteq("SELECT number FROM builds WHERE brid=?"),
-                  (brid,))
-        return [number for (number,) in t.fetchall()]
+        build_obj = rpc.RpcProxy('software_dev.commit')
+        # remember: buildrequest == build in our schema
+        res = build_obj.read(brid, ['build_number' ])
+        return [res['build_number'],]
 
     def resubmit_buildrequests(self, brids):
-        return self.runInteraction(self._txn_resubmit_buildreqs, brids)
-    def _txn_resubmit_buildreqs(self, t, brids):
         # the interrupted build that gets resubmitted will still have the
         # same submitted_at value, so it should be re-started first
-        raise NotImplementedError
-        while brids:
-            batch, brids = brids[:100], brids[100:]
-            q = self.quoteq("UPDATE buildrequests"
-                            " SET claimed_at=0,"
-                            "     claimed_by_name=NULL, claimed_by_incarnation=NULL"
-                            " WHERE id IN " + self.parmlist(len(batch)))
-            t.execute(q, batch)
+        breq_obj = rpc.RpcProxy('software_dev.commit')
+        # remember: buildrequest == build in our schema
+        vals = { 'claimed_at': False, 'claimed_by_name': False,
+                'claimed_by_incarnation': False }
+        breq_obj.write(brids, vals)
         self.notify("add-buildrequest", *brids)
 
     def retire_buildrequests(self, brids, results):
-        return self.runInteractionNow(self._txn_retire_buildreqs, brids,results)
-    def _txn_retire_buildreqs(self, t, brids, results):
         now = self._getCurrentTime()
-        #q = self.db.quoteq("DELETE FROM buildrequests WHERE id IN "
-        #                   + self.db.parmlist(len(brids)))
         raise NotImplementedError
-        while brids:
-            batch, brids = brids[:100], brids[100:]
-
-            q = self.quoteq("UPDATE buildrequests"
-                            " SET complete=1, results=?, complete_at=?"
-                            " WHERE id IN " + self.parmlist(len(batch)))
-            t.execute(q, [results, now]+batch)
+        breq_obj = rpc.RpcProxy('software_dev.commit')
+        # remember: buildrequest == build in our schema
+        vals = { 'complete': 1, 'results': results,
+                'complete_at': time2str(now) }
+        breq_obj.write(brids, vals)
+        
+        if True:
             # now, does this cause any buildsets to complete?
-            q = self.quoteq("SELECT bs.id"
-                            " FROM buildsets AS bs, buildrequests AS br"
-                            " WHERE br.buildsetid=bs.id AND bs.complete=0"
-                            "  AND br.id in "
-                            + self.parmlist(len(batch)))
-            t.execute(q, batch)
-            bsids = [bsid for (bsid,) in t.fetchall()]
+            # - Yes, since buildset == buildrequests (still)
+            
+            bsids = brids
+            
+            # "SELECT bs.id" " FROM buildsets AS bs, buildrequests AS br"
+            #                " WHERE br.buildsetid=bs.id AND bs.complete=0"
+            #                "  AND br.id in " (brids)
+            
             for bsid in bsids:
                 self._check_buildset(t, bsid, now)
         self.notify("retire-buildrequest", *brids)
