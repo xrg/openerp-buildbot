@@ -14,6 +14,7 @@
 import logging
 from buildbot.buildslave import BuildSlave
 from buildbot.process import factory
+from buildbot.schedulers.filter import ChangeFilter
 from openobject.scheduler import OpenObjectScheduler, OpenObjectAnyBranchScheduler
 from openobject.buildstep import OpenObjectBzr, OpenObjectSVN, BzrMerge, BzrRevert, OpenERPTest, LintTest, BzrStatTest
 from openobject.poller import BzrPoller
@@ -23,6 +24,11 @@ from twisted.python import log, reflect
 from buildbot import util
 
 logging.basicConfig(level=logging.DEBUG)
+
+class ChangeFilter_debug(ChangeFilter):
+    def filter_change(self, change):
+        print "Trying to filter %r with %r" % (change, self)
+        return ChangeFilter.filter_change(self, change)
 
 class Keeper(object):
     
@@ -131,11 +137,12 @@ class Keeper(object):
                 'factory': fact,
             })
 
+            cfilt = ChangeFilter_debug(branch=bld['branch_name'])
             # FIXME
             c['schedulers'].append(
                 OpenObjectScheduler(name = "Scheduler for %s" %(bld['name']),
                                     builderNames = [bld['name'], ],
-                                    branch = bld['branch_url'],
+                                    change_filter=cfilt,
                                     treeStableTimer = bld['tstimer'],
                                     properties={},
                                     keeper=self)
