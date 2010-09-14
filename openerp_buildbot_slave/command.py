@@ -21,7 +21,9 @@
 ##############################################################################
 
 
-from buildbot.slave.commands import Command, SlaveShellCommand, ShellCommand, AbandonChain, Bzr
+from buildslave.commands.base import Command
+from buildslave.commands.shell import SlaveShellCommand
+from buildslave.commands.bzr import Bzr
 from twisted.internet import reactor, defer, task
 from twisted.python import log, failure, runtime
 import os
