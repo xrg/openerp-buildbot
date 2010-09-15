@@ -136,9 +136,17 @@ class software_buildbot(osv.osv):
         bs_obj = self.pool.get('software_dev.buildseries')
         bids = bs_obj.search(cr, uid, [('builder_id', 'in', ids), ('is_build','=',True)], context=context)
         for bldr in bs_obj.browse(cr, uid, bids, context=context):
+            dir_name = ''
+            if bldr.group_id:
+                dir_name += bldr.group_id.name + '_'
+            if bldr.name:
+                dir_name += bldr.name
+            dir_name = dir_name.replace(' ', '_').replace('/','_')
+            db_name = dir_name.replace('-','_')
+
             bret = { 'name': bldr.buildername,
                     'slavename': bldr.builder_id.slave_ids[0].tech_code,
-                    'builddir': bldr.target_path, #TODO
+                    'builddir': dir_name,
                     'steps': [],
                     'branch_url': bldr.branch_url,
                     'branch_name': bldr.name,
