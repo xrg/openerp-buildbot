@@ -211,18 +211,21 @@ class OpenERPTest(LoggingBuildStep):
                     force_modules=None,
                     black_modules=None,
                     test_mode='full',
+                    repo_mode='addons',
                     **kwargs):
         LoggingBuildStep.__init__(self, **kwargs)
         self.addFactoryArguments(workdir=workdir, dbname=dbname, addonsdir=addonsdir, 
                                 netport=netport, port=port, logfiles={},
                                 force_modules=(force_modules or []),
                                 black_modules=(black_modules or []),
+                                repo_mode=repo_mode,
                                 test_mode=test_mode)
         self.args = {'port' :port, 'workdir':workdir, 'dbname': dbname, 
                     'netport':netport, 'addonsdir':addonsdir, 'logfiles':{},
                     'force_modules': (force_modules or []),
                     'black_modules': (black_modules or []),
-                    'test_mode': test_mode}
+                    'test_mode': test_mode,
+                    'repo_mode': repo_mode }
         description = ["Performing OpenERP Test..."]
         self.description = description
         self.summaries = {}
@@ -251,8 +254,12 @@ class OpenERPTest(LoggingBuildStep):
                         mods_changed.append(modpath)
         else:
             more_mods = []
+            if self.args['repo_mode'] == 'server':
+                repo_expr = r'bin/addons/([^/]+)/.+$'
+            else:
+                repo_expr = r'([^/]+)/.+$'
             for chg in self.build.allChanges():
-                more_mods.extend(chg.allModules())
+                more_mods.extend(chg.allModules(repo_expr))
             try:
                 if self.args['test_mode'] == 'changed-only':
                     raise Exception('Skipped')
