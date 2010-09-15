@@ -193,6 +193,7 @@
             <field name="type">form</field>
             <field name="arch" type="xml">
               <form>
+              <field name="tstep_id" /> <!-- TODO-->
                 <field name="name"/>
                 <field name="value"/>
               </form>
@@ -205,6 +206,7 @@
             <field name="type">form</field>
             <field name="arch" type="xml">
               <tree editable="bottom">
+              <field name="tstep_id" /> <!-- TODO-->
                 <field name="name"/>
                 <field name="value"/>
               </tree>
@@ -229,7 +231,7 @@
                 <field name="sequence" />
                 <field name="name"/>
                 <!-- <field name="test_id" /> -->
-                <field name="attribute_ids" colspan="4"/>
+                <field name="attribute_ids" colspan="4" editable="bottom"/>
               </form>
           </field>
         </record>
