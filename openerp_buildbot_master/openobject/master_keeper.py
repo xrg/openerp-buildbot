@@ -135,6 +135,7 @@ class Keeper(object):
                 'slavename' : bld['slavename'],
                 'builddir': bld['builddir'],
                 'factory': fact,
+                'properties': bld.get('properties', {}),
             })
 
             cfilt = ChangeFilter_debug(branch=bld['branch_name'])

@@ -166,6 +166,11 @@ class OERPConnector(util.ComparableMixin):
         for f in cdict['files']:
             cleanupDict(f)
         change.number = change_obj.submit_change(cdict)
+        prop_arr = []
+        for propname,propvalue in change.properties.properties.items():
+            prop_arr.append((propname, json.dumps(propvalue)))
+        if prop_arr:
+            change_obj.setProperties(change.number, prop_arr)
 
         self.notify("add-change", change.number)
         self._change_cache.add(change.number, change)
@@ -226,10 +231,9 @@ class OERPConnector(util.ComparableMixin):
             print "will get change:", cdict
             c = OpenObjectChange(**cdict)
 
-            # TODO
-            # p = self.get_properties_from_db("change_properties", "changeid",
-            #                            changeid, t)
-
+            p = self.get_properties_from_db(change_obj, changeid)
+            c.properties.updateFromProperties(p)
+            
             self._change_cache.add(cdict['id'], c)
             ret.append(c)
         if isinstance(changeid, (list, tuple)):
@@ -308,23 +312,14 @@ class OERPConnector(util.ComparableMixin):
 
     # Properties methods
 
-    def get_properties_from_db(self, tablename, idname, id, t=None):
-        if t:
-            return self._txn_get_properties_from_db(t, tablename, idname, id)
-        else:
-            return self.runInteractionNow(self._txn_get_properties_from_db,
-                                          tablename, idname, id)
-
-    def _txn_get_properties_from_db(self, t, tablename, idname, id):
-        # apparently you can't use argument placeholders for table names. Don't
-        # call this with a weird-looking tablename.
-        q = self.quoteq("SELECT property_name,property_value FROM %s WHERE %s=?"
-                        % (tablename, idname))
-        t.execute(q, (id,))
+    def get_properties_from_db(self, rpc_obj, id, t=None):
+        
+        res = rpc_obj.getProperties([id,])
         retval = Properties()
-        for key, valuepair in t.fetchall():
-            value, source = json.loads(valuepair)
-            retval.setProperty(str(key), value, source)
+        if res and res.get(id, False):
+            for key, valuepair in res[id]:
+                value, source = json.loads(valuepair)
+                retval.setProperty(str(key), value, source)
         return retval
 
     # Scheduler manipulation methods
@@ -408,7 +403,9 @@ class OERPConnector(util.ComparableMixin):
             vals['reason'] = reason
         bsid = ssid  # buildset == sourcestamp == change
         bset_obj.write(bsid, vals)
-        # TODO: properties
+        for propname, propvalue in properties.properties.items():
+            bset_obj.setProperties(bsid, [ (pn, json.dumps(pv))
+                                    for pn, pv in properties.properties.items()])
         # TODO: respect builderNames
         brids = []
         brid = ssid     # buildrequest == sourcestamp
@@ -494,9 +491,7 @@ class OERPConnector(util.ComparableMixin):
             return None
         ssid = brid # short-wire
         ss = self.getSourceStampNumberedNow(ssid, t, res)
-        # properties = self.get_properties_from_db("buildset_properties",
-        #                                          "buildsetid", bsid, t)
-        properties = {}
+        properties = self.get_properties_from_db(breq_obj, brid, t)
         bsid = brid
         br = BuildRequest(res['reason'], ss, res['buildername'], properties)
         br.submittedAt = res['submitted_at']
