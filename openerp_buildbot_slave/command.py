@@ -24,6 +24,7 @@
 from buildslave.commands.base import Command
 from buildslave.commands.shell import SlaveShellCommand
 from buildslave.commands.bzr import Bzr
+from buildslave import runprocess
 from twisted.internet import reactor, defer, task
 from twisted.python import log, failure, runtime
 import os
@@ -87,6 +88,9 @@ class test_environment():
 
 class OpenObjectShell(SlaveShellCommand):
 
+    pass
+
+class Old(object):
     def start(self):
         args = self.args
         assert args['workdir'] is not None
@@ -100,7 +104,7 @@ class OpenObjectShell(SlaveShellCommand):
         except:
             openERP_environment = None
 
-        c = ShellCommand(self.builder, commandline,
+        c = runprocess.RunProcess(self.builder, commandline,
                          workdir, environ = openERP_environment ,
                          logEnviron = False,
                          timeout = args.get('timeout', None),
@@ -117,14 +121,15 @@ class OpenObjectShell(SlaveShellCommand):
 
 class OpenObjectBzr(Bzr):
     def doVCUpdate(self):
+        bzr = self.getCommand('bzr')
         if self.revision:
-            command = [self.vcexe, 'pull', self.sourcedata.split('\n')[0],
+            command = [bzr, 'pull', self.sourcedata.split('\n')[0],
                         '-q', '--overwrite',
                         '-r', str(self.revision)]
         else:
-            command = [self.vcexe, 'update', '-q']
+            command = [bzr, 'update', '-q']
         srcdir = os.path.join(self.builder.basedir, self.srcdir)
-        c = ShellCommand(self.builder, command, srcdir, sendRC=False, timeout=self.timeout)
+        c = runprocess.RunProcess(self.builder, command, srcdir, sendRC=False, timeout=self.timeout)
         self.command = c
         d = c.start()
         d.addCallback(self.doVCClean)
@@ -135,9 +140,10 @@ class OpenObjectBzr(Bzr):
         
         This will remove untracked files (eg. *.pyc, junk) from the repo dir.
         """
-        command = [self.vcexe, 'clean-tree', '-q', '--force', '--unknown', '--detritus']
+        bzr = self.getCommand('bzr')
+        command = [bzr, 'clean-tree', '-q', '--force', '--unknown', '--detritus']
         srcdir = os.path.join(self.builder.basedir, self.srcdir)
-        c = ShellCommand(self.builder, command, srcdir, sendRC=False, timeout=self.timeout)
+        c = runprocess.RunProcess(self.builder, command, srcdir, sendRC=False, timeout=self.timeout)
         self.command = c
         d = c.start()
         return d
