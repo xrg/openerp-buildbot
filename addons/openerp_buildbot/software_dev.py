@@ -78,6 +78,46 @@ class software_user(osv.osv):
 
 software_user()
 
+class propertyMix(object):
+    """ A complementary class that adds properties to osv objects
+    """
+
+    def getProperties(self, cr, uid, ids, names=None, context=None):
+        ret = {}
+        prop_obj = self.pool.get('software_dev.property')
+
+        dom = [('model_id.model', '=', self._name), ('resid', 'in', ids), ]
+        if names:
+            dom.append(('name', 'in', names))
+        pids = prop_obj.search(cr, uid, dom, context=context)
+
+        if not pids:
+            return ret
+        res = prop_obj.read(cr, uid, pids, ['name', 'value'], context=context)
+
+        for r in res:
+            ret.setdefault(r['id'], []).append( (r['name'],r['value']))
+
+        return ret
+
+    def setProperties(self, cr, uid, id, vals, clear=False, context=None):
+        """ Set properties for one object
+        """
+        prop_obj = self.pool.get('software_dev.property')
+
+
+        if clear:
+            dom = [('model_id.model', '=', self._name), ('resid', '=', id), ]
+            pids = prop_obj.search(cr, uid, dom, context=context)
+            if pids:
+                prop_obj.unlink(cr, uid, pids)
+
+        for name, value in vals: # yes, values must be a list of tuples
+            prop_obj.create(cr, uid, { 'model_id': self._name, 'resid': id,
+                                        'name': name, 'value': value }, context=context)
+
+        return True
+
 class software_buildbot(osv.osv):
     _name = 'software_dev.buildbot'
     _description = 'Software Build Bot'
@@ -190,6 +230,7 @@ class software_battr(osv.osv):
 
 software_battr()
 
+
 class software_bbot_slave(osv.osv):
     """ A buildbot slave
     """
@@ -211,7 +252,7 @@ software_bbot_slave()
 
 # Tests...
 _target_paths = [('server', 'Server'), ('addons', 'Addons'), ('extra_addons', 'Extra addons')]
-class software_buildseries(osv.osv):
+class software_buildseries(propertyMix, osv.osv):
     """ A series is a setup of package+test+branch+result+dependencies+bot scenaria
     """
     _name = 'software_dev.buildseries'
@@ -237,11 +278,9 @@ class software_buildseries(osv.osv):
         'group_id': fields.many2one('software_dev.buildgroup', 'Group', ),
         'is_distinct': fields.boolean('Distinct builds', required=True,
                 help="If set, this series has random builds, not commits that follow each other"),
-
         'is_build': fields.boolean('Perform test', required=True,
                 help="If checked, this branch will be built. Otherwise, just followed"),
         'target_path': fields.selection(_target_paths, 'Branch Type' ),
-
         'branch_url': fields.char('Branch Url', size=512, required=True,
                 help="The place of the branch in Launchpad (only).",
                 ),
@@ -268,7 +307,7 @@ class software_buildseries(osv.osv):
 
 software_buildseries()
 
-class software_teststep(osv.osv):
+class software_teststep(propertyMix, osv.osv):
     """A scenario that has to be tested on some package
     """
     _name = 'software_dev.teststep'
@@ -305,7 +344,7 @@ software_tsattr()
 commit_types = [ ('reg', 'Regular'), ('merge', 'Merge'), ('single', 'Standalone'), 
             ]
 
-class software_commit(osv.osv):
+class software_commit(propertyMix, osv.osv):
     """ An entry in the VCS
     """
     _name = 'software_dev.commit'
@@ -478,7 +517,7 @@ class software_buildseries2(osv.osv):
 
 software_buildseries2()
 
-class software_buildscheduler(osv.osv):
+class software_buildscheduler(propertyMix, osv.osv):
     _name = 'software_dev.buildscheduler'
     _description = 'Build Scheduler'
     _columns = {
@@ -594,5 +633,23 @@ class software_bbuild(osv.osv):
     }
     
 software_bbuild()
+
+class software_dev_property(osv.osv):
+    """ A class for generic properties on buildbot classes
+    """
+    
+    _name = 'software_dev.property'
+    
+    _columns = {
+        'model_id': fields.many2one('ir.model', 'Model', required=True,
+                        select=1,
+                        domain= [('model', 'like','software_dev.')],
+                        help="The model to have the property"),
+        'resid': fields.integer('Res ID', required=True, select=1),
+        'name': fields.char('Name', size=256, required=True),
+        'value': fields.text('Value', required=True),
+    }
+    
+software_dev_property()
 
 #eof
