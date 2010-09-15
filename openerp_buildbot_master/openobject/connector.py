@@ -540,7 +540,7 @@ class OERPConnector(util.ComparableMixin):
                 'claimed_by_name': master_name,
                 'claimed_by_incarnation': master_incarnation,
                 }
-        breq_obj.write(brids, vals)
+        breq_obj.write(list(brids), vals)
 
     def build_started(self, brid, buildnumber):
         now = self._getCurrentTime()
@@ -555,7 +555,7 @@ class OERPConnector(util.ComparableMixin):
         now = self._getCurrentTime()
         build_obj = rpc.RpcProxy('software_dev.commit')
         vals = { 'build_finish_time': time2str(now) }
-        build_obj.write(bids, vals)
+        build_obj.write(list(bids), vals)
 
     def get_build_info(self, bid):
         # brid, buildername, buildnum
@@ -578,7 +578,7 @@ class OERPConnector(util.ComparableMixin):
         # remember: buildrequest == build in our schema
         vals = { 'claimed_at': False, 'claimed_by_name': False,
                 'claimed_by_incarnation': False }
-        breq_obj.write(brids, vals)
+        breq_obj.write(list(brids), vals)
         self.notify("add-buildrequest", *brids)
 
     def retire_buildrequests(self, brids, results):
