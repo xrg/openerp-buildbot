@@ -133,6 +133,8 @@ class software_buildbot(osv.osv):
         'name': fields.char('Name', required=True, size=64),
         'description': fields.text('Description'),
         'tech_code': fields.char('Code', size=64, required=True, select=1),
+        'http_port': fields.integer('Http port', help="Port to run the buildbot status server at"),
+        'http_url': fields.char('Http URL', size=128, help="Base url of our buildbot server, for formatting the full link to results."),
         'attribute_ids': fields.one2many('software_dev.battr', 'bbot_id', 'Attributes'),
         'slave_ids': fields.one2many('software_dev.bbslave', 'bbot_id', 'Test Steps', 
                 help="The test steps to perform."),
