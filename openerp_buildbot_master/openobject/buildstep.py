@@ -75,86 +75,6 @@ def blist2str(blist):
     blist = filter( lambda x: isinstance(x, tuple), blist)
     return '\n'.join([ x[0] for x in blist])
 
-def create_test_step_log(step_object = None, step_name = '', cmd=None):
-    source = step_object.build.builder.test_ids
-    properties = step_object.build.builder.openerp_properties
-    openerp_host = properties.get('openerp_host', 'localhost')
-    openerp_port = properties.get('openerp_port',8069)
-    openerp_dbname = properties.get('openerp_dbname','buildbot')
-    openerp_userid = properties.get('openerp_userid','admin')
-    openerp_userpwd = properties.get('openerp_userpwd','a')
-    revision = step_object.build.source.changes[0].revision
-
-    openerp = buildbot_xmlrpc(host = openerp_host, port = openerp_port, dbname = openerp_dbname)
-    openerp_uid = openerp.execute('common','login',  openerp.dbname, openerp_userid, openerp_userpwd)
-
-    tested_branch = step_object.build.source.changes[0].branch
-    args = [('url','ilike',tested_branch),('is_test_branch','=',False),('is_root_branch','=',False)]
-    tested_branch_ids = openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.lp.branch','search',args)
-
-    tested_branch_id = tested_branch_ids[0]
-    last_revision_no_stored = properties.get(tested_branch_id, {}).get('latest_rev_no',0)
-    last_revision_id_stored = properties.get(tested_branch_id, {}).get('latest_rev_id','')
-    test_id = source.get(revision, False)
-    summary = step_object.summaries
-    test_values = None
-    fail_reasons = []
-    for logname, data in summary.items():
-        state = data.get('state', 'pass')
-        if step_name in ('bzr-update', 'bzr_merge'):
-            if state == 'fail':
-                test_values = {'failure_reason':'This test has been skipped because the step %s has failed ! \n for more details please refer the Test steps tab.'%(step_name),'state':state}
-                branch_values = {'latest_rev_no':last_revision_no_stored,'latest_rev_id':last_revision_id_stored}
-                openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.lp.branch','write', [int(tested_branch_id)], branch_values)
-                openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.test','write', [int(test_id)], test_values)
-            openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.test','write', [int(test_id)],{'environment':step_object.env_info})
-
-        params = {}
-        params['name'] = logname
-        params['test_id'] = int(test_id)
-        if data.get('quality_log', False):
-           params['quality_log'] = base64.encodestring('\n'.join(data['quality_log']))
-        if data.get('log', False):
-           params['log'] = base64.encodestring('\n'.join(data['log']))
-           
-        if data.get('blame', False):
-            params['blame_log'] = blist2str(data['blame'])
-            if append_fail(fail_reasons, data['blame'], \
-                    suffix=' (at %s)' % step_name, fmax=5):
-                # By default, only print first failed (blamed) test as reason
-                test_values = {'failure_reason': blist2str(fail_reasons),
-                                'state':state}
-                openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 
-                        'buildbot.test','write', [int(test_id)], test_values)
-
-#        if data.get('WARNING', False):
-#            params['warning_log'] = '\n'.join(data['WARNING'])
-#        if data.get('ERROR', False):
-#            params['error_log'] = '\n'.join(data['ERROR'])
-#        if data.get('CRITICAL', False):
-#            params['critical_log'] = '\n'.join(data['CRITICAL'])
-#        if data.get('INFO', False):
-#            params['info_log'] = '\n'.join(data['INFO'])
-#        if data.get('TEST', False):
-#            params['yml_log'] = '\n'.join(data['TEST'])
-#        if data.get('TRACEBACK', False):
-#            params['traceback_detail'] = '\n'.join(data['TRACEBACK'])
-        params['state'] = state
-        openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.test.step', 'create', params)
-
-    if not len(step_object.summaries):
-        params = {}
-        params['name'] = step_name
-        params['test_id'] = int(test_id)
-        if cmd:
-            params['log'] = base64.encodestring( ("No logs for command %s(\"%s\")\n"
-                "Command exited with error code %d") % \
-                (cmd.remote_command, ' '.join(cmd.args['command']),cmd.rc))
-        params['state'] = step_object.summaries.get(step_name,{}).get('state','fail') # No out is bad news.
-        openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.test.step','create',params)
-
-    return True
-
 class OpenERPLoggedRemoteCommand(LoggedRemoteCommand):
      def addToLog(self, logname, data):
         if logname in self.logs:
@@ -187,6 +107,7 @@ class BqiObserver(LogLineObserver):
 class OpenERPTest(LoggingBuildStep):
     name = 'OpenERP-Test'
     flunkOnFailure = True
+    
 
     def describe(self, done=False,success=False,warn=False,fail=False):
         if done:
@@ -198,6 +119,9 @@ class OpenERPTest(LoggingBuildStep):
                 return ['Your Commit Failed to pass OpenERP Test !']
         return self.description
 
+    def get_free_port(self):
+        return 8869 # TODO
+
     def getText(self, cmd, results):
         if results == SUCCESS:
             return self.describe(True, success=True)
@@ -207,7 +131,7 @@ class OpenERPTest(LoggingBuildStep):
             return self.describe(True, fail=True)
 
     def __init__(self, workdir=None, dbname=False, addonsdir=None, 
-                    netport=None, port=8869,
+                    netport=None, port=None,
                     force_modules=None,
                     black_modules=None,
                     test_mode='full',
@@ -239,6 +163,17 @@ class OpenERPTest(LoggingBuildStep):
         # need to change the static slave path
         self.logfiles = {}
         builddir = self.build.builder.builddir
+       
+        if not self.args.get('addonsdir'):
+            if self.build.builder.properties.get('addons_dir'):
+                self.args['addonsdir'] = self.build.builder.properties['addons_dir']
+            else:
+                self.args['addonsdir'] = '../addons/'
+        if not self.args.get('port'):
+            self.args['port'] = self.get_free_port()
+        if not self.args.get('dbname'):
+            self.args['dbname'] = self.build.builder.builddir.replace('/', '_')
+            
         full_addons = os.path.normpath(os.getcwd() + '../../openerp_buildbot_slave/build/%s/openerp-addons/'%(builddir))
 
         # try to find all modules that have changed:
@@ -555,15 +490,16 @@ class OpenERPTest(LoggingBuildStep):
             if 'quality_log' in sdict:
                 self.addHTMLLog(lkey + '.qlog', sdict['quality_log'])
 
-    def evaluateCommand(self, cmd):
+        build_id = self.build.requests[0].id # FIXME when builds have their class
+        
+        self.build.builder.db.saveSummaries(build_id, self.name,
+                                            self.build_result, self.summaries)
+        
+    def evaluateCommand_old(self, cmd): # FIXME: remove it, possibly
         res = SUCCESS
         if cmd.rc != 0 or self.build_result == FAILURE:
             # TODO: more results from b-q-i, it has discrete exit codes.
             res = FAILURE
-        try:
-            create_test_step_log(self, step_name='openerp-test', cmd=cmd)
-        except Exception, e:
-            log.err("Cannot log result of %s to db: %s" % (cmd, e))
         return res
 
 class OpenObjectBzr(Bzr):

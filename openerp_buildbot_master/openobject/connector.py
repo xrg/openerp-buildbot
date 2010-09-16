@@ -578,6 +578,7 @@ class OERPConnector(util.ComparableMixin):
                 'claimed_by_incarnation': False }
         breq_obj.write(list(brids), vals)
         self.notify("add-buildrequest", *brids)
+        return defer.succeed(True) # dummy, we might have deferred in bg.
 
     def retire_buildrequests(self, brids, results):
         now = self._getCurrentTime()
@@ -625,6 +626,25 @@ class OERPConnector(util.ComparableMixin):
 
         self.notify("cancel-buildrequest", *brids)
         self.notify("modify-buildset", *bsids)
+        
+    def saveSummaries(self, build_id, name, build_result, summaries):
+        print "save summaries for %s: %s" % (build_id, build_result)
+        # TODO
+        bld_obj = rpc.RpcProxy('software_dev.commit')
+        tsum_obj = rpc.RpcProxy('software_dev.test_result')
+        
+        for skey, ss in summaries.items():
+            vals = { 'build_id': build_id,
+                'name': name,
+                'substep': skey,
+                'state': ss.get('state', 'unknown'),
+                'sequence': ss.get('seq', 0)}
+            if 'blame' in ss:
+                vals['blame_log'] = ss['blame']
+                
+            tsum_obj.create(vals)
+         
+        return
 
     def _check_buildset(self, t, bsid, now):
         return True
@@ -664,6 +684,7 @@ class OERPConnector(util.ComparableMixin):
         return dict(t.fetchall())
 
     def examine_buildset(self, bsid):
+        print "examine buildset"
         return True
 
         return self.runInteractionNow(self._txn_examine_buildset, bsid)
