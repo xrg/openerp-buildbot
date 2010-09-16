@@ -165,7 +165,7 @@ class OpenERPTest(LoggingBuildStep):
         #TODO FIX:
         # need to change the static slave path
         self.logfiles = {}
-        builddir = self.build.builder.builddir
+        # builddir = self.build.builder.builddir
        
         if not self.args.get('addonsdir'):
             if self.build.builder.properties.get('addons_dir'):
@@ -176,20 +176,16 @@ class OpenERPTest(LoggingBuildStep):
             self.args['port'] = self.get_free_port()
         if not self.args.get('dbname'):
             self.args['dbname'] = self.build.builder.builddir.replace('/', '_')
-            
-        full_addons = os.path.normpath(os.getcwd() + '../../openerp_buildbot_slave/build/%s/openerp-addons/'%(builddir))
 
         # try to find all modules that have changed:
         mods_changed = []
         if self.args['force_modules']:
             mods_changed += filter( lambda x: x != '*', self.args['force_modules'])
 
+        all_modules = False
         if self.args['force_modules'] and '*' in self.args['force_modules']:
             # Special directive: scan and try all modules
-            for modpath in os.listdir(full_addons):
-                if (os.path.isfile(os.path.join(full_addons, modpath,'__openerp__.py')) \
-                    or os.path.isfile(os.path.join(full_addons, modpath,'__terp__.py'))):
-                        mods_changed.append(modpath)
+            all_modules = True
         else:
             more_mods = []
             if self.args['repo_mode'] == 'server':
@@ -198,26 +194,24 @@ class OpenERPTest(LoggingBuildStep):
                 repo_expr = r'([^/]+)/.+$'
             for chg in self.build.allChanges():
                 more_mods.extend(chg.allModules(repo_expr))
+                if not more_mods:
+                    log.err("No changed modules located")
             try:
                 if self.args['test_mode'] == 'changed-only':
                     raise Exception('Skipped')
                 olmods_found = []
                 for sbuild in self.build.builder.builder_status.generateFinishedBuilds(num_builds=10):
                     log.msg("Scanning back build %d" % sbuild.getNumber())
-                    for sstep in sbuild.getSteps():
-                        if sstep.getName() != 'OpenERP-Test':
+                    for sres in sbuild.getTestResults():
+                        if sres.getName() != 'OpenERP-Test':
                             continue
-                        # We will try to guess the status from the logs,
-                        # just like the web-status does.
+                            # RFC: should we perform tests for other failures
+                            # like flakes etc?
                         
-                        for slog in sstep.getLogs():
-                            if not slog.getName().endswith('.blame'):
+                            if sres.results == SUCCESS:
                                 continue
-                            if slog.getName().startswith('bqi.'):
-                                continue
-                            # Hopefully, the first part of the name is a
-                            # module!
-                            olmods_found.append(slog.getName().split('.',1)[0])
+                            
+                            olmods_found.append(sres.name[0]) # it's a tuple, easy
                         
                         if len(olmods_found):
                             log.msg("Found these modules that failed last time: %s" % \
@@ -237,11 +231,12 @@ class OpenERPTest(LoggingBuildStep):
                 if mc in self.args['black_modules']:
                     todel.append(mc)
                     continue
-                if not os.path.isdir(os.path.join(full_addons, mc)):
-                    todel.append(mc)
-                elif not (os.path.isfile(os.path.join(full_addons, mc,'__openerp__.py')) \
-                    or os.path.isfile(os.path.join(full_addons, mc,'__terp__.py'))):
-                    todel.append(mc)
+                # We no longer have access to the slave dirs.
+                #if not os.path.isdir(os.path.join(full_addons, mc)):
+                    #todel.append(mc)
+                #elif not (os.path.isfile(os.path.join(full_addons, mc,'__openerp__.py')) \
+                    #or os.path.isfile(os.path.join(full_addons, mc,'__terp__.py'))):
+                    #todel.append(mc)
             for td in todel:
                 if td in mods_changed: # prevent double-deletions
                     mods_changed.remove(td)
@@ -260,9 +255,12 @@ class OpenERPTest(LoggingBuildStep):
         if self.args['port']:
             self.args['command'].append("--port=%s"%(self.args['port']))
 
-        for mc in mods_changed:
-            # put them in -m so that both install-module and check-quality use them.
-            self.args['command'] += [ '-m', str(mc) ]
+        if all_modules:
+            self.args['command'].append('--all_modules')
+        else:
+            for mc in set(mods_changed):
+                # put them in -m so that both install-module and check-quality use them.
+                self.args['command'] += [ '-m', str(mc) ]
 
         # Here goes the test sequence, TODO make custom
         self.args['command'] += ['--', '-drop-db']
@@ -480,6 +478,8 @@ class OpenERPTest(LoggingBuildStep):
                     if bexc:
                         bqi_rest.logs['stdout'].append(bexc)
 
+        if 'stdio' in logkeys:
+            logkeys.remove('stdio')
         if len(logkeys):
             log.err("Remaining keys %s in logs" % (', '.join(logkeys)))
 
@@ -608,7 +608,7 @@ class OpenObjectBzr(Bzr):
             res = FAILURE
             state = 'skip'
         self.summaries[self.name]['state'] = state
-        create_test_step_log(self, step_name=self.name)
+        # TODO: make sure we get the result
         return res
 
 class OpenObjectSVN(SVN):
@@ -802,7 +802,7 @@ class BzrMerge(LoggingBuildStep):
             res = FAILURE
             state = 'skip'
         self.summaries[self.name]['state'] = state
-        create_test_step_log(self, step_name='bzr_merge')
+        # TODO: send the result to the db
         return res
 
 class BzrRevert(LoggingBuildStep):
@@ -871,7 +871,7 @@ class BzrRevert(LoggingBuildStep):
             res = FAILURE
             state = 'fail'
         self.summaries[self.name]['state'] = state
-        create_test_step_log(self, res)
+        # TODO: send the result to the db
         return res
 
 class LintTest(LoggingBuildStep):
@@ -916,6 +916,7 @@ class LintTest(LoggingBuildStep):
         self.stderr_log = self.addLog("stderr")
         cmd.useLog(self.stderr_log, True)
         self.startCommand(cmd)
+    # TODO: send the result to the db
 
 class BzrStatTest(LoggingBuildStep):
     """Step to perform lint-check on changed files
