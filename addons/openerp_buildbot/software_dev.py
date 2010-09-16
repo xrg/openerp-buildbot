@@ -80,31 +80,39 @@ software_user()
 
 class propertyMix(object):
     """ A complementary class that adds properties to osv objects
+    
+        In principle, these properties could apply to any osv object,
+        but we do only use them for the software_dev.* ones.
     """
 
     def getProperties(self, cr, uid, ids, names=None, context=None):
-        ret = {}
+        """ Retrieve the properties for a range of ids.
+        
+            The object is the class inheriting this one.
+            Due to a limitation of XML-RPC, we could not regroup the
+            result by 'id', so the returning result is that of read() :
+            [ { 'id': 1, 'name': prop, 'value': val }, ... ]
+        """
         prop_obj = self.pool.get('software_dev.property')
 
-        dom = [('model_id.model', '=', self._name), ('resid', 'in', ids), ]
+        dom = [('model_id.model', '=', self._name), ('resid', 'in', list(ids)), ]
         if names:
             dom.append(('name', 'in', names))
         pids = prop_obj.search(cr, uid, dom, context=context)
 
         if not pids:
-            return ret
+            return []
         res = prop_obj.read(cr, uid, pids, ['name', 'value'], context=context)
 
-        for r in res:
-            ret.setdefault(r['id'], []).append( (r['name'],r['value']))
-
-        return ret
+        return res
 
     def setProperties(self, cr, uid, id, vals, clear=False, context=None):
         """ Set properties for one object
         """
         prop_obj = self.pool.get('software_dev.property')
-
+        imo_obj = self.pool.get('ir.model')
+        
+        imid = imo_obj.search(cr, uid, [('model', '=', self._name)])[0]
 
         if clear:
             dom = [('model_id.model', '=', self._name), ('resid', '=', id), ]
@@ -113,7 +121,7 @@ class propertyMix(object):
                 prop_obj.unlink(cr, uid, pids)
 
         for name, value in vals: # yes, values must be a list of tuples
-            prop_obj.create(cr, uid, { 'model_id': self._name, 'resid': id,
+            prop_obj.create(cr, uid, { 'model_id': imid, 'resid': id,
                                         'name': name, 'value': value }, context=context)
 
         return True

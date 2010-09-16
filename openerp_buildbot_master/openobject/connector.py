@@ -231,7 +231,7 @@ class OERPConnector(util.ComparableMixin):
             print "will get change:", cdict
             c = OpenObjectChange(**cdict)
 
-            p = self.get_properties_from_db(change_obj, changeid)
+            p = self.get_properties_from_db(change_obj, cdict['id'])
             c.properties.updateFromProperties(p)
             
             self._change_cache.add(cdict['id'], c)
@@ -314,12 +314,15 @@ class OERPConnector(util.ComparableMixin):
 
     def get_properties_from_db(self, rpc_obj, id, t=None):
         
+        assert isinstance(id, (long, int)), id
         res = rpc_obj.getProperties([id,])
         retval = Properties()
-        if res and res.get(id, False):
-            for key, valuepair in res[id]:
-                value, source = json.loads(valuepair)
-                retval.setProperty(str(key), value, source)
+        if res:
+            for kdic in res:
+                if kdic['id'] != id:
+                    continue
+                value, source = json.loads(kdic['value'])
+                retval.setProperty(str(kdic['name']), value, source)
         return retval
 
     # Scheduler manipulation methods
