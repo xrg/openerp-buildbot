@@ -10,7 +10,7 @@ from poller import OpenObjectChange
 from buildbot.sourcestamp import SourceStamp
 from buildbot.buildrequest import BuildRequest
 from buildbot.process.properties import Properties
-from buildbot.status.builder import SUCCESS, WARNINGS, FAILURE
+from buildbot.status.builder import SUCCESS, WARNINGS, FAILURE, SKIPPED, EXCEPTION, RETRY
 from buildbot.util.eventual import eventually
 from buildbot.util import json
 
@@ -33,6 +33,10 @@ def time2str(ddate):
 
 class Token: # used for _start_operation/_end_operation
     pass
+
+# Map from buildbot.status.builder states to 
+res_state = { SUCCESS: 'pass', WARNINGS: 'warning', FAILURE: 'fail', \
+            SKIPPED: 'skip', EXCEPTION: 'exception', RETRY: 'retry' }
 
 def cleanupDict(cdict):
     for key in cdict:
@@ -262,7 +266,8 @@ class OERPConnector(util.ComparableMixin):
         """Return a list of all extant change id's less than the given value,
         sorted by number."""
         change_obj = rpc.RpcProxy('software_dev.commit')
-        cids = change_obj.search([('id', '<', last_changeid)])
+        cids = change_obj.search([('id', '<', new_changeid)])
+        t = Token()
         changes = [self.getChangeNumberedNow(changeid, t)
                    for changeid in cids]
         changes.sort(key=lambda c: c.number)
@@ -288,6 +293,7 @@ class OERPConnector(util.ComparableMixin):
             return ss
         
         assert isinstance(ssid, (int, long))
+        sstamp_obj = rpc.RpcProxy('software_dev.commit')
         
         if not old_res:
             res = sstamp_obj.read(ssid)
@@ -615,6 +621,7 @@ class OERPConnector(util.ComparableMixin):
         # buildset will appear complete and SUCCESS-ful). But we haven't
         # thought it through enough to be sure. So for now, "cancel" means
         # "mark as complete and FAILURE".
+        now = self._getCurrentTime()
         breq_obj = rpc.RpcProxy('software_dev.commit')
         vals = { 'complete': True, 'results': FAILURE,
                 'complete_at': time2str(now) }
@@ -630,20 +637,19 @@ class OERPConnector(util.ComparableMixin):
         self.notify("cancel-buildrequest", *brids)
         self.notify("modify-buildset", *bsids)
         
-    def saveSummaries(self, build_id, name, build_result, summaries):
+    def saveTResults(self, build_id, name, build_result, t_results):
         print "save summaries for %s: %s" % (build_id, build_result)
         # TODO
         bld_obj = rpc.RpcProxy('software_dev.commit')
         tsum_obj = rpc.RpcProxy('software_dev.test_result')
         
-        for skey, ss in summaries.items():
+        for seq, tr in enumerate(t_results):
             vals = { 'build_id': build_id,
                 'name': name,
-                'substep': skey,
-                'state': ss.get('state', 'unknown'),
-                'sequence': ss.get('seq', 0)}
-            if 'blame' in ss:
-                vals['blame_log'] = ss['blame']
+                'substep': '.'.join(tr.name), # it is a tuple in TestResult
+                'state': res_state.get(tr.results,'unknown'),
+                'sequence': seq,
+                'blame_log': tr.text, }
                 
             tsum_obj.create(vals)
          

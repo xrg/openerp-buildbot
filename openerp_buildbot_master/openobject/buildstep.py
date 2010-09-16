@@ -23,9 +23,9 @@
 from buildbot.steps.source import Source, Bzr, SVN
 from buildbot.steps.shell import ShellCommand
 from buildbot.process.buildstep import LoggingBuildStep, LoggedRemoteCommand, LogLineObserver
-from buildbot.status.builder import SUCCESS, FAILURE, WARNINGS
-import base64
-import pickle
+from buildbot.status.builder import SUCCESS, FAILURE, WARNINGS, EXCEPTION
+from buildbot.status.builder import TestResult
+
 import os
 import re
 import logging
@@ -40,6 +40,9 @@ except ImportError:
 
 blame_severities =  { 'warning': 1, 'error': 3, 'exception': 4,
             'critical': 8 , 'blocking': 10 }
+
+# map blame severities to status.builder ones
+res_severities = { 0: SUCCESS, 1: WARNINGS, 3: FAILURE, 4: EXCEPTION, 8: EXCEPTION, 10: EXCEPTION }
 
 def append_fail(flist, blames, suffix=None, fmax=None):
     """ Append blames to the flist, in order of severity
@@ -277,11 +280,20 @@ class OpenERPTest(LoggingBuildStep):
     def createSummary(self, plog):
         global log
         logs = self.cmd.logs
-        buildbotURL = self.build.builder.botmaster.parent.buildbotURL
+        # buildbotURL = self.build.builder.botmaster.parent.buildbotURL
         bqi_re = re.compile(r'([^\>\|]+)(\|[^\>]+)?\> (.*)$')
         qlog_re = re.compile(r'Module: "(.+)", score: (.*)$')
 
+        def bq2tr(bqi_name):
+            return tuple(bqi_name.split('.'))
+
         logkeys = logs.keys()
+        
+        # We will be using TestResult()s for the aggregate output of our
+        # steps. 
+        # We use like: TestResult(name=(bqi-context), results=<num>, 
+        #                         text=blist2str(blame),
+        #                         logs= {'stdout': out, 'exception': exc } )
         
         if 'stdio' in logkeys:
             # Here we parse the machine-formatted output of b-q-i
@@ -290,14 +302,19 @@ class OpenERPTest(LoggingBuildStep):
             
             server_out = []
             server_err = []
-            bqi_rest = []
-            summaries = {}
-            blame_list = []
+            
+            quality_logs = {}
+            blame_list = []  # for the general results
             bqi_state = 'debug'
             bqi_context = False
+            bqi_rest = TestResult(name=('bqi','rest'), text='', results=0, logs={'stdout': []})
+            
+            t_results=[] # ordered list
+            cur_result= None  # The entry of t_results we are in, when bqi_context
+            
             # The order that logs appeared, try to preserve in status.logs
             # May have duplicates.
-            log_order = [ 'bqi.rest', 'server.out', 'server.err', ]
+            log_order = [ 'server.out', 'server.err', ]
             
             while len(lines):
                 if not lines[0]:
@@ -339,9 +356,9 @@ class OpenERPTest(LoggingBuildStep):
                         server_out.append(bexc)
                     if bqi_context:
                         log_order.append(bqi_context)
-                        summaries[bqi_context]['log'].append(bmsg)
+                        cur_result.logs['stdout'].append(bmsg) # or += ?
                         if bexc:
-                            summaries[bqi_context]['log'].append(bexc)
+                            cur_result.logs.setdefault('exception',[]).append(bexc)
                 elif blog == 'server.stderr':
                     server_err.append(bmsg)
                     if bexc:
@@ -352,9 +369,20 @@ class OpenERPTest(LoggingBuildStep):
                     bmsg = bmsg.rstrip()
                     if bmsg == 'clear context':
                         bqi_context = False
+                        cur_result = None
                     elif bmsg.startswith('set context '):
                         bqi_context = bmsg[len('set context '):]
-                        summaries.setdefault(bqi_context, {'state':'pass', 'log': []})
+                        cur_result = None
+                        for tr in t_results:
+                            if tr.name == bqi_context:
+                                cur_result = tr
+                                break
+                        if not cur_result:
+                            cur_result = TestResult(name=bq2tr(bqi_context),
+                                        results=SUCCESS,
+                                        text='', logs={'stdout': []})
+                            t_results.append(cur_result)
+                            cur_result.blames = []
                     else:
                         log.msg("Strange command %r came from b-q-i" % bmsg)
                 elif blog == 'bqi.blame':
@@ -407,11 +435,22 @@ class OpenERPTest(LoggingBuildStep):
 
                     if append_fail(blame_list, [(blame_info, blame_sev),], fmax=5):
                         self.build.build_status.reason = blist2str(blame_list)
-                    summaries.setdefault(sumk, { 'log': [] })
-                    log_order.append(sumk)
-                    summaries[sumk]['state'] = 'fail'
-                    summaries[sumk].setdefault('blame', [])
-                    summaries[sumk]['blame'].append( (blame_info, blame_sev) )
+
+                    if True:
+                        # note that we don't affect bqi_context, cur_result here
+                        cur_r = None
+                        for tr in t_results:
+                            if tr.name == sumk:
+                                cur_r = tr
+                                break
+                        if not cur_r:
+                            cur_r = TestResult(name=bq2tr(sumk), 
+                                        results=SUCCESS,
+                                        text='', logs={'stdout': []})
+                            t_results.append(cur_r)
+                            cur_r.blames = []
+                        cur_r.blames.append((blame_info, blame_sev))
+                        
                 elif blog == 'bqi.qlogs':
                     nline = bmsg.index('\n')
                     first_line = bmsg[:nline].strip()
@@ -419,81 +458,55 @@ class OpenERPTest(LoggingBuildStep):
                     
                     mq = qlog_re.match(first_line)
                     if mq:
-                        sumk = "%s.test" % mq.group(1)
+                        # FIXME: 
+                        sumk = mq.group(1)
                         qscore = mq.group(2)
-                        log_order.append(sumk)
+                        #log_order.append(sumk)
                         test_res = True
                         try:
                             # Hard-coded criterion!
                             test_res = float(qscore) > 0.30
                         except ValueError:
                             pass
-                        summaries.setdefault(sumk, {'state': test_res, 'log':[], })
-                        summaries[sumk]['quality_log'] = html_log
+                        quality_logs[sumk] = html_log
                         # TODO use score, too.
                     else:
                         log.err("Invalid first line of quality log: %s" % first_line)
                     
                 else:
-                    bqi_rest.append(bmsg)
+                    bqi_rest.logs['stdout'].append(bmsg)
                     if blevel >= logging.ERROR:
-                        bqi_state = 'fail'
+                        bqi_rest.results = FAILURE
                     if bexc:
-                        bqi_rest.append(bexc)
-            
-            summaries['server.out'] = { 'state': 'debug', 'log': server_out }
-            if server_err:
-                summaries['server.err'] = { 'state': 'debug', 'log': server_err }
-            if bqi_rest:
-                summaries.setdefault('bqi.rest', {}).update({ 'state': bqi_state, 'log': bqi_rest })
-                
-            self.summaries.update(summaries)
-            logkeys.remove('stdio')
-            del logs['stdio']
-            
-        
-        if 'stderr' in logkeys:
-            self.summaries.setdefault('stderr',{'state': 'unknown', 'log': ''})['log'] += logs['stderr'].getText()
-            logkeys.remove('stderr')
-            del logs['stderr']
-            
+                        bqi_rest.logs['stdout'].append(bexc)
+
         if len(logkeys):
             log.err("Remaining keys %s in logs" % (', '.join(logkeys)))
 
-        for lkey in self.summaries.keys():
-            # Make sure log_order has all our summaries
-            if lkey not in log_order:
-                log_order.append(lkey)
+        #cleanup t_results
+        for tr in t_results:
+            sev = 0
+            if tr.blames:
+                tr.text = blist2str(tr.blames)
+                sev = tr.blames[0][1]
+            if tr.results < res_severities[sev]:
+                tr.results = res_severities[sev]
+            if self.build_result < tr.results:
+                self.build_result = tr.results
+            for lk in tr.logs:
+                if isinstance(tr.logs[lk], list):
+                    tr.logs[lk] = '\n'.join(tr.logs[lk])
 
-        logs_done = []
-        for lkey in log_order:
-            if lkey in logs_done:
-                continue
-            if lkey not in self.summaries:
-                # we have the first hard-coded keys, which may not exist
-                continue
-            logs_done.append(lkey)
-            sdict = self.summaries[lkey]
+            # and, after it's clean..
+            self.build.build_status.addTestResult(tr)
 
-            # Put parsed summaries back in logs, with the correct
-            # channel name. Used in web status.
-            if sdict.get('state') == 'fail':
-                self.build_result = FAILURE
-            if sdict.get('blame', False):
-                self.addCompleteLog(lkey+'.blame', blist2str(sdict['blame']))
-                if not 'log' in sdict:
-                    # put an empty log in steps that have a blame,
-                    # so that they appear
-                    sdict['log'] = [' ',]
-            if sdict.get('log', False):
-                self.addCompleteLog(lkey, '\n'.join(sdict['log']))
-            if 'quality_log' in sdict:
-                self.addHTMLLog(lkey + '.qlog', sdict['quality_log'])
+        for qkey in quality_logs:
+            self.addHTMLLog(qkey + '.qlog', quality_logs[qkey])
 
         build_id = self.build.requests[0].id # FIXME when builds have their class
         
-        self.build.builder.db.saveSummaries(build_id, self.name,
-                                            self.build_result, self.summaries)
+        self.build.builder.db.saveTResults(build_id, self.name,
+                                            self.build_result, t_results)
         
     def evaluateCommand_old(self, cmd): # FIXME: remove it, possibly
         res = SUCCESS
