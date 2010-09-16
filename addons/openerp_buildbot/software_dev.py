@@ -638,9 +638,41 @@ class software_bbuild(osv.osv):
         'build_finish_time': fields.datetime('Build finish time'),
         'buildername': fields.function(_get_buildername, string='Builder name',
                 method=True, type='char', readonly=True, size=512, store=True),
+        'build_summary': fields.text('Result', help="A summary of the build results"),
+        'test_results': fields.one2many('software_dev.test_result', 'build_id', 
+                string='Test results'),
     }
     
 software_bbuild()
+
+class software_test_result(osv.osv):
+    """ This is the unit of results for software tests
+    """
+    
+    _name = "software_dev.test_result"
+    _columns = {
+                'name': fields.char('Name of Step', size=128, help="Name of the Test step"),
+                'sequence': fields.integer('Sequence', required=True),
+                # TODO 'teststep_id':
+                'build_id': fields.many2one('software_dev.commit', 'Build', ondelete='cascade',
+                        select=1,
+                        help="Build on which the result was taken"),
+                'blame_log': fields.text("Summary", help="Quick blame info of thing(s) that failed"),
+                'substep': fields.char('Substep', size=256, help="Detailed substep"),
+                'rate_pc': fields.float('Score', help='A measure of success, marked as a percentage'),
+                
+                'state': fields.selection([('unknown','Unknown'), ('fail', 'Failed'), 
+                                            ('pass', 'Passed'),('skip', 'Skipped'),
+                                            ('debug','Debug')], 
+                                            "Test Result", readonly=True, required=True,
+                                            help="Final State of the Test Step"),
+        }
+    _defaults = {
+                 'state':'unknown',
+                 'sequence': 0,
+                }
+    _order = 'build_id, sequence, id'
+software_test_result()
 
 class software_dev_property(osv.osv):
     """ A class for generic properties on buildbot classes

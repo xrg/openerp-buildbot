@@ -41,16 +41,46 @@
                 <field name="branch_id"/>
                 <field name="date"/>
                 <field name="name" colspan="4"/>
-                <field name="subject" colspan="4" />
-                <field name="description" colspan="4" />
-                <field name="revno"/>
-                <field name="ctype"/>
-                <field name="parent_id" />
-                <field name="hash"/>
-                <newline />
-                <field name="comitter_id"/>
-                <field name="author_ids" colspan="4"/>
-                <field name="change_ids" colspan="4"/>
+                <notebook colspan="4">
+		    <page string="Commit">
+			<field name="subject" colspan="4" />
+			<field name="comitter_id"/>
+			<field name="description" colspan="4" />
+		    </page>
+		    <page string="Commit details">
+			<field name="revno"/>
+			<field name="hash"/>
+			<field name="ctype"/>
+			<field name="parent_id" />
+			<newline />
+			<field name="author_ids" colspan="4"/>
+		    </page>
+		    <page string="Files">
+			<field name="change_ids" colspan="4"/>
+		    </page>
+		    <page string="Buildset">
+			<field name="external_idstring" />
+			<field name="reason" />
+			<newline/>
+			<field name="submitted_at" />
+			<field name="complete_at" />
+			<field name="complete" />
+			<field name="results" />
+		    </page>
+		    <page string="Build request">
+			<field name="priority" />
+			<field name="claimed_at" />
+			<field name="claimed_by_name" />
+			<field name="claimed_by_incarnation"/>
+		    </page>
+		    <page string="Build">
+			<field name="build_number" />
+			<field name="build_start_time" />
+			<field name="build_finish_time" />
+			<field name="build_summary" colspan="4" />
+			<field name="test_results" colspan="4" />
+		    </page>
+		</notebook>
               </form>
           </field>
         </record>
@@ -66,6 +96,7 @@
                 <field name="subject"/>
                 <field name="comitter_id"/>
                 <field name="hash"/>
+                <field name="complete" />
               </tree>
           </field>
         </record>
@@ -252,6 +283,46 @@
           <field name="name">Software Test Steps</field>
           <field name="type">ir.actions.act_window</field>
             <field name="res_model">software_dev.teststep</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+         </record>
+
+    <!-- Test Results -->
+        <record id="view_softdev_tresults_form" model="ir.ui.view">
+          <field name="name">Test Step Results</field>
+            <field name="model">software_dev.test_result</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+              <form>
+                <field name="build_id" />
+                <field name="sequence" />
+                <field name="name"/>
+                <field name="substep" />
+                <field name="state" />
+                <!-- <field name="test_id" /> -->
+                <field name="blame_log" colspan="4"/>
+              </form>
+          </field>
+        </record>
+
+        <record id="view_softdev_tresults_tree" model="ir.ui.view">
+          <field name="name">Test Step Results</field>
+            <field name="model">software_dev.test_result</field>
+            <field name="type">tree</field>
+            <field name="arch" type="xml">
+              <tree>
+                <field name="sequence" />
+                <field name="name"/>
+                <field name="substep" />
+                <field name="state" />
+              </tree>
+          </field>
+        </record>
+
+        <record id="action_softdev_test_results" model="ir.actions.act_window">
+          <field name="name">Test Step Results</field>
+          <field name="type">ir.actions.act_window</field>
+            <field name="res_model">software_dev.test_result</field>
             <field name="view_type">form</field>
             <field name="view_mode">tree,form</field>
          </record>
