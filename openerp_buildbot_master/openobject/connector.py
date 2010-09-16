@@ -235,7 +235,6 @@ class OERPConnector(util.ComparableMixin):
         
         ret = []
         for cdict in res:
-            print "will get change:", cdict
             c = OpenObjectChange(**cdict)
 
             p = self.get_properties_from_db(change_obj, cdict['id'])
@@ -302,7 +301,7 @@ class OERPConnector(util.ComparableMixin):
         if not res:
             return None
 
-        branch = res['branch_id'][0]
+        branch = None # res['branch_url']
         revision = res.get('revno', False) or res.get('hash', '')
 
         patch = None
