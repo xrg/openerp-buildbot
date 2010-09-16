@@ -165,15 +165,18 @@ class OERPConnector(util.ComparableMixin):
         cleanupDict(cdict)
         for f in cdict['files']:
             cleanupDict(f)
-        change.number = change_obj.submit_change(cdict)
-        prop_arr = []
-        for propname,propvalue in change.properties.properties.items():
-            prop_arr.append((propname, json.dumps(propvalue)))
-        if prop_arr:
-            change_obj.setProperties(change.number, prop_arr)
+        try:
+            change.number = change_obj.submit_change(cdict)
+            prop_arr = []
+            for propname,propvalue in change.properties.properties.items():
+                prop_arr.append((propname, json.dumps(propvalue)))
+            if prop_arr:
+                change_obj.setProperties(change.number, prop_arr)
 
-        self.notify("add-change", change.number)
-        self._change_cache.add(change.number, change)
+            self.notify("add-change", change.number)
+            self._change_cache.add(change.number, change)
+        except Exception, e:
+            log.err("Cannot add change: %s" % e)
 
     def changeEventGenerator(self, branches=[], categories=[], committers=[], minTime=0):
         change_obj = rpc.RpcProxy('software_dev.commit')
@@ -187,7 +190,7 @@ class OERPConnector(util.ComparableMixin):
         if committers:
             domain.append( ('comitter_id', 'in', committers ) )
         
-        rows = change_obj.search(domain, 0, None, 'id desc')
+        rows = change_obj.search(domain, 0, 0, 'id desc')
         
         for changeid in rows:
             yield self.getChangeNumberedNow(changeid)
@@ -713,43 +716,27 @@ class OERPConnector(util.ComparableMixin):
         return (successful, finished)
 
     def get_active_buildset_ids(self):
-        return self.runInteractionNow(self._txn_get_active_buildset_ids)
-    def _txn_get_active_buildset_ids(self, t):
-        raise NotImplementedError
-        t.execute("SELECT id FROM buildsets WHERE complete=0")
-        return [bsid for (bsid,) in t.fetchall()]
+        bsids = bset_obj.search([('complete', '=', False)])
+        return list(bsids)
+ 
     def get_buildset_info(self, bsid):
-        return self.runInteractionNow(self._txn_get_buildset_info, bsid)
-    def _txn_get_buildset_info(self, t, bsid):
-        raise NotImplementedError
-        q = self.quoteq("SELECT external_idstring, reason, sourcestampid,"
-                        "       complete, results"
-                        " FROM buildsets WHERE id=?")
-        t.execute(q, (bsid,))
-        res = t.fetchall()
+        bset_obj = rpc.RpcProxy('software_dev.commit')
+        res = bset_obj.read(bsid, ['external_idstring', 'reason', 'complete', 'results'])
         if res:
-            (external, reason, ssid, complete, results) = res[0]
-            external_idstring = str_or_none(external)
-            reason = str_or_none(reason)
-            complete = bool(complete)
-            return (external_idstring, reason, ssid, complete, results)
+            external_idstring = res['external_idstring'] or None
+            reason = res['reason'] or None
+            complete = bool(res['complete'])
+            return (external_idstring, reason, bsid, complete, res['results'])
         return None # shouldn't happen
 
     def get_pending_brids_for_builder(self, buildername):
         print "Get pending brids"
-        raise NotImplementedError
-        return self.runInteractionNow(self._txn_get_pending_brids_for_builder,
-                                      buildername)
-    def _txn_get_pending_brids_for_builder(self, t, buildername):
-        # "pending" means unclaimed and incomplete. When a build is returned
-        # to the pool (self.resubmit_buildrequests), the claimed_at= field is
-        # reset to zero.
-        raise NotImplementedError
-        t.execute(self.quoteq("SELECT id FROM buildrequests"
-                              " WHERE buildername=? AND"
-                              "  complete=0 AND claimed_at=0"),
-                  (buildername,))
-        return [brid for (brid,) in t.fetchall()]
+        breq_obj = rpc.RpcProxy('software_dev.commit')
+        
+        bids = breq_obj.search([('buildername', '=',  buildername), 
+                        ('complete', '=', False), ('claimed_at', '=', False)])
+        
+        return list(bids)
 
     # test/debug methods
 
