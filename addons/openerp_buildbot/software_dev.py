@@ -279,7 +279,7 @@ class software_buildseries(propertyMix, osv.osv):
             if b.builder_id:
                 comps.append(b.builder_id.tech_code)
             comps.append(b.name)
-            res[b.id] = '/'.join(comps)
+            res[b.id] = '-'.join(comps)
         return res
 
     _columns = {
