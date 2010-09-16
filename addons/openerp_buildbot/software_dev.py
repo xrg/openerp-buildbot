@@ -474,7 +474,7 @@ class software_commit(propertyMix, osv.osv):
                 'comments': cmt.name,
                 'when': tdate,
                 'branch_id': cmt.branch_id.id,
-                'branch': cmt.branch_id.name,
+                'branch': cmt.branch_id.branch_url,
                 'who': cmt.comitter_id.userid,
                 'revision': cmt.revno,
                 'hash': cmt.hash,
