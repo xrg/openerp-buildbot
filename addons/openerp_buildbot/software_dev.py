@@ -664,7 +664,9 @@ class software_test_result(osv.osv):
                 'rate_pc': fields.float('Score', help='A measure of success, marked as a percentage'),
                 
                 'state': fields.selection([('unknown','Unknown'), ('fail', 'Failed'), 
+                                            ('warning','Warning'), ('exception', 'Exception'),
                                             ('pass', 'Passed'),('skip', 'Skipped'),
+                                            ('retry', 'Retry'),
                                             ('debug','Debug')], 
                                             "Test Result", readonly=True, required=True,
                                             help="Final State of the Test Step"),
