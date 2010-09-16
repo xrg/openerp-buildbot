@@ -135,17 +135,24 @@ def generate_change(branch,
     filesb = change['filesb'] = []
     changes = repository.revision_tree(new_revid).changes_from(
         repository.revision_tree(old_revid))
+    tmp_kfiles = set()
     for (collection, name, ctype) in ((changes.added, 'ADDED', 'a'),
                                (changes.removed, 'REMOVED', 'd'),
                                (changes.modified, 'MODIFIED', 'm')):
         for info in collection:
             path = info[0]
             kind = info[2]
+            if path in tmp_kfiles:
+                continue
+            tmp_kfiles.add(path)
             files.append(' '.join([path, kind, name]))
             filesb.append({'filename': path, 'ctype': ctype, 
                         'lines_add':0, 'lines_rem':0 })
     for info in changes.renamed:
         oldpath, newpath, id, kind, text_modified, meta_modified = info
+        if oldpath in tmp_kfiles:
+            continue
+        tmp_kfiles.add(oldpath)
         elements = [oldpath, kind,'RENAMED', newpath]
         if text_modified or meta_modified:
             elements.append('MODIFIED')
