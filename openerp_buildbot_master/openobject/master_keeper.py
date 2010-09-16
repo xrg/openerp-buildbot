@@ -18,6 +18,7 @@ from buildbot.schedulers.filter import ChangeFilter
 from openobject.scheduler import OpenObjectScheduler, OpenObjectAnyBranchScheduler
 from openobject.buildstep import OpenObjectBzr, OpenObjectSVN, BzrMerge, BzrRevert, OpenERPTest, LintTest, BzrStatTest
 from openobject.poller import BzrPoller
+from openobject.status import web, mail, logs
 import rpc
 
 from twisted.python import log, reflect
@@ -43,7 +44,7 @@ class Keeper(object):
         # some necessary definitions in the dict:
         c['projectName'] = "OpenERP-Test"
         c['buildbotURL'] = "http://test.openobject.com/"
-        c['db_url'] = 'openerp://'
+        c['db_url'] = 'openerp://' # it prevents the db_schema from going SQL
         c['slavePortnum'] = 'tcp:8999:interface=127.0.0.1'
 
         c['slaves'] = []
@@ -51,6 +52,7 @@ class Keeper(object):
         c['schedulers'] = []
         c['builders'] = []
         c['change_source']=[]
+        c['status'] = []
         
         r = rpc.session.login(db_props)
         if r != 0:
@@ -71,12 +73,18 @@ class Keeper(object):
         c['schedulers'] = []
         c['builders'] = []
         c['change_source']=[]
-        
+
+        bbot_obj = rpc.RpcProxy('software_dev.buildbot')
+        bbot_data = bbot_obj.read(self.bbot_id)
+        if bbot_data['http_url']:
+            c['buildbotURL'] = bbot_data['http_url']
+
         bbot_attr_obj = rpc.RpcProxy('software_dev.battr')
         bids = bbot_attr_obj.search([('bbot_id','=', self.bbot_id)])
         if bids:
             for attr in bbot_attr_obj.read(bids):
                 c[attr['name']] = attr['value']
+
         # Then, try to setup the slaves:
         bbot_slave_obj = rpc.RpcProxy('software_dev.bbslave')
         bsids = bbot_slave_obj.search([('bbot_id','=', self.bbot_id)])
@@ -86,7 +94,6 @@ class Keeper(object):
                 c['slaves'].append(BuildSlave(slav['tech_code'], slav['password']))
         
         # Get the repositories we have to poll and maintain
-        bbot_obj = rpc.RpcProxy('software_dev.buildbot')
         polled_brs = bbot_obj.get_polled_branches([self.bbot_id])
         print "got polled brs:", polled_brs
         
@@ -148,6 +155,10 @@ class Keeper(object):
                                     properties={},
                                     keeper=self)
                                 )
+
+        if bbot_data['http_port']:
+            print "We will have a http server at %s" % bbot_data['http_port']
+            c['status'].append(web.OpenObjectWebStatus(http_port=bbot_data['http_port']))
 
         # We should be ok by now..
 
