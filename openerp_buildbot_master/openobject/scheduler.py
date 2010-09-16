@@ -85,46 +85,12 @@ def create_test_log(source, properties):
         openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'ir.attachment', 'create', data_attach)
     return result_id
 
-class OpenObjectBuildset(object): # TODO buildset.BuildSet):
-    def __init__(self, builderNames, source, reason=None, bsid=None,
-                 properties=None, openerp_properties={}):
-        buildset.BuildSet.__init__(self, builderNames=builderNames, source=source, reason=reason, bsid=bsid, properties=properties)
-        self.openerp_properties = openerp_properties
-    def start(self, builders):
-        res = buildset.BuildSet.start(self, builders)
-        for builder in builders:
-             if not hasattr(builder, 'test_ids'):
-                 builder.test_ids = {}
-             builder.openerp_properties = self.openerp_properties
-             openerp_test_id = create_test_log(self.source, self.openerp_properties)
-
-             if self.source.revision not in builder.test_ids:
-                 builder.test_ids[self.source.revision] = openerp_test_id
-        return res
-
 class OpenObjectScheduler(Scheduler):
-    def __init__(self, name, branch, treeStableTimer, builderNames,
-                 fileIsImportant=None, properties=None, keeper=None):
+    def __init__(self, name, **kwargs):
         self.unimportantChanges = []
-        Scheduler.__init__(self, name=name, branch=branch, treeStableTimer=treeStableTimer, builderNames=builderNames,
-                 fileIsImportant=fileIsImportant, properties=properties)
-        self.keeper = keeper
-
-    def fireTimer(self):
-        # clear out our state
-        self.timer = None
-        self.nextBuildTime = None
-        changes = self.importantChanges + self.unimportantChanges
-        self.importantChanges = []
-        self.unimportantChanges = []
-        # create a BuildSet, submit it to the BuildMaster
-        for change in changes:
-            bs = OpenObjectBuildset(self.builderNames,
-                                   OpenObjectSourceStamp(changes=[change]),
-                                   properties=self.properties,
-                                   openerp_properties=self.openerp_properties)
-            self.submitBuildSet(bs)
-
+        self.keeper = kwargs.pop('keeper', None)
+        Scheduler.__init__(self, name=name, **kwargs)
+        
 
 class OpenObjectAnyBranchScheduler(AnyBranchScheduler):
     schedulerFactory = OpenObjectScheduler
