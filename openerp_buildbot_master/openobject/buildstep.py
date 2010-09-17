@@ -202,25 +202,20 @@ class OpenERPTest(LoggingBuildStep):
                 olmods_found = []
                 for sbuild in self.build.builder.builder_status.generateFinishedBuilds(num_builds=10):
                     log.msg("Scanning back build %d" % sbuild.getNumber())
-                    for sres in sbuild.getTestResults():
-                        if sres.getName() != 'OpenERP-Test':
+                    for sres in sbuild.getTestResults().values():
+                        # RFC: should we perform tests for other failures
+                        # like flakes etc?
+                        if sres.results == SUCCESS:
                             continue
-                            # RFC: should we perform tests for other failures
-                            # like flakes etc?
-                        
-                            if sres.results == SUCCESS:
-                                continue
-                            
-                            olmods_found.append(sres.name[0]) # it's a tuple, easy
-                        
-                        if len(olmods_found):
-                            log.msg("Found these modules that failed last time: %s" % \
-                                    ','.join(olmods_found))
-                            more_mods.extend(olmods_found)
-                            break
-                
+
+                        olmods_found.append(sres.name[0]) # it's a tuple, easy
+
+
                     if len(olmods_found):  # this loop, too.
-                        break
+                        more_mods.extend(olmods_found)
+                        log.msg("Found these modules that failed last time: %s" % \
+                                ','.join(olmods_found))
+                        break #don't look further back in the history
             except Exception, e:
                 log.err("Could not figure old failures: %s" % e)
             mods_changed.extend(set(more_mods))
@@ -268,7 +263,7 @@ class OpenERPTest(LoggingBuildStep):
         self.args['command'] += ['--', 'create-db']
         if len(mods_changed):
             self.args['command'] += ['--', 'install-module']  #+ [ modules...]
-            if self.args['test_mode'] not in ('install',):
+            if self.args['test_mode'] == 'check-quality':
                 self.args['command'] += ['--', 'check-quality' ] # + [modules]
         
         self.args['command'] += ['--', '+drop-db']
@@ -311,7 +306,7 @@ class OpenERPTest(LoggingBuildStep):
             cur_result= None  # The entry of t_results we are in, when bqi_context
             
             # The order that logs appeared, try to preserve in status.logs
-            # May have duplicates.
+            # May have duplicates. (less used after last refactoring)
             log_order = [ 'server.out', 'server.err', ]
             
             while len(lines):
@@ -493,6 +488,7 @@ class OpenERPTest(LoggingBuildStep):
                 tr.results = res_severities[sev]
             if self.build_result < tr.results:
                 self.build_result = tr.results
+                print "setting result to ", tr.results
             for lk in tr.logs:
                 if isinstance(tr.logs[lk], list):
                     tr.logs[lk] = '\n'.join(tr.logs[lk])
@@ -508,11 +504,13 @@ class OpenERPTest(LoggingBuildStep):
         self.build.builder.db.saveTResults(build_id, self.name,
                                             self.build_result, t_results)
         
-    def evaluateCommand_old(self, cmd): # FIXME: remove it, possibly
+    def evaluateCommand(self, cmd):
         res = SUCCESS
-        if cmd.rc != 0 or self.build_result == FAILURE:
+        if cmd.rc != 0:
             # TODO: more results from b-q-i, it has discrete exit codes.
             res = FAILURE
+        if self.build_result > res:
+            res = self.build_result
         return res
 
 class OpenObjectBzr(Bzr):
@@ -693,34 +691,6 @@ class StartServer(LoggingBuildStep):
 
         cmd = LoggedRemoteCommand("OpenObjectShell",self.args)
         self.startCommand(cmd)
-
-
-#class CreateDB2(CreateDB):
-#    def start(self):
-#        cmd = LoggedRemoteCommand("create-db",self.args)
-#        self.startCommand(cmd)
-#
-#class InstallModule2(InstallModule):
-#    def start(self):
-#        s = self.build.getSourceStamp()
-#        modules = []
-#        for change in s.changes:
-#            for f in change.files:
-#                try:
-#                    module = f.split('/')
-#                    if change.branch == 'https://svn.tinyerp.com/be/maintenance':
-#                        module = (len(module) > 1) and module[1] or ''
-#                    else:
-#                        module = module[0]
-#                    if module not in modules:
-#                        if module not in ('README.txt'):
-#                            modules.append(module)
-#                except:
-#                    pass
-#        self.args['modules'] += ','.join(modules)
-#        cmd = LoggedRemoteCommand("install-module",self.args)
-#        self.startCommand(cmd)
-
 
 class BzrMerge(LoggingBuildStep):
     name = 'bzr_merge'
@@ -919,7 +889,7 @@ class LintTest(LoggingBuildStep):
     # TODO: send the result to the db
 
 class BzrStatTest(LoggingBuildStep):
-    """Step to perform lint-check on changed files
+    """Step to gather statistics of changed files
     """
     name = 'Bzr stats'
     flunkOnFailure = False
@@ -959,6 +929,5 @@ class BzrStatTest(LoggingBuildStep):
         self.stderr_log = self.addLog("stderr")
         cmd.useLog(self.stderr_log, True)
         self.startCommand(cmd)
-
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
