@@ -1,0 +1,35 @@
+{% extends "layout_bare.html" %}
+
+{# Note that in the bare version we put <a .. target="_top"> so that
+ # links open outside the iframe #}
+
+{% block content %}
+
+<table class="grid" width="100%" id="latest_builds">
+    <tr class="header" style="vertical-align:center font-size: 18px;">
+        <td class="grid-cell" align="center">Branches / Builds</td>
+        <td class="grid-cell" align="center" >Build: Last</td>
+        {% for col in range(num_cols-1) %}
+        <td class="grid-cell" align="center" >Build: {{ -1 - col }}</td>
+        {% endfor %}
+        <td class="grid-cell" align="center">Current Status</td>
+    </tr>
+        
+    {% for bldr in builders %}
+    <tr class='grid-row'>
+        <td class="grid-cell" align="center">
+            <a href="{{ bldr.url }}" target="_top">{{ bldr.name }}</a>
+        </td>
+        {% for b in bldr.builds %}
+            <td align="center" class="{{ b.class_b }}">
+                <a href="{{ b.url }}" target="_top" title="{{ b.ttitle }}">{{ b.label }}</a>
+                {{ b.last_t }}
+            </td>
+        {% endfor %}
+        {% for build in range(num_cols - bldr.builds.__len__()) %}
+        <td class="grid-cell" />
+        {% endfor %}
+        <td class="grid-cell" align="center">{{ bldr.status }}
+    </tr>
+    {% endfor %}
+{% endblock %}

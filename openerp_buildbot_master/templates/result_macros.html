@@ -1,0 +1,17 @@
+{% macro result(r) %}
+    {% if r == 0 %}
+    <span class="success result">Success</span>
+    {% elif r == 1 %}
+    <span class="warnings result">Warnings</span>
+    {% elif r == 2 %}
+    <span class="failure result">Failure</span>
+    {% elif r == 3 %}
+    <span class="skipped result">Skipped</span>
+    {% elif r == 4 %}
+    <span class="exception result">Exception</span>
+    {% elif r == 5 %}
+    <span class="retry result">Retry</span>
+    {% else %}
+    <span class="result">{{ r }}</span>
+    {% endif %}
+{%- endmacro %}

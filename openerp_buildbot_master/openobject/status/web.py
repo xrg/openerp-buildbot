@@ -20,7 +20,10 @@
 #
 ##############################################################################
 
-from buildbot.status.web.base import HtmlResource,map_branches,Box,ICurrentBox,build_get_class,path_to_builder
+from buildbot.status.web.base import HtmlResource, path_to_builder, \
+     path_to_build, css_classes
+from buildbot.status.web.base import map_branches,Box,ICurrentBox,build_get_class,path_to_builder
+
 from buildbot.status.web.baseweb import WebStatus
 from buildbot.status.web import baseweb
 from buildbot.status.web.build import StatusResourceBuild,BuildsResource
@@ -143,37 +146,40 @@ class LatestBuilds(HtmlResource):
 
     title = "Latest Builds"
 
-    def body(self, req):
+    def __init__(self, is_bare=False):
+        HtmlResource.__init__(self)
+        self.is_bare = is_bare
+
+    def content(self, req, cxt):
         status = self.getStatus(req)
         building = False
         online = 0
-        control = self.getControl(req)
         req.setHeader('Cache-Control', 'no-cache')
-        base_builders_url = self.path_to_root(req) + "buildersresource/"
+        # base_builders_url = "buildersresource/"
+        base_builders_url = "builders/"
         builders = req.args.get("builder", status.getBuilderNames())
         branches = [b for b in req.args.get("branch", []) if b]
         all_builders = [html.escape(bn) for bn in builders]
         num_cols = get_args_int(req.args, 'num', 5)
         
-
-        data = ""
-        data += '<table class="grid" width="100%" id="latest_builds">'
-        data += '<tr class="header" style="vertical-align:center font-size: 18px;"><td class="grid-cell" align="center">Branches / Builds</td>'
-        for num in range(num_cols):
-            data+= '<td class="grid-cell" align="center" >Build: %s</td>' % ( (0-num) or 'Last')
-        data += '<td class="grid-cell" align="center">Current Status</td>'
-        
+        cxt['num_cols'] = num_cols
+        cxt['builders'] = [] # TODO: groupping
         for bn in all_builders:
             base_builder_url = base_builders_url + urllib.quote(bn, safe='')
             builder = status.getBuilder(bn)
-            data += "<tr class='grid-row'>\n"
-            data += '<td class="grid-cell" align="center"><a href="%s">%s</a></td>\n'%(base_builder_url, html.escape(bn))
+            bldr_cxt = { 'name': bn, 'url': base_builder_url, 'builds': [] }
+            cxt['builders'].append(bldr_cxt)
+            
             # It is difficult to do paging here, because we are already iterating over the
             # builders, so won't have the same build names or rev-ids.
-            builds = list(builder.generateFinishedBuilds(map_branches(branches),num_builds=num_cols))
+            builds = list(builder.generateFinishedBuilds(map_branches(branches), num_builds=num_cols))
             # builds.reverse()
+            
+            bldr_cxt['builds'] = []
             for build in builds[:num_cols]:
                 url = (base_builder_url + "/builds/%d" % build.getNumber())
+                build_cxt = {'url': url}
+                bldr_cxt['builds'].append(build_cxt)
                 try:
                     ss = build.getSourceStamp()
                     commiter = ""
@@ -191,31 +197,22 @@ class LatestBuilds(HtmlResource):
                     label = "#%d" % build.getNumber()
                 tftime = time.strftime('%a %d, %H:%M:%S', time.localtime(build.getTimes()[1]))
                 ttitle = 'Test at: %s\n%s' %(tftime, html.escape(build.getReason()))
-                text = ['<a href="%s" title="%s">%s</a><br/>%s' % \
-                        (url, ttitle, label, last_change(ss, True))]
-                box = Box(text, class_="build%s" % build_get_class(build), align="center")
-                data += box.td()
-            for i in range(len(builds),num_cols):
-                data += '<td class="grid-cell" align="center">no build</td>'
-            current_box = ICurrentBox(builder).getBox(status)
-            data += current_box.td(class_="grid-cell",align="center")
+                class_b = "build%s" % build_get_class(build)
+                
+                build_cxt.update({ 'label': label, 'commiter': commiter,
+                                'tftime': tftime, 'ttitle': ttitle,
+                                'last_t': last_change(ss, True),
+                                'class_b': class_b })
 
+            
             builder_status = builder.getState()[0]
-            if builder_status == "building":
-                building = True
-                online += 1
-            elif builder_status != "offline":
-                online += 1
-            data += "</tr>"
-        data += "</table>"
-        if control is not None:
-            if building:
-                stopURL = "builders/_all/stop"
-                data += make_stop_form(stopURL, True, "Builds")
-            if online:
-                forceURL = "builders/_all/force"
-                data += make_force_build_form(forceURL, True)
-        return data
+            bldr_cxt['status'] = builder_status
+        
+        if self.is_bare:
+            template = req.site.buildbot_service.templates.get_template("latestbuilds_bare.html")
+        else:
+            template = req.site.buildbot_service.templates.get_template("latestbuilds.html")
+        return template.render(**cxt)
 
 class OOStatusHelper(object):
     """ Helper functions for OpenObjectStatusResourceBuild, OpenObjectStatusResourceBuilder
@@ -594,9 +591,10 @@ class OpenObjectWebStatus(WebStatus):
 
     def setupUsualPages(self, *args, **kwargs):
         WebStatus.setupUsualPages(self, *args, **kwargs)
-        self.putChild("buggraph", BugGraph())
+        # self.putChild("buggraph", BugGraph())
         self.putChild("latestbuilds", LatestBuilds())
-        self.putChild("buildersresource", OpenObjectBuildersResource())
+        self.putChild("latestbuildsb", LatestBuilds(is_bare=True))
+        # self.putChild("buildersresource", OpenObjectBuildersResource())
 
 
 

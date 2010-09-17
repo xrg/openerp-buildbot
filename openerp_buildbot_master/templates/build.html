@@ -1,6 +1,7 @@
 {% extends "layout.html" %}
 {% import 'forms.html' as forms %}
 {% from "change_macros.html" import change with context %}
+{% from "result_macros.html" import result with context %}
 
 {% block content %}
 
@@ -33,7 +34,13 @@ Build #{{ b.getNumber() }}
    
   <ol>
   {% for tr in b.getTestResults().values() %}
-    <li><b>{{ '.'.join(tr.name) }} </b> : {{tr.results}} - {{ tr.text }} </li>
+  {% set tr_name = '.'.join(tr.name) %}
+    <li><a href="{{tests_link}}/{{ tr_name }}">{{ tr_name }}</a>: {{ result(tr.results) }}
+    {% if tr.text %}
+    <br/>
+    <pre> {{ tr.text}} </pre>
+    {% endif %}
+    </li>
   {% else %}
     <p> No test results</p>
   {% endfor %}
