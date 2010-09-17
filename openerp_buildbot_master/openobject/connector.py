@@ -602,10 +602,6 @@ class OERPConnector(util.ComparableMixin):
             
             bsids = brids
             
-            # "SELECT bs.id" " FROM buildsets AS bs, buildrequests AS br"
-            #                " WHERE br.buildsetid=bs.id AND bs.complete=0"
-            #                "  AND br.id in " (brids)
-            
             t = None
             for bsid in bsids:
                 self._check_buildset(t, bsid, now)
@@ -625,20 +621,16 @@ class OERPConnector(util.ComparableMixin):
         vals = { 'complete': True, 'results': FAILURE,
                 'complete_at': time2str(now) }
         breq_obj.write(brids, vals)
-        raise NotImplementedError
-
         # now, does this cause any buildsets to complete?
         
         bsids = brids
         for bsid in bsids:
-            self._check_buildset(t, bsid, now)
+             self._check_buildset(t, bsid, now)
 
         self.notify("cancel-buildrequest", *brids)
         self.notify("modify-buildset", *bsids)
         
     def saveTResults(self, build_id, name, build_result, t_results):
-        print "save summaries for %s: %s" % (build_id, build_result)
-        # TODO
         bld_obj = rpc.RpcProxy('software_dev.commit')
         tsum_obj = rpc.RpcProxy('software_dev.test_result')
         
@@ -655,32 +647,9 @@ class OERPConnector(util.ComparableMixin):
         return
 
     def _check_buildset(self, t, bsid, now):
-        return True
         # Since there is no difference from buildset->buildrequest, 
         # nothing to do.
-        raise NotImplementedError
-        q = self.quoteq("SELECT br.complete,br.results"
-                        " FROM buildsets AS bs, buildrequests AS br"
-                        " WHERE bs.complete=0"
-                        "  AND br.buildsetid=bs.id AND bs.id=?")
-        t.execute(q, (bsid,))
-        results = t.fetchall()
-        is_complete = True
-        bs_results = SUCCESS
-        for (complete, r) in results:
-            if not complete:
-                # still waiting
-                is_complete = False
-            # mark the buildset as a failure if anything worse than
-            # WARNINGS resulted from any one of the buildrequests
-            if r not in (SUCCESS, WARNINGS):
-                bs_results = FAILURE
-        if is_complete:
-            # they were all successful
-            q = self.quoteq("UPDATE buildsets"
-                            " SET complete=1, complete_at=?, results=?"
-                            " WHERE id=?")
-            t.execute(q, (now, bs_results, bsid))
+        return True
 
     def get_buildrequestids_for_buildset(self, bsid):
         return self.runInteractionNow(self._txn_get_buildrequestids_for_buildset,
