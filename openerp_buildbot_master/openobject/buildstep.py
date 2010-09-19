@@ -107,10 +107,11 @@ class BqiObserver(LogLineObserver):
             self.numTests += 1
             self.step.setProgress('tests', self.numTests)
 
+ports_pool = None
+
 class OpenERPTest(LoggingBuildStep):
     name = 'OpenERP-Test'
     flunkOnFailure = True
-    
 
     def describe(self, done=False,success=False,warn=False,fail=False):
         if done:
@@ -123,7 +124,8 @@ class OpenERPTest(LoggingBuildStep):
         return self.description
 
     def get_free_port(self):
-        return 8869 # TODO
+        global ports_pool
+        return ports_pool.borrow(True)
 
     def getText(self, cmd, results):
         if results == SUCCESS:
@@ -166,7 +168,16 @@ class OpenERPTest(LoggingBuildStep):
         # need to change the static slave path
         self.logfiles = {}
         # builddir = self.build.builder.builddir
-       
+
+        global ports_pool
+        if not ports_pool:
+            # Effectively, the range of these ports will limit the number of
+            # simultaneous databases that can be tested
+            min_port = self.build.builder.properties.get('min_port',8200)
+            max_port = self.build.builder.properties.get('max_port',8299)
+            port_spacing = self.build.builder.properties.get('port_spacing',4)
+            ports_pool = tools.Pool(iter(range(min_port, max_port, port_spacing)))
+
         if not self.args.get('addonsdir'):
             if self.build.builder.properties.get('addons_dir'):
                 self.args['addonsdir'] = self.build.builder.properties['addons_dir']
@@ -176,6 +187,8 @@ class OpenERPTest(LoggingBuildStep):
             self.args['port'] = self.get_free_port()
         if not self.args.get('dbname'):
             self.args['dbname'] = self.build.builder.builddir.replace('/', '_')
+        if not self.args.get('workdir'):
+            self.args['workdir'] = 'server'
 
         # try to find all modules that have changed:
         mods_changed = []
@@ -505,12 +518,19 @@ class OpenERPTest(LoggingBuildStep):
                                             self.build_result, t_results)
         
     def evaluateCommand(self, cmd):
+        global ports_pool
         res = SUCCESS
         if cmd.rc != 0:
             # TODO: more results from b-q-i, it has discrete exit codes.
             res = FAILURE
         if self.build_result > res:
             res = self.build_result
+        if self.args['port']:
+            try:
+                ports_pool.free(self.args['port'])
+            except RuntimeError, e:
+                log.err("%s" % e)
+
         return res
 
 class OpenObjectBzr(Bzr):
