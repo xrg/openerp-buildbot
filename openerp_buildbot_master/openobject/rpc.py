@@ -34,6 +34,7 @@ import xmlrpclib
 import base64
 import socket
 import logging
+from tools import Pool
 
 # ConcurrencyCheckField = '__last_update'
 
@@ -136,6 +137,12 @@ class Connection:
         newob.uid = self.uid
         newob.password = self.password
         return newob
+        
+    def check(self):
+        """ Checks if the connection is sane, alive
+            @return True or False
+        """
+        return True
         
     def stringToUnicode(self, result): 
         if isinstance(result, str):
@@ -490,7 +497,20 @@ class Session(object):
     LoggedIn = 0
     Exception = 2
     InvalidCredentials = 3
+    session_limit = 30
+    conn_timeout = 30.0 # limit of seconds to wait for a free connection
     
+    def _create_connection(self):
+        assert self.url, "Cannot create session connections before login"
+        if len(self.connections) > self.session_limit:
+            return None # but don't break the loop
+        newconn = createConnection(self.url, self.allow_xmlrpc2)
+        newconn.login(self.databaseName, self.userName, self.passwd)
+        return newconn
+        
+    def _check_connection(self, conn):
+        return conn.check()
+
     def __init__(self):
         self.open = False
         self.url = None
@@ -498,10 +518,13 @@ class Session(object):
         self.uid = None
         self.context = {}
         self.userName = None
+        self.passwd = None
         self.databaseName = None
-        self.connection = None
+        self.allow_xmlrpc2 = True
         self.threads = []
         self.server_options = []
+        self.connections = Pool(iter(self._create_connection, NotImplemented),
+                                self._check_connection)
         self._log = logging.getLogger('RPC.Session')
 
     ## @brief Calls the specified method
@@ -515,7 +538,11 @@ class Session(object):
     def call(self, obj, method, *args):
         if not self.open:
             raise RpcException(_('Not logged in'))
-        value = self.connection.call(obj, method, args)
+        conn = self.connections.borrow(self.conn_timeout)
+        try:
+            value = conn.call(obj, method, args)
+        finally:
+            self.connections.free(conn)
         return value
 
     ## @brief Same as call() but uses the notify mechanism to notify
@@ -532,22 +559,28 @@ class Session(object):
             @param url dictionary of connection parameters
             Returns Session.Exception, Session.InvalidCredentials or Session.LoggedIn
         """
-        self.connection = createConnection(url, allow_xmlrpc2=True )
+        if self.url and url != self.url:
+            # perhaps a different server, retry for XML-RPC v2
+            self.allow_xmlrpc2 = True
+
+        conn = createConnection(url, allow_xmlrpc2=self.allow_xmlrpc2 )
         user = url['user']
         password = url['passwd']
         db = url['dbname']
+
         for ttry in (1, 2):
             res = False
             try:
-                res = self.connection.login(db, user, password)
+                res = conn.login(db, user, password)
                 if res:
                     self._log.info('Logged into %s as %s', db, user)
                 break
             except socket.error, e:
                 return Session.Exception
             except tiny_socket.ProtocolError, e:
-                if e.errcode == 404 and isinstance(self.connection, XmlRpc2Connection):
-                    self.connection = createConnection( _url, allow_xmlrpc2=False)
+                if e.errcode == 404 and isinstance(conn, XmlRpc2Connection):
+                    conn = createConnection( _url, allow_xmlrpc2=False)
+                    self.allow_xmlrpc2 = False
                     self._log.info("Server must be older, retrying with XML-RPC v.1")
                     continue
                 self._log.error('Protocol error: %s', e)
@@ -566,6 +599,7 @@ class Session(object):
         self.open = True
         self.uid = res
         self.userName = user
+        self.passwd = password
         #self.password = password
         self.databaseName = db
         self.reloadContext()
@@ -576,13 +610,13 @@ class Session(object):
     # Useful when some user parameters such as language are changed.
     def reloadContext(self):
         self.context = self.execute('/object', 'execute', 'res.users', 'context_get') or {}
-        
+        conn = self.connections.borrow(self.conn_timeout)
         try:
-            self.server_options = self.connection.call('/common', 'get_options', args=[], auth_level='pub')
+            self.server_options = conn.call('/common', 'get_options', args=[], auth_level='pub')
             self._log.debug("got server options: %r", self.server_options)
             if 'xmlrpc-gzip' in self.server_options \
-                    and isinstance(self.connection, (XmlRpcConnection, XmlRpc2Connection)):
-                self.connection._send_gzip = True
+                    and isinstance(conn, (XmlRpcConnection, XmlRpc2Connection)):
+                conn._send_gzip = True
                 self._log.debug("Going gzip for %s..", makeurl(self.url))
         except xmlrpclib.Fault, err:
             # TODO diagnose other faults.
@@ -590,6 +624,7 @@ class Session(object):
         except Exception, e:
             self._log.warning("Could not get server's options:", exc_info=True)
             self.server_options = []
+        self.connections.free(conn)
 
     ## @brief Returns whether the login function has been called and was successfull
     def logged(self):
@@ -602,7 +637,7 @@ class Session(object):
             #self.userName = None
             self.uid = None
             #self.password = None
-            self.connection = None
+            self.connections.clear()
 
     def copy(self):
         new = Session()
@@ -613,7 +648,8 @@ class Session(object):
         new.context = self.context
         new.userName = self.userName
         new.databaseName = self.databaseName
-        new.connection = self.connection.copy()
+        new.allow_xmlrpc2 = self.allow_xmlrpc2
+        new.server_options = self.server_options
         return new
 
 session = Session()
