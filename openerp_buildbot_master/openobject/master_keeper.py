@@ -151,7 +151,7 @@ class Keeper(object):
                 OpenObjectScheduler(name = "Scheduler for %s" %(bld['name']),
                                     builderNames = [bld['name'], ],
                                     change_filter=cfilt,
-                                    treeStableTimer = bld['tstimer'],
+                                    treeStableTimer= bld.get('tstimer',None),
                                     properties={},
                                     keeper=self)
                                 )

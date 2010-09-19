@@ -200,7 +200,7 @@ class software_buildbot(osv.osv):
                     'steps': [],
                     'branch_url': bldr.branch_url,
                     'branch_name': bldr.name,
-                    'tstimer': 30,
+                    #'tstimer': None, # means one build per change
                     }
             # Now, build the steps:
             for bdep in bldr.dep_branch_ids:
