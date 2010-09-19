@@ -43,4 +43,7 @@ def _to_decode(s):
                 return s.decode('ascii')
             except UnicodeError:
                 return s
+
+ustr = _to_unicode
+
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
