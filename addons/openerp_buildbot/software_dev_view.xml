@@ -66,6 +66,11 @@
 			<field name="complete_at" />
 			<field name="complete" />
 			<field name="results" />
+			<button string="Schedule Rebuild" 
+				name="reschedule"
+				type="object"
+				help="Mark this buildset as not-built, so that it gets another build"
+				icon="gtk-go-forward" /> <!-- todo: attrs: disabled when building -->
 		    </page>
 		    <page string="Build request">
 			<field name="priority" />
@@ -75,6 +80,7 @@
 		    </page>
 		    <page string="Build">
 			<field name="build_number" />
+			<newline />
 			<field name="build_start_time" />
 			<field name="build_finish_time" />
 			<field name="build_summary" colspan="4" />

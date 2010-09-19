@@ -619,6 +619,12 @@ class software_buildrequest(osv.osv):
         'priority': 0,
     }
 
+    def reschedule(self, cr, uid, ids, context=None):
+        """Reset completion status, so that this buildset gets rebuilt
+        """
+        self.write(cr, uid, ids, { 'claimed_at': False, 'complete': False,
+                'claimed_by_name': False })
+
 software_buildrequest()
 
 class software_bbuild(osv.osv):
