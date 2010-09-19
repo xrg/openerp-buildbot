@@ -38,6 +38,7 @@ from lxml import etree
 import urllib, time
 from buildbot import version, util
 from openobject.buildstep import blame_severities
+from openobject.tools import ustr
 
 ROOT_PATH = '.'
 
@@ -196,7 +197,7 @@ class LatestBuilds(HtmlResource):
                 if not label:
                     label = "#%d" % build.getNumber()
                 tftime = time.strftime('%a %d, %H:%M:%S', time.localtime(build.getTimes()[1]))
-                ttitle = 'Test at: %s\n%s' %(tftime, html.escape(build.getReason()))
+                ttitle = 'Test at: %s\n%s' %(tftime, html.escape(ustr(build.getReason())))
                 class_b = "build%s" % build_get_class(build)
                 
                 build_cxt.update({ 'label': label, 'commiter': commiter,
