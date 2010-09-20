@@ -266,7 +266,12 @@
                 <field name="sequence" />
                 <field name="name"/>
                 <!-- <field name="test_id" /> -->
-                <field name="attribute_ids" colspan="4" editable="bottom"/>
+                <field name="attribute_ids" colspan="4" editable="bottom">
+                    <tree editable="bottom">
+                        <field name="name"/>
+                        <field name="value"/>
+                    </tree>
+                </field>
               </form>
           </field>
         </record>
@@ -371,11 +376,16 @@
             <field name="type">form</field>
             <field name="arch" type="xml">
               <form>
-		<field name="name"/>
+                <field name="name"/>
                 <field name="tech_code"/>
                 <field name="http_url" />
                 <field name="http_port" />
-                <field name="attribute_ids" colspan="4" />
+                <field name="attribute_ids" colspan="4">
+                    <tree editable="bottom">
+                        <field name="name"/>
+                        <field name="value"/>
+                    </tree>
+                </field>
                 <field name="description" colspan="4" />
               </form>
           </field>
