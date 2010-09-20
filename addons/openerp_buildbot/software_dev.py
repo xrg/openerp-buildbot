@@ -409,7 +409,7 @@ class software_commit(propertyMix, osv.osv):
         #    help="Commits that are contained in this, but not the parent commit"),
     }
     
-    _sql_constraints = [ ('hash_uniq', 'UNIQUE(hash)', 'Hash must be unique.'),
+    _sql_constraints = [ ('branch_hash_uniq', 'UNIQUE(branch_id, hash)', 'Hash must be unique. (per branch)'),
                 ('branch_revno_uniq', 'UNIQUE(branch_id, revno)', 'Revision no. must be unique in branch'),
                 ]
 
