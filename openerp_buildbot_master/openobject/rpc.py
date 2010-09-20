@@ -435,6 +435,8 @@ class XmlRpc2Connection(Connection):
         except xmlrpclib.Fault, err:
             self._log.error( "xmlrpclib.Fault on %s/%s(%s): %s" % (obj,str(method), str(args[:2]), err))
             raise RpcServerException( err.faultCode, err.faultString )
+        except tiny_socket.ProtocolError:
+            raise # silently
         except Exception, e:
             self._log.exception("Exception:")
             raise
@@ -579,7 +581,7 @@ class Session(object):
                 return Session.Exception
             except tiny_socket.ProtocolError, e:
                 if e.errcode == 404 and isinstance(conn, XmlRpc2Connection):
-                    conn = createConnection( _url, allow_xmlrpc2=False)
+                    conn = createConnection(url, allow_xmlrpc2=False)
                     self.allow_xmlrpc2 = False
                     self._log.info("Server must be older, retrying with XML-RPC v.1")
                     continue
