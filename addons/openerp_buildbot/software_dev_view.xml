@@ -29,8 +29,7 @@
 
         <menuitem id="softdev_vuser" name="VCS Users"
             action="action_softdev_vuser"
-            parent="softdev_config" sequence="50" 
-            groups="project.group_project_manager" />
+            parent="softdev_config" sequence="50"  />
 
     <!--commit -->
         <record id="view_softdev_commit_form" model="ir.ui.view">
@@ -184,8 +183,7 @@
 
 	<menuitem id="softdev_buildbgroup" name="Build Groups" 
 	    action="action_softdev_bgrp"
-	    parent="softdev_config" sequence="70"
-	    groups="project.group_project_manager" />
+	    parent="softdev_config" sequence="70" />
 
     <!-- Build series -->
         <record id="view_softdev_bseries_form" model="ir.ui.view">
@@ -220,8 +218,7 @@
 
         <menuitem id="softdev_buildseries" name="Build Series" 
             action="action_softdev_bseries"
-            parent="softdev_config" sequence="80"
-            groups="project.group_project_manager" />
+            parent="softdev_config" sequence="80" />
 
 
     <!-- Test step Attributes -->
@@ -394,8 +391,7 @@
 
 	<menuitem id="softdev_buildbots" name="Build bots" 
 	    action="action_softdev_buildbots"
-	    parent="softdev_config" sequence="90"
-	    groups="project.group_project_manager" />
+	    parent="softdev_config" sequence="90" />
 
     <!-- Build Slaves -->
         <record id="view_softdev_bbslave_form" model="ir.ui.view">
@@ -424,8 +420,7 @@
 
 	<menuitem id="softdev_bbslaves" name="Build Slaves" 
 	    action="action_softdev_bbslaves"
-	    parent="softdev_config" sequence="100"
-	    groups="project.group_project_manager" />
+	    parent="softdev_config" sequence="100" />
 
 </data>
 </openerp>
