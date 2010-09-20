@@ -7,6 +7,7 @@ import compiler, sys
 import os
 
 from pyflakes import checker
+from pyflakes.messages import UnusedImport
 
 def check(codeString, filename):
     """
@@ -63,6 +64,8 @@ def check(codeString, filename):
         tree = compiler.parse(codeString)
         w = checker.Checker(tree, filename)
         w.messages.sort(lambda a, b: cmp(a.lineno, b.lineno))
+        if filename.endswith('__init__.py'):
+            w.messages = filter(lambda x: not isinstance(x, UnusedImport), w.messages)
         for warning in w.messages:
             print warning
         return len(w.messages)
