@@ -27,7 +27,7 @@
   </head>
   <body class="interface">
     {% block header -%}
-            <table width="100%%" border="0" cellspacing="0" cellpadding="0">
+            <table width="100%" border="0" cellspacing="0" cellpadding="0">
             <tr>
                 <td width="202"><a href="http://openobject.com" alt="Open Object - Free Management Solution Logo"/><img src="{{ path_to_root }}images/openobject.jpg" border="0"/></a></td>
                 <td width="335"><div align="right"><img src="{{ path_to_root }}images/picture.jpg" width="242" height="68" /></div></td>
@@ -54,9 +54,11 @@
             </tr>
             </table>
 
-            <table width="100%%" border="0" cellspacing="0" cellpadding="0" id="menu_header">
+            <table width="100%" border="0" cellspacing="0" cellpadding="0" id="menu_header">
             <tr>
-                <td width="141" id="menu_header_menu" nowrap="nowrap"></td>
+                <td width="auto" id="menu_header_menu" nowrap="nowrap">
+                    <span style="color: white; align: right">Beta</span>
+                </td>
                 <td nowrap="nowrap" align="left" height="25px"></td>
             </tr>
             <tr>
@@ -84,7 +86,7 @@
     <hr/>
 
     <div class="content">
-      {%- block content -%}     
+      {%- block content -%}
       {%- endblock -%}
     </div>
     {%- endblock -%}
