@@ -147,9 +147,12 @@ class LatestBuilds(HtmlResource):
 
     title = "Latest Builds"
 
-    def __init__(self, is_bare=False):
+    def __init__(self, template=False):
         HtmlResource.__init__(self)
-        self.is_bare = is_bare
+        if not template:
+            self.tpl_page = "latestbuilds.html"
+        else:
+            self.tpl_page = template
 
     def content(self, req, cxt):
         status = self.getStatus(req)
@@ -209,10 +212,7 @@ class LatestBuilds(HtmlResource):
             builder_status = builder.getState()[0]
             bldr_cxt['status'] = builder_status
         
-        if self.is_bare:
-            template = req.site.buildbot_service.templates.get_template("latestbuilds_bare.html")
-        else:
-            template = req.site.buildbot_service.templates.get_template("latestbuilds.html")
+        template = req.site.buildbot_service.templates.get_template(self.tpl_page)
         return template.render(**cxt)
 
 class OOStatusHelper(object):
@@ -593,8 +593,9 @@ class OpenObjectWebStatus(WebStatus):
     def setupUsualPages(self, *args, **kwargs):
         WebStatus.setupUsualPages(self, *args, **kwargs)
         # self.putChild("buggraph", BugGraph())
+        self.putChild("", LatestBuilds("root.html"))
         self.putChild("latestbuilds", LatestBuilds())
-        self.putChild("latestbuildsb", LatestBuilds(is_bare=True))
+        self.putChild("latestbuildsb", LatestBuilds("latestbuilds_bare.html"))
         # self.putChild("buildersresource", OpenObjectBuildersResource())
 
 
