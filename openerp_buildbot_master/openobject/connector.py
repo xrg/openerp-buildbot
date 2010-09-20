@@ -23,6 +23,8 @@ def str2time(ddate):
     if isinstance(ddate, basestring):
         dt = ddate.rsplit('.',1)[0]
         tdate = time.mktime(time.strptime(dt, '%Y-%m-%d %H:%M:%S'))
+    elif not ddate:
+        tdate = 0
     else:
         tdate = time.mktime(ddate)
     return tdate
@@ -145,7 +147,6 @@ class OERPConnector(util.ComparableMixin):
             eventually(self.send_notification, category, args)
         self._pending_notifications = []
 
-    # TODO:
     def notify(self, category, *args):
         # this is wrapped by synchronized= and threadable.synchronous(),
         # since it will be invoked from runInteraction threads
@@ -365,7 +366,6 @@ class OERPConnector(util.ComparableMixin):
                     max_changeid = 0
                 state = scheduler.get_initial_state(max_changeid)
                 state_json = json.dumps(state)
-                print "writting state:", state_json
                 sid = sched_obj.create( { 'name': name,
                                 'class_name': class_name,
                                 'state_dic': state_json } )
@@ -376,7 +376,6 @@ class OERPConnector(util.ComparableMixin):
     def scheduler_get_state(self, schedulerid, t):
         sched_obj = rpc.RpcProxy('software_dev.buildscheduler')
         res = sched_obj.read(schedulerid, ['state_dic'])
-        print "REs:", res
         state_json = res['state_dic']
         assert state_json is not None
         return json.loads(state_json)
@@ -384,7 +383,6 @@ class OERPConnector(util.ComparableMixin):
     def scheduler_set_state(self, schedulerid, t, state):
         sched_obj = rpc.RpcProxy('software_dev.buildscheduler')
         state_json = json.dumps(state)
-        print "writing state:", state_json
         sched_obj.write([schedulerid,], {'state_dic': state_json })
 
     def get_sourcestampid(self, ss, t):
@@ -427,7 +425,7 @@ class OERPConnector(util.ComparableMixin):
 
     def scheduler_classify_change(self, schedulerid, number, important, t):
         scha_obj = rpc.RpcProxy('software_dev.sched_change')
-        print "Classify change %s at %s as important=%s" %( number, schedulerid, important)
+        # print "Classify change %s at %s as important=%s" %( number, schedulerid, important)
         scha_obj.create({'commit_id': number, 'sched_id': schedulerid, 'important': important})
 
     def scheduler_get_classified_changes(self, schedulerid, t):
@@ -438,7 +436,6 @@ class OERPConnector(util.ComparableMixin):
         res = scha_obj.read(sids, ['commit_id'])
         
         important = self._get_change_num(Token(), [ r['commit_id'][0] for r in res])
-        print "Found important: ", important
 
         # And one more time for unimportant ones
         sids = scha_obj.search([('sched_id','=', schedulerid), ('important','=', False)])
@@ -450,7 +447,6 @@ class OERPConnector(util.ComparableMixin):
     def scheduler_retire_changes(self, schedulerid, changeids, t):
         scha_obj = rpc.RpcProxy('software_dev.sched_change')
         
-        print "Retire changes:", changeids
         # one time for important ones
         sids = scha_obj.search([('sched_id','=', schedulerid), 
                         ('commit_id','in',changeids)])
@@ -459,7 +455,6 @@ class OERPConnector(util.ComparableMixin):
     def scheduler_subscribe_to_buildset(self, schedulerid, bsid, t):
         # scheduler_get_subscribed_buildsets(schedulerid) will return
         # information about all buildsets that were subscribed this way
-        print "Subscribe to buildset", bsid
         raise NotImplementedError
         t.execute(self.quoteq("INSERT INTO scheduler_upstream_buildsets"
                               " (buildsetid, schedulerid, active)"
@@ -505,7 +500,7 @@ class OERPConnector(util.ComparableMixin):
         properties = self.get_properties_from_db(breq_obj, brid, t)
         bsid = brid
         br = BuildRequest(res['reason'], ss, res['buildername'], properties)
-        br.submittedAt = res['submitted_at']
+        br.submittedAt = str2time(res['submitted_at'])
         br.priority = res['priority']
         br.id = brid
         br.bsid = bsid
@@ -697,35 +692,10 @@ class OERPConnector(util.ComparableMixin):
         print "examine buildset"
         return True
 
-        return self.runInteractionNow(self._txn_examine_buildset, bsid)
-    def _txn_examine_buildset(self, t, bsid):
-        raise NotImplementedError
-        # "finished" means complete=1 for all builds. Return False until
-        # all builds are complete, then True.
-        # "successful" means complete=1 and results!=FAILURE for all builds.
-        # Returns None until the last success or the first failure. Returns
-        # False if there is at least one failure. Returns True if all are
-        # successful.
-        q = self.quoteq("SELECT br.complete,br.results"
-                        " FROM buildsets AS bs, buildrequests AS br"
-                        " WHERE br.buildsetid=bs.id AND bs.id=?")
-        t.execute(q, (bsid,))
-        results = t.fetchall()
-        finished = True
-        successful = None
-        for (c,r) in results:
-            if not c:
-                finished = False
-            if c and r not in (SUCCESS, WARNINGS):
-                successful = False
-        if finished and successful is None:
-            successful = True
-        return (successful, finished)
-
     def get_active_buildset_ids(self):
         bsids = bset_obj.search([('complete', '=', False)])
         return list(bsids)
- 
+
     def get_buildset_info(self, bsid):
         bset_obj = rpc.RpcProxy('software_dev.commit')
         res = bset_obj.read(bsid, ['external_idstring', 'reason', 'complete', 'results'])
