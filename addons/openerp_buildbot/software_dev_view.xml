@@ -2,7 +2,8 @@
 <openerp>
     <data>
     <menuitem id="softdev_config" name="Configuration" 
-	parent="buildbot_menu" sequence="30" groups="project.group_project_manager" />
+        parent="buildbot_menu" sequence="30"  />
+        <!-- groups="project.group_project_manager" -->
 
     <!--user -->
         <record id="view_softdev_vuser_form" model="ir.ui.view">
