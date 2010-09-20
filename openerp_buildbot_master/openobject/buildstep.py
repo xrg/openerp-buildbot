@@ -30,6 +30,7 @@ import os
 import re
 import logging
 from openobject import tools
+from openobject.tools import ustr
 from twisted.python import log
 
 try:
@@ -220,9 +221,10 @@ class OpenERPTest(LoggingBuildStep):
                         # like flakes etc?
                         if sres.results == SUCCESS:
                             continue
+                        if sres.name == ('bqi', 'rest') or sres.name == ('lint', 'rest'):
+                            continue
 
                         olmods_found.append(sres.name[0]) # it's a tuple, easy
-
 
                     if len(olmods_found):  # this loop, too.
                         more_mods.extend(olmods_found)
@@ -380,7 +382,7 @@ class OpenERPTest(LoggingBuildStep):
                         bqi_context = bmsg[len('set context '):]
                         cur_result = None
                         for tr in t_results:
-                            if tr.name == bqi_context:
+                            if tr.name == bq2tr(bqi_context):
                                 cur_result = tr
                                 break
                         if not cur_result:
@@ -446,11 +448,11 @@ class OpenERPTest(LoggingBuildStep):
                         # note that we don't affect bqi_context, cur_result here
                         cur_r = None
                         for tr in t_results:
-                            if tr.name == sumk:
+                            if tr.name == bq2tr(sumk):
                                 cur_r = tr
                                 break
                         if not cur_r:
-                            cur_r = TestResult(name=bq2tr(sumk), 
+                            cur_r = TestResult(name=bq2tr(sumk),
                                         results=SUCCESS,
                                         text='', logs={'stdout': []})
                             t_results.append(cur_r)
@@ -869,6 +871,15 @@ class LintTest(LoggingBuildStep):
     """
     name = 'Lint test'
     flunkOnFailure = False
+    known_strs = [ (r'Pyflakes failed for: (.+)$', FAILURE ),
+                   (r'Please correct warnings for (.+)$', WARNINGS),
+                   (r'Not ready to commit: (.+)$', FAILURE),
+                   (r'You used tabs in (.+)\. Please expand them', WARNINGS),
+                   (r'XmlLint failed for: (.+)$', FAILURE),
+                   # (r'No lint for (.+)$', SUCCESS ),
+                   # Must come last:
+                   (r'([^:]+):[0-9]+: .+$', SUCCESS ),
+                ]
 
     def describe(self, done=False,success=False,warn=False,fail=False):
          if done:
@@ -889,14 +900,18 @@ class LintTest(LoggingBuildStep):
             return self.describe(True, fail=True)
 
 
-    def __init__(self, workdir=None, **kwargs):
+    def __init__(self, workdir=None, repo_mode='addons', **kwargs):
 
         LoggingBuildStep.__init__(self, **kwargs)
-        self.addFactoryArguments(workdir=workdir)
-        self.args = {'workdir': workdir, }
+        self.addFactoryArguments(workdir=workdir, repo_mode=repo_mode)
+        self.args = {'workdir': workdir, 'repo_mode': repo_mode }
         # Compute defaults for descriptions:
         description = ["Performing lint check"]
         self.description = description
+        self.known_res = []
+        self.build_result = SUCCESS
+        for kns in self.known_strs:
+            self.known_res.append((re.compile(kns[0]), kns[1]))
 
     def start(self):
         self.args['command']=["../../../file-lint.sh",]
@@ -906,7 +921,71 @@ class LintTest(LoggingBuildStep):
         self.stderr_log = self.addLog("stderr")
         cmd.useLog(self.stderr_log, True)
         self.startCommand(cmd)
-    # TODO: send the result to the db
+
+    def createSummary(self, log):
+        """ Try to read the file-lint.sh output and parse results
+        """
+        severity = SUCCESS
+        if self.args['repo_mode'] == 'server':
+            repo_expr = r'bin/addons/([^/]+)/.+$'
+        else:
+            repo_expr = r'([^/]+)/.+$'
+
+        t_results= {}
+        
+        repo_re = re.compile(repo_expr)
+        for line in StringIO(log.getText()).readlines():
+            for rem, sev in self.known_res:
+                m = rem.match(line)
+                if not m:
+                    continue
+                fname = m.group(1)
+                if sev > severity:
+                    severity = sev
+                mf = repo_re.match(fname)
+                if mf:
+                    module = (mf.group(1), 'lint')
+                else:
+                    module = ('lint', 'rest')
+                
+                if module not in t_results:
+                    t_results[module] = TestResult(name=module,
+                                        results=SUCCESS,
+                                        text='', logs={'stdout': u''})
+                if t_results[module].results < sev:
+                    t_results[module].results = sev
+                if line.endswith('\r\n'):
+                    line = line[:-2] + '\n'
+                elif not line.endswith('\n'):
+                    line += '\n'
+                if sev > SUCCESS:
+                    t_results[module].text += ustr(line)
+                else:
+                    t_results[module].logs['stdout'] += ustr(line)
+                
+                break # don't attempt more matching of the same line
+
+        # use t_results
+        for tr in t_results.values():
+            if self.build_result < tr.results:
+                self.build_result = tr.results
+            # and, after it's clean..
+            self.build.build_status.addTestResult(tr)
+
+        self.build_result = severity
+
+        build_id = self.build.requests[0].id # FIXME when builds have their class
+        # self.descriptionDone = self.descriptionDone[:]
+        self.build.builder.db.saveTResults(build_id, self.name,
+                                            self.build_result, t_results.values())
+
+    def evaluateCommand(self, cmd):
+        res = SUCCESS
+        if cmd.rc != 0:
+            res = FAILURE
+        if self.build_result > res:
+            res = self.build_result
+        return res
 
 class BzrStatTest(LoggingBuildStep):
     """Step to gather statistics of changed files
@@ -937,10 +1016,11 @@ class BzrStatTest(LoggingBuildStep):
 
         LoggingBuildStep.__init__(self, **kwargs)
         self.addFactoryArguments(workdir=workdir)
-        self.args = {'workdir': workdir, }
+        self.args = {'workdir': workdir }
         # Compute defaults for descriptions:
         description = ["Performing bzr stats"]
         self.description = description
+        self.build_result = SUCCESS
 
     def start(self):
         self.args['command']=["../../../bzr-diffstat.sh",]
@@ -949,5 +1029,27 @@ class BzrStatTest(LoggingBuildStep):
         self.stderr_log = self.addLog("stderr")
         cmd.useLog(self.stderr_log, True)
         self.startCommand(cmd)
+
+    def createSummary(self, log):
+        """ Try to read the file-lint.sh output and parse results
+        """
+        file_stats = {}
+
+        for line in StringIO(log.getText()).readlines():
+            if line == 'INSERTED,DELETED,MODIFIED,FILENAME':
+                continue
+            li,ld, lm, fname = line.rstrip().split(',')
+            file_stats[fname] = {'lines_add': li, 'lines_rem':ld }
+        
+        commits = self.build.allChanges()
+        self.build.builder.db.saveStatResults(commits, file_stats )
+
+    def evaluateCommand(self, cmd):
+        res = SUCCESS
+        if cmd.rc != 0:
+            res = FAILURE
+        if self.build_result > res:
+            res = self.build_result
+        return res
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

@@ -2,6 +2,6 @@
 
 set -e
 
-bzr diff -c branch: | diffstat
+bzr diff -c branch: | diffstat -tuq
 
 #eof

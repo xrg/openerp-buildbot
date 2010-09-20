@@ -646,6 +646,39 @@ class OERPConnector(util.ComparableMixin):
          
         return
 
+    def saveStatResults(self, changes, file_stats):
+        """ Try to save file_stats inside the filechanges of commits
+        
+        @param changes is the list of changes (as in allChanges() )
+        @param file_stats is a dict of { fname:, { lines_add:,  lines_rem: }}
+        """
+
+        # commit_obj = rpc.RpcProxy('software_dev.commit')
+        fchange_obj = rpc.RpcProxy('software_dev.filechange')
+        
+        commit_ids = []
+        for chg in changes:
+            if not chg.number:
+                continue
+            commit_ids.append(chg.number)
+        
+        while len(commit_ids) and len(file_stats):
+            cid = commit_ids.pop() # so, we attribute the stats to the
+                                   # last commit that matches their files
+            fc_ids = fchange_obj.search([('commit_id','=', cid)])
+            fcres = fchange_obj.read(fc_ids, ['filename'])
+            # We read all the filenames that belong to the commit and
+            # then try to see if we have any stats for them.
+            if not fcres:
+                continue
+            for fcd in fcres:
+                fcstat = file_stats.pop(fcd['filename'], False)
+                if not fcstat:
+                    continue
+                # now, we have a filechange.id and stats
+                fchange_obj.write(fcd['id'], fcstat)
+
+
     def _check_buildset(self, t, bsid, now):
         # Since there is no difference from buildset->buildrequest, 
         # nothing to do.

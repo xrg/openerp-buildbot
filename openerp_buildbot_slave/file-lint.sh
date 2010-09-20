@@ -40,7 +40,7 @@ for FNAME in "$@" ; do
 	;;
 	*.rml)
 		if ! xmllint --noout --nowarning "$FNAME" ; then
-			echo "XmlLint failed for: $FNAME"
+			echo "XmlLint failed for: $FNAME" >&2
 			exit 1
 		fi
 	;;
@@ -48,7 +48,7 @@ for FNAME in "$@" ; do
 		msgcat -o /dev/null "$FNAME" || EXIT_CODE=$?
 	;;
 	*)
-		echo "No lint for $FNAME"
+		echo "No lint for $FNAME" >&2
 		;;
 	esac
 done
