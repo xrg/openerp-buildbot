@@ -143,6 +143,7 @@ class Keeper(object):
                 'builddir': bld['builddir'],
                 'factory': fact,
                 'properties': bld.get('properties', {}),
+                'mergeRequests': False,
             })
 
             cfilt = ChangeFilter_debug(branch=bld['branch_name'])
