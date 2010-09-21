@@ -50,35 +50,6 @@ def get_args_int(args, name, default=0):
     except (ValueError, TypeError):
         return default
 
-baseweb.HEADER = '''
-<html> <head>
-        <title>OpenERP Integration Server</title>
-        
-    </head>
-<body>
-'''
-
-baseweb.HEAD_ELEMENTS = [
-    '<link href="%(root)sbuildbot.css" rel="stylesheet" type="text/css" />',
-    ]
-baseweb.BODY_ATTRS = {}
-
-baseweb.FOOTER = '''
-</body>
-</html>
-'''
-
-# code to really fill the html template:
-try:
-    tpl_fname = os.path.abspath(os.path.join(os.path.normpath( \
-                os.path.dirname(__file__)),'webpage.shtml'))
-    tfp = open(tpl_fname, 'rb')
-    tpl_html = tfp.read()
-    tfp.close()
-    baseweb.HEADER, baseweb.FOOTER = tpl_html.split(r'<!-- #content -->', 1)
-except Exception, e:
-    log.err("Cannot load template page: %s" % e)
-
 _eml_re = re.compile(r'(.+) ?\<.+\> *$')
 
 def reduce_eml(aeml):

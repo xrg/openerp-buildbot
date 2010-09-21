@@ -38,7 +38,7 @@ class Keeper(object):
             @param db_props a dict with info how to connect to db
             @param c the BuildmasterConfig dict
         """
-        print "Keeper config"
+        log.msg("Keeper config")
         self.bmconfig = bmconfig
         c = bmconfig
         # some necessary definitions in the dict:
@@ -163,7 +163,7 @@ class Keeper(object):
         # We should be ok by now..
 
     def __del__(self):
-        print "Here is where the keeper sleeps.."
+        log.msg("Here is where the keeper sleeps..")
         try:
             rpc.session.logout()
         except Exception: pass
@@ -223,8 +223,6 @@ class DBSpec_OpenERP(object):
 from buildbot.db import dbspec
 
 dbspec.cur_dbspec = DBSpec_OpenERP
-print "Replaced dbspec!\n"
-
 
 if False:
     # TODO!!
