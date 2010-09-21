@@ -64,6 +64,7 @@ Maintainer/author: gary.poster@canonical.com
 
 import urllib
 import urlparse
+import StringIO
 
 import buildbot.util
 import buildbot.changes.base
@@ -145,7 +146,7 @@ def generate_change(branch,
             if path in tmp_kfiles:
                 continue
             tmp_kfiles.add(path)
-            files.append(' '.join([path, kind, name]))
+            files.append(path)
             filesb.append({'filename': path, 'ctype': ctype, 
                         'lines_add':0, 'lines_rem':0 })
     for info in changes.renamed:
@@ -153,11 +154,9 @@ def generate_change(branch,
         if oldpath in tmp_kfiles:
             continue
         tmp_kfiles.add(oldpath)
-        elements = [oldpath, kind,'RENAMED', newpath]
-        if text_modified or meta_modified:
-            elements.append('MODIFIED')
-        files.append(' '.join(elements))
+        files.append(oldpath)
         filesb.append({'filename': oldpath, 'ctype': 'r',
+                        'newpath': newpath,
                         'lines_add':0, 'lines_rem':0 })
     return change
 
@@ -204,6 +203,14 @@ class BzrPoller(buildbot.changes.base.ChangeSource,
             # is no longer in the history...
         else:
             self.last_revision = None
+        
+        try:
+            # Just try to open the branch. There is sth wrong in bzrlib
+            # wrt. the import order, so try to consume the exception here.
+            branch = bzrlib.branch.Branch.open_containing(self.url)[0]
+        except Exception, e:
+            log.err("Cannot open the branch: %s" % e)
+
         self.polling = False
         twisted.internet.reactor.callWhenRunning(
             self.loop.start, self.poll_interval)
@@ -226,14 +233,15 @@ class BzrPoller(buildbot.changes.base.ChangeSource,
             # On a big tree, even individual elements of the bzr commands
             # can take awhile. So we just push the bzr work off to a
             # thread.
+            changes = []
             try:
                 changes = yield twisted.internet.threads.deferToThread(
                     self.getRawChanges)
             except (SystemExit, KeyboardInterrupt):
                 raise
-            except:
+            except Exception, e:
                 # we'll try again next poll.  Meanwhile, let's report.
-                twisted.python.log.err()
+                twisted.python.log.err("Exc: %s" % e)
             else:
                 twisted.python.log.msg("We have %d changes" % len(changes))
                 for change in changes:
