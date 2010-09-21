@@ -2,3 +2,4 @@
 /changes.pck
 /twistd.log*
 /twistd.pid
+/master.cfg
