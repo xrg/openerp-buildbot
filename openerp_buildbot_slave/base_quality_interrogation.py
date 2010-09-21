@@ -243,7 +243,7 @@ class server_thread(threading.Thread):
             self.clear_context()
 
     def __init__(self, root_path, port, netport, addons_path, pyver=None, 
-                srv_mode='v600', timed=False, debug=False):
+                srv_mode='v600', timed=False, debug=False, config=None):
         threading.Thread.__init__(self)
         self.root_path = root_path
         self.port = port
@@ -255,6 +255,9 @@ class server_thread(threading.Thread):
             self.args += [ '--log-level=debug' ]
         else:
             self.args += [ '--log-level=test' ]
+            
+        if config:
+            self.args += [ '-c', config ]
 
         # TODO: secure transport, persistent ones.
         if srv_mode == 'v600':
@@ -1014,6 +1017,7 @@ parser.add_option("--net_port", dest="netport",help="specify the TCP port for ne
 parser.add_option("-d", "--database", dest="db_name", help="specify the database name")
 parser.add_option("--login", dest="login", help="specify the User Login")
 parser.add_option("--password", dest="pwd", help="specify the User Password")
+parser.add_option("--config", dest="config", help="Pass on this config file to the server")
 
 parser.add_option("--translate-in", dest="translate_in",
                      help="specify .po files to import translation terms")
@@ -1039,6 +1043,7 @@ options = {
     'modules' : opt.modules,
     'login' : opt.login or 'admin',
     'pwd' : opt.pwd or 'admin',
+    'config': opt.config,
     'extra-addons':opt.extra_addons or [],
     'server_series': opt.server_series or 'v600',
     'homedir': '~/'
@@ -1164,7 +1169,7 @@ uri = 'http://localhost:' + str(options['port'])
 
 server = server_thread(root_path=options['root-path'], port=options['port'],
                         netport=options['netport'], addons_path=options['addons-path'],
-                        srv_mode=options['server_series'],
+                        srv_mode=options['server_series'], config=options['config'],
                         debug=opt.debug)
 
 logger.info('start of script')
