@@ -113,21 +113,6 @@ class OERPConnector(util.ComparableMixin):
         d.addBoth(self._runInteraction_done, start, t)
         return d
 
-    def _runInteraction(self, interaction, *args, **kwargs):
-        trans = Token()
-        result = interaction(trans, *args, **kwargs)
-        return result
-        
-    def runInteractionNow(self, interaction, *args, **kwargs):
-        # synchronous+blocking version of runInteraction()
-        assert self._started
-        return self._runInteraction(interaction, *args, **kwargs)
-
-    def _runInteraction_done(self, res, start, t):
-        self._end_operation(t)
-        self._pending_operation_count -= 1
-        return res
-
     def _start_operation(self):
         t = Token()
         self._active_operations.add(t)
@@ -147,6 +132,15 @@ class OERPConnector(util.ComparableMixin):
             eventually(self.send_notification, category, args)
         self._pending_notifications = []
 
+    def runInteractionNow(self, interaction, *args, **kwargs):
+        # synchronous+blocking version of runInteraction()
+        assert self._started
+        t = self._start_operation()
+        try:
+            return self._runInteraction(interaction, *args, **kwargs)
+        finally:
+            self._end_operation(t)
+
     def notify(self, category, *args):
         # this is wrapped by synchronized= and threadable.synchronous(),
         # since it will be invoked from runInteraction threads
@@ -154,17 +148,29 @@ class OERPConnector(util.ComparableMixin):
 
     def send_notification(self, category, args):
         # in the distributed system, this will be invoked by lineReceived()
-        #print "SEND", category, args
         for observer in self._subscribers[category]:
             eventually(observer, category, *args)
 
     def subscribe_to(self, category, observer):
         self._subscribers[category].add(observer)
 
+    def _runInteraction(self, interaction, *args, **kwargs):
+        trans = Token()
+        result = interaction(trans, *args, **kwargs)
+        return result
+
+    def _runInteraction_done(self, res, start, t):
+        self._end_operation(t)
+        self._pending_operation_count -= 1
+        return res
 
     # ChangeManager methods
 
     def addChangeToDatabase(self, change):
+        self.runInteractionNow(self._txn_addChangeToDatabase, change)
+        self._change_cache.add(change.number, change)
+
+    def _txn_addChangeToDatabase(self, t, change):
         change_obj = rpc.RpcProxy('software_dev.commit')
         cdict = change.asDict()
         cleanupDict(cdict)
@@ -486,8 +492,6 @@ class OERPConnector(util.ComparableMixin):
     # BuildRequest-manipulation methods
 
     def getBuildRequestWithNumber(self, brid, t=None):
-        print "getBuildRequestWithNumber", brid
-
         assert isinstance(brid, (int, long))
         
         breq_obj = rpc.RpcProxy('software_dev.commit')
@@ -535,7 +539,6 @@ class OERPConnector(util.ComparableMixin):
         if not brids:
             return
         breq_obj = rpc.RpcProxy('software_dev.commit')
-        print "Claim buildrequests"
         
         vals = { 'claimed_at': time2str(now),
                 'claimed_by_name': master_name,
@@ -544,6 +547,9 @@ class OERPConnector(util.ComparableMixin):
         breq_obj.write(list(brids), vals)
 
     def build_started(self, brid, buildnumber):
+        return self.runInteractionNow(self._txn_build_started, brid, buildnumber)
+
+    def _txn_build_started(self, t, brid, buildnumber):
         now = self._getCurrentTime()
         build_obj = rpc.RpcProxy('software_dev.commit')
         vals = { 'build_number': buildnumber, 'build_start_time': time2str(now) }
@@ -553,6 +559,8 @@ class OERPConnector(util.ComparableMixin):
         return bid
 
     def builds_finished(self, bids):
+        return self.runInteractionNow(self._txn_build_finished, bids)
+    def _txn_build_finished(self, t, bids):
         now = self._getCurrentTime()
         build_obj = rpc.RpcProxy('software_dev.commit')
         vals = { 'build_finish_time': time2str(now) }
@@ -573,6 +581,9 @@ class OERPConnector(util.ComparableMixin):
         return [res['build_number'],]
 
     def resubmit_buildrequests(self, brids):
+        return self.runInteraction(self._txn_resubmit_buildreqs, brids)
+
+    def _txn_resubmit_buildreqs(self, t, brids):
         # the interrupted build that gets resubmitted will still have the
         # same submitted_at value, so it should be re-started first
         breq_obj = rpc.RpcProxy('software_dev.commit')
@@ -581,9 +592,11 @@ class OERPConnector(util.ComparableMixin):
                 'claimed_by_incarnation': False }
         breq_obj.write(list(brids), vals)
         self.notify("add-buildrequest", *brids)
-        return defer.succeed(True) # dummy, we might have deferred in bg.
 
     def retire_buildrequests(self, brids, results):
+        return self.runInteractionNow(self._txn_retire_buildreqs, brids,results)
+
+    def _txn_retire_buildreqs(self, t, brids, results):
         now = self._getCurrentTime()
         breq_obj = rpc.RpcProxy('software_dev.commit')
         # remember: buildrequest == build in our schema
@@ -604,7 +617,9 @@ class OERPConnector(util.ComparableMixin):
         self.notify("modify-buildset", *bsids)
 
     def cancel_buildrequests(self, brids):
-        
+        return self.runInteractionNow(self._txn_cancel_buildrequest, brids)
+
+    def _txn_cancel_buildrequest(self, t, brids):
         # TODO: we aren't entirely sure if it'd be safe to just delete the
         # buildrequest: what else might be waiting on it that would then just
         # hang forever?. _check_buildset() should handle it well (an empty
@@ -680,6 +695,7 @@ class OERPConnector(util.ComparableMixin):
         return True
 
     def get_buildrequestids_for_buildset(self, bsid):
+        raise NotImplementedError
         return self.runInteractionNow(self._txn_get_buildrequestids_for_buildset,
                                       bsid)
     def _txn_get_buildrequestids_for_buildset(self, t, bsid):
@@ -707,7 +723,6 @@ class OERPConnector(util.ComparableMixin):
         return None # shouldn't happen
 
     def get_pending_brids_for_builder(self, buildername):
-        print "Get pending brids"
         breq_obj = rpc.RpcProxy('software_dev.commit')
         
         bids = breq_obj.search([('buildername', '=',  buildername), 
