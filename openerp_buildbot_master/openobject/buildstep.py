@@ -503,7 +503,6 @@ class OpenERPTest(LoggingBuildStep):
                 tr.results = res_severities[sev]
             if self.build_result < tr.results:
                 self.build_result = tr.results
-                print "setting result to ", tr.results
             for lk in tr.logs:
                 if isinstance(tr.logs[lk], list):
                     tr.logs[lk] = '\n'.join(tr.logs[lk])
