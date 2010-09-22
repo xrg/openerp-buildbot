@@ -36,7 +36,7 @@ from openobject import tools
 class OpenObjectMailNotifier(MailNotifier):
     def __init__(self, username=None, password=None, port=2525, fromaddr=None, mode="failing", 
                categories=None, builders=None,
-               projectURL='http://localhost',
+               projectURL='http://localhost/',
                addLogs=False, relayhost="localhost",
                subject="%(projectName)s %(builder)s %(result)s",
                lookup=None, extraRecipients=[],
@@ -54,8 +54,6 @@ class OpenObjectMailNotifier(MailNotifier):
         self.mail_watcher = mail_watcher
         self.projectName = 'OpenERP'
         self.projectURL=projectURL
-        
-
   
     def buildMessage(self, name, build, results):
         """Send an email about the result. Don't attach the patch as
@@ -63,7 +61,7 @@ class OpenObjectMailNotifier(MailNotifier):
         self.subject = '%(projectName)s build of %(builder)s ended in %(result)s'
         ss = build.getSourceStamp()
         waterfall_url = self.projectURL
-        build_url = "%s/builders/%s/builds/%s" % ( self.projectURL,
+        build_url = "%sbuilders/%s/builds/%s" % ( self.projectURL,
                         build.builder.name, build.number)
         if ss is None:
             source = "unavailable"
@@ -122,9 +120,6 @@ class OpenObjectMailNotifier(MailNotifier):
                 self._body = self.get_HTML_mail(name,build,build_url,waterfall_url,failed_step, failed_tests, status_text, test_reasoning, change)
             else:
                 self._body = self.get_TEXT_mail(name,build,build_url,waterfall_url,failed_step, failed_tests, status_text, test_reasoning, change)
-            print "Mail: %s" % self.subject
-            print
-            print self._body
             self.sendMessage(m, recipients)
         return True
 
