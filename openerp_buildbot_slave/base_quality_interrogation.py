@@ -300,6 +300,9 @@ class server_thread(threading.Thread):
         self.regparser('web-services', 
                 'the server is running, waiting for connections...', 
                 self.setRunning)
+        self.regparser('web-services', 
+                'OpenERP server is running, waiting for connections...', 
+                self.setRunning)
         self.regparser('web-services',
                 re.compile(r'starting (.+) service at ([0-9\.]+) port ([0-9]+)'),
                 self.setListening)
@@ -1238,6 +1241,7 @@ try:
         sys.exit(3)
 except ServerException, e:
     logger.error(reduce_homedir("%s" % e))
+    server.dump_blame(e)
     server.stop()
     server.join()
     sys.exit(4)
