@@ -56,7 +56,14 @@
 			<field name="author_ids" colspan="4"/>
 		    </page>
 		    <page string="Files">
-			<field name="change_ids" colspan="4"/>
+			<field name="change_ids" colspan="4">
+			    <tree>
+				<field name="filename"/>
+				<field name="ctype" />
+				<field name="lines_add" />
+				<field name="lines_rem" />
+			    </tree>
+			</field>
 		    </page>
 		    <page string="Buildset">
 			<field name="external_idstring" />
