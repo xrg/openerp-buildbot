@@ -257,6 +257,7 @@ class OpenERPTest(LoggingBuildStep):
         # The general part of the b-q-i command
         self.args['command']=["../../../base_quality_interrogation.py",
                             "--machine-log=stdout", '--root-path=bin/',
+                            "--homedir=../",
                             '-d', self.args['dbname']]
         if self.args['addonsdir']:
             self.args['command'].append("--addons-path=%s"%(self.args['addonsdir']))
