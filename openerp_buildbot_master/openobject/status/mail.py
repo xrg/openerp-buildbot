@@ -34,31 +34,21 @@ from twisted.web import html
 from openobject import tools
 
 class OpenObjectMailNotifier(MailNotifier):
-    def __init__(self, username=None, password=None, port=2525, fromaddr=None, mode="failing", 
-               categories=None, builders=None,
-               projectURL='http://localhost/',
-               addLogs=False, relayhost="localhost",
-               subject="%(projectName)s %(builder)s %(result)s",
-               lookup=None, extraRecipients=[],
-               sendToInterestedUsers=True, reply_to=None, html_body=False, TLS=True, mail_watcher=[]):
-        MailNotifier.__init__(self, fromaddr, mode, categories, builders,
-                               addLogs, relayhost, subject, lookup,
-                               extraRecipients, sendToInterestedUsers)
-        self.reply_to = reply_to
-        self._username = username
-        self._password = password
-        self._port = port
-        self._body = ''
-        self.html_body = html_body
-        self.TLS = TLS
-        self.mail_watcher = mail_watcher
+    def __init__(self, projectURL="http://localhost/", reply_to=None,
+                    mode="failing", html_body=False, **kwargs):
+        extraHeaders = {}
+        if reply_to:
+            extraHeaders['Reply-To'] = reply_to
+        MailNotifier.__init__(self, mode=mode, extraHeaders=extraHeaders, **kwargs)
+        #         messageFormatter=defaultMessage
+
         self.projectName = 'OpenERP'
         self.projectURL=projectURL
+        self.html_body = html_body
   
     def buildMessage(self, name, build, results):
         """Send an email about the result. Don't attach the patch as
         MailNotifier.buildMessage do."""
-        self.subject = '%(projectName)s build of %(builder)s ended in %(result)s'
         ss = build.getSourceStamp()
         waterfall_url = self.projectURL
         build_url = "%sbuilders/%s/builds/%s" % ( self.projectURL,
@@ -104,23 +94,34 @@ class OpenObjectMailNotifier(MailNotifier):
             res = "failure"
             test_reasoning = reasoning_failure
 
-        self.subject = self.subject % {
-            'result': res,
-            'projectName': '[%s]'%(self.projectName),
-            'builder': name,
-        }
-        recipients = []
-        for commiter in build.getInterestedUsers():
-            recipients.append(commiter)
+        to_recipients = set()
+        cc_recipients = set()
+        for cu in build.getInterestedUsers():
+            to_recipients.add(cu)
+
+        if self.sendToInterestedUsers and to_recipients:
+            cc_recipients.update(self.extraRecipients)
+        else:
+            to_recipients.update(self.extraRecipients)
+
         changes = list(ss.changes)
-        self._body=''
         for change in changes:
-            m = Message()
+            mtype = 'plain'
             if self.html_body:
-                self._body = self.get_HTML_mail(name,build,build_url,waterfall_url,failed_step, failed_tests, status_text, test_reasoning, change)
+                mtype = 'html'
+                body = self.get_HTML_mail(name,build,build_url,waterfall_url,failed_step, failed_tests, status_text, test_reasoning, change)
             else:
-                self._body = self.get_TEXT_mail(name,build,build_url,waterfall_url,failed_step, failed_tests, status_text, test_reasoning, change)
-            self.sendMessage(m, recipients)
+                body = self.get_TEXT_mail(name,build,build_url,waterfall_url,failed_step, failed_tests, status_text, test_reasoning, change)
+                
+            m = self.createEmail({'body': body, 'type': mtype},
+                    builderName=build.builder.name, projectName=self.projectName, 
+                    results=results, build=build)
+
+            m['To'] = ", ".join(to_recipients)
+            if cc_recipients:
+                m['CC'] = ", ".join(cc_recipients)
+
+            self.sendMessage(m, list(to_recipients| cc_recipients))
         return True
 
     def get_HTML_mail(self,name='',build=None, build_url=None, waterfall_url=None,
@@ -240,45 +241,6 @@ class OpenObjectMailNotifier(MailNotifier):
         kwargs['test_reasoning'] = test_reasoning % kwargs
         return tools._to_decode(text_mail % kwargs)
 
-    def sendMessage(self, m, recipients):
-
-        email_to = recipients
-        email_cc = self.mail_watcher
-        email_from = self.fromaddr
-        email_reply_to = self.reply_to
-        smtp_user = self._username
-        smtp_password = self._password
-        port = str(self._port)
-        smtp_server = self.relayhost
-        subject = self.subject
-        body = self._body
-        subtype = 'plain'
-        
-        if self.html_body:
-            subtype ='html'
-        msg = MIMEText(body or '',_subtype=subtype, _charset='utf-8')
-        
-        msg['Subject'] = Header(subject.decode('utf8'), 'utf-8')
-        msg['From'] = email_from
-        msg['To'] = COMMASPACE.join(email_to)
-        msg['Cc'] = COMMASPACE.join(email_cc)
-        msg['Reply-To'] = email_reply_to
-        msg['Date'] = formatdate(localtime=True,usegmt=True)
-     
-        try:
-            s = smtplib.SMTP()
-            s.connect(smtp_server,port)
-            if smtp_user and smtp_password:
-               if self.TLS: # deliberately start tls if using TLS
-                   s.ehlo()
-                   s.starttls() 
-                   s.ehlo()
-               s.login(smtp_user, smtp_password)
-            s.sendmail(email_from, email_to + email_cc, msg.as_string())
-            s.quit()
-        except Exception, e:
-            print "Exception:",e
-        return True
 
 text_mail = """Hello %(who_name)s,
         

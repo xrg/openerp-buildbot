@@ -176,12 +176,14 @@ class Keeper(object):
                 'projectURL': c['buildbotURL'],
                 'extraRecipients'   : c_mail.get('mail_notify_cc', 'hmo@tinyerp.com').split(','),
                 'html_body': str2bool(c_mail.get('mail_want_html','false')), # True value will send mail in HTML
-                'username':  c_mail.get('mail_smtp_username',''),
-                'password':  c_mail.get('mail_smtp_passwd',''),
-                'fromaddr':  c_mail.get('mail_sender_email', 'OpenERP <noreply@openerp.com>'),
+                'smtpUser':  c_mail.get('mail_smtp_username',''),
+                'smtpPassword':  c_mail.get('mail_smtp_passwd',''),
+                'smtpPort': c_mail.get('mail_smtp_port', 2525),
+                'subject': c_mail.get('mail_subject', '[%(projectName)s-buildbot] build of %(builder)s ended in %(result)s'),
+                'fromaddr':  c_mail.get('mail_sender_email', '<noreply@openerp.com>'),
                 'reply_to':  c_mail.get('mail_reply_to', 'support@tinyerp.com'),
                 'relayhost': c_mail.get('mail_smtp_host'),
-                'TLS':       str2bool(c_mail.get('mail_email_tls','t')),
+                'useTls':       str2bool(c_mail.get('mail_email_tls','t')),
                 'mode':      c_mail.get('mail_notify_mode', 'failing'),
                                                 # 'all':sends mail when step is either success/failure or had problem.
                                                 # 'problem':sends mail when step had problem.
