@@ -300,7 +300,7 @@ class server_thread(threading.Thread):
         self.regparser('web-services', 
                 'the server is running, waiting for connections...', 
                 self.setRunning)
-        self.regparser('web-services', 
+        self.regparser('server', 
                 'OpenERP server is running, waiting for connections...', 
                 self.setRunning)
         self.regparser('web-services',
