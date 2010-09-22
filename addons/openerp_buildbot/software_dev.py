@@ -410,7 +410,7 @@ class software_commit(propertyMix, osv.osv):
     }
     
     _sql_constraints = [ ('branch_hash_uniq', 'UNIQUE(branch_id, hash)', 'Hash must be unique. (per branch)'),
-                ('branch_revno_uniq', 'UNIQUE(branch_id, revno)', 'Revision no. must be unique in branch'),
+                # ('branch_revno_uniq', 'UNIQUE(branch_id, revno)', 'Revision no. must be unique in branch'),
                 ]
 
     _defaults = {
