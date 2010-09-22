@@ -185,7 +185,6 @@ class OERPConnector(util.ComparableMixin):
                 change_obj.setProperties(change.number, prop_arr)
 
             self.notify("add-change", change.number)
-            self._change_cache.add(change.number, change)
         except Exception, e:
             log.err("Cannot add change: %s" % e)
 
