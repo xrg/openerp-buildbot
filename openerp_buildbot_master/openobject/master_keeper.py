@@ -26,6 +26,11 @@ from buildbot import util
 
 logging.basicConfig(level=logging.DEBUG)
 
+def str2bool(sstr):
+    if sstr and sstr.lower() in ('true', 't', '1', 'on'):
+        return True
+    return False
+
 class ChangeFilter_debug(ChangeFilter):
     def filter_change(self, change):
         print "Trying to filter %r with %r" % (change, self)
@@ -73,6 +78,8 @@ class Keeper(object):
         c['schedulers'] = []
         c['builders'] = []
         c['change_source']=[]
+        
+        c_mail = {}
 
         bbot_obj = rpc.RpcProxy('software_dev.buildbot')
         bbot_data = bbot_obj.read(self.bbot_id)
@@ -83,7 +90,10 @@ class Keeper(object):
         bids = bbot_attr_obj.search([('bbot_id','=', self.bbot_id)])
         if bids:
             for attr in bbot_attr_obj.read(bids):
-                c[attr['name']] = attr['value']
+                if attr['name'].startswith('mail_'):
+                    c_mail[attr['name']] = attr['value']
+                else:
+                    c[attr['name']] = attr['value']
 
         # Then, try to setup the slaves:
         bbot_slave_obj = rpc.RpcProxy('software_dev.bbslave')
@@ -160,6 +170,26 @@ class Keeper(object):
         if bbot_data['http_port']:
             print "We will have a http server at %s" % bbot_data['http_port']
             c['status'].append(web.OpenObjectWebStatus(http_port=bbot_data['http_port']))
+
+        if c_mail.get('mail_smtp_host', False):
+            mail_kwargs= {
+                'projectURL': c['buildbotURL'],
+                'extraRecipients'   : c_mail.get('mail_notify_cc', 'hmo@tinyerp.com').split(','),
+                'html_body': str2bool(c_mail.get('mail_want_html','false')), # True value will send mail in HTML
+                'username':  c_mail.get('mail_smtp_username',''),
+                'password':  c_mail.get('mail_smtp_passwd',''),
+                'fromaddr':  c_mail.get('mail_sender_email', 'OpenERP <noreply@openerp.com>'),
+                'reply_to':  c_mail.get('mail_reply_to', 'support@tinyerp.com'),
+                'relayhost': c_mail.get('mail_smtp_host'),
+                'TLS':       str2bool(c_mail.get('mail_email_tls','t')),
+                'mode':      c_mail.get('mail_notify_mode', 'failing'),
+                                                # 'all':sends mail when step is either success/failure or had problem.
+                                                # 'problem':sends mail when step had problem.
+                                                # 'failing':sends mail when step fails.
+
+                }
+                
+            c['status'].append(mail.OpenObjectMailNotifier( **mail_kwargs))
 
         # We should be ok by now..
 

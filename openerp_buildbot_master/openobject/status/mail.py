@@ -36,6 +36,7 @@ from openobject import tools
 class OpenObjectMailNotifier(MailNotifier):
     def __init__(self, username=None, password=None, port=2525, fromaddr=None, mode="failing", 
                categories=None, builders=None,
+               projectURL='http://localhost',
                addLogs=False, relayhost="localhost",
                subject="%(projectName)s %(builder)s %(result)s",
                lookup=None, extraRecipients=[],
@@ -51,17 +52,19 @@ class OpenObjectMailNotifier(MailNotifier):
         self.html_body = html_body
         self.TLS = TLS
         self.mail_watcher = mail_watcher
-        self.projectName = ''
+        self.projectName = 'OpenERP'
+        self.projectURL=projectURL
+        
 
   
     def buildMessage(self, name, build, results):
         """Send an email about the result. Don't attach the patch as
         MailNotifier.buildMessage do."""
-        self.subject = '%(projectName)s %(builder)s %(result)s'
-        self.projectName = self.status.getProjectName()
+        self.subject = '%(projectName)s build of %(builder)s ended in %(result)s'
         ss = build.getSourceStamp()
-        build_url = self.status.getURLForThing(build)
-        waterfall_url = self.status.getBuildbotURL()
+        waterfall_url = self.projectURL
+        build_url = "%s/builders/%s/builds/%s" % ( self.projectURL,
+                        build.builder.name, build.number)
         if ss is None:
             source = "unavailable"
         else:
@@ -74,46 +77,59 @@ class OpenObjectMailNotifier(MailNotifier):
         else:
             source += "" 
 
-        t = build.getText()
         failed_step = []
+        t = build.getText()
         for i in range(1,len(t)):
           failed_step.append(t[i])
         if failed_step:
             failed_step = " ".join(failed_step)
         else:
             failed_step = ""
-        if failed_step in ('bzr-update','bzr-update_2','bzr-update_3','copy'):
-            return True
+
+        failed_tests = []
+        for tr in build.getTestResultsOrd():
+            if tr.results == SUCCESS and self.mode != 'all':
+                continue
+            tr_url = "%s/tests/%s" % ( build_url, '.'.join(tr.name))
+            failed_tests.append(('.'.join(tr.name), tr_url, tr.text))
+            
         if results == SUCCESS:
             status_text = "OpenERP Builbot succeeded !"
             res = "success"
+            test_reasoning = reasoning_success
         elif results == WARNINGS:
             status_text = "OpenERP Buildbot Had Warnings !"
             res = "warnings"
+            test_reasoning = reasoning_warnings
         else:
             status_text = "OpenERP Buildbot FAILED !" 
             res = "failure"
-        
+            test_reasoning = reasoning_failure
+
         self.subject = self.subject % {
             'result': res,
             'projectName': '[%s]'%(self.projectName),
-            'builder': name.upper(),
+            'builder': name,
         }
         recipients = []
         for commiter in build.getInterestedUsers():
-            recipients.append(commiter)        
+            recipients.append(commiter)
         changes = list(ss.changes)
         self._body=''
         for change in changes:
             m = Message()
             if self.html_body:
-                self._body = self.get_HTML_mail(name,build,build_url,waterfall_url,failed_step,status_text,change)
+                self._body = self.get_HTML_mail(name,build,build_url,waterfall_url,failed_step, failed_tests, status_text, test_reasoning, change)
             else:
-                self._body = self.get_TEXT_mail(name,build,build_url,waterfall_url,failed_step,status_text,change)
+                self._body = self.get_TEXT_mail(name,build,build_url,waterfall_url,failed_step, failed_tests, status_text, test_reasoning, change)
+            print "Mail: %s" % self.subject
+            print
+            print self._body
             self.sendMessage(m, recipients)
-        return True 
+        return True
 
-    def get_HTML_mail(self,name='',build = None,build_url=None,waterfall_url=None,failed_step='',status_text='',change=''):
+    def get_HTML_mail(self,name='',build=None, build_url=None, waterfall_url=None,
+                    failed_step='', failed_tests=None, status_text='', test_reasoning='', change=''):
         files_added = []
         files_modified = []
         files_renamed = []
@@ -122,36 +138,27 @@ class OpenObjectMailNotifier(MailNotifier):
         files_modified_lbl = ''
         files_renamed_lbl = ''
         files_removed_lbl = ''
+        failed_tests_data = ''
         branch_link = ''
+
         rev_no = change.revision
-        if change.revision_id:
-            revision = "Revision: <b>%s</b><br />\n" % change.revision_id
+        if change.hash:
+            revision = "Revision: <b>%s</b><br />\n" % change.hash
         branch = ""
-        if change.branch:
-            i = change.branch.index('launchpad')
-            branch_link = 'https://bazaar.' + change.branch[i:] + '/revision/' + str(rev_no) + '#'
-            branch = change.branch
-        if change.files_added:
-            files_added_lbl = "<b>Added files: </b>\n"
-            for file in change.files_added:
-                file_link = branch_link + file
-                files_added.append("<a href='%s'>%s</a>" % (file_link,file))
-        if change.files_modified:
-            files_modified_lbl = "<b>Modified files: </b>\n"
-            for file in change.files_modified:
-                file_link = branch_link + file
-                files_modified.append("<a href='%s'>%s</a>" % (file_link, file))
-        if change.files_renamed:
-            files_renamed_lbl = "<b>Renamed files: </b>\n"
-            for file in change.files_renamed:
-                file_link = branch_link + file[1]
-                files_renamed.append("%s  ==>  %s<br ><a href='%s'>%s</a>" % (file[0], file[1], file_link, file_link))
-        if change.files_removed:
-            files_removed_lbl = "<b>Removed files: </b>\n"
-            for file in change.files_removed:
-                file_link = branch_link + file
-                files_removed.append("<a href='%s'>%s</a>" % (file_link,file))
-        
+        try:
+            if change.branch:
+                i = change.branch.index('launchpad')
+                branch_link = 'https://bazaar.' + change.branch[i:] + '/revision/' + str(rev_no) + '#'
+                branch = change.branch
+        except Exception: pass
+
+        if failed_tests:
+            failed_tests_data = "<ul>"
+            for ftn, ft_url, ft_text in failed_tests:
+                failed_tests_data += '<li><a href="%s">%s</a>: %s</li>\n' % \
+                        (ft_url, ftn, ft_text)
+            failed_tests_data += '</ul>\n'
+
         try:
             who_name = change.who[:change.who.index('<')]
         except:
@@ -174,11 +181,15 @@ class OpenObjectMailNotifier(MailNotifier):
                    'files_modified' : files_modified_lbl + html.UL(files_modified),
                    'files_renamed' : files_renamed_lbl + html.UL(files_renamed),
                    'files_removed' : files_removed_lbl + html.UL(files_removed),
+                   'failed_tests_data': failed_tests_data,
                    'comments': change.comments,
                    'reason':build.getReason()}
+        kwargs['test_reasoning'] = test_reasoning % kwargs
+
         return tools._to_decode(html_mail % kwargs) 
                   
-    def get_TEXT_mail(self,name='',build = None,build_url=None,waterfall_url=None,failed_step='',status_text='',change=''):
+    def get_TEXT_mail(self,name='',build = None,build_url=None, waterfall_url=None,
+                    failed_step='', failed_tests=None, status_text='', test_reasoning='', change=''):
         files_added = []
         files_modified = []
         files_renamed = []
@@ -187,36 +198,25 @@ class OpenObjectMailNotifier(MailNotifier):
         files_modified_lbl = ''
         files_renamed_lbl = ''
         files_removed_lbl = ''
+        failed_tests_data = ''
         branch_link = ''
 
         rev_no = change.revision
-        if change.revision_id:
-            revision = change.revision_id
+        if change.hash:
+            revision = change.hash
         branch = ""
-        if change.branch:
-            i = change.branch.index('launchpad')
-            branch_link = 'https://bazaar.' + change.branch[i:] + '/revision/' + str(rev_no) + '#'
-            branch = change.branch
-        if change.files_added:
-            files_added_lbl = "\n\nAdded files: \n" + "---------------\n"
-            for file in change.files_added:
-                file_link = branch_link + file
-                files_added.append(" * %s \n   ( %s )" % (file, file_link))
-        if change.files_modified:
-            files_modified_lbl = "\n\nModified files: \n" + "---------------\n"
-            for file in change.files_modified:
-                file_link = branch_link + file
-                files_modified.append(" * %s \n   ( %s )" % (file, file_link))
-        if change.files_renamed:
-            files_renamed_lbl = "\n\nRenamed files: \n" + "---------------\n"
-            for file in change.files_renamed:
-                file_link = branch_link + file[1]
-                files_renamed.append(" * %s  ==>  %s \n   ( %s )" % (file[0], file[1], file_link))
-        if change.files_removed:
-            files_removed_lbl = "\n\nRemoved files: \n" + "---------------\n"
-            for file in change.files_removed:
-                file_link = branch_link + file
-                files_removed.append(" * %s \n   ( %s )" % (file, file_link))
+        try:
+            if change.branch:
+                i = change.branch.index('launchpad')
+                branch_link = 'https://bazaar.' + change.branch[i:] + '/revision/' + str(rev_no) + '#'
+                branch = change.branch
+        except Exception: pass
+        
+        if failed_tests:
+            failed_tests_data = "\nTest results:\n--------------\n"
+            for ftn, ft_url, ft_text in failed_tests:
+                failed_tests_data += '%s: %s\n%s\n\n' % \
+                        (ftn, ft_url, ft_text)
         try:
             who_name = change.who[:change.who.index('<')]
         except:
@@ -239,8 +239,10 @@ class OpenObjectMailNotifier(MailNotifier):
                    'files_modified' : files_modified_lbl + '\n'.join(files_modified),
                    'files_renamed' : files_renamed_lbl + '\n'.join(files_renamed), 
                    'files_removed' : files_removed_lbl + '\n'.join(files_removed),
+                   'failed_tests_data': failed_tests_data,
                    'comments': change.comments,
                    'reason':build.getReason()}
+        kwargs['test_reasoning'] = test_reasoning % kwargs
         return tools._to_decode(text_mail % kwargs)
 
     def sendMessage(self, m, recipients):
@@ -281,14 +283,11 @@ class OpenObjectMailNotifier(MailNotifier):
             s.quit()
         except Exception, e:
             print "Exception:",e
-        return True           
+        return True
 
 text_mail = """Hello %(who_name)s,
         
-Your last commit had broken the branch %(project_name)s (%(name)s). Please recheck your code. The details of the build is provided here. If you think this can be a recursive problem, don't hesitate to write automated tests.
-
-To get more information about how to integrate tests in your module, please read the documentation:
-  * Automated Tests 
+%(test_reasoning)s
 
 The details are as below:
 =========================
@@ -302,6 +301,8 @@ Status         : %(status_text)s
 Reason Of Failure:
 -----------------
   %(reason)s
+
+%(failed_tests_data)s
 
 Commit History:
 ---------------
@@ -318,17 +319,24 @@ Comments       :
 
 
 
-
 Regards,
 OpenERP Quality Team
-http://openobject.com"""
+http://openobject.com
+"""
+
+reasoning_success = """Your commit has passed our tests for %(project_name)s (%(name)s)."""
+
+reasoning_warnings = """Your commit has produced warnings at our tests for %(project_name)s (%(name)s).
+Can you please consider improving your commit ? """
+
+reasoning_failure = """We are sorry to say that your last commit had broken %(project_name)s (%(name)s).
+Can you please recheck your commit ? """
 
 html_mail = """<html>
             <body>
             <var>
             Hello %(who_name)s,<br/><br/>
-            We are sorry to say that your last commit had broken %(project_name)s (%(name)s).
-Can you please recheck your commit ?<br/><br/></var>
+            %(test_reasoning)s<br/><br/></var>
             <table bordercolor="black" align="left">
             <tr>
                 <td><b>The details are as below:</b>
@@ -351,6 +359,11 @@ Can you please recheck your commit ?<br/><br/></var>
                     <tr>
                             <td align="left">Status:</td>
                             <td align="left"><font color="red">%(status_text)s</font></td>
+                            
+                    </tr>
+                    <tr>
+                            <td align="left">Test Results:</td>
+                            <td align="left">%(failed_tests_data)s</td>
                             
                     </tr>
                     <tr>
