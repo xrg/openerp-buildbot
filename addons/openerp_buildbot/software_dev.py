@@ -200,8 +200,14 @@ class software_buildbot(osv.osv):
                     'steps': [],
                     'branch_url': bldr.branch_url,
                     'branch_name': bldr.name,
+                    'properties': { 'sequence': bldr.sequence, }
                     #'tstimer': None, # means one build per change
                     }
+            
+            if bldr.group_id:
+                bret['properties'].update( {'group': bldr.group_id.name,
+                                            'group_seq': bldr.group_id.sequence,
+                                            'group_public': bldr.group_id.public,})
             # Now, build the steps:
             for bdep in bldr.dep_branch_ids:
                 bret['steps'].append( ('OpenObjectBzr', {
@@ -223,6 +229,24 @@ class software_buildbot(osv.osv):
         
             ret.append(bret)
         return ret
+
+    def get_conf_timestamp(self, cr, uid, ids, context=None):
+        """ Retrieve the max timestamp of configuration changes.
+        
+        This should be the maximum of all data that is present on
+        a buildbot configuration, so that we know if we need to reload
+        the buildbot
+        """
+        bs_obj = self.pool.get('software_dev.buildseries')
+        bids = bs_obj.search(cr, uid, [('builder_id', 'in', ids), ('is_build','=',True)], context=context)
+        qry = 'SELECT MAX(write_date) FROM "%s" WHERE builder_id = ANY(%%s) AND is_build;' %\
+                    (bs_obj._table)
+        cr.execute(qry, (ids,))
+        res = cr.fetchone()
+        # TODO: look at atrributes, properties, buildbot data etc.
+        if not res:
+            return False
+        return res # ?
 
 software_buildbot()
 
@@ -427,18 +451,29 @@ class software_commit(propertyMix, osv.osv):
         clines = cdict['comments'].split('\n',1)
         subj = clines[0]
         descr = '\n'.join(clines[1:])
-        new_vals = {
-            'subject': subj,
-            'description': descr,
-            'date': datetime.fromtimestamp(cdict['when']),
-            'branch_id': cdict['branch_id'],
-            'comitter_id': user_obj.get_user(cr, uid, cdict['who'], context=context),
-            'revno': cdict['rev'],
-            'hash': cdict.get('hash', False),
-            'authors': [ user_obj.get_user(cr, uid, usr, context=context)
-                            for usr in cdict.get('authors', []) ],
-            }
-        cid = self.create(cr, uid, new_vals, context=context)
+        
+        
+        cids = self.search(cr, uid, [('branch_id', '=', cdict['branch_id']), 
+                        ('hash','=', cdict.get('hash', False))])
+        if cids:
+            # This is the case where buildbot attempts to send us a commit
+            # for a second time
+            assert len(cids) == 1
+            # RFC: shall we update any data to that cid?
+            return cids[0]
+        else: # a new commit
+            new_vals = {
+                'subject': subj,
+                'description': descr,
+                'date': datetime.fromtimestamp(cdict['when']),
+                'branch_id': cdict['branch_id'],
+                'comitter_id': user_obj.get_user(cr, uid, cdict['who'], context=context),
+                'revno': cdict['rev'],
+                'hash': cdict.get('hash', False),
+                'authors': [ user_obj.get_user(cr, uid, usr, context=context)
+                                for usr in cdict.get('authors', []) ],
+                }
+            cid = self.create(cr, uid, new_vals, context=context)
          
         if cdict.get('filesb'):
             # try to submit from the detailed files member
