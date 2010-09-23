@@ -19,9 +19,13 @@ from openobject.scheduler import OpenObjectScheduler, OpenObjectAnyBranchSchedul
 from openobject.buildstep import OpenObjectBzr, OpenObjectSVN, BzrMerge, BzrRevert, OpenERPTest, LintTest, BzrStatTest
 from openobject.poller import BzrPoller
 from openobject.status import web, mail, logs
+import twisted.internet.task
 import rpc
+import os
+import signal
 
 from twisted.python import log, reflect
+from twisted.python import components
 from buildbot import util
 
 logging.basicConfig(level=logging.DEBUG)
@@ -45,6 +49,9 @@ class Keeper(object):
         """
         log.msg("Keeper config")
         self.bmconfig = bmconfig
+        self.poll_interval = 560.0 #seconds
+        self.in_reset = False
+        self.bbot_tstamp = None
         c = bmconfig
         # some necessary definitions in the dict:
         c['projectName'] = "OpenERP-Test"
@@ -67,12 +74,37 @@ class Keeper(object):
         bbot_id = bbot_obj.search([('tech_code','=',db_props.get('code','buildbot'))])
         assert bbot_id, "No buildbot for %r exists!" % db_props.get('code','buildbot')
         self.bbot_id = bbot_id[0]
+        self.loop = twisted.internet.task.LoopingCall(self.poll_config)
+        
+        self.loop.start(self.poll_interval)
 
+    def poll_config(self):
+        bbot_obj = rpc.RpcProxy('software_dev.buildbot')
+        try:
+            new_tstamp = bbot_obj.get_conf_timestamp([self.bbot_id,])
+            # print "Got conf timestamp:", self.bbot_tstamp
+        except Exception, e:
+            print "Could not get timestamp: %s" % e
+            return
+        if new_tstamp != self.bbot_tstamp:
+            try:
+                print "Got new timestamp: %s, must reconfig" % new_tstamp
+                
+                # Zope makes it so difficult to locate the BuildMaster instance,
+                # so...
+                if self.bbot_tstamp is not None:
+                    os.kill(os.getpid(), signal.SIGHUP)
+                self.bbot_tstamp = new_tstamp
+            except Exception:
+                print "Could not reset"
 
     def reset(self):
         """ Reload the configuration
         """
         print "Keeper reset"
+        if self.in_reset:
+            return
+        self.in_reset = True
         c = self.bmconfig
         c['slaves'] = []
         c['schedulers'] = []
@@ -196,9 +228,11 @@ class Keeper(object):
             c['status'].append(mail.OpenObjectMailNotifier( **mail_kwargs))
 
         # We should be ok by now..
+        self.in_reset = False
 
     def __del__(self):
         log.msg("Here is where the keeper sleeps..")
+        self.loop.stop()
         try:
             rpc.session.logout()
         except Exception: pass
