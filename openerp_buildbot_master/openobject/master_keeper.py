@@ -67,8 +67,8 @@ class Keeper(object):
         bbot_id = bbot_obj.search([('tech_code','=',db_props.get('code','buildbot'))])
         assert bbot_id, "No buildbot for %r exists!" % db_props.get('code','buildbot')
         self.bbot_id = bbot_id[0]
-        
-        
+
+
     def reset(self):
         """ Reload the configuration
         """
@@ -133,6 +133,7 @@ class Keeper(object):
 
         for bld in builders:
             fact = factory.BuildFactory()
+            props = bld.get('properties', {})
            
             for bstep in bld['steps']:
                 assert bstep[0] in dic_steps, "Unknown step %s" % bstep[0]
@@ -146,14 +147,15 @@ class Keeper(object):
                 print "Adding step %s(%r)" % (bstep[0], kwargs)
                 klass = dic_steps[bstep[0]]
                 fact.addStep(klass(**kwargs))
-               
+            
             c['builders'].append({
                 'name' : bld['name'],
                 'slavename' : bld['slavename'],
                 'builddir': bld['builddir'],
                 'factory': fact,
-                'properties': bld.get('properties', {}),
+                'properties': props,
                 'mergeRequests': False,
+                'category': props.get('group', None),
             })
 
             cfilt = ChangeFilter_debug(branch=bld['branch_name'])

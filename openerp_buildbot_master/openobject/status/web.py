@@ -132,18 +132,39 @@ class LatestBuilds(HtmlResource):
         req.setHeader('Cache-Control', 'no-cache')
         # base_builders_url = "buildersresource/"
         base_builders_url = "builders/"
-        builders = req.args.get("builder", status.getBuilderNames())
+        cats = req.args.get('groups', False)
+        if cats is not False:
+            cats = cats.split(',')
+        else:
+            cats = None
+        builders = req.args.get("builder", status.getBuilderNames(cats))
         branches = [b for b in req.args.get("branch", []) if b]
-        all_builders = [html.escape(bn) for bn in builders]
         num_cols = get_args_int(req.args, 'num', 5)
         
         cxt['num_cols'] = num_cols
-        cxt['builders'] = [] # TODO: groupping
-        for bn in all_builders:
+        cxt['builders'] = []
+        builders_grouped = {}
+        groups_seq = {}  # sequence of groups
+        for bn in builders:
             base_builder_url = base_builders_url + urllib.quote(bn, safe='')
             builder = status.getBuilder(bn)
-            bldr_cxt = { 'name': bn, 'url': base_builder_url, 'builds': [] }
-            cxt['builders'].append(bldr_cxt)
+            bld_props = status.botmaster.builders[bn].properties # hack into the structure
+            categ = builder.category
+            bname = bn
+            if categ and bn.startswith(categ + '-'):
+                bname = bname[len(categ)+1:]
+            bname = html.escape(bname.replace('-',' ', 1))
+            bldr_cxt = { 'name': bname , 'url': base_builder_url, 
+                        'builds': [], 
+                        'sequence': bld_props.get('sequence', 10) }
+            if categ:
+                if bld_props.get('group_public', True):
+                    builders_grouped.setdefault(categ, []).append(bldr_cxt)
+                    if 'group_seq' in bld_props:
+                        groups_seq[categ] = bld_props['group_seq']
+            else:
+                cxt['builders'].append(bldr_cxt)
+
             
             # It is difficult to do paging here, because we are already iterating over the
             # builders, so won't have the same build names or rev-ids.
@@ -183,6 +204,15 @@ class LatestBuilds(HtmlResource):
             builder_status = builder.getState()[0]
             bldr_cxt['status'] = builder_status
         
+        # Now, sort the builders and grouped:
+        cxt['builders'].sort(key=lambda bld: bld['sequence'])
+        for bldrs in builders_grouped.values():
+            bldrs.sort(key=lambda bld: bld['sequence'])
+
+        cxt['builders_grouped'] = [] # will be list of tuples
+        for gk, bldrs in builders_grouped.items():
+            cxt['builders_grouped'].append((groups_seq.get(gk,10), gk, bldrs))
+            
         template = req.site.buildbot_service.templates.get_template(self.tpl_page)
         return template.render(**cxt)
 

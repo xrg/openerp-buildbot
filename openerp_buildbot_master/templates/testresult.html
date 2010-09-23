@@ -24,8 +24,7 @@
 <ul>
 {% for l in logs %}
   <h3>Log: {{ l.name|e }}</h3>
-    <samp><pre>{{ l.log|e }}</pre></samp>
-  </br>
+<samp><pre>{{ l.log|e }}</pre></samp>
 {% else %}
   <li class="alt">- No logs -</li> 
 {% endfor %}
