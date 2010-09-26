@@ -174,7 +174,8 @@ class BzrPoller(buildbot.changes.base.ChangeSource,
         # bzr+ssh://bazaar.launchpad.net/~launchpad-pqm/launchpad/devel/
         # works, lp:~launchpad-pqm/launchpad/devel/ doesn't without help.
         if url.startswith('lp:'):
-            url = 'bzr+ssh://bazaar.launchpad.net/' + url[3:]
+            #url = 'bzr+ssh://bazaar.launchpad.net/' + url[3:]
+            url = 'https://code.launchpad.net/' + url[3:]
         elif url.startswith('/'):
            url = 'file://' + url
         self.url = url
@@ -209,7 +210,7 @@ class BzrPoller(buildbot.changes.base.ChangeSource,
             # wrt. the import order, so try to consume the exception here.
             branch = bzrlib.branch.Branch.open_containing(self.url)[0]
         except Exception, e:
-            log.err("Cannot open the branch: %s" % e)
+            twisted.python.log.err("Cannot open the branch: %s" % e)
 
         self.polling = False
         twisted.internet.reactor.callWhenRunning(
