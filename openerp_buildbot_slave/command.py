@@ -159,6 +159,8 @@ class OpenObjectBzr(Bzr):
     def sourcedirIsUpdateable(self):
         if os.path.exists(os.path.join(self.builder.basedir, self.srcdir, ".buildbot-patched")):
             return False
+        if os.path.exists(os.path.join(self.builder.basedir, self.srcdir, ".bzr", 'checkout', 'limbo')):
+            return False
         # contrary to base class, we allow update when self.revision
         return (not self.sourcedirIsPatched()) and \
                 os.path.isdir(os.path.join(self.builder.basedir,
