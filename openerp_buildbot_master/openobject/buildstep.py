@@ -586,7 +586,8 @@ class OpenObjectBzr(Bzr):
             self.args['repourl'] = self.baseURL + self.branch # self.baseURL + branch
 
         if not self.alwaysUseLatest:
-            assert self.args['repourl'] == branch, "%s != %s" % (self.args['repourl'], branch)
+            if not self.args['repourl'].endswith(branch):
+                log.err("Repo url %s != %s" % (self.args['repourl'], branch))
             self.args['revision'] = revision
         else:
             self.args['revision'] = None
