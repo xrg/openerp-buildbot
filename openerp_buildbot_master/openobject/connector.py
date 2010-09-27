@@ -687,6 +687,15 @@ class OERPConnector(util.ComparableMixin):
                 # now, we have a filechange.id and stats
                 fchange_obj.write(fcd['id'], fcstat)
 
+    def saveCStats(self, cid, cstats):
+        """ Try to save commit stats of change(s)
+        
+        @param cstats is list of tuples of ( change_id:, { lines_add:,  lines_rem:, ... })
+        """
+        commit_obj = rpc.RpcProxy('software_dev.commit')
+        commit_obj.saveCStats(cid, cstats)
+        return True
+
 
     def _check_buildset(self, t, bsid, now):
         # Since there is no difference from buildset->buildrequest, 

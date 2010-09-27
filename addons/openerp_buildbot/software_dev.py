@@ -427,6 +427,7 @@ class software_commit(propertyMix, osv.osv):
                 'software_dev_commit_authors_rel', 'commit_id', 'author_id', 'Authors',
                 help="Developers who have authored the code"),
         'change_ids': fields.one2many('software_dev.filechange', 'commit_id', 'Changes'),
+        'stat_ids': fields.one2many('software_dev.changestats', 'commit_id', 'Statistics'),
         'parent_id': fields.many2one('software_dev.commit', 'Parent commit'),
         #'contained_commit_ids': fields.many2many('software_dev.commit', 
         #    'software_dev_commit_cont_rel', 'end_commit_id', 'sub_commit_id',
@@ -485,14 +486,37 @@ class software_commit(propertyMix, osv.osv):
                     'lines_rem': cf.get('lines_rem', 0),
                     }
                 fchange_obj.create(cr, uid, fval, context=context)
-                
+
         else: # use the compatible list, eg. when migrating
             for cf in cdict['files']:
                 fval = { 'commit_id': cid,
                     'filename': cf['name'],
                     }
                 fchange_obj.create(cr, uid, fval, context=context)
+
         return cid
+
+    def saveCStats(self, cr, uid, id, cstats, context=None):
+        """Save the commit statistics
+        """
+        assert isinstance(id, (int, long))
+        assert isinstance(cstats, dict), "%r" % cstats
+
+        user_obj = self.pool.get('software_dev.vcs_user')
+        cstat_obj = self.pool.get('software_dev.changestats')
+
+        if cstats:
+            sval = { 'commit_id': id,
+                'author_id': user_obj.get_user(cr, uid, cstats['author'], context=context),
+                'commits': cstats.get('commits', 0),
+                'count_files': cstats.get('count_files', 0),
+                'lines_add': cstats.get('lines_add', 0),
+                'lines_rem': cstats.get('lines_rem', 0),
+                }
+            cstat_obj.create(cr, uid, sval, context=context)
+
+        return {}
+
 
     def getChanges(self, cr, uid, ids, context=None):
         """ Format the commits into a dictionary
@@ -552,6 +576,32 @@ class software_filechange(osv.osv):
     _sql_constraints = [( 'commit_file_uniq', 'UNIQUE(commit_id, filename)', 'Commit cannot contain same file twice'), ]
 
 software_filechange()
+
+class software_changestats(osv.osv):
+    """ Statistics of a change
+    A change may contain more than one stats lines, grouped by author.
+    """
+    _name = 'software_dev.changestats'
+    _description = 'Code File Change'
+    _columns = {
+        'commit_id': fields.many2one('software_dev.commit','Commit', 
+                required=True, ondelete='cascade'),
+        'author_id': fields.many2one('software_dev.vcs_user', 'Author', required=True),
+        'commits': fields.integer('Number of commits', required=True),
+        'count_files': fields.integer('Files changed', required=True),
+        'lines_add': fields.integer('Lines added', required=True),
+        'lines_rem': fields.integer('Lines removed', required=True ),
+    }
+    _defaults = {
+        'commits': 0,
+        'count_files': 0,
+        'lines_add': 0,
+        'lines_rem': 0,
+    }
+    
+    _sql_constraints = [( 'commit_author_uniq', 'UNIQUE(commit_id, author_id)', 'Commit stats cannot contain same author twice'), ]
+
+software_changestats()
 
 class software_buildseries2(osv.osv):
     _inherit = 'software_dev.buildseries'

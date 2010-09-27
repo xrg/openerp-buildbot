@@ -1030,19 +1030,84 @@ class BzrStatTest(LoggingBuildStep):
         cmd.useLog(self.stderr_log, True)
         self.startCommand(cmd)
 
-    def createSummary(self, log):
+    def createSummary(self, slog):
         """ Try to read the file-lint.sh output and parse results
         """
         file_stats = {}
 
-        for line in StringIO(log.getText()).readlines():
-            if line == 'INSERTED,DELETED,MODIFIED,FILENAME':
-                continue
-            li,ld, lm, fname = line.rstrip().split(',')
-            file_stats[fname] = {'lines_add': li, 'lines_rem':ld }
+        try:
+            for line in StringIO(slog.getText()).readlines():
+                if line == 'INSERTED,DELETED,MODIFIED,FILENAME':
+                    continue
+                li,ld, lm, fname = line.rstrip().split(',')
+                file_stats[fname] = {'lines_add': li, 'lines_rem':ld }
+        except Exception, e:
+            log.err("Problem in parsing the stats: %s" % e)
         
         commits = self.build.allChanges()
         self.build.builder.db.saveStatResults(commits, file_stats )
+
+    def evaluateCommand(self, cmd):
+        res = SUCCESS
+        if cmd.rc != 0:
+            res = FAILURE
+        if self.build_result > res:
+            res = self.build_result
+        return res
+
+class BzrCommitStats(LoggingBuildStep):
+    """Step to gather statistics of changed files
+    """
+    name = 'Bzr commit stats'
+    flunkOnFailure = False
+
+    def __init__(self, workdir=None, **kwargs):
+
+        LoggingBuildStep.__init__(self, **kwargs)
+        self.addFactoryArguments(workdir=workdir)
+        self.args = {'workdir': workdir }
+        # Compute defaults for descriptions:
+        description = ["Performing bzr stats"]
+        self.description = description
+        self.build_result = SUCCESS
+        self.changeno = None
+
+    def start(self):
+        self.args['command']=["bzr","stats", "--output-format=csv", "--quiet",
+                    "--rows=author,commits,count_files,lineplus,lineminus"]
+        
+        change = self.build.allChanges()[0]
+        self.changeno = change.number
+        self.args['command'] += [ '-r', change.hash]
+        cmd = StdErrRemoteCommand("OpenObjectShell", self.args)
+        self.stderr_log = self.addLog("stderr")
+        cmd.useLog(self.stderr_log, True)
+        self.startCommand(cmd)
+
+    def createSummary(self, slog):
+        """ Try to read the file-lint.sh output and parse results
+        """
+        cstats = {}
+
+        cid = self.changeno
+        try:
+            for line in StringIO(slog.getText()).readlines():
+                line = line.strip()
+                if not line:
+                    continue
+                if not ',' in line:
+                    log.err("Line is not csv: %r" % line)
+                    continue
+                aut, coms, cfil, ladd, lrem = line.split(',')
+                if aut == 'Total':
+                    continue
+                cstats.update({ 'author': aut, 'commits': coms, 'count_files': cfil,
+                                    'lines_add': ladd, 'lines_rem': lrem })
+        except Exception, e:
+            log.err("Cannot parse commit stats: %s" % e)
+        
+        self.build.builder.db.saveCStats(cid, cstats)
+        self.description = "Commit stats calculated"
 
     def evaluateCommand(self, cmd):
         res = SUCCESS

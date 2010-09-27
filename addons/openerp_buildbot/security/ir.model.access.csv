@@ -13,3 +13,4 @@
 "access_bot_schedchange","software_dev.bot.sched_change","model_software_dev_sched_change","group_softdev_bot",1,1,1,1
 "access_bot_property","software_dev.bot.property","model_software_dev_property","group_softdev_bot",1,1,1,1
 "access_bot_test_result","software_dev.bot.test_result","model_software_dev_test_result","group_softdev_bot",1,1,1,1
+"access_bot_change_stats","software_dev.bot.changestats","model_software_dev_changestats","group_softdev_bot",1,1,1,1
