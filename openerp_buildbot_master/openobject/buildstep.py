@@ -571,6 +571,7 @@ class OpenObjectBzr(Bzr):
         self.descriptionDone = ["updated", "branch %s"%(repourl)]
         self.env_info = ''
         self.summaries = {}
+        self.build_result = SUCCESS
 
     def startVC(self, branch, revision, patch):
         slavever = self.slaveVersion("bzr")
@@ -584,7 +585,8 @@ class OpenObjectBzr(Bzr):
         else:
             self.args['repourl'] = self.baseURL + self.branch # self.baseURL + branch
 
-        if self.args['repourl'] == branch:
+        if not self.alwaysUseLatest:
+            assert self.args['repourl'] == branch, "%s != %s" % (self.args['repourl'], branch)
             self.args['revision'] = revision
         else:
             self.args['revision'] = None
@@ -611,10 +613,11 @@ class OpenObjectBzr(Bzr):
         self.summaries = summaries
         if counts["log"]:
             msg = "".join(summaries[self.name]["log"])
-            self.addCompleteLog("Branch Update  : ERROR", msg)
-            self.setProperty("Branch Update : ERROR", counts["log"])
+            self.addCompleteLog("Branch Update: ERROR", msg)
+            self.setProperty("Branch Update: ERROR", counts["log"])
+            self.build_result = FAILURE
         if sum(counts.values()):
-            self.setProperty("Branch Update : MessageCount", sum(counts.values()))
+            self.setProperty("Branch Update: MessageCount", sum(counts.values()))
 
     def evaluateCommand(self, cmd):
         state = 'pass'
@@ -623,7 +626,7 @@ class OpenObjectBzr(Bzr):
                 if txt.find('environment')!= -1:
                     pos = txt.find('environment')
                     self.env_info = txt[pos:]
-        res = SUCCESS
+        res = self.build_result
         if cmd.rc != 0:
             res = FAILURE
             state = 'skip'
