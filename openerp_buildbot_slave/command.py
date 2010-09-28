@@ -88,7 +88,9 @@ class test_environment():
 
 class OpenObjectShell(SlaveShellCommand):
 
-    pass
+    def __init__(self, *args, **kwargs):
+        SlaveShellCommand.__init__(self, *args, **kwargs)
+        self.args.setdefault('logEnviron', False)
 
 class Old(object):
     def start(self):
@@ -129,7 +131,7 @@ class OpenObjectBzr(Bzr):
         else:
             command = [bzr, 'update', '-q']
         srcdir = os.path.join(self.builder.basedir, self.srcdir)
-        c = runprocess.RunProcess(self.builder, command, srcdir, sendRC=False, timeout=self.timeout)
+        c = runprocess.RunProcess(self.builder, command, srcdir, sendRC=False, timeout=self.timeout, logEnviron=False)
         self.command = c
         d = c.start()
         d.addCallback(self.doVCClean)
@@ -143,7 +145,7 @@ class OpenObjectBzr(Bzr):
         bzr = self.getCommand('bzr')
         command = [bzr, 'clean-tree', '-q', '--force', '--unknown', '--detritus']
         srcdir = os.path.join(self.builder.basedir, self.srcdir)
-        c = runprocess.RunProcess(self.builder, command, srcdir, sendRC=False, timeout=self.timeout)
+        c = runprocess.RunProcess(self.builder, command, srcdir, sendRC=False, timeout=self.timeout, logEnviron=False)
         self.command = c
         d = c.start()
         return d
