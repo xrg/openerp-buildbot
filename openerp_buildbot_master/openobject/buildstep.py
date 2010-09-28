@@ -113,6 +113,7 @@ ports_pool = None
 class OpenERPTest(LoggingBuildStep):
     name = 'OpenERP-Test'
     flunkOnFailure = True
+    warnOnWarnings = True
 
     def describe(self, done=False,success=False,warn=False,fail=False):
         if done:
@@ -538,6 +539,8 @@ class OpenERPTest(LoggingBuildStep):
 class OpenObjectBzr(Bzr):
     flunkOnFailure = False
     haltOnFailure = True
+    warnOnWarnings = True
+    warnOnFailure = True
 
     def describe(self, done=False,success=False,warn=False,fail=False):
         branch_short = self.branch.replace('https://launchpad.net/','lp:')
@@ -721,6 +724,8 @@ class StartServer(LoggingBuildStep):
 class BzrMerge(LoggingBuildStep):
     name = 'bzr_merge'
     haltOnFailure = True
+    warnOnWarnings = True
+    
     def describe(self, done=False,success=False,warn=False,fail=False):
          if done:
             if success:
@@ -875,6 +880,8 @@ class LintTest(LoggingBuildStep):
     """
     name = 'Lint test'
     flunkOnFailure = False
+    warnOnFailure = True
+
     known_strs = [ (r'Pyflakes failed for: (.+)$', FAILURE ),
                    (r'Please correct warnings for (.+)$', WARNINGS),
                    (r'Not ready to commit: (.+)$', FAILURE),
@@ -996,6 +1003,7 @@ class BzrStatTest(LoggingBuildStep):
     """
     name = 'Bzr stats'
     flunkOnFailure = False
+    warnOnFailure = False
 
     def describe(self, done=False,success=False,warn=False,fail=False):
          if done:
@@ -1064,6 +1072,7 @@ class BzrCommitStats(LoggingBuildStep):
     """
     name = 'Bzr commit stats'
     flunkOnFailure = False
+    warnOnWarnings = False
 
     def __init__(self, workdir=None, **kwargs):
 
