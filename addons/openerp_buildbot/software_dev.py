@@ -85,6 +85,8 @@ class propertyMix(object):
         but we do only use them for the software_dev.* ones.
     """
 
+    _auto_properties = []
+
     def getProperties(self, cr, uid, ids, names=None, context=None):
         """ Retrieve the properties for a range of ids.
         
@@ -121,6 +123,10 @@ class propertyMix(object):
                 prop_obj.unlink(cr, uid, pids)
 
         for name, value in vals: # yes, values must be a list of tuples
+            if name in self._auto_properties:
+                # Skip setting these ones, since the class should override
+                # and take care of them.
+                continue
             prop_obj.create(cr, uid, { 'model_id': imid, 'resid': id,
                                         'name': name, 'value': value }, context=context)
 
@@ -220,6 +226,10 @@ class software_buildbot(osv.osv):
                         'repourl': bldr.branch_url, 'mode':'update',
                         'workdir': bldr.target_path,
                         'alwaysUseLatest': False }) )
+
+            # Set a couple of builder-wide properties
+            bret['properties'].update( { 'orm_id': bldr.id, 'repo_mode': bldr.target_path })
+
             for tstep in bldr.test_ids:
                 rname = tstep.name
                 rattr = {}
