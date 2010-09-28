@@ -16,7 +16,7 @@ from buildbot.buildslave import BuildSlave
 from buildbot.process import factory
 from buildbot.schedulers.filter import ChangeFilter
 from openobject.scheduler import OpenObjectScheduler, OpenObjectAnyBranchScheduler
-from openobject.buildstep import OpenObjectBzr, OpenObjectSVN, BzrMerge, BzrRevert, OpenERPTest, LintTest, BzrStatTest, BzrCommitStats
+from openobject.buildstep import OpenObjectBzr, OpenObjectSVN, BzrMerge, BzrRevert, OpenERPTest, LintTest, BzrStatTest, BzrCommitStats, BzrTagFailure
 from openobject.poller import BzrPoller
 from openobject.status import web, mail, logs
 import twisted.internet.task
@@ -162,6 +162,7 @@ class Keeper(object):
                 'BzrCommitStats': BzrCommitStats,
                 'LintTest': LintTest,
                 'BzrMerge': BzrMerge,
+                'BzrTagFailure': BzrTagFailure,
                 }
 
         for bld in builders:

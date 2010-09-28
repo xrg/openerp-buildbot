@@ -25,6 +25,8 @@ from buildbot.steps.shell import ShellCommand
 from buildbot.process.buildstep import LoggingBuildStep, LoggedRemoteCommand, LogLineObserver
 from buildbot.status.builder import SUCCESS, FAILURE, WARNINGS, EXCEPTION
 from buildbot.status.builder import TestResult
+from buildbot.steps.master import MasterShellCommand
+from buildbot.process.properties import Properties, WithProperties
 
 import os
 import re
@@ -142,7 +144,7 @@ class OpenERPTest(LoggingBuildStep):
                     force_modules=None,
                     black_modules=None,
                     test_mode='full',
-                    repo_mode='addons',
+                    repo_mode=WithProperties('%(repo_mode)s'),
                     **kwargs):
         LoggingBuildStep.__init__(self, **kwargs)
         self.addFactoryArguments(workdir=workdir, dbname=dbname, addonsdir=addonsdir, 
@@ -166,23 +168,20 @@ class OpenERPTest(LoggingBuildStep):
         self.progressMetrics += ('tests',)
 
     def start(self):
-        #TODO FIX:
-        # need to change the static slave path
         self.logfiles = {}
-        # builddir = self.build.builder.builddir
-
         global ports_pool
+        builder_props = self.build.getProperties()
         if not ports_pool:
             # Effectively, the range of these ports will limit the number of
             # simultaneous databases that can be tested
-            min_port = self.build.builder.properties.get('min_port',8200)
-            max_port = self.build.builder.properties.get('max_port',8299)
-            port_spacing = self.build.builder.properties.get('port_spacing',4)
+            min_port = builder_props.getProperty('min_port',8200)
+            max_port = builder_props.getProperty('max_port',8299)
+            port_spacing = builder_props.getProperty('port_spacing',4)
             ports_pool = tools.Pool(iter(range(min_port, max_port, port_spacing)))
 
         if not self.args.get('addonsdir'):
-            if self.build.builder.properties.get('addons_dir'):
-                self.args['addonsdir'] = self.build.builder.properties['addons_dir']
+            if builder_props.getProperty('addons_dir'):
+                self.args['addonsdir'] = builder_props['addons_dir']
             else:
                 self.args['addonsdir'] = '../addons/'
         if not self.args.get('port'):
@@ -191,6 +190,8 @@ class OpenERPTest(LoggingBuildStep):
             self.args['dbname'] = self.build.builder.builddir.replace('/', '_')
         if not self.args.get('workdir'):
             self.args['workdir'] = 'server'
+        
+        self.args['repo_mode'] = builder_props.render(self.args.get('repo_mode', ''))
 
         # try to find all modules that have changed:
         mods_changed = []
@@ -519,7 +520,17 @@ class OpenERPTest(LoggingBuildStep):
         
         self.build.builder.db.saveTResults(build_id, self.name,
                                             self.build_result, t_results)
-        
+
+        if self.build_result == FAILURE:
+            # Note: We only want to tag on failure, not on exception
+            # or skipped, which means buildbot (and not the commmit) failed
+            try:
+                orm_id = self.getProperty('orm_id') or '?'
+            except KeyError:
+                orm_id = '?'
+            self.setProperty('failure_tag', 'openerp-buildfail-%s-%s' % \
+                            (orm_id, build_id) )
+
     def evaluateCommand(self, cmd):
         global ports_pool
         res = SUCCESS
@@ -592,6 +603,8 @@ class OpenObjectBzr(Bzr):
             if not self.args['repourl'].endswith(branch):
                 log.err("Repo url %s != %s" % (self.args['repourl'], branch))
             self.args['revision'] = revision
+            self.setProperty('branch_url', self.args['repourl'])
+            self.setProperty('revision_hash', revision) # FIXME
         else:
             self.args['revision'] = None
         self.args['patch'] = patch
@@ -911,7 +924,8 @@ class LintTest(LoggingBuildStep):
             return self.describe(True, fail=True)
 
 
-    def __init__(self, workdir=None, repo_mode='addons', **kwargs):
+    def __init__(self, workdir=WithProperties('%(repo_mode)s'), 
+                    repo_mode=WithProperties('%(repo_mode)s'), **kwargs):
 
         LoggingBuildStep.__init__(self, **kwargs)
         self.addFactoryArguments(workdir=workdir, repo_mode=repo_mode)
@@ -927,7 +941,9 @@ class LintTest(LoggingBuildStep):
     def start(self):
         self.args['command']=["../../../file-lint.sh",]
         self.args['command'] += [ str(x) for x in self.build.allFiles()]
-
+        builder_props = self.build.getProperties()
+        self.args['workdir'] = builder_props.render(self.args.get('workdir', ''))
+        self.args['repo_mode'] = builder_props.render(self.args.get('repo_mode', ''))
         cmd = StdErrRemoteCommand("OpenObjectShell", self.args)
         self.stderr_log = self.addLog("stderr")
         cmd.useLog(self.stderr_log, True)
@@ -990,6 +1006,14 @@ class LintTest(LoggingBuildStep):
         self.build.builder.db.saveTResults(build_id, self.name,
                                             self.build_result, t_results.values())
 
+        if severity >= FAILURE:
+            try:
+                orm_id = self.getProperty('orm_id') or '?'
+            except KeyError:
+                orm_id = '?'
+            self.setProperty('failure_tag', 'openerp-buildfail-%s-%s' % \
+                                (orm_id, build_id) )
+
     def evaluateCommand(self, cmd):
         res = SUCCESS
         if cmd.rc != 0:
@@ -1024,7 +1048,7 @@ class BzrStatTest(LoggingBuildStep):
             return self.describe(True, fail=True)
 
 
-    def __init__(self, workdir=None, **kwargs):
+    def __init__(self, workdir=WithProperties('%(repo_mode)s'), **kwargs):
 
         LoggingBuildStep.__init__(self, **kwargs)
         self.addFactoryArguments(workdir=workdir)
@@ -1036,7 +1060,9 @@ class BzrStatTest(LoggingBuildStep):
 
     def start(self):
         self.args['command']=["../../../bzr-diffstat.sh",]
-
+        builder_props = self.build.getProperties()
+        self.args['workdir'] = builder_props.render(self.args.get('workdir', ''))
+ 
         cmd = StdErrRemoteCommand("OpenObjectShell", self.args)
         self.stderr_log = self.addLog("stderr")
         cmd.useLog(self.stderr_log, True)
@@ -1074,7 +1100,7 @@ class BzrCommitStats(LoggingBuildStep):
     flunkOnFailure = False
     warnOnWarnings = False
 
-    def __init__(self, workdir=None, **kwargs):
+    def __init__(self, workdir=WithProperties('%(repo_mode)s'), **kwargs):
 
         LoggingBuildStep.__init__(self, **kwargs)
         self.addFactoryArguments(workdir=workdir)
@@ -1088,6 +1114,8 @@ class BzrCommitStats(LoggingBuildStep):
     def start(self):
         self.args['command']=["bzr","stats", "--output-format=csv", "--quiet",
                     "--rows=author,commits,files,lineplus,lineminus"]
+        builder_props = self.build.getProperties()
+        self.args['workdir'] = builder_props.render(self.args.get('workdir', ''))
         
         change = self.build.allChanges()[0]
         self.changeno = change.number
@@ -1129,5 +1157,45 @@ class BzrCommitStats(LoggingBuildStep):
         if self.build_result > res:
             res = self.build_result
         return res
+
+class BzrTagFailure(MasterShellCommand):
+    """ Put a bzr tag on a commit that failed the OpenERP tests
+    
+    It should run on the master, because only that one may have a key
+    to upload Launchpad tags.
+    
+    This step has reverse logic, ie. it will only run when previous
+    steps have failed (it checks itself).
+    
+    In order to avoid overriding things in this class, we expect the 
+    previous commands (OpenERPTest, LintTest) to have placed some
+    properties at the build, for us.
+    """
+    
+    name = "Bzr Tag Failures"
+    flunkOnFailure = False
+    warnOnFailure = False
+    alwaysRun = True
+    
+    def __init__(self, command=False, **kwargs):
+        if not command:
+            command = ['bzr', 'tag', '-q', 
+                    '-d', WithProperties("%(branch_url)s"),
+                    '-r', WithProperties('%(revision_hash)s'),
+                    WithProperties('%(failure_tag)s') ]
+        MasterShellCommand.__init__(self, command, **kwargs)
+
+    def doStepIf(self, *args):
+        """ Check if this step needs to run
+        """
+        try:
+            if self.build.getProperty('failure_tag'):
+                return True
+        except KeyError:
+            return False
+        except Exception, e:
+            print "exc:", e
+        return False
+
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
