@@ -1078,7 +1078,7 @@ class BzrCommitStats(LoggingBuildStep):
 
     def start(self):
         self.args['command']=["bzr","stats", "--output-format=csv", "--quiet",
-                    "--rows=author,commits,count_files,lineplus,lineminus"]
+                    "--rows=author,commits,files,lineplus,lineminus"]
         
         change = self.build.allChanges()[0]
         self.changeno = change.number
