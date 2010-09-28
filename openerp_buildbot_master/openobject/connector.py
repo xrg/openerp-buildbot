@@ -693,7 +693,11 @@ class OERPConnector(util.ComparableMixin):
         @param cstats is list of tuples of ( change_id:, { lines_add:,  lines_rem:, ... })
         """
         commit_obj = rpc.RpcProxy('software_dev.commit')
-        commit_obj.saveCStats(cid, cstats)
+        try:
+            commit_obj.saveCStats(cid, cstats)
+        except rpc.RpcException, e:
+            log.err("Cannot save commit stats: %s" % e)
+            return False
         return True
 
 
