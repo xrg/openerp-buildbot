@@ -42,58 +42,58 @@
                 <field name="date"/>
                 <field name="name" colspan="4"/>
                 <notebook colspan="4">
-		    <page string="Commit">
-			<field name="subject" colspan="4" />
-			<field name="comitter_id"/>
-			<field name="description" colspan="4" />
-		    </page>
-		    <page string="Commit details">
-			<field name="revno"/>
-			<field name="hash"/>
-			<field name="ctype"/>
-			<field name="parent_id" />
-			<newline />
-			<field name="author_ids" colspan="4"/>
-		    </page>
-		    <page string="Files">
-			<field name="change_ids" colspan="4">
-			    <tree>
-				<field name="filename"/>
-				<field name="ctype" />
-				<field name="lines_add" />
-				<field name="lines_rem" />
-			    </tree>
-			</field>
-		    </page>
-		    <page string="Buildset">
-			<field name="external_idstring" />
-			<field name="reason" />
-			<newline/>
-			<field name="submitted_at" />
-			<field name="complete_at" />
-			<field name="complete" />
-			<field name="results" />
-			<button string="Schedule Rebuild" 
-				name="reschedule"
-				type="object"
-				help="Mark this buildset as not-built, so that it gets another build"
-				icon="gtk-go-forward" /> <!-- todo: attrs: disabled when building -->
-		    </page>
-		    <page string="Build request">
-			<field name="priority" />
-			<field name="claimed_at" />
-			<field name="claimed_by_name" />
-			<field name="claimed_by_incarnation"/>
-		    </page>
-		    <page string="Build">
-			<field name="build_number" />
-			<newline />
-			<field name="build_start_time" />
-			<field name="build_finish_time" />
-			<field name="build_summary" colspan="4" />
-			<field name="test_results" colspan="4" />
-		    </page>
-		</notebook>
+                    <page string="Commit">
+                        <field name="subject" colspan="4" />
+                        <field name="comitter_id"/>
+                        <field name="description" colspan="4" />
+                    </page>
+                    <page string="Commit details">
+                        <field name="revno"/>
+                        <field name="hash"/>
+                        <field name="ctype"/>
+                        <field name="parent_id" />
+                        <newline />
+                        <field name="author_ids" colspan="4"/>
+                    </page>
+                    <page string="Files">
+                        <field name="change_ids" colspan="4">
+                            <tree>
+                                <field name="filename"/>
+                                <field name="ctype" />
+                                <field name="lines_add" />
+                                <field name="lines_rem" />
+                            </tree>
+                        </field>
+                    </page>
+                    <page string="Buildset">
+                        <field name="external_idstring" />
+                        <field name="reason" />
+                        <newline/>
+                        <field name="submitted_at" />
+                        <field name="complete_at" />
+                        <field name="complete" />
+                        <field name="results" />
+                        <button string="Schedule Rebuild" 
+                                name="reschedule"
+                                type="object"
+                                help="Mark this buildset as not-built, so that it gets another build"
+                                icon="gtk-go-forward" /> <!-- todo: attrs: disabled when building -->
+                    </page>
+                    <page string="Build request">
+                        <field name="priority" />
+                        <field name="claimed_at" />
+                        <field name="claimed_by_name" />
+                        <field name="claimed_by_incarnation"/>
+                    </page>
+                    <page string="Build">
+                        <field name="build_number" />
+                        <newline />
+                        <field name="build_start_time" />
+                        <field name="build_finish_time" />
+                        <field name="build_summary" colspan="4" />
+                        <field name="test_results" colspan="4" />
+                    </page>
+                </notebook>
               </form>
           </field>
         </record>
@@ -122,10 +122,10 @@
             <field name="view_mode">tree,form</field>
          </record>
 
-	<menuitem id="softdev_commmits" name="Commits" 
-	    action="action_softdev_commit"
-	    parent="buildbot_menu" sequence="20" 
-	    groups="group_softdev_user" />
+        <menuitem id="softdev_commmits" name="Commits" 
+            action="action_softdev_commit"
+            parent="buildbot_menu" sequence="20" 
+            groups="group_softdev_user" />
 
     <!-- change -->
         <record id="view_softdev_change_form" model="ir.ui.view">
@@ -188,9 +188,9 @@
             <field name="view_mode">tree,form</field>
          </record>
 
-	<menuitem id="softdev_buildbgroup" name="Build Groups" 
-	    action="action_softdev_bgrp"
-	    parent="softdev_config" sequence="70" />
+        <menuitem id="softdev_buildbgroup" name="Build Groups" 
+            action="action_softdev_bgrp"
+            parent="softdev_config" sequence="70" />
 
     <!-- Build series -->
         <record id="view_softdev_bseries_form" model="ir.ui.view">
@@ -406,9 +406,9 @@
             <field name="view_mode">tree,form</field>
          </record>
 
-	<menuitem id="softdev_buildbots" name="Build bots" 
-	    action="action_softdev_buildbots"
-	    parent="softdev_config" sequence="90" />
+        <menuitem id="softdev_buildbots" name="Build bots" 
+            action="action_softdev_buildbots"
+            parent="softdev_config" sequence="90" />
 
     <!-- Build Slaves -->
         <record id="view_softdev_bbslave_form" model="ir.ui.view">
@@ -435,9 +435,9 @@
             <field name="view_mode">tree,form</field>
          </record>
 
-	<menuitem id="softdev_bbslaves" name="Build Slaves" 
-	    action="action_softdev_bbslaves"
-	    parent="softdev_config" sequence="100" />
+        <menuitem id="softdev_bbslaves" name="Build Slaves" 
+            action="action_softdev_bbslaves"
+            parent="softdev_config" sequence="100" />
 
 </data>
 </openerp>
