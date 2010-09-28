@@ -207,6 +207,8 @@ class OpenERPTest(LoggingBuildStep):
             if self.args['repo_mode'] == 'server':
                 repo_expr = r'bin/addons/([^/]+)/.+$'
             else:
+                if self.args['repo_mode'] != 'addons':
+                    log.msg("Repo mode is \"%s\"" % self.args['repo_mode'])
                 repo_expr = r'([^/]+)/.+$'
             for chg in self.build.allChanges():
                 more_mods.extend(chg.allModules(repo_expr))
