@@ -373,7 +373,7 @@ td.buildsuccess {
 }
 
 td.buildwarnings {
-    background: #B0FFFF;
+    background: #F5AA53;
 }
 td.buildfailure {
     background: #FFB0B0;
