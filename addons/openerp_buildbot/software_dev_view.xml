@@ -65,6 +65,17 @@
                             </tree>
                         </field>
                     </page>
+                    <page string="Stats">
+                        <field name="stat_ids" colspan="4">
+                            <tree>
+                                <field name="author_id"/>
+                                <field name="commits" />
+                                <field name="count_files" />
+                                <field name="lines_add" />
+                                <field name="lines_rem" />
+                            </tree>
+                        </field>
+                    </page>
                     <page string="Buildset">
                         <field name="external_idstring" />
                         <field name="reason" />
