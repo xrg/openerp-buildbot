@@ -259,7 +259,7 @@ class BzrPoller(buildbot.changes.base.ChangeSource,
         change = generate_change(
             branch, blame_merge_author=self.blame_merge_author)
         if (self.last_revision is None or
-            change['revision'] > self.last_revision):
+            change['revision'] != self.last_revision):
             change['branch'] = branch_name
             change['branch_id'] = self.branch_id
             change['category'] = self.category
