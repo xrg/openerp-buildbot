@@ -197,7 +197,7 @@ class LatestBuilds(HtmlResource):
                 
                 build_cxt.update({ 'label': label, 'commiter': commiter,
                                 'tftime': tftime, 'ttitle': ttitle,
-                                'last_t': last_change(ss, True),
+                                'last_t': ustr(last_change(ss, True)),
                                 'class_b': class_b })
 
             
