@@ -243,12 +243,16 @@ class server_thread(threading.Thread):
             self.clear_context()
 
     def __init__(self, root_path, port, netport, addons_path, pyver=None, 
-                srv_mode='v600', timed=False, debug=False, config=None):
+                srv_mode='v600', timed=False, debug=False, do_warnings=False, 
+                config=None):
         threading.Thread.__init__(self)
         self.root_path = root_path
         self.port = port
         # self.addons_path = addons_path
-        self.args = [ 'python%s' %(pyver or ''), '%sopenerp-server.py' % root_path,]
+        self.args = [ 'python%s' %(pyver or ''),] 
+        if do_warnings:
+            self.args.append('-Wall')
+        self.args += ['%sopenerp-server.py' % root_path,]
         if addons_path:
             self.args += [ '--addons-path=%s' % addons_path ]
         if debug:
@@ -289,6 +293,7 @@ class server_thread(threading.Thread):
         
         # Regular expressions:
         self.linere = re.compile(r'\[(.*)\] ([A-Z]+):([\w\.-]+):(.*)$', re.DOTALL)
+        self.linewere = re.compile(r'(.*\.py):([0-9]+): ([A-Za-z]*Warning): (.*)$', re.DOTALL)
         
         self.log = logging.getLogger('srv.thread')
         self.log_sout = logging.getLogger('server.stdout')
@@ -338,9 +343,15 @@ class server_thread(threading.Thread):
             if not r:
                 continue
 
-            m = self.linere.match(r)
+            m = em = None
+            if fd == self.proc.stderr.fileno():
+                em = self.linewere.match(r)
+            else:
+                m = self.linere.match(r)
             if m:
                 self._io_process(fd, m, False)
+            elif em:
+                self._io_err_process(fd, em, False)
             elif r.startswith("Traceback (most recent call last):") \
                     and fd is self.proc.stderr.fileno():
                 # Stray, fatal exception may appear on stderr
@@ -376,7 +387,11 @@ class server_thread(threading.Thread):
         if not rl:
             return
         
-        mmatch = self.linere.match(rl)
+        mmatch = ematch = None
+        if fd_obj is self.proc.stderr:
+            ematch = self.linewere.match(rl)
+        else:
+            mmatch = self.linere.match(rl)
         if mmatch:
             # we don't append this line, but process the previous
             # data.
@@ -392,6 +407,9 @@ class server_thread(threading.Thread):
                     rl = rl[:-1]
                 olog.info(rl)
                 return
+        elif ematch:
+            self._io_flush()
+            self._io_err_process(fd, ematch, True)
         
         self._io_bufs[fd] += rl # with trailing newline
 
@@ -449,6 +467,27 @@ class server_thread(threading.Thread):
                     log_args = []
 
                 self.log.info(funct, *log_args)
+
+        return True
+
+    def _io_err_process(self, fd, ematch, first_try):
+        """Process a stderr log line ematch, from fd == stderr
+        
+            @return if the line has been processed.
+        """
+        if (not first_try):
+            return False
+  
+        logger = logging.getLogger('bqi.blame')
+        elines = ematch.group(4).split('\n')
+        if len(elines) > 1 and elines[1:]:
+            csnip = "\nCodeSnip:%s" % ' '.join(elines[1:])
+        else:
+            csnip = ''
+        filename = reduce_homedir(ematch.group(1))
+        logger.warning("Message: %s\nseverity: pywarn\nmodule-file: %s\nfile-line: %s\nException Type: %s%s",
+                    elines[0], filename, ematch.group(2), 
+                    ematch.group(3), csnip)
 
         return True
 
@@ -1013,6 +1052,9 @@ parser.add_option("--machine-log", dest="mach_log", help="A file to write machin
 parser.add_option("--debug", dest="debug", action='store_true', default=False,
                     help="Enable debugging of both the script and the server")
 
+parser.add_option("-W", dest="warnings", default=False,
+                    help="Pass this flag to python, so that warnings are considered")
+
 parser.add_option("--quality-logs", dest="quality_logs", help="specify the path of quality logs files which has to stores")
 parser.add_option("--root-path", dest="root_path", help="specify the root path")
 parser.add_option("-p", "--port", dest="port", help="specify the TCP port", type="int")
@@ -1173,6 +1215,7 @@ uri = 'http://localhost:' + str(options['port'])
 server = server_thread(root_path=options['root-path'], port=options['port'],
                         netport=options['netport'], addons_path=options['addons-path'],
                         srv_mode=options['server_series'], config=options['config'],
+                        do_warnings=bool(opt.warnings in ('all','warn')),
                         debug=opt.debug)
 
 logger.info('start of script')
