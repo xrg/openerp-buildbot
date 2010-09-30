@@ -41,11 +41,12 @@ try:
 except ImportError:
     from StringIO import StringIO
 
-blame_severities =  { 'warning': 1, 'error': 3, 'exception': 4,
+blame_severities =  { 'pywarn': 1, 'warning': 2, 'error': 3, 'exception': 4,
             'critical': 8 , 'blocking': 10 }
 
 # map blame severities to status.builder ones
-res_severities = { 0: SUCCESS, 1: WARNINGS, 3: FAILURE, 4: EXCEPTION, 8: EXCEPTION, 10: EXCEPTION }
+res_severities = { 0: SUCCESS, 1: SUCCESS, 2: WARNINGS, 3: FAILURE, 
+                4: EXCEPTION, 8: EXCEPTION, 10: EXCEPTION }
 
 def append_fail(flist, blames, suffix=None, fmax=None):
     """ Append blames to the flist, in order of severity
@@ -144,19 +145,26 @@ class OpenERPTest(LoggingBuildStep):
                     force_modules=None,
                     black_modules=None,
                     test_mode='full',
+                    do_warnings=None,
                     repo_mode=WithProperties('%(repo_mode)s'),
                     **kwargs):
         LoggingBuildStep.__init__(self, **kwargs)
+        if isinstance(black_modules, basestring):
+            black_modules = black_modules.split(' ')
+        if isinstance(force_modules, basestring):
+            force_modules = force_modules.split(' ')
         self.addFactoryArguments(workdir=workdir, dbname=dbname, addonsdir=addonsdir, 
                                 netport=netport, port=port, logfiles={},
                                 force_modules=(force_modules or []),
                                 black_modules=(black_modules or []),
+                                do_warnings=None,
                                 repo_mode=repo_mode,
                                 test_mode=test_mode)
         self.args = {'port' :port, 'workdir':workdir, 'dbname': dbname, 
                     'netport':netport, 'addonsdir':addonsdir, 'logfiles':{},
                     'force_modules': (force_modules or []),
                     'black_modules': (black_modules or []),
+                    'do_warnings': do_warnings,
                     'test_mode': test_mode,
                     'repo_mode': repo_mode }
         description = ["Performing OpenERP Test..."]
@@ -220,12 +228,15 @@ class OpenERPTest(LoggingBuildStep):
                 olmods_found = []
                 for sbuild in self.build.builder.builder_status.generateFinishedBuilds(num_builds=10):
                     log.msg("Scanning back build %d" % sbuild.getNumber())
+                    if sres.getResult() == SUCCESS:
+                        break
                     for sres in sbuild.getTestResults().values():
                         # RFC: should we perform tests for other failures
                         # like flakes etc?
                         if sres.results == SUCCESS:
                             continue
-                        if sres.name == ('bqi', 'rest') or sres.name == ('lint', 'rest'):
+                        if sres.name == ('bqi', 'rest') or sres.name == ('lint', 'rest') or \
+                                ( len(sres.name) == 2 and sres.name[1] == 'lint'):
                             continue
 
                         olmods_found.append(sres.name[0]) # it's a tuple, easy
@@ -263,6 +274,8 @@ class OpenERPTest(LoggingBuildStep):
                             "--machine-log=stdout", '--root-path=bin/',
                             "--homedir=../",
                             '-d', self.args['dbname']]
+        if self.args.get('do_warnings', False):
+            self.args['command'].append('-W%s', self.args.get('do_warnings'))
         if self.args['addonsdir']:
             self.args['command'].append("--addons-path=%s"%(self.args['addonsdir']))
         if self.args['netport']:
@@ -427,7 +440,9 @@ class OpenERPTest(LoggingBuildStep):
                     blame_info = '%s' % blame_dict.get('module','')
                     blame_sev = 3 # error
                     if 'module-file' in blame_dict:
-                        blame_info += '/%s' % blame_dict['module-file']
+                        if blame_dict.get('module', False):
+                            blame_info += '/'
+                        blame_info += '%s' % blame_dict['module-file']
                         if 'file-line' in blame_dict:
                             blame_info += ':%s' % blame_dict['file-line']
                             if 'file-col' in blame_dict:
@@ -523,13 +538,18 @@ class OpenERPTest(LoggingBuildStep):
         self.build.builder.db.saveTResults(build_id, self.name,
                                             self.build_result, t_results)
 
+        try:
+            orm_id = self.getProperty('orm_id') or '?'
+        except KeyError:
+            orm_id = '?'
+
+        if False and self.build_result == SUCCESS:
+            self.setProperty('failure_tag', 'openerp-buildsuccess-%s-%s' % \
+                            (orm_id, build_id) )
+
         if self.build_result == FAILURE:
             # Note: We only want to tag on failure, not on exception
             # or skipped, which means buildbot (and not the commmit) failed
-            try:
-                orm_id = self.getProperty('orm_id') or '?'
-            except KeyError:
-                orm_id = '?'
             self.setProperty('failure_tag', 'openerp-buildfail-%s-%s' % \
                             (orm_id, build_id) )
 
