@@ -66,6 +66,10 @@ class OpenObjectChange(Change):
         if self.filesb:
             res['filesb'] = self.filesb
         res['authors'] = self.authors
+        if (not res.get('revlink',False)) and self.branch and self.revision:
+            if self.branch.startswith('lp:'):
+                res['revlink'] = "http://bazaar.launchpad.net/%s/revision/%s" % \
+                                (self.branch[3:], self.revision)
         return res
 
 
