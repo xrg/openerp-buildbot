@@ -27,9 +27,8 @@ Build #{{ b.getNumber() }}
   {% endif %}
 {% else %}
 <h2>Reason:</h2>
-<p>
-{{ b.getReason()|e }}
-</p>
+<ol><li> {{ b.getReason()|e|replace('\n','</li>\n<li>') }}</li>
+</ol>
 
 <h2>Results:</h2>
 
