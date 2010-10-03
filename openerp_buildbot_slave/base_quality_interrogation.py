@@ -612,7 +612,8 @@ class server_thread(threading.Thread):
         if exc:
             emsg = ''
             if isinstance(exc, xmlrpclib.Fault):
-                emsg = exc.faultCode
+                # faultCode from openerp is string, but standard is int
+                emsg = "%s" % exc.faultCode
                 # try to get the server-side exception
                 # Note that exc is /not/ the exception object of the server
                 # itself, but the one that was transformed into an xmlrpc
@@ -671,7 +672,7 @@ class server_thread(threading.Thread):
                 except Exception:
                     self.log.debug("Cannot parse xmlrpc exception: %s" % exc.faultString, exc_info=True)
             elif len(exc.args):
-                emsg = exc.args[0]
+                emsg = "%s" % exc.args[0]
                 sdict["Exception type"] = "%s.%s" % (exc.__class__.__module__ or '', exc.__class__.__name__)
             else:
                 emsg = "%s" % exc # better than str(), works with unicode
