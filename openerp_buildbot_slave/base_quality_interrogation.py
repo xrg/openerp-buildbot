@@ -814,10 +814,13 @@ class client_worker(object):
             return ( 0.0, 0.0, 0.0, 0.0, 0.0 )
 
 
-    def wait(self, id):
+    def wait(self, id, timeout=600.0):
         progress=0.0
+        expire = time.time() + timeout
         conn = xmlrpclib.ServerProxy(self.uri+'/xmlrpc/db')
         while not progress==1.0:
+            if time.time() >= expire:
+                raise ClientException("Timed out creating the database")
             time.sleep(2.0)
             progress,users = self._execute(conn,'get_progress',self.super_passwd, id)
             self.log.debug("Progress: %s", progress)
