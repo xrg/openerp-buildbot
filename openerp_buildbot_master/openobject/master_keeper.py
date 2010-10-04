@@ -133,7 +133,7 @@ class Keeper(object):
         if bsids:
             for slav in bbot_slave_obj.read(bsids,['tech_code', 'password']):
                 print "Adding slave: %s" % slav['tech_code']
-                c['slaves'].append(BuildSlave(slav['tech_code'], slav['password']))
+                c['slaves'].append(BuildSlave(slav['tech_code'], slav['password'], max_builds=2))
         
         # Get the repositories we have to poll and maintain
         polled_brs = bbot_obj.get_polled_branches([self.bbot_id])
