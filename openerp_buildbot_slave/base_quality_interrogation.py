@@ -35,6 +35,7 @@ import base64
 import subprocess
 import select
 import re
+import zipfile
 
 admin_passwd = 'admin'
 
@@ -243,7 +244,8 @@ class server_thread(threading.Thread):
             self.clear_context()
 
     def __init__(self, root_path, port, netport, addons_path, pyver=None, 
-                srv_mode='v600', timed=False, debug=False, do_warnings=False, 
+                srv_mode='v600', timed=False, debug=False, do_warnings=False,
+                ftp_port=None,
                 config=None):
         threading.Thread.__init__(self)
         self.root_path = root_path
@@ -267,10 +269,15 @@ class server_thread(threading.Thread):
         if srv_mode == 'v600':
             self.args.append('--xmlrpc-port=%s' % port )
             self.args.append('--no-xmlrpcs')
+            # FIXME: server doesn't support this!
+            #if ftp_port:
+            #    self.args.append('--ftp_server_port=%d' % int(ftp_port))
         elif srv_mode == 'pg84':
             self.args.append('--httpd-port=%s' % port )
             self.args.append('--no-httpds')
             self.args.append('-Dtests.nonfatal=True')
+            if ftp_port:
+                self.args.append('-Dftp.port=%s' % ftp_port)
         else:
             raise RuntimeError("Invalid server mode %s" % srv_mode)
 
@@ -278,7 +285,8 @@ class server_thread(threading.Thread):
             self.args.append('--netrpc-port=%s' % netport)
         else:
             self.args.append('--no-netrpc')
-        
+
+
         if timed:
             self.args.insert(0, 'time')
         self.proc = None
@@ -723,13 +731,17 @@ class client_worker(object):
             self.log.error("Cannot login as %s@%s" %(self.user, self.pwd))
         return uid
 
-    def import_translate(self, user, pwd, dbname, translate_in):
+    def import_translate(self, translate_in):
         uid = self._login()
         if not uid:
             return False
+        # TODO !
         conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/wizard')
         server.state_dict['module-mode'] = 'translate'
+        self.log.debug("Executing module.lang.import %s", translate_in)
         wiz_id = self._execute(conn, 'create',self.dbname, uid, self.pwd, 'module.lang.import')
+        if not wiz_id:
+            raise ServerException("The language import wizard doesn't exist")
         for trans_in in translate_in:
             lang,ext = os.path.splitext(trans_in.split('/')[-1])
             state = 'init'
@@ -1048,6 +1060,8 @@ parser = optparse.OptionParser(usage)
 parser.add_option("-m", "--modules", dest="modules", action="append",
                      help="specify modules to install or check quality")
 parser.add_option("--addons-path", dest="addons_path", help="specify the addons path")
+parser.add_option("--all_modules", dest="all_modules", action='store_true', default=False,
+                    help="Operate on all modules that are found on addons-path")
 parser.add_option("--homedir", dest="homedir", default=None, 
                 help="The directory, whose absolute path will be stripped from messages.")
 parser.add_option("--xml-log", dest="xml_log", help="A file to write xml-formatted log to")
@@ -1067,11 +1081,11 @@ parser.add_option("-d", "--database", dest="db_name", help="specify the database
 parser.add_option("--login", dest="login", help="specify the User Login")
 parser.add_option("--password", dest="pwd", help="specify the User Password")
 parser.add_option("--config", dest="config", help="Pass on this config file to the server")
+parser.add_option("--ftp-port", dest="ftp_port", help="Choose the port to set the ftp server at")
 
+parser.add_option("--language", dest="lang", help="Use that language as default for the new db")
 parser.add_option("--translate-in", dest="translate_in",
                      help="specify .po files to import translation terms")
-parser.add_option("--extra-addons", dest="extra_addons",
-                     help="specify extra_addons and trunkCommunity modules path ")
 parser.add_option("--server-series", help="Specify argument syntax and options of the server.\nExamples: 'v600', 'pg84'")
 
 (opt, args) = parser.parse_args()
@@ -1087,13 +1101,13 @@ options = {
     'root-path' : opt.root_path or '',
     'translate-in': [],
     'port' : opt.port or 8069,
+    'lang': opt.lang or 'en_US',
     'netport':opt.netport or False,
     'dbname': opt.db_name ,
     'modules' : opt.modules,
     'login' : opt.login or 'admin',
     'pwd' : opt.pwd or 'admin',
     'config': opt.config,
-    'extra-addons':opt.extra_addons or [],
     'server_series': opt.server_series or 'v600',
     'homedir': '~/'
 }
@@ -1216,21 +1230,82 @@ if opt.translate_in:
 
 uri = 'http://localhost:' + str(options['port'])
 
+def get_modules2(ad_paths):
+    """Returns the list of module (path, name)s
+    """
+    def listmods(adir):
+        def clean(name):
+            name = os.path.basename(name)
+            if name[-4:] == '.zip':
+                name = name[:-4]
+            return (adir, name)
+
+        def is_really_module(name):
+            if name.startswith('.'):
+                return False
+            name = os.path.join(adir, name)
+            return os.path.isdir(name) or zipfile.is_zipfile(name)
+        return map(clean, filter(is_really_module, os.listdir(adir)))
+
+    plist = []
+    for ad in ad_paths:
+        plist.extend(listmods(ad))
+    return list(set(plist))
+
+
+def load_mod_info(mdir, module):
+    """
+    :param module: The name of the module (sale, purchase, ...)
+    """
+    for filename in ['__openerp__.py', '__terp__.py']:
+        description_file = os.path.join(mdir, module, filename)
+        # Broken for zip modules.
+        if description_file and os.path.isfile(description_file):
+            return eval(open(description_file,'rb').read())
+
+    return {}
+
 server = server_thread(root_path=options['root-path'], port=options['port'],
                         netport=options['netport'], addons_path=options['addons-path'],
                         srv_mode=options['server_series'], config=options['config'],
                         do_warnings=bool(opt.warnings in ('all','warn')),
+                        ftp_port=opt.ftp_port,
                         debug=opt.debug)
 
 logger.info('start of script')
 try:
+    mods = options['modules'] or []
+    if opt.all_modules:
+        try:
+            logger.debug("Scanning all modules in %s", options['addons-path'])
+            # this shall work the same as addons/__init__.py
+            addon_paths = map(str.strip, options['addons-path'].split(','))
+            for mdir, mname in get_modules2(addon_paths):
+                mrdir = reduce_homedir(mdir)
+                try:
+                    mod_info = load_mod_info(mdir, mname)
+                except Exception:
+                    logger.warning("Cannot load module info from %s/%s:", mrdir, mname, exc_info=True)
+                    continue
+                if not mod_info:
+                    # it is acceptable if one subdir of our modules path is not a module
+                    logger.debug("Path %s/%s is not a module", mrdir, mname)
+                    continue
+                if not mod_info.get('installable', True):
+                    logger.info("Module %s at %s is not installable, skipping", mname, mrdir)
+                    continue
+                # Here, it should be a valid module
+                mods.append(mname)
+        except Exception:
+            logger.exception("Cannot scan modules:")
+    
+    logging.getLogger('bqi.state').info("set num_modules %d", len(mods))
     server.start_full()
     client = client_worker(uri, options)
     ost = client.get_ostimes()
     logger.info("Server started at: User: %.3f, Sys: %.3f" % (ost[0], ost[1]))
 
     ret = True
-    mods = options['modules'] or []
     for cmd, args in cmdargs:
         try:
             if (not ret) and not cmd.startswith('+'):
@@ -1240,7 +1315,7 @@ try:
                 cmd = cmd[1:]
 
             if cmd == 'create-db':
-                ret = client.create_db()
+                ret = client.create_db(lang=options['lang'])
             elif cmd == 'drop-db':
                 ret = client.drop_db()
             elif cmd == 'install-module':
