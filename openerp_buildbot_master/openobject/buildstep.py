@@ -141,11 +141,11 @@ class OpenERPTest(LoggingBuildStep):
             return self.describe(True, fail=True)
 
     def __init__(self, workdir=None, dbname=False, addonsdir=None, 
-                    netport=None, port=None,
+                    netport=None, port=None, ftp_port=None,
                     force_modules=None,
                     black_modules=None,
                     test_mode='full',
-                    do_warnings=None,
+                    do_warnings=None, lang=None,
                     repo_mode=WithProperties('%(repo_mode)s'),
                     **kwargs):
         LoggingBuildStep.__init__(self, **kwargs)
@@ -154,17 +154,18 @@ class OpenERPTest(LoggingBuildStep):
         if isinstance(force_modules, basestring):
             force_modules = force_modules.split(' ')
         self.addFactoryArguments(workdir=workdir, dbname=dbname, addonsdir=addonsdir, 
-                                netport=netport, port=port, logfiles={},
+                                netport=netport, port=port, ftp_port=ftp_port, logfiles={},
                                 force_modules=(force_modules or []),
                                 black_modules=(black_modules or []),
-                                do_warnings=None,
+                                do_warnings=do_warnings, lang=lang,
                                 repo_mode=repo_mode,
                                 test_mode=test_mode)
         self.args = {'port' :port, 'workdir':workdir, 'dbname': dbname, 
                     'netport':netport, 'addonsdir':addonsdir, 'logfiles':{},
+                    'ftp_port': ftp_port,
                     'force_modules': (force_modules or []),
                     'black_modules': (black_modules or []),
-                    'do_warnings': do_warnings,
+                    'do_warnings': do_warnings, 'lang': lang,
                     'test_mode': test_mode,
                     'repo_mode': repo_mode }
         description = ["Performing OpenERP Test..."]
@@ -194,6 +195,8 @@ class OpenERPTest(LoggingBuildStep):
                 self.args['addonsdir'] = '../addons/'
         if not self.args.get('port'):
             self.args['port'] = self.get_free_port()
+        if self.args.get('ftp_port') is None: # False will skip the arg
+            self.args['ftp_port'] = self.get_free_port()
         if not self.args.get('dbname'):
             self.args['dbname'] = self.build.builder.builddir.replace('/', '_')
         if not self.args.get('workdir'):
@@ -275,16 +278,23 @@ class OpenERPTest(LoggingBuildStep):
                             "--homedir=../",
                             '-d', self.args['dbname']]
         if self.args.get('do_warnings', False):
-            self.args['command'].append('-W%s', self.args.get('do_warnings'))
+            self.args['command'].append('-W%s' % self.args.get('do_warnings'))
         if self.args['addonsdir']:
             self.args['command'].append("--addons-path=%s"%(self.args['addonsdir']))
         if self.args['netport']:
             self.args['command'].append("--net_port=%s"%(self.args['netport']))
         if self.args['port']:
             self.args['command'].append("--port=%s"%(self.args['port']))
+        if self.args['ftp_port']:
+            self.args['command'].append("--ftp-port=%s"%(self.args['ftp_port']))
+
+        if self.args['lang']:
+            self.args['command'].append("--language=%s"%(self.args['lang']))
 
         if all_modules:
-            self.args['command'].append('--all_modules')
+            self.args['command'].append('--all-modules')
+            if self.args['black_modules']:
+                self.args['command'].extend(['--black-modules', self.args['black_modules']])
         else:
             for mc in set(mods_changed):
                 # put them in -m so that both install-module and check-quality use them.
@@ -298,6 +308,8 @@ class OpenERPTest(LoggingBuildStep):
             self.args['command'] += ['--', 'install-module']  #+ [ modules...]
             if self.args['test_mode'] == 'check-quality':
                 self.args['command'] += ['--', 'check-quality' ] # + [modules]
+            elif self.args['test_mode'] == 'check-fvg':
+                self.args['command'] += ['--', 'fields-view-get' ]
         
         self.args['command'] += ['--', '+drop-db']
         cmd = LoggedRemoteCommand("OpenObjectShell",self.args)
@@ -306,6 +318,7 @@ class OpenERPTest(LoggingBuildStep):
     def createSummary(self, plog):
         global log
         logs = self.cmd.logs
+        bqi_num_modules = None
         # buildbotURL = self.build.builder.botmaster.parent.buildbotURL
         bqi_re = re.compile(r'([^\>\|]+)(\|[^\>]+)?\> (.*)$')
         qlog_re = re.compile(r'Module: "(.+)", score: (.*)$')
@@ -409,6 +422,8 @@ class OpenERPTest(LoggingBuildStep):
                                         text='', logs={'stdout': []})
                             t_results.append(cur_result)
                             cur_result.blames = []
+                    elif bmsg.startswith('set num_modules'):
+                        bqi_num_modules = int(bmsg[16:])
                     else:
                         log.msg("Strange command %r came from b-q-i" % bmsg)
                 elif blog == 'bqi.blame':
@@ -538,6 +553,9 @@ class OpenERPTest(LoggingBuildStep):
         self.build.builder.db.saveTResults(build_id, self.name,
                                             self.build_result, t_results)
 
+        if bqi_num_modules:
+            self.setProperty('num_modules', bqi_num_modules)
+
         try:
             orm_id = self.getProperty('orm_id') or '?'
         except KeyError:
@@ -564,6 +582,11 @@ class OpenERPTest(LoggingBuildStep):
         if self.args['port']:
             try:
                 ports_pool.free(self.args['port'])
+            except RuntimeError, e:
+                log.err("%s" % e)
+        if self.args['ftp_port']:
+            try:
+                ports_pool.free(self.args['ftp_port'])
             except RuntimeError, e:
                 log.err("%s" % e)
 
