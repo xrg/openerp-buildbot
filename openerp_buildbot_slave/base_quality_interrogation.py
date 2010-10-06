@@ -1123,8 +1123,10 @@ parser = optparse.OptionParser(usage)
 parser.add_option("-m", "--modules", dest="modules", action="append",
                      help="specify modules to install or check quality")
 parser.add_option("--addons-path", dest="addons_path", help="specify the addons path")
-parser.add_option("--all_modules", dest="all_modules", action='store_true', default=False,
+parser.add_option("--all-modules", dest="all_modules", action='store_true', default=False,
                     help="Operate on all modules that are found on addons-path")
+parser.add_option("--black-modules", dest="black_modules", default=False,
+                    help="Exclude these modules from all-modules scan (space-separated)")
 parser.add_option("--homedir", dest="homedir", default=None, 
                 help="The directory, whose absolute path will be stripped from messages.")
 parser.add_option("--xml-log", dest="xml_log", help="A file to write xml-formatted log to")
@@ -1342,8 +1344,11 @@ try:
         try:
             logger.debug("Scanning all modules in %s", options['addons-path'])
             # this shall work the same as addons/__init__.py
+            black_modules = filter(bool, opt.black_modules.split(' '))
             addon_paths = map(str.strip, options['addons-path'].split(','))
             for mdir, mname in get_modules2(addon_paths):
+                if mname in black_modules:
+                    continue
                 mrdir = reduce_homedir(mdir)
                 try:
                     mod_info = load_mod_info(mdir, mname)
