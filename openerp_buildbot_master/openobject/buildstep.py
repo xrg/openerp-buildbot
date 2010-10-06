@@ -151,7 +151,7 @@ class OpenERPTest(LoggingBuildStep):
                     force_modules=None,
                     black_modules=None,
                     test_mode='full',
-                    do_warnings=None, lang=None,
+                    do_warnings=None, lang=None, debug=False,
                     repo_mode=WithProperties('%(repo_mode)s'),
                     **kwargs):
         LoggingBuildStep.__init__(self, **kwargs)
@@ -165,6 +165,7 @@ class OpenERPTest(LoggingBuildStep):
                                 black_modules=(black_modules or []),
                                 do_warnings=do_warnings, lang=lang,
                                 repo_mode=repo_mode,
+                                debug=debug,
                                 test_mode=test_mode)
         self.args = {'port' :port, 'workdir':workdir, 'dbname': dbname, 
                     'netport':netport, 'addonsdir':addonsdir, 'logfiles':{},
@@ -173,7 +174,7 @@ class OpenERPTest(LoggingBuildStep):
                     'black_modules': (black_modules or []),
                     'do_warnings': do_warnings, 'lang': lang,
                     'test_mode': test_mode,
-                    'repo_mode': repo_mode }
+                    'repo_mode': repo_mode, 'debug': debug }
         description = ["Performing OpenERP Test..."]
         self.description = description
         self.summaries = {}
@@ -285,6 +286,8 @@ class OpenERPTest(LoggingBuildStep):
                             '-d', self.args['dbname']]
         if self.args.get('do_warnings', False):
             self.args['command'].append('-W%s' % self.args.get('do_warnings'))
+        if self.args.get('debug', False):
+            self.args['command'].append('--debug')
         if self.args['addonsdir']:
             self.args['command'].append("--addons-path=%s"%(self.args['addonsdir']))
         if self.args['netport']:
@@ -310,7 +313,7 @@ class OpenERPTest(LoggingBuildStep):
         self.args['command'] += ['--', '-drop-db']
         
         self.args['command'] += ['--', 'create-db']
-        if len(mods_changed):
+        if len(mods_changed) or all_modules:
             self.args['command'] += ['--', 'install-module']  #+ [ modules...]
             if self.args['test_mode'] == 'check-quality':
                 self.args['command'] += ['--', 'check-quality' ] # + [modules]
