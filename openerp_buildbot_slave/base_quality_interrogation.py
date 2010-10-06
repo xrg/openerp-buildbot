@@ -1344,7 +1344,10 @@ try:
         try:
             logger.debug("Scanning all modules in %s", options['addons-path'])
             # this shall work the same as addons/__init__.py
-            black_modules = filter(bool, opt.black_modules.split(' '))
+            if opt.black_modules:
+                black_modules = filter(bool, opt.black_modules.split(' '))
+            else:
+                black_modules = []
             addon_paths = map(str.strip, options['addons-path'].split(','))
             for mdir, mname in get_modules2(addon_paths):
                 if mname in black_modules:
