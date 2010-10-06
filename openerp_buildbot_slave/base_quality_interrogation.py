@@ -621,7 +621,10 @@ class server_thread(threading.Thread):
             emsg = ''
             if isinstance(exc, xmlrpclib.Fault):
                 # faultCode from openerp is string, but standard is int
-                emsg = "%s" % exc.faultCode
+                if isinstance(exc.faultCode, int):
+                    emsg = exc.faultString.strip()
+                else:
+                    emsg = "%s" % exc.faultCode
                 # try to get the server-side exception
                 # Note that exc is /not/ the exception object of the server
                 # itself, but the one that was transformed into an xmlrpc
@@ -642,7 +645,7 @@ class server_thread(threading.Thread):
 
                     if lfl < 0:
                         stype = ''
-                        sstr = '\n'.join(faultlines[-2])
+                        sstr = '\n'.join(faultLines[-2])
                     else:
                         ses = faultLines[lfl]
                         stype, sstr = ses.split(':',1)
@@ -972,8 +975,6 @@ class client_worker(object):
         assert ret, "The upgrade wizard must return some dict, like redirect to the config view"
         return True
 
-        
-        
     def run_wizard(self, wizard_conn, uid, wiz_id, form_presses, datas):
         """ Simple Execute of a wizard, press form_presses until end.
         
@@ -1041,6 +1042,67 @@ class client_worker(object):
         server.clear_context()
         return ret
 
+    def fields_view_get(self):
+        """ This test tries to retrieve fields of all the pooler (orm) objects.
+        
+        It checks the orm.fields_view_get() of each orm, because that function
+        involves an important part of the ORM logic.
+        """
+        server.clear_context()
+        uid = self._login()
+        obj_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/object')
+        server.state_dict['severity'] = 'error'
+        
+        if self.series == 'v600':
+            # the obj_list is broken in XML-RPC1 for v600
+            obj_list = [] # = self._execute(obj_conn, 'obj_list', self.dbname, uid, self.pwd)
+        elif self.series == 'pg84':
+            obj_list = self._execute(obj_conn, 'obj_list', self.super_passwd)
+            self.log.debug("Got these %d objects: %r ...", len(obj_list), obj_list[:20])
+        
+        # Get the models from the ir.model object
+        ir_model_ids = self._execute(obj_conn,'execute', self.dbname, uid, self.pwd,
+                                    'ir.model','search', [])
+        
+        # also, look for model references in ir.model.data
+        imd_ids = self._execute(obj_conn,'execute', self.dbname, uid, self.pwd,
+                                    'ir.model.data','search',[('model','=','ir.model')])
+        imd_res = self._execute(obj_conn,'execute', self.dbname, uid, self.pwd,
+                                    'ir.model.data','read', imd_ids, ['module', 'name', 'res_id'])
+        model_tbl = {}
+        for it in imd_res:
+            if it['res_id'] not in ir_model_ids:
+                server.dump_blame(None, ekeys={ 'context': '%s.check' % it['module'],
+                            'module': it['module'], 'severity': 'error', 
+                            'Exception': 'Model %s.%s referenced in ir.model.data but %s not exist in ir.model!' % \
+                                    (it['module'], it['name'], it['res_id'])})
+                continue
+            model_tbl[it['res_id']] = (it['module'], it['name'])
+        
+        model_res = self._execute(obj_conn,'execute', self.dbname, uid, self.pwd,
+                                    'ir.model', 'read', ir_model_ids, ['name', 'model'])
+        for mod in model_res:
+            module = model_tbl.get(mod['id'],(None,False))[0]
+            self.log.debug("Testing %s.%s", module or '<root>', mod['model'])
+            try:
+                fvg = self._execute(obj_conn,'execute', self.dbname, uid, self.pwd,
+                                mod['model'], 'fields_view_get', False, 'form', {}, True)
+                if not fvg:
+                    server.dump_blame(None, {'context': '%s.check' % (module or 'custom'),
+                            'module': module or '', 'severity': 'error', 
+                            'Message': 'No form view for model %s' % mod['model'] })
+                # else:
+                #    print "Fields view get:", fvg.keys()
+            except xmlrpclib.Fault, e:
+                logger.error('xmlrpc exception: %s', reduce_homedir(str(e.faultCode)))
+                logger.error('xmlrpc +: %s', reduce_homedir(e.faultString.rstrip()))
+                server.dump_blame(e, ekeys={ 'context': '%s.check' % (module or 'custom'),
+                            'module': module or '', 'severity': 'error',
+                            'Message': '%s.fields_view_get() is broken' % mod['model'] })
+        
+        server.clear_context()
+        return True
+
 
 usage = """%prog command [options]
 
@@ -1053,6 +1115,7 @@ Basic Commands:
     install-translation        Install translation file
     check-quality  [<m> ...]    Calculate quality and dump quality result 
                                 [ into quality_log.pck using pickle ]
+    fields-view-get             Check fields_view_get of all pooler objects
     multi <cmd> [<cmd> ...]     Execute several of the above commands, at a 
                                 single server instance.
 """
@@ -1185,7 +1248,7 @@ def parse_cmdargs(args):
 
         if cmd2 not in ('start-server','create-db','drop-db',
                     'install-module','upgrade-module','check-quality',
-                    'install-translation', 'multi'):
+                    'install-translation', 'multi', 'fields-view-get'):
             parser.error("incorrect command: %s" % command)
             return
         args = args[1:]
@@ -1326,6 +1389,8 @@ try:
                 ret = client.check_quality(mods+args, options['quality-logs'])
             elif cmd == 'install-translation':
                 ret = client.import_translate(options['translate-in'])
+            elif cmd == 'fields-view-get':
+                ret = client.fields_view_get()
         except ClientException, e:
             logger.error(reduce_homedir("%s" % e))
             server.dump_blame(e)
