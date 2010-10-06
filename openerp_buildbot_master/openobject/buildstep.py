@@ -63,6 +63,12 @@ def append_fail(flist, blames, suffix=None, fmax=None):
             if flist[fi][1] < bsev:
                 break
             fi += 1
+        fo = fi
+        while fo < len(flist) and flist[fo][1] == bsev:
+            if flist[fo] == (blame, bsev):
+                blame = None
+        if blame is None:
+            continue
         
         if fmax and fi >= fmax:
             break
@@ -492,8 +498,9 @@ class OpenERPTest(LoggingBuildStep):
                                         text='', logs={'stdout': []})
                             t_results.append(cur_r)
                             cur_r.blames = []
-                        cur_r.blames.append((blame_info, blame_sev))
-                        
+                        if blame_sev >= 3 or ((blame_info, blame_sev) not in cur_r.blames):
+                            cur_r.blames.append((blame_info, blame_sev))
+
                 elif blog == 'bqi.qlogs':
                     nline = bmsg.index('\n')
                     first_line = bmsg[:nline].strip()
