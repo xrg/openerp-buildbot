@@ -265,6 +265,12 @@ class server_thread(threading.Thread):
             self.log.debug("Cannot decode report exception", exc_info=True)
             pass
 
+    def cursorHanging(self, section, level, mobj):
+        self.dump_blame(ekeys={ 'severity': 'warning', 
+                    'module-file': reduce_homedir(mobj.group(1)),
+                    'module-line': mobj.group(2),
+                    'Message': 'Cursor not explicitly closed'})
+
     def __init__(self, root_path, port, netport, addons_path, pyver=None, 
                 srv_mode='v600', timed=False, debug=False, do_warnings=False,
                 ftp_port=None,
@@ -357,7 +363,8 @@ class server_thread(threading.Thread):
                 self.setModuleFile)
         self.regparser('tests.*', re.compile(r'.*', re.DOTALL), self.setTestContext, multiline=True)
         self.regparser('report', re.compile(r'rml_except: (.+)', re.DOTALL), self.reportExcept, multiline=True)
-
+        self.regparser('db.cursor', re.compile(r'Cursor not closed explicitly.*Cursor was created at (.+.py):([0-9]+)$', re.DOTALL), self.cursorHanging, multiline=True)
+        
         self.regparser_exc('XMLSyntaxError', re.compile(r'line ([0-9]+), column ([0-9]+)'),
                             lambda etype, ematch: { 'file-line': ematch.group(1), 'file-col': ematch.group(2)} )
 
