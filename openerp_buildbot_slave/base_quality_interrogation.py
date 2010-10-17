@@ -243,6 +243,28 @@ class server_thread(threading.Thread):
                 self.state_dict['context'].endswith('.test'):
             self.clear_context()
 
+    def reportExcept(self, section, level, mobj):
+        if level not in ('ERROR', 'WARNING'):
+            return
+        try:
+            lines = map(reduce_homedir, mobj.group(1).split('\n'))
+            if len(lines) > 2 and 'Traceback' in lines[1]:
+                exc_desc = lines[0]
+                exc_type, exc_msg = lines[-1].split(':',1)
+                traceb = lines[1:-1]
+                sdic = { 'Exception type': exc_type, 'Exception': exc_msg,
+                        'Traceback': '\n'.join(traceb) }
+                if exc_desc.startswith('report exception: '):
+                    exc_desc = exc_desc[18:]
+                sdic['Message'] = "%s: %s for %s" % (exc_type, exc_msg, exc_desc)
+                self._decode_tb(traceb, sdic)
+                self.dump_blame(ekeys=sdic)
+            else:
+                self.dump_blame(ekeys={ 'severity': 'warning', 'Message': lines[0] })
+        except Exception:
+            self.log.debug("Cannot decode report exception", exc_info=True)
+            pass
+
     def __init__(self, root_path, port, netport, addons_path, pyver=None, 
                 srv_mode='v600', timed=False, debug=False, do_warnings=False,
                 ftp_port=None,
@@ -334,7 +356,8 @@ class server_thread(threading.Thread):
         self.regparser('init',re.compile(r'module (.+): loading (.+)$'),
                 self.setModuleFile)
         self.regparser('tests.*', re.compile(r'.*', re.DOTALL), self.setTestContext, multiline=True)
-        
+        self.regparser('report', re.compile(r'rml_except: (.+)', re.DOTALL), self.reportExcept, multiline=True)
+
         self.regparser_exc('XMLSyntaxError', re.compile(r'line ([0-9]+), column ([0-9]+)'),
                             lambda etype, ematch: { 'file-line': ematch.group(1), 'file-col': ematch.group(2)} )
 
