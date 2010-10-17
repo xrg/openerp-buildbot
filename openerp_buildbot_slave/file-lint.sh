@@ -41,9 +41,24 @@ for FNAME in "$@" ; do
 	*.rml)
 		if ! xmllint --noout --nowarning "$FNAME" ; then
 			echo "XmlLint failed for: $FNAME" >&2
+			EXIT_CODE=1
+		fi
+	;;
+	*.yml)
+		if [ "$ALLOW_PYTABS" != "y" ] && grep -HnP -m 10 '^ *\t' "$FNAME" ; then
+			echo "You used tabs in $FNAME. Please expand them"
 			exit 1
 		fi
 	;;
+	*.png)
+		true
+	;;
+	*.zip)
+	    if ! unzip -t -q "$FNAME" ; then
+		exit $?
+	    fi
+	;;
+
 	*.po)
 		msgcat -o /dev/null "$FNAME" || EXIT_CODE=$?
 	;;
