@@ -363,6 +363,7 @@ class server_thread(threading.Thread):
                 self.setModuleFile)
         self.regparser('tests.*', re.compile(r'.*', re.DOTALL), self.setTestContext, multiline=True)
         self.regparser('report', re.compile(r'rml_except: (.+)', re.DOTALL), self.reportExcept, multiline=True)
+        self.regparser('report', re.compile(r'Exception at: (.+)', re.DOTALL), self.reportExcept, multiline=True)
         self.regparser('db.cursor', re.compile(r'Cursor not closed explicitly.*Cursor was created at (.+.py):([0-9]+)$', re.DOTALL), self.cursorHanging, multiline=True)
         
         self.regparser_exc('XMLSyntaxError', re.compile(r'line ([0-9]+), column ([0-9]+)'),
