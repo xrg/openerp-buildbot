@@ -751,6 +751,7 @@ class client_worker(object):
         self.dbname = options['dbname']
         self.super_passwd = 'admin' # options['super_passwd']
         self.series = options['server_series']
+        self.has_os_times = self.series in ('pg84', 'v600')
 
     def _execute(self, connector, method, *args):
         self.log.debug("Sending command '%s' to server", method)
@@ -846,7 +847,7 @@ class client_worker(object):
         return True
 
     def get_ostimes(self, prev=None):
-        if self.series not in ('pg84',):
+        if self.has_os_times:
             self.log.debug("Using client-side os.times()")
             return os.times()
         try:
@@ -858,6 +859,7 @@ class client_worker(object):
             return ost
         except Exception:
             self.log.exception("Get os times")
+            self.has_os_times = False
             return ( 0.0, 0.0, 0.0, 0.0, 0.0 )
 
 
