@@ -847,13 +847,23 @@ class client_worker(object):
         return True
 
     def get_ostimes(self, prev=None):
-        if self.has_os_times:
+        if not self.has_os_times:
             self.log.debug("Using client-side os.times()")
-            return os.times()
+            ost = list(os.times())
+            if prev is not None:
+                ost = ost + ost
+                if len(prev) > 5:
+                    prev = prev[5:]
+                for i in range(0,5):
+                    ost[i] -= prev[i]
+            return ost
         try:
             conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/common')
             ost = self._execute(conn,'get_os_time', self.super_passwd)
             if prev is not None:
+                ost = ost + ost
+                if len(prev) > 5:
+                    prev = prev[5:]
                 for i in range(0,5):
                     ost[i] -= prev[i]
             return ost
@@ -1085,6 +1095,7 @@ class client_worker(object):
         uid = self._login()
         obj_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/object')
         server.state_dict['severity'] = 'error'
+        ost_start = self.get_ostimes()
         
         if self.series == 'v600':
             # the obj_list is broken in XML-RPC1 for v600
@@ -1114,18 +1125,31 @@ class client_worker(object):
         
         model_res = self._execute(obj_conn,'execute', self.dbname, uid, self.pwd,
                                     'ir.model', 'read', ir_model_ids, ['name', 'model'])
+        ost_for = self.get_ostimes(ost_start)
+        self.log.debug("Resolved the list of models in User: %.3f, Sys: %.3f, Real: %.3f",
+                                    ost_for[0], ost_for[1], ost_for[4])
+        ost = ost_for
+
         for mod in model_res:
             module = model_tbl.get(mod['id'],(None,False))[0]
             self.log.debug("Testing %s.%s", module or '<root>', mod['model'])
             try:
                 fvg = self._execute(obj_conn,'execute', self.dbname, uid, self.pwd,
                                 mod['model'], 'fields_view_get', False, 'form', {}, True)
+                ost = self.get_ostimes(ost)
                 if not fvg:
                     server.dump_blame(None, {'context': '%s.check' % (module or 'custom'),
                             'module': module or '', 'severity': 'error', 
                             'Message': 'No form view for model %s' % mod['model'] })
-                # else:
-                #    print "Fields view get:", fvg.keys()
+                else:
+                    if (ost[4] or 0.0) > 0.5 or (ost[0] or 0.0) > 0.3:
+                        server.dump_blame(None, {'context': '%s.check' % (module or 'custom'),
+                            'module': module or '', 'severity': 'warning', 
+                            'Message': 'Form view model %s is slow (u%.3f, r%.3f), please optimize' % \
+                                        (mod['model'], ost[0], ost[4] )})
+                    else:
+                        self.log.debug("Got view for %s in u%.3f, r%.3f",
+                                        mod['model'], ost[0], ost[4])
             except xmlrpclib.Fault, e:
                 logger.error('xmlrpc exception: %s', reduce_homedir(str(e.faultCode)))
                 logger.error('xmlrpc +: %s', reduce_homedir(e.faultString.rstrip()))
@@ -1133,6 +1157,9 @@ class client_worker(object):
                             'module': module or '', 'severity': 'error',
                             'Message': '%s.fields_view_get() is broken' % mod['model'] })
         
+        # Statistics:
+        ost = self.get_ostimes(ost_for)
+        self.log.info("Got %d views in u%.3f, r%.3f", len(model_res), ost[0], ost[4])
         server.clear_context()
         return True
 
