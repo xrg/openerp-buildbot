@@ -303,7 +303,7 @@ class OpenERPTest(LoggingBuildStep):
         if all_modules:
             self.args['command'].append('--all-modules')
             if self.args['black_modules']:
-                self.args['command'].extend(['--black-modules', self.args['black_modules']])
+                self.args['command'].extend(['--black-modules', ' '.join(self.args['black_modules'])])
         else:
             for mc in set(mods_changed):
                 # put them in -m so that both install-module and check-quality use them.
