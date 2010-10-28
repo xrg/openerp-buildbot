@@ -158,6 +158,11 @@ class OpenObjectBzr(Bzr):
             return defer.succeed(0)
         return Bzr.doClobber(self, dummy, dirname, **kwargs)
 
+    def sourcedataMatches(self):
+        """ we don't care, assume it is the right dir
+        """
+        return True
+
     def sourcedirIsUpdateable(self):
         if os.path.exists(os.path.join(self.builder.basedir, self.srcdir, ".buildbot-patched")):
             return False
