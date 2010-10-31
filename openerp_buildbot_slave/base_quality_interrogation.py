@@ -273,7 +273,7 @@ class server_thread(threading.Thread):
 
     def __init__(self, root_path, port, netport, addons_path, pyver=None, 
                 srv_mode='v600', timed=False, debug=False, do_warnings=False,
-                ftp_port=None,
+                ftp_port=None, defines=False,
                 config=None):
         threading.Thread.__init__(self)
         self.root_path = root_path
@@ -306,6 +306,9 @@ class server_thread(threading.Thread):
             self.args.append('-Dtests.nonfatal=True')
             if ftp_port:
                 self.args.append('-Dftp.port=%s' % ftp_port)
+            if defines:
+                for d in defines:
+                    self.args.append('-D%s' % d)
         else:
             raise RuntimeError("Invalid server mode %s" % srv_mode)
 
@@ -1194,6 +1197,13 @@ parser.add_option("--txt-log", dest="txt_log", help="A file to write plain log t
 parser.add_option("--machine-log", dest="mach_log", help="A file to write machine log stream, or 'stderr'")
 parser.add_option("--debug", dest="debug", action='store_true', default=False,
                     help="Enable debugging of both the script and the server")
+parser.add_option("--debug-server", dest="debug_server", action='store_true', default=False,
+                    help="Enable debugging of the server alone")
+parser.add_option("--debug-bqi", dest="debug_bqi", action='store_true', default=False,
+                    help="Enable debugging of this script alone")
+
+parser.add_option("-D", "--define", dest="defines", action="append",
+                     help="Define configuration values for server, (pg84 only)")
 
 parser.add_option("-W", dest="warnings", default=False,
                     help="Pass this flag to python, so that warnings are considered")
@@ -1248,7 +1258,7 @@ import logging
 def init_log():
     global opt
     log = logging.getLogger()
-    if opt.debug:
+    if opt.debug or opt.debug_bqi:
         log.setLevel(logging.DEBUG)
     else:
         log.setLevel(logging.INFO)
@@ -1394,8 +1404,8 @@ server = server_thread(root_path=options['root-path'], port=options['port'],
                         netport=options['netport'], addons_path=options['addons-path'],
                         srv_mode=options['server_series'], config=options['config'],
                         do_warnings=bool(opt.warnings in ('all','warn')),
-                        ftp_port=opt.ftp_port,
-                        debug=opt.debug)
+                        ftp_port=opt.ftp_port, defines=opt.defines,
+                        debug=opt.debug or opt.debug_server)
 
 logger.info('start of script')
 try:
@@ -1464,7 +1474,8 @@ try:
             server.dump_blame(e)
             ret = False
         except xmlrpclib.Fault, e:
-            logger.error('xmlrpc exception: %s', reduce_homedir(e.faultCode.strip()))
+            e_fc = str(e.faultCode)
+            logger.error('xmlrpc exception: %s', reduce_homedir(e_fc.strip()))
             logger.error('xmlrpc +: %s', reduce_homedir(e.faultString.rstrip()))
             server.dump_blame(e)
             ret = False
