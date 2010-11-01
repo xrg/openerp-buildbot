@@ -60,7 +60,10 @@ for FNAME in "$@" ; do
 	;;
 
 	*.po)
-		msgcat -o /dev/null "$FNAME" || EXIT_CODE=$?
+		msgfmt -c -o /dev/null "$FNAME" || EXIT_CODE=$?
+	;;
+	*.pot)
+		msgfmt -c -o /dev/null "$FNAME" || EXIT_CODE=$?
 	;;
 	*)
 		echo "No lint for $FNAME" >&2
