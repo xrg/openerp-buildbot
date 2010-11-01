@@ -273,7 +273,7 @@ class server_thread(threading.Thread):
 
     def __init__(self, root_path, port, netport, addons_path, pyver=None, 
                 srv_mode='v600', timed=False, debug=False, do_warnings=False,
-                ftp_port=None, defines=False,
+                ftp_port=None, defines=False, pyargs=False,
                 config=None):
         threading.Thread.__init__(self)
         self.root_path = root_path
@@ -282,6 +282,9 @@ class server_thread(threading.Thread):
         self.args = [ 'python%s' %(pyver or ''),] 
         if do_warnings:
             self.args.append('-Wall')
+        if pyargs:
+            for pa in pyargs:
+                self.args.append('-'+pa)
         self.args += ['%sopenerp-server.py' % root_path,]
         if addons_path:
             self.args += [ '--addons-path=%s' % addons_path ]
@@ -1203,7 +1206,9 @@ parser.add_option("--debug-bqi", dest="debug_bqi", action='store_true', default=
                     help="Enable debugging of this script alone")
 
 parser.add_option("-D", "--define", dest="defines", action="append",
-                     help="Define configuration values for server, (pg84 only)")
+                    help="Define configuration values for server, (pg84 only)")
+parser.add_option("-P", "--pyarg", dest="pyargs", action="append",
+                    help="Pass this argument to python interpreter")
 
 parser.add_option("-W", dest="warnings", default=False,
                     help="Pass this flag to python, so that warnings are considered")
@@ -1404,7 +1409,7 @@ server = server_thread(root_path=options['root-path'], port=options['port'],
                         netport=options['netport'], addons_path=options['addons-path'],
                         srv_mode=options['server_series'], config=options['config'],
                         do_warnings=bool(opt.warnings in ('all','warn')),
-                        ftp_port=opt.ftp_port, defines=opt.defines,
+                        ftp_port=opt.ftp_port, defines=opt.defines, pyargs=opt.pyargs,
                         debug=opt.debug or opt.debug_server)
 
 logger.info('start of script')
