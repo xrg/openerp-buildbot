@@ -22,9 +22,11 @@
 ##############################################################################
 
 import xmlrpclib
-# import ConfigParser
+from ConfigParser import SafeConfigParser
 import optparse
 import sys
+import logging
+import logging.handlers
 import threading
 import os
 import signal
@@ -152,6 +154,82 @@ class MachineFormatter(logging.Formatter):
 
         # return s.decode('utf-8')
         return s
+
+logging.DEBUG_RPC = logging.DEBUG - 2
+logging.addLevelName(logging.DEBUG_RPC, 'DEBUG_RPC')
+logging.DEBUG_SQL = logging.DEBUG_RPC - 2
+logging.addLevelName(logging.DEBUG_SQL, 'DEBUG_SQL')
+
+logging.TEST = logging.INFO - 5
+logging.addLevelName(logging.TEST, 'TEST')
+
+BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE, _NOTHING, DEFAULT = range(10)
+#The background is set with 40 plus the number of the color, and the foreground with 30
+#These are the sequences need to get colored ouput
+RESET_SEQ = "\033[0m"
+COLOR_SEQ = "\033[%dm"
+BOLD_COLOR_SEQ = "\033[1;%dm"
+BOLD_SEQ = "\033[1m"
+COLOR_PATTERN = "%s%s%%s%s" % (COLOR_SEQ, COLOR_SEQ, RESET_SEQ)
+BOLD_COLOR_PATTERN = "%s%s%%s%s" % (BOLD_COLOR_SEQ, BOLD_COLOR_SEQ, RESET_SEQ)
+
+COLOR_MAPPING = {
+    'stdout.DEBUG_SQL': (WHITE, MAGENTA, True),
+    'stdout.DEBUG_RPC': (BLUE, WHITE, True),
+    'stdout.DEBUG': (BLUE, DEFAULT, True),
+    'stdout.INFO': (GREEN, DEFAULT, True),
+    'stdout.TEST': (WHITE, BLUE, True),
+    'stdout.WARNING': (YELLOW, DEFAULT, True),
+    'stdout.ERROR': (RED, DEFAULT, True),
+    'stdout.CRITICAL': (WHITE, RED, True),
+    'server.stderr': (BLUE, _NOTHING, False),
+    'bqi': (DEFAULT, WHITE, False),
+    'bqi.blame': (RED, DEFAULT, True),
+    'bqi.DEBUG': (CYAN, _NOTHING, False),
+    'bqi.WARNING': (YELLOW, WHITE, False),
+    'bqi.ERROR': (RED, WHITE, False),
+    'bqi.client': (DEFAULT, WHITE, False),
+    'bqi.client.ERROR': (RED, WHITE, False),
+    'bqi.client.DEBUG': (CYAN, _NOTHING, False),
+    'bqi.state': (BLACK,WHITE, False),
+    'srv.thread': (DEFAULT, WHITE, False),
+    'srv.thread.WARNING': (YELLOW, _NOTHING, False),
+    'srv.thread.DEBUG': (CYAN, _NOTHING, False),
+}
+
+class ColoredFormatter(logging.Formatter):
+    linere = re.compile(r'\[(.*)\] ([A-Z]+):([\w\.-]+):(.*)$', re.DOTALL)
+    def format(self, record):
+        res = logging.Formatter.format(self, record)
+        if record.name == 'server.stdout':
+            # parse and format only the level name, just like the server itself
+            m = self.linere.match(res)
+            if m:
+                ln = COLOR_MAPPING.get('stdout.' + m.group(2), False)
+                
+                if ln:
+                    fg_color, bg_color, bold = ln
+                    if bold:
+                        lname = BOLD_COLOR_PATTERN % (30 + fg_color, 40 + bg_color, m.group(2))
+                    else:
+                        lname = COLOR_PATTERN % (30 + fg_color, 40 + bg_color, m.group(2))
+                    res = "[%s] %s:%s:%s" % (m.group(1), lname, m.group(3), m.group(4))
+        else:
+            # By default, format the whole line per logger's name
+            rn = record.name
+            if record.levelno != logging.INFO:
+                rn += '.' + record.levelname
+            if rn in COLOR_MAPPING:
+                fg_color, bg_color, bold = COLOR_MAPPING[rn]
+                if bold:
+                    res = BOLD_COLOR_PATTERN % (30 + fg_color, 40 + bg_color, res)
+                else:
+                    res = COLOR_PATTERN % (30 + fg_color, 40 + bg_color, res)
+            else:
+                # print "Oops, you missed color for %s" % rn
+                pass
+        return res
+
 
 class server_thread(threading.Thread):
     
@@ -874,7 +952,7 @@ class client_worker(object):
                     ost[i] -= prev[i]
             return ost
         except Exception:
-            self.log.exception("Get os times")
+            self.log.debug("Get os times", exc_info=True)
             self.has_os_times = False
             return ( 0.0, 0.0, 0.0, 0.0, 0.0 )
 
@@ -1184,7 +1262,10 @@ Basic Commands:
     fields-view-get             Check fields_view_get of all pooler objects
     multi <cmd> [<cmd> ...]     Execute several of the above commands, at a 
                                 single server instance.
+    keep[-running]              Pause and keep the server running, waiting for Ctrl+C
+    inter[active]               Display interactive b-q-i prompt
 """
+
 parser = optparse.OptionParser(usage)
 parser.add_option("-m", "--modules", dest="modules", action="append",
                      help="specify modules to install or check quality")
@@ -1228,21 +1309,105 @@ parser.add_option("--translate-in", dest="translate_in",
                      help="specify .po files to import translation terms")
 parser.add_option("--server-series", help="Specify argument syntax and options of the server.\nExamples: 'v600', 'pg84'")
 
-(opt, args) = parser.parse_args()
+parser.add_option("--color", dest="console_color", action='store_true', default=False,
+                    help="Use color at stdout/stderr logs")
+
+parser.add_option("-n", "--dry-run", dest="dry_run", action='store_true', default=False,
+                    help="Don't start the server, just print the commands.")
+
+pgroup = optparse.OptionGroup(parser, 'Config-File options',
+                " These options help run this script with pre-configured settings.")
+
+pgroup.add_option("-c", dest="conffile", 
+            help="Read configuration options for this script from file. " 
+            "Defaults to ~/.openerp-bqirc" )
+pgroup.add_option("--no-bqirc", dest="have_bqirc", action="store_false", default=True,
+            help="Do not read ~/.openerp-bqirc , start with empty options.")
+pgroup.add_option("-s", dest="bqirc_section", action="append",
+            help="Section of the config file which should be followed, like a script")
+
+parser.add_option_group(pgroup)
+
+(copt, args2) = parser.parse_args()
 
 def die(cond, msg):
     if cond:
         print msg
         sys.exit(1)
 
+args = []
+# Now, parse the config files, if any:
+
+opt = optparse.Values(copt.__dict__)
+
+config_stray_opts = []
+def parse_option_section(conf, items, allow_include=True):
+    global opt, copt, args
+    global config_stray_opts
+    nonopts = ('conffile', 'have_bqirc', 'bqirc_section', 'include')
+    default_section = None
+    for key, val in items:
+        if key == 'include' and allow_include:
+            for inc in val.split(' '):
+                parse_option_section(conf, conf.items(inc), allow_include=(allow_include-1))
+
+    for key, val in items:
+        if key in nonopts:
+            continue
+        elif key == 'default_section':
+            default_section = val
+        elif key == 'color_section':
+            parse_color_section(config, val)
+        elif key == 'commands':
+            args += val.split(' ')
+        elif key in dir(copt):
+            if isinstance(getattr(copt, key), list) or \
+                    (key in ('modules',)):
+                val = val.split(' ')
+            elif isinstance(getattr(copt, key), bool):
+                val = bool(val.lower() in ('1', 'true', 't', 'yes'))
+            elif key in ('addons_path', 'root_path', 'xml_log', 'txt_log', 'mach_log'):
+                val = os.path.expanduser(val)
+            if not getattr(copt, key):
+                setattr(opt, key, val)
+        else:
+            config_stray_opts.append((key, val))
+            pass
+
+    return default_section
+
+def parse_color_section(conf, sname):
+    """Parse the config section sname for colors configuration
+    """
+    pass
+
+if opt.have_bqirc:
+    cfile = os.path.expanduser(copt.conffile or '~/.openerp-bqirc')
+    config = SafeConfigParser()
+    conf_filesread = config.read([cfile,])
+    default_section = parse_option_section(config, config.items('general'), 5)
+
+    if copt.bqirc_section:
+        default_section = copt.bqirc_section
+    elif default_section:
+        default_section = default_section.split(' ')
+    else:
+        default_section = []
+
+    if default_section:
+        for ds in default_section:
+            parse_option_section(config, config.items(ds), 5)
+
+args += args2
+
 options = {
     'addons-path' : opt.addons_path or False,
     'quality-logs' : opt.quality_logs or '',
     'root-path' : opt.root_path or '',
     'translate-in': [],
-    'port' : opt.port or 8069,
+    'port' : int(opt.port or 8069),
     'lang': opt.lang or 'en_US',
-    'netport':opt.netport or False,
+    'netport': (opt.netport and int(netport)) or False,
     'dbname': opt.db_name ,
     'modules' : opt.modules,
     'login' : opt.login or 'admin',
@@ -1256,10 +1421,9 @@ if opt.homedir:
     options['homedir'] = os.path.abspath(opt.homedir)+'/'
 
 def reduce_homedir(ste):
-    global options
+    global opt
     return ste.replace(options['homedir'], '~/')
 
-import logging
 def init_log():
     global opt
     log = logging.getLogger()
@@ -1279,13 +1443,22 @@ def init_log():
         
     if opt.txt_log:
         if opt.txt_log == 'stderr':
-            log.addHandler(logging.StreamHandler())
+            seh = logging.StreamHandler()
+            log.addHandler(seh)
+            if opt.console_color:
+                seh.setFormatter(ColoredFormatter())
             has_stderr = True
         elif opt.txt_log == 'stdout':
-            log.addHandler(logging.StreamHandler(sys.stdout))
+            soh = logging.StreamHandler(sys.stdout)
+            log.addHandler(soh)
+            if opt.console_color:
+                soh.setFormatter(ColoredFormatter())
             has_stdout = True
         else:
-            log.addHandler(logging.FileHandler(opt.txt_log))
+            fh = logging.handlers.RotatingFileHandler(opt.txt_log, backupCount=10)
+            log.addHandler(fh)
+            if os.path.exists(opt.txt_log):
+                fh.doRollover()
             #hnd2.setFormatter()
 
     if opt.mach_log:
@@ -1295,13 +1468,21 @@ def init_log():
             hnd3 = logging.StreamHandler(sys.stdout)
             has_stdout = True
         else:
-            hnd3 = logging.FileHandler(opt.mach_log)
+            hnd3 = logging.handlers.RotatingFileHandler(opt.mach_log, backupCount=10)
+            if os.path.exists(opt.mach_log):
+                hnd3.doRollover()
         hnd3.setFormatter(MachineFormatter())
         log.addHandler(hnd3)
 
 init_log()
 
 logger = logging.getLogger('bqi')
+
+if opt.have_bqirc and conf_filesread:
+    for r in conf_filesread:
+        logger.info("Read config from %s" % r)
+    for cso in config_stray_opts:
+        logger.warning("Stray option in config: %s = %s", cso[0], cso[1])
 
 def parse_cmdargs(args):
     """Parse the non-option arguments into an array of commands
@@ -1325,7 +1506,8 @@ def parse_cmdargs(args):
 
         if cmd2 not in ('start-server','create-db','drop-db',
                     'install-module','upgrade-module','check-quality',
-                    'install-translation', 'multi', 'fields-view-get'):
+                    'install-translation', 'multi', 'fields-view-get',
+                    'keep', 'keep-running', 'inter', 'interactive'):
             parser.error("incorrect command: %s" % command)
             return
         args = args[1:]
@@ -1446,6 +1628,19 @@ try:
             logger.exception("Cannot scan modules:")
     
     logging.getLogger('bqi.state').info("set num_modules %d", len(mods))
+    if opt.dry_run:
+        logger.info("Dry run! Here is what would happen:")
+        logger.info("%s", ' '.join(server.args))
+        logger.info("And then, do %d steps:", len(cmdargs))
+        for cmd, args, in cmdargs:
+            logger.info(" > %s %s", cmd, ' '.join(args))
+        logger.debug("Options now:")
+        for key, val in opt.__dict__.items():
+            if not val:
+                continue
+            logger.debug("Option: %s (%s): %s", key,type(val), val)
+        sys.exit(0)
+
     server.start_full()
     client = client_worker(uri, options)
     ost = client.get_ostimes()
@@ -1474,6 +1669,19 @@ try:
                 ret = client.import_translate(options['translate-in'])
             elif cmd == 'fields-view-get':
                 ret = client.fields_view_get()
+            elif cmd == 'keep' or cmd == 'keep-running':
+                try:
+                    logger.info("Server is running, script is paused. Press Ctrl+C to continue.")
+                    while server.is_running:
+                        time.sleep(60)
+                    logger.info("Server stopped, exiting")
+                except KeyboardInterrupt:
+                    logger.info("Stopping after Ctrl+C")
+                    ret = False
+            elif cmd == 'inter' or cmd == 'interactive':
+                logger.info("Interactive mode. Not implemented yet!")
+                ret = False
+
         except ClientException, e:
             logger.error(reduce_homedir("%s" % e))
             server.dump_blame(e)
