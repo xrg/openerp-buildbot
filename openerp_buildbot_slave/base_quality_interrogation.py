@@ -1672,6 +1672,10 @@ try:
                 ret = client.create_db(lang=options['lang'])
             elif cmd == 'drop-db':
                 ret = client.drop_db()
+            elif cmd == 'start-server':
+                # a simple login will trigger a db load and ensure
+                # that the server's ORM is working
+                ret = bool( client._login() )
             elif cmd == 'install-module':
                 ret = client.install_module(mods + args)
             elif cmd == 'upgrade-module':
