@@ -496,7 +496,10 @@ class server_thread(threading.Thread):
                 olog = self.log_sout
             else:
                 olog = self.log_serr
-            olog.info(r)
+            if m and m.group(2) in ('DEBUG', 'DEBUG_RPC', 'DEBUG_SQL'):
+                olog.debug(r)
+            else:
+                olog.info(r)
 
             # Reset the buffer
             self._io_bufs[fd] = ''
@@ -528,7 +531,10 @@ class server_thread(threading.Thread):
                 # Log and go, don't buffer
                 if rl.endswith('\n'):
                     rl = rl[:-1]
-                olog.info(rl)
+                if mmatch.group(2) in ('DEBUG', 'DEBUG_RPC', 'DEBUG_SQL'):
+                    olog.debug(rl)
+                else:
+                    olog.info(rl)
                 return
         elif ematch:
             self._io_flush()
@@ -1312,6 +1318,9 @@ parser.add_option("--server-series", help="Specify argument syntax and options o
 parser.add_option("--color", dest="console_color", action='store_true', default=False,
                     help="Use color at stdout/stderr logs")
 
+parser.add_option("--console-nodebug", dest="console_nodebug", action='store_true', default=False,
+                    help="Hide debug messages from console, send them to file log only.")
+
 parser.add_option("-n", "--dry-run", dest="dry_run", action='store_true', default=False,
                     help="Don't start the server, just print the commands.")
 
@@ -1445,12 +1454,16 @@ def init_log():
         if opt.txt_log == 'stderr':
             seh = logging.StreamHandler()
             log.addHandler(seh)
+            if opt.console_nodebug:
+                seh.setLevel(logging.INFO)
             if opt.console_color:
                 seh.setFormatter(ColoredFormatter())
             has_stderr = True
         elif opt.txt_log == 'stdout':
             soh = logging.StreamHandler(sys.stdout)
             log.addHandler(soh)
+            if opt.console_nodebug:
+                soh.setLevel(logging.INFO)
             if opt.console_color:
                 soh.setFormatter(ColoredFormatter())
             has_stdout = True
