@@ -22,7 +22,7 @@
 ##############################################################################
 
 import xmlrpclib
-from ConfigParser import SafeConfigParser
+from ConfigParser import SafeConfigParser, NoSectionError
 import optparse
 import sys
 import logging
@@ -1991,7 +1991,11 @@ if opt.have_bqirc:
     cfile = os.path.expanduser(copt.conffile or '~/.openerp-bqirc')
     config = SafeConfigParser()
     conf_filesread = config.read([cfile,])
-    default_section = parse_option_section(config, config.items('general'), 5)
+    try:
+        default_section = parse_option_section(config, config.items('general'), 5)
+    except NoSectionError:
+        default_section = []
+        pass
 
     if copt.bqirc_section:
         default_section = copt.bqirc_section
