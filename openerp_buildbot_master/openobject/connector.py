@@ -202,8 +202,9 @@ class OERPConnector(util.ComparableMixin):
         
         rows = change_obj.search(domain, 0, 0, 'id desc')
         
-        for changeid in rows:
-            yield self.getChangeNumberedNow(changeid)
+        changes = self.runInteractionNow(self._get_change_num, rows)
+        for chg in changes:
+            yield chg
 
     def getLatestChangeNumberNow(self, branch=None, t=None):
         change_obj = rpc.RpcProxy('software_dev.commit')
@@ -237,13 +238,16 @@ class OERPConnector(util.ComparableMixin):
             cids = changeid
         else:
             cids = [changeid,]
+        if not cids:
+            return []
         res = change_obj.getChanges(cids)
         
         ret = []
+        props = self.get_properties_from_db(change_obj, cids)
         for cdict in res:
             c = OpenObjectChange(**cdict)
 
-            p = self.get_properties_from_db(change_obj, cdict['id'])
+            p = props.get(cdict['id'], Properties())
             c.properties.updateFromProperties(p)
             
             self._change_cache.add(cdict['id'], c)
@@ -262,8 +266,8 @@ class OERPConnector(util.ComparableMixin):
         
         change_obj = rpc.RpcProxy('software_dev.commit')
         cids = change_obj.search([('id', '>', last_changeid)])
-        changes = [self.getChangeNumberedNow(changeid, t)
-                   for changeid in cids]
+        # FIXME: defer
+        changes = self.runInteractionNow(self._get_change_num, cids)
         changes.sort(key=lambda c: c.number)
         return changes
 
@@ -273,8 +277,7 @@ class OERPConnector(util.ComparableMixin):
         change_obj = rpc.RpcProxy('software_dev.commit')
         cids = change_obj.search([('id', '<', new_changeid)])
         t = Token()
-        changes = [self.getChangeNumberedNow(changeid, t)
-                   for changeid in cids]
+        changes = self.runInteractionNow(self._get_change_num, cids)
         changes.sort(key=lambda c: c.number)
         return changes
 
@@ -286,8 +289,8 @@ class OERPConnector(util.ComparableMixin):
         return None
 
     def getChangesByNumber(self, changeids):
-        return defer.gatherResults([self.getChangeByNumber(changeid)
-                                    for changeid in changeids])
+        return defer.gatherResults( self.runInteraction(
+                                        self._get_change_num, changeids))
 
     # SourceStamp-manipulating methods
 
@@ -326,18 +329,24 @@ class OERPConnector(util.ComparableMixin):
 
     # Properties methods
 
-    def get_properties_from_db(self, rpc_obj, id, t=None):
+    def get_properties_from_db(self, rpc_obj, ids, t=None):
         
-        assert isinstance(id, (long, int)), id
-        res = rpc_obj.getProperties([id,])
-        retval = Properties()
+        single_mode = False
+        if isinstance(ids, (long, int)):
+            single_mode = True
+            ids = [ids,]
+        res = rpc_obj.getProperties(ids)
+        ret = {}
         if res:
             for kdic in res:
-                if kdic['id'] != id:
+                if kdic['id'] not in ids:
                     continue
                 value, source = json.loads(kdic['value'])
-                retval.setProperty(str(kdic['name']), value, source)
-        return retval
+                ret.setdefault(kdic['id'], Properties()).\
+                        setProperty(str(kdic['name']), value, source)
+        if single_mode:
+            return (ret and ret.values()[0]) or Properties()
+        return ret
 
     # Scheduler manipulation methods
 
