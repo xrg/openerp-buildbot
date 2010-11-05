@@ -40,6 +40,11 @@ import re
 import readline
 import zipfile
 
+try:
+    import json
+except ImportError:
+    json = None
+
 admin_passwd = 'admin'
 
 def to_decode(s):
@@ -53,6 +58,23 @@ def to_decode(s):
                 return s.decode('ascii')
             except UnicodeError:
                 return s
+
+def pretty_repr(val):
+    if json is not None:
+        res = json.dumps(val, skipkeys=True, ensure_ascii=True, indent=4)
+    elif isinstance(val, (list, tuple)):
+        res = ''
+        for v in val:
+            res += '    %r,\n' % v
+        res =  '  [ ' + res[4:] +'  ]'
+    elif isinstance(val, dict):
+        res = ''
+        for k, v in val.items():
+            res += '    %r: %r,\n' %(k, v)
+        res = '  { ' + res[4:] +  '  }'
+    else:
+        res = repr(val)
+    return res
 
 class ClientException(Exception):
     """Define our own exception, to avoid traceback
@@ -1337,13 +1359,27 @@ class CmdPrompt(object):
     def _complete_print(self, text, state):
         pos = []
         if self._last_res:
-            pass
             if 'this'.startswith(text):
                 pos.append('this')
             if isinstance(self._last_res, dict):
                 for k in self._last_res.keys():
                     if k.startswith(text):
                         pos.append(k)
+            if (not text) and isinstance(self._last_res, (list, tuple)):
+                pos.append('@')
+
+            if text.startswith('@') and isinstance(self._last_res, (list, tuple)):
+                txt2 = text[1:]
+                for i in range(len(self._last_res)):
+                    if txt2.startswith(str(i)):
+                        pos.append('@%d' % i)
+
+        if self._eloc:
+            for k in self._eloc.keys():
+                if k.startswith('_'):
+                    continue
+                if k.startswith(text):
+                    pos.append(k)
         return pos
 
     avail_cmds = { 0: [ 'help','db_list', 'debug', 'quit', 'db',
@@ -1379,6 +1415,7 @@ class CmdPrompt(object):
         self.cur_res_id = None
         self._orm_cache = []
         self._last_res = None
+        self._eloc = {}
         
         readline.set_completer(self._complete)
         readline.parse_and_bind('tab: complete')
@@ -1567,6 +1604,7 @@ class CmdPrompt(object):
             self.cur_res_id = None
             self.cur_orm = None
             self.dbname = None
+            self._eloc = {}
         self._last_res = None
 
     def _cmd_module(self, cmd, *args):
@@ -1692,7 +1730,36 @@ class CmdPrompt(object):
         else:
             print "Res is a %s. Use the print cmd to inspect it." % type(res)
         self._last_res = res
-        
+
+    def _eval_local(self, aexpr):
+        # put persistent at locals, this etc. in globals
+        loc = self._eloc
+        glo = {}
+        has_at = False
+        if isinstance(self._last_res, dict):
+            glo.update(self._last_res)
+        glo['this'] = self._last_res
+        aexpr = aexpr.strip()
+        if aexpr.startswith('@'):
+            has_at = True
+            aexpr = aexpr[1:]
+        if not aexpr:
+            # like "@" alone
+            return list(self._last_res)
+
+        try:
+            res = eval(aexpr, loc, glo)
+        except Exception, e:
+            print "Exception:", e
+            return
+        if has_at:
+            try:
+                res = self._last_res[res]
+            except Exception, e:
+                print "Exception this[@]:", e
+                return
+        return res
+
     def _cmd_print(self, *args):
         """Print any part of the last result.
         
@@ -1702,26 +1769,15 @@ class CmdPrompt(object):
             print len(this)
             print this[4]['foobar']
         """
-        if not self._last_res:
-            print "No data!"
-            return
         if not args:
             # yes, an empty line ;)
             print
             return
-        loc = {}
-        if isinstance(self._last_res, dict):
-            loc.update(self._last_res)
-        loc['this'] = self._last_res
         aexpr = ' '.join(args)
-        aexpr = aexpr.strip()
-        try:
-            res = eval(aexpr, loc, {})
-        except Exception, e:
-            print "Exception:", e
-            return
-        print "Res: ", res
-
+        res = self._eval_local(aexpr)
+        print "Result:"
+        print pretty_repr(res)
+        
     def _cmd_with(self, *args):
         """Narrow the last result
         
@@ -1732,26 +1788,15 @@ class CmdPrompt(object):
             with this[3]
             print this['foobar']
         """
-        if not self._last_res:
-            print "No data!"
-            return
         if not args:
             return
-        loc = {}
-        if isinstance(self._last_res, dict):
-            loc.update(self._last_res)
-        loc['this'] = self._last_res
         aexpr = ' '.join(args)
-        aexpr = aexpr.strip()
-        try:
-            res = eval(aexpr, loc, {})
-        except Exception, e:
-            print "Exception:", e
-            return
+        res = self._eval_local(aexpr)
         toprint = repr(res)
         if len(toprint) < 60:
-            print "Res: ", toprint
-        self._last_res = res
+            print "With this:", toprint
+        if res is not None:
+            self._last_res = res
 
     def _cmd_obj_info(self):
         """Obtain model info
