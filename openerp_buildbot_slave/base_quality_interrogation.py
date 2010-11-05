@@ -1665,7 +1665,7 @@ class CmdPrompt(object):
             astr = astr.strip()
             afn, aexpr = astr.split('(',1)
             aexpr = '(' + aexpr
-            aexpr = eval(aexpr, {}, {})
+            aexpr = eval(aexpr, {'this': self._last_res}, {})
         except Exception, e:
             print 'Tried to eval "%s"' % aexpr
             print "Exception:", e
