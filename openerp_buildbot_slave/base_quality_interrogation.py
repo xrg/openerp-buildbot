@@ -1384,12 +1384,17 @@ class CmdPrompt(object):
 
     avail_cmds = { 0: [ 'help','db_list', 'debug', 'quit', 'db',
                         'orm', 'module', 'translation' ],
-                'orm': ['help', 'obj_info', 'do', 'res_id', 'print','with', 'exit',  ],
-                'orm_id': [ 'help', 'do', 'print', 'with', 'exit', ]
+                'orm': ['help', 'obj_info', 
+                        'do', 'res_id',
+                        'print', 'with',
+                        'debug', 'exit',  ],
+                'orm_id': [ 'help', 'do', 'print', 'with', 'debug', 'exit', ]
                 }
     cmd_levelprompts = { 0: 'BQI', 'db': 'BQI DB', 'orm': 'BQI %(cur_orm)s',
                         'orm_id': 'BQI %(cur_orm)s#%(cur_res_id)d', }
-    sub_commands = { 'debug': ['on', 'off', 'server on', 'server off', 'console on', 'console off'],
+    sub_commands = { 'debug': ['on', 'off', 'server on', 'server off', 
+                                'console on', 'console off', 'console silent',
+                                'object on', 'object off',],
                     'db': ['load', 'create', 'drop' ],
                     'module': _complete_module_cmd,
                     'orm': _complete_orm_cmd,
@@ -1513,22 +1518,58 @@ class CmdPrompt(object):
 
     def _cmd_debug(self, *args):
         argo = args and args[0] or 'on'
-        if self.cur_orm:
-            if server.server_series == 'pg84':
+        args = args[1:]
+        if argo == 'object':
+            if not self.cur_orm:
+                print "Command 'debug object ...' is only available at orm level!"
+                return
+            argo = args and args[0] or 'on'
+            if client.series in ('pg84',):
                 self._client.execute_common('root', 'set_obj_debug', self.cur_orm, (argo == 'on') and 1 or 0)
             else:
-                print "Cannot change the ORM log level for %s server" % server.server_series
+                print "Cannot change the ORM log level for %s server" % client.series
                 return
+            return
+        do_server = True
+        do_console = True
+        do_bqi = True
+        if argo == 'server':
+            do_console = False
+            do_bqi = False
+            argo = (args and args[0]) or 'on'
+        elif argo == 'console':
+            do_server = False
+            do_bqi = False
+            argo = (args and args[0]) or 'on'
+
+        if argo not in ('on', 'off'):
+            print 'Valid values for debug are "on", "off"!'
+            return
+
         print "Set debug to %s" % (argo)
         
         log = logging.getLogger()
         lvl = logging.DEBUG
         if argo == 'on':
+            if do_console:
+                log.setLevel(logging.DEBUG)
+                if console_log_handler:
+                    console_log_handler.setLevel(logging.DEBUG)
+            if do_server:
+                self._client.execute_common('root', 'set_loglevel', 10)
+        elif argo == 'off':
+            if do_console and console_log_handler is not None:
+                console_log_handler.setLevel(logging.INFO)
+            if do_bqi:
+                log.setLevel(logging.INFO)
+            if do_server:
+                self._client.execute_common('root', 'set_loglevel', 20)
+        elif argo == 'silent':
+            if console_log_handler is not None:
+                console_log_handler.setLevel(logging.INFO)
             log.setLevel(logging.DEBUG)
             self._client.execute_common('root', 'set_loglevel', 10)
-        elif argo == 'off':
-            log.setLevel(logging.INFO)
-            self._client.execute_common('root', 'set_loglevel', 20)
+            
         server._io_flush()
 
     def _cmd_help(self, topic=None):
@@ -1564,13 +1605,13 @@ class CmdPrompt(object):
         pass #TODO
 
 
-    def _cmd_db(self, dbname):
+    def _cmd_db(self, *args):
         """Connect to database
         """
         try:
             uid = self._client._login()
-            self.dbname = dbname
-            self.__cmdlevel = 'db'
+            #self.dbname = dbname
+            #self.__cmdlevel = 'db'
         except KeyError:
             print "Cannot connect to database %s" % dbname
     
@@ -1989,8 +2030,10 @@ def reduce_homedir(ste):
     global opt
     return ste.replace(options['homedir'], '~/')
 
+console_log_handler = None
 def init_log():
     global opt
+    global console_log_handler
     log = logging.getLogger()
     if opt.debug or opt.debug_bqi:
         log.setLevel(logging.DEBUG)
@@ -2010,19 +2053,19 @@ def init_log():
         if opt.txt_log == 'stderr':
             seh = logging.StreamHandler()
             log.addHandler(seh)
+            console_log_handler = seh
             if opt.console_nodebug:
                 seh.setLevel(logging.INFO)
             if opt.console_color:
                 seh.setFormatter(ColoredFormatter())
-            has_stderr = True
         elif opt.txt_log == 'stdout':
             soh = logging.StreamHandler(sys.stdout)
+            console_log_handler = soh
             log.addHandler(soh)
             if opt.console_nodebug:
                 soh.setLevel(logging.INFO)
             if opt.console_color:
                 soh.setFormatter(ColoredFormatter())
-            has_stdout = True
         else:
             fh = logging.handlers.RotatingFileHandler(opt.txt_log, backupCount=10)
             log.addHandler(fh)
@@ -2032,10 +2075,10 @@ def init_log():
 
     if opt.mach_log:
         if opt.mach_log == 'stdout':
-            if has_stdout:
+            if console_log_handler is not None:
                 raise Exception("Cannot have two loggers at stdout!")
             hnd3 = logging.StreamHandler(sys.stdout)
-            has_stdout = True
+            console_log_handler = hnd3
         else:
             hnd3 = logging.handlers.RotatingFileHandler(opt.mach_log, backupCount=10)
             if os.path.exists(opt.mach_log):
