@@ -37,7 +37,6 @@ import base64
 import subprocess
 import select
 import re
-import readline
 import zipfile
 
 try:
@@ -1421,6 +1420,7 @@ class CmdPrompt(object):
         self._orm_cache = []
         self._last_res = None
         self._eloc = {}
+        import readline
         
         readline.set_completer(self._complete)
         readline.parse_and_bind('tab: complete')
@@ -1431,6 +1431,7 @@ class CmdPrompt(object):
 
     def finish(self):
         global opt
+        import readline
         if opt.inter_history:
             readline.write_history_file(opt.inter_history)
         
