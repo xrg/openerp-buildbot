@@ -36,7 +36,6 @@ Build #{{ b.getNumber() }}
     {{ b.getText()|join(' ')|capitalize }}
   </p>
    
-   {{ b.__class__ }}
   <ol>
   {% for tr in b.getTestResultsOrd() %}
   {% set tr_name = '.'.join(tr.name) %}
