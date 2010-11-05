@@ -1526,7 +1526,7 @@ class CmdPrompt(object):
                 return
             argo = args and args[0] or 'on'
             if client.series in ('pg84',):
-                self._client.execute_common('root', 'set_obj_debug', self.cur_orm, (argo == 'on') and 1 or 0)
+                self._client.execute_common('root', 'set_obj_debug', client.dbname, self.cur_orm, (argo == 'on') and 1 or 0)
             else:
                 print "Cannot change the ORM log level for %s server" % client.series
                 return
@@ -1543,7 +1543,7 @@ class CmdPrompt(object):
             do_bqi = False
             argo = (args and args[0]) or 'on'
 
-        if argo not in ('on', 'off'):
+        if argo not in ('on', 'off', 'silent'):
             print 'Valid values for debug are "on", "off"!'
             return
 
