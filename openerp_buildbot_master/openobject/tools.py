@@ -141,6 +141,9 @@ class Pool(object):
     def __len__(self):
         return len(self.__free_ones) + len(self.__used_ones)
 
+    def __nonzero__(self):
+        return True
+
     def count_free(self):
         return len(self.__free_ones)
 

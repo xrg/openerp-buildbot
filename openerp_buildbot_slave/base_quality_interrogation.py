@@ -22,9 +22,11 @@
 ##############################################################################
 
 import xmlrpclib
-# import ConfigParser
+from ConfigParser import SafeConfigParser, NoSectionError
 import optparse
 import sys
+import logging
+import logging.handlers
 import threading
 import os
 import signal
@@ -36,6 +38,11 @@ import subprocess
 import select
 import re
 import zipfile
+
+try:
+    import json
+except ImportError:
+    json = None
 
 admin_passwd = 'admin'
 
@@ -50,6 +57,23 @@ def to_decode(s):
                 return s.decode('ascii')
             except UnicodeError:
                 return s
+
+def pretty_repr(val):
+    if json is not None:
+        res = json.dumps(val, skipkeys=True, ensure_ascii=True, indent=4)
+    elif isinstance(val, (list, tuple)):
+        res = ''
+        for v in val:
+            res += '    %r,\n' % v
+        res =  '  [ ' + res[4:] +'  ]'
+    elif isinstance(val, dict):
+        res = ''
+        for k, v in val.items():
+            res += '    %r: %r,\n' %(k, v)
+        res = '  { ' + res[4:] +  '  }'
+    else:
+        res = repr(val)
+    return res
 
 class ClientException(Exception):
     """Define our own exception, to avoid traceback
@@ -152,6 +176,82 @@ class MachineFormatter(logging.Formatter):
 
         # return s.decode('utf-8')
         return s
+
+logging.DEBUG_RPC = logging.DEBUG - 2
+logging.addLevelName(logging.DEBUG_RPC, 'DEBUG_RPC')
+logging.DEBUG_SQL = logging.DEBUG_RPC - 2
+logging.addLevelName(logging.DEBUG_SQL, 'DEBUG_SQL')
+
+logging.TEST = logging.INFO - 5
+logging.addLevelName(logging.TEST, 'TEST')
+
+BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE, _NOTHING, DEFAULT = range(10)
+#The background is set with 40 plus the number of the color, and the foreground with 30
+#These are the sequences need to get colored ouput
+RESET_SEQ = "\033[0m"
+COLOR_SEQ = "\033[%dm"
+BOLD_COLOR_SEQ = "\033[1;%dm"
+BOLD_SEQ = "\033[1m"
+COLOR_PATTERN = "%s%s%%s%s" % (COLOR_SEQ, COLOR_SEQ, RESET_SEQ)
+BOLD_COLOR_PATTERN = "%s%s%%s%s" % (BOLD_COLOR_SEQ, BOLD_COLOR_SEQ, RESET_SEQ)
+
+COLOR_MAPPING = {
+    'stdout.DEBUG_SQL': (WHITE, MAGENTA, True),
+    'stdout.DEBUG_RPC': (BLUE, WHITE, True),
+    'stdout.DEBUG': (BLUE, DEFAULT, True),
+    'stdout.INFO': (GREEN, DEFAULT, True),
+    'stdout.TEST': (WHITE, BLUE, True),
+    'stdout.WARNING': (YELLOW, DEFAULT, True),
+    'stdout.ERROR': (RED, DEFAULT, True),
+    'stdout.CRITICAL': (WHITE, RED, True),
+    'server.stderr': (BLUE, _NOTHING, False),
+    'bqi': (DEFAULT, WHITE, False),
+    'bqi.blame': (RED, DEFAULT, True),
+    'bqi.DEBUG': (CYAN, _NOTHING, False),
+    'bqi.WARNING': (YELLOW, WHITE, False),
+    'bqi.ERROR': (RED, WHITE, False),
+    'bqi.client': (DEFAULT, WHITE, False),
+    'bqi.client.ERROR': (RED, WHITE, False),
+    'bqi.client.DEBUG': (CYAN, _NOTHING, False),
+    'bqi.state': (BLACK,WHITE, False),
+    'srv.thread': (DEFAULT, WHITE, False),
+    'srv.thread.WARNING': (YELLOW, _NOTHING, False),
+    'srv.thread.DEBUG': (CYAN, _NOTHING, False),
+}
+
+class ColoredFormatter(logging.Formatter):
+    linere = re.compile(r'\[(.*)\] ([A-Z]+):([\w\.-]+):(.*)$', re.DOTALL)
+    def format(self, record):
+        res = logging.Formatter.format(self, record)
+        if record.name == 'server.stdout':
+            # parse and format only the level name, just like the server itself
+            m = self.linere.match(res)
+            if m:
+                ln = COLOR_MAPPING.get('stdout.' + m.group(2), False)
+                
+                if ln:
+                    fg_color, bg_color, bold = ln
+                    if bold:
+                        lname = BOLD_COLOR_PATTERN % (30 + fg_color, 40 + bg_color, m.group(2))
+                    else:
+                        lname = COLOR_PATTERN % (30 + fg_color, 40 + bg_color, m.group(2))
+                    res = "[%s] %s:%s:%s" % (m.group(1), lname, m.group(3), m.group(4))
+        else:
+            # By default, format the whole line per logger's name
+            rn = record.name
+            if record.levelno != logging.INFO:
+                rn += '.' + record.levelname
+            if rn in COLOR_MAPPING:
+                fg_color, bg_color, bold = COLOR_MAPPING[rn]
+                if bold:
+                    res = BOLD_COLOR_PATTERN % (30 + fg_color, 40 + bg_color, res)
+                else:
+                    res = COLOR_PATTERN % (30 + fg_color, 40 + bg_color, res)
+            else:
+                # print "Oops, you missed color for %s" % rn
+                pass
+        return res
+
 
 class server_thread(threading.Thread):
     
@@ -273,7 +373,7 @@ class server_thread(threading.Thread):
 
     def __init__(self, root_path, port, netport, addons_path, pyver=None, 
                 srv_mode='v600', timed=False, debug=False, do_warnings=False,
-                ftp_port=None,
+                ftp_port=None, defines=False, pyargs=False,
                 config=None):
         threading.Thread.__init__(self)
         self.root_path = root_path
@@ -282,6 +382,9 @@ class server_thread(threading.Thread):
         self.args = [ 'python%s' %(pyver or ''),] 
         if do_warnings:
             self.args.append('-Wall')
+        if pyargs:
+            for pa in pyargs:
+                self.args.append('-'+pa)
         self.args += ['%sopenerp-server.py' % root_path,]
         if addons_path:
             self.args += [ '--addons-path=%s' % addons_path ]
@@ -306,6 +409,9 @@ class server_thread(threading.Thread):
             self.args.append('-Dtests.nonfatal=True')
             if ftp_port:
                 self.args.append('-Dftp.port=%s' % ftp_port)
+            if defines:
+                for d in defines:
+                    self.args.append('-D%s' % d)
         else:
             raise RuntimeError("Invalid server mode %s" % srv_mode)
 
@@ -412,7 +518,10 @@ class server_thread(threading.Thread):
                 olog = self.log_sout
             else:
                 olog = self.log_serr
-            olog.info(r)
+            if m and m.group(2) in ('DEBUG', 'DEBUG_RPC', 'DEBUG_SQL'):
+                olog.debug(r)
+            else:
+                olog.info(r)
 
             # Reset the buffer
             self._io_bufs[fd] = ''
@@ -444,7 +553,10 @@ class server_thread(threading.Thread):
                 # Log and go, don't buffer
                 if rl.endswith('\n'):
                     rl = rl[:-1]
-                olog.info(rl)
+                if mmatch.group(2) in ('DEBUG', 'DEBUG_RPC', 'DEBUG_SQL'):
+                    olog.debug(rl)
+                else:
+                    olog.info(rl)
                 return
         elif ematch:
             self._io_flush()
@@ -751,12 +863,30 @@ class client_worker(object):
         self.dbname = options['dbname']
         self.super_passwd = 'admin' # options['super_passwd']
         self.series = options['server_series']
+        self.has_os_times = self.series in ('pg84', 'v600')
 
     def _execute(self, connector, method, *args):
         self.log.debug("Sending command '%s' to server", method)
         res = getattr(connector,method)(*args)
         self.log.debug("Command '%s' returned from server", method)
         return res
+    
+    def execute_common(self, level, func, *args):
+        conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/common')
+        if level == 'pub':
+            pass
+        elif level == 'root':
+            args= (self.super_passwd,) + args
+        elif level == 'db':
+            uid = self._login()
+            if not uid:
+                raise Exception("Could not login!")
+            args = (self.dbname, uid, self.pwd,) + args
+        else:
+            raise RuntimeError("Incorrect level %s" % level)
+        server.state_dict['severity'] = 'warning'
+        print "execute: %r %r" % (func, args)
+        return self._execute(conn, func, *args)
 
     def _login(self):
         conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/common')
@@ -846,18 +976,29 @@ class client_worker(object):
         return True
 
     def get_ostimes(self, prev=None):
-        if self.series not in ('pg84',):
+        if not self.has_os_times:
             self.log.debug("Using client-side os.times()")
-            return os.times()
+            ost = list(os.times())
+            if prev is not None:
+                ost = ost + ost
+                if len(prev) > 5:
+                    prev = prev[5:]
+                for i in range(0,5):
+                    ost[i] -= prev[i]
+            return ost
         try:
             conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/common')
             ost = self._execute(conn,'get_os_time', self.super_passwd)
             if prev is not None:
+                ost = ost + ost
+                if len(prev) > 5:
+                    prev = prev[5:]
                 for i in range(0,5):
                     ost[i] -= prev[i]
             return ost
         except Exception:
-            self.log.exception("Get os times")
+            self.log.debug("Get os times", exc_info=True)
+            self.has_os_times = False
             return ( 0.0, 0.0, 0.0, 0.0, 0.0 )
 
 
@@ -872,7 +1013,6 @@ class client_worker(object):
             progress,users = self._execute(conn,'get_progress',self.super_passwd, id)
             self.log.debug("Progress: %s", progress)
         return True
-
 
     def create_db(self, lang='en_US'):
         conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/db')
@@ -1083,6 +1223,7 @@ class client_worker(object):
         uid = self._login()
         obj_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/object')
         server.state_dict['severity'] = 'error'
+        ost_start = self.get_ostimes()
         
         if self.series == 'v600':
             # the obj_list is broken in XML-RPC1 for v600
@@ -1112,18 +1253,31 @@ class client_worker(object):
         
         model_res = self._execute(obj_conn,'execute', self.dbname, uid, self.pwd,
                                     'ir.model', 'read', ir_model_ids, ['name', 'model'])
+        ost_for = self.get_ostimes(ost_start)
+        self.log.debug("Resolved the list of models in User: %.3f, Sys: %.3f, Real: %.3f",
+                                    ost_for[0], ost_for[1], ost_for[4])
+        ost = ost_for
+
         for mod in model_res:
             module = model_tbl.get(mod['id'],(None,False))[0]
             self.log.debug("Testing %s.%s", module or '<root>', mod['model'])
             try:
                 fvg = self._execute(obj_conn,'execute', self.dbname, uid, self.pwd,
                                 mod['model'], 'fields_view_get', False, 'form', {}, True)
+                ost = self.get_ostimes(ost)
                 if not fvg:
                     server.dump_blame(None, {'context': '%s.check' % (module or 'custom'),
                             'module': module or '', 'severity': 'error', 
                             'Message': 'No form view for model %s' % mod['model'] })
-                # else:
-                #    print "Fields view get:", fvg.keys()
+                else:
+                    if ((ost[4] or 0.0) > 0.5 or (ost[0] or 0.0) > 0.3) and self.has_os_times:
+                        server.dump_blame(None, {'context': '%s.check' % (module or 'custom'),
+                            'module': module or '', 'severity': 'warning', 
+                            'Message': 'Form view model %s is slow (u%.3f, r%.3f), please optimize' % \
+                                        (mod['model'], ost[0], ost[4] )})
+                    else:
+                        self.log.debug("Got view for %s in u%.3f, r%.3f",
+                                        mod['model'], ost[0], ost[4])
             except xmlrpclib.Fault, e:
                 logger.error('xmlrpc exception: %s', reduce_homedir(str(e.faultCode)))
                 logger.error('xmlrpc +: %s', reduce_homedir(e.faultString.rstrip()))
@@ -1131,9 +1285,569 @@ class client_worker(object):
                             'module': module or '', 'severity': 'error',
                             'Message': '%s.fields_view_get() is broken' % mod['model'] })
         
+        # Statistics:
+        ost = self.get_ostimes(ost_for)
+        self.log.info("Got %d views in u%.3f, r%.3f", len(model_res), ost[0], ost[4])
         server.clear_context()
         return True
 
+    def get_orm_names(self):
+        """ Retrieve the list of loaded OSV objects
+        """
+        server.clear_context()
+        uid = self._login()
+        obj_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/object')
+        server.state_dict['severity'] = 'warning'
+
+        # Get the models from the ir.model object
+        ir_model_ids = self._execute(obj_conn,'execute', self.dbname, uid, self.pwd,
+                                    'ir.model','search', [])
+
+        model_res = self._execute(obj_conn,'execute', self.dbname, uid, self.pwd,
+                                    'ir.model', 'read', ir_model_ids, ['model'])
+
+        return [ mod['model'] for mod in model_res]
+        
+    def get_orm_keys(self, model):
+        server.clear_context()
+        uid = self._login()
+        obj_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/object')
+        server.state_dict['severity'] = 'warning'
+        fks = self._execute(obj_conn,'execute', self.dbname, uid, self.pwd,
+                                    model, 'fields_get_keys' )
+        return fks
+
+    def orm_execute(self, model, func, *args):
+        server.clear_context()
+        uid = self._login()
+        obj_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/object')
+        server.state_dict['severity'] = 'warning'
+        res = self._execute(obj_conn,'execute', self.dbname, uid, self.pwd,
+                                    model, func, *args )
+        return res
+
+class CmdPrompt(object):
+    """ A command prompt for interactive use of the OpenERP server
+    """
+
+    def _complete_module_cmd(self, text, state):
+        sub_cmds = ['info', 'install', 'upgrade', 'uninstall',]
+        pos = []
+        first = text and text.split(' ',1)[0]
+        if (not text) or first not in sub_cmds:
+            for s in sub_cmds:
+                if s.startswith(text or ''):
+                    pos.append(s)
+        elif ' ' in text:
+            args = text.split(' ')
+            if args[0] in ('info', 'upgrade', 'uninstall'):
+                for mod in server.state_dict.get('regd-modules',[]):
+                    if mod.startswith(args[-1]):
+                        pos.append((' '.join(args[:-1])) + ' '+ mod)
+        return pos
+
+    def _complete_orm_cmd(self, text, state):
+        if not self._orm_cache:
+            self.fetch_orm_names()
+        pos = []
+        for obj in self._orm_cache:
+            if obj.startswith(text):
+                pos.append(obj)
+        return pos
+
+    def _complete_print(self, text, state):
+        pos = []
+        if self._last_res:
+            if 'this'.startswith(text):
+                pos.append('this')
+            if isinstance(self._last_res, dict):
+                for k in self._last_res.keys():
+                    if k.startswith(text):
+                        pos.append(k)
+            if (not text) and isinstance(self._last_res, (list, tuple)):
+                pos.append('@')
+
+            if text.startswith('@') and isinstance(self._last_res, (list, tuple)):
+                txt2 = text[1:]
+                for i in range(len(self._last_res)):
+                    if txt2.startswith(str(i)):
+                        pos.append('@%d' % i)
+
+        if self._eloc:
+            for k in self._eloc.keys():
+                if k.startswith('_'):
+                    continue
+                if k.startswith(text):
+                    pos.append(k)
+        return pos
+
+    avail_cmds = { 0: [ 'help','db_list', 'debug', 'quit', 'db',
+                        'orm', 'module', 'translation' ],
+                'orm': ['help', 'obj_info', 
+                        'do', 'res_id',
+                        'print', 'with',
+                        'debug', 'exit',  ],
+                'orm_id': [ 'help', 'do', 'print', 'with', 'debug', 'exit', ]
+                }
+    cmd_levelprompts = { 0: 'BQI', 'db': 'BQI DB', 'orm': 'BQI %(cur_orm)s',
+                        'orm_id': 'BQI %(cur_orm)s#%(cur_res_id)d', }
+    sub_commands = { 'debug': ['on', 'off', 'server on', 'server off', 
+                                'console on', 'console off', 'console silent',
+                                'object on', 'object off',],
+                    'db': ['load', 'create', 'drop' ],
+                    'module': _complete_module_cmd,
+                    'orm': _complete_orm_cmd,
+                    'do': [],
+                    'print': _complete_print,
+                    'with': _complete_print,
+                    'help': [],
+                    'server': ['set loglevel', 'set obj-debug', 'set loggerlevel', 'get' ],
+                    }
+
+    help = '''
+     OpenERP interactive client.
+
+     Available Commands:
+'''
+
+    def __init__(self, client=None):
+        self._client = client
+        self.does_run = True
+        self.__cmdlevel = 0
+        self.dbname = None
+        self.cur_orm = None
+        self.cur_res_id = None
+        self._orm_cache = []
+        self._last_res = None
+        self._eloc = {}
+        import readline
+        
+        readline.set_completer(self._complete)
+        readline.parse_and_bind('tab: complete')
+        readline.set_completer_delims('')
+        global opt
+        if opt.inter_history and os.path.exists(opt.inter_history):
+            readline.read_history_file(opt.inter_history)
+
+    def finish(self):
+        global opt
+        import readline
+        if opt.inter_history:
+            readline.write_history_file(opt.inter_history)
+        
+    def handle(self):
+        """Display the prompt and handle one command
+        """
+
+        if not self.does_run:
+            return False
+
+        try:
+            cmpt = self.cmd_levelprompts[self.__cmdlevel] % self.__dict__
+            cmpt += "> "
+            # TODO grab console from logger.
+            command_line = raw_input(cmpt)
+            # print ""
+            if not command_line:
+                return True
+
+            command_elements = command_line.split()
+            command = command_elements[0]
+            args = command_elements[1:]
+
+        except EOFError:
+            print ""
+            self.does_run = False
+            return False
+
+        if not command:
+            return True
+
+        if command in self.avail_cmds[self.__cmdlevel]:
+            cmd = getattr(self, '_cmd_' +command)
+            try:
+                cmd(*args)
+            except Exception, e:
+                print "Command %s failed: %s" % (command, e)
+                print
+            except KeyboardInterrupt:
+                print "Cancelled"
+                self.does_run = False
+                return False
+        else:
+            print "Unknown command:", command[:10]
+
+        if not self.does_run:
+            return False
+        else:
+            return True
+
+
+    def _complete(self, text, state):
+        "Temporary debugger for completion"
+        try:
+            return self._complete_2(text,state)
+        except Exception, e:
+            import traceback
+            traceback.print_exc()
+            print "Exc:", e
+
+    def _complete_2(self, text, state):
+        possible = []
+        for ac in self.avail_cmds.get(self.__cmdlevel,[]):
+            if ac.startswith(text[:len(ac)]):
+                possible.append(ac)
+        
+        if len(possible) == 1 and self.sub_commands.has_key(possible[0]) and \
+            len(text) > len(possible[0]):
+            pos = possible[0]
+            possible = []
+            if self.sub_commands.has_key(pos):
+                txt = text[len(pos)+1:]
+                scp = self.sub_commands[pos]
+                if callable(scp):
+                    possible = [ pos+' '+ p for p in scp(self, txt, state) ]
+                else:
+                    for sc in scp:
+                        if sc.startswith(txt):
+                            possible.append(pos + ' ' + sc)
+
+        if state >= len(possible):
+            return False
+        else:
+            return possible[state]
+
+    def _cmd_debug(self, *args):
+        argo = args and args[0] or 'on'
+        args = args[1:]
+        if argo == 'object':
+            if not self.cur_orm:
+                print "Command 'debug object ...' is only available at orm level!"
+                return
+            argo = args and args[0] or 'on'
+            if client.series in ('pg84',):
+                self._client.execute_common('root', 'set_obj_debug', client.dbname, self.cur_orm, (argo == 'on') and 1 or 0)
+            else:
+                print "Cannot change the ORM log level for %s server" % client.series
+                return
+            return
+        do_server = True
+        do_console = True
+        do_bqi = True
+        if argo == 'server':
+            do_console = False
+            do_bqi = False
+            argo = (args and args[0]) or 'on'
+        elif argo == 'console':
+            do_server = False
+            do_bqi = False
+            argo = (args and args[0]) or 'on'
+
+        if argo not in ('on', 'off', 'silent'):
+            print 'Valid values for debug are "on", "off"!'
+            return
+
+        print "Set debug to %s" % (argo)
+        
+        log = logging.getLogger()
+        lvl = logging.DEBUG
+        if argo == 'on':
+            if do_console:
+                log.setLevel(logging.DEBUG)
+                if console_log_handler:
+                    console_log_handler.setLevel(logging.DEBUG)
+            if do_server:
+                self._client.execute_common('root', 'set_loglevel', 10)
+        elif argo == 'off':
+            if do_console and console_log_handler is not None:
+                console_log_handler.setLevel(logging.INFO)
+            if do_bqi:
+                log.setLevel(logging.INFO)
+            if do_server:
+                self._client.execute_common('root', 'set_loglevel', 20)
+        elif argo == 'silent':
+            if console_log_handler is not None:
+                console_log_handler.setLevel(logging.INFO)
+            log.setLevel(logging.DEBUG)
+            self._client.execute_common('root', 'set_loglevel', 10)
+            
+        server._io_flush()
+
+    def _cmd_help(self, topic=None):
+        """Print this help
+        """
+        if topic:
+            for cmd in self.avail_cmds[self.__cmdlevel]:
+                if topic and not cmd.startswith(topic):
+                    continue
+                print "Command: %s\n" % cmd
+                doc = getattr(self, '_cmd_'+cmd).__doc__
+                print doc
+            return
+
+        print self.help
+        for cmd in self.avail_cmds[self.__cmdlevel]:
+            if topic and not cmd.startswith(topic):
+                continue
+            doc = getattr(self, '_cmd_'+cmd).__doc__
+            if doc:
+                doc = doc.split('\n')[0]
+                print "      " + cmd + ' '* (26 - len(cmd)) + doc
+        print ""
+
+    def _cmd_quit(self):
+        """Quit the interactive mode and continue bqi script
+        """
+        self.does_run = False
+
+    def _cmd_db_list(self):
+        """Lists the Databases accessible by the running server"""
+        print "Available DBs:"
+        pass #TODO
+
+
+    def _cmd_db(self, *args):
+        """Connect to database
+        """
+        try:
+            uid = self._client._login()
+            #self.dbname = dbname
+            #self.__cmdlevel = 'db'
+        except KeyError:
+            print "Cannot connect to database %s" % dbname
+    
+    def _cmd_info(self):
+        """Get info about server, database, or orm object
+        """
+        if not self.dbname:
+            print "Currently NOT at database"
+            return
+        
+        pass # TODO
+
+    def _cmd_server(self):
+        """Server-level settings
+        """
+        pass  # TODO
+
+    def _cmd_set(self):
+        """Get info about server, database, or orm object
+        """
+
+    def _cmd_exit(self):
+        """Exit to upper command level """
+        if self.__cmdlevel == 'orm_id':
+            self.cur_res_id = None
+            self.__cmdlevel = 'orm'
+        elif self.__cmdlevel == 'foobar':
+            self.__cmdlevel = 'foo'
+        else:
+            self.__cmdlevel = 0
+            self.cur_res_id = None
+            self.cur_orm = None
+            self.dbname = None
+            self._eloc = {}
+        self._last_res = None
+
+    def _cmd_module(self, cmd, *args):
+        """Perform operations on modules
+        
+        Available ones are:
+            info <mod>...         Get module information
+            install <mod> ...     Install module(s)
+            upgrade <mod> ...     Upgrade module(s)
+            uninstall <mod> ...   Remove module(s)
+        """
+        if not args:
+            print 'Must supply some modules!'
+            return
+        if cmd == 'info':
+            pass
+        elif cmd == 'install':
+            client.install_module(args)
+        elif cmd == 'upgrade':
+            client.upgrade_module(args)
+        elif cmd == 'uninstall':
+            pass
+        else:
+            print "Unknown command: module %s" % cmd
+    
+    def fetch_orm_names(self):
+        try:
+            self._orm_cache = client.get_orm_names()
+        except Exception, e:
+            print "exc:", e
+
+    def _cmd_orm(self, model, res_id=None):
+        """Select the ORM model to operate upon
+        
+            An extra argument of the resource id can be supplied, too.
+        """
+        if not model:
+            print "Must select one orm model!"
+            return
+        try:
+            client.get_orm_keys(model)
+        except xmlrpclib.Fault:
+            print "Wrong ORM model!"
+            return
+        if res_id:
+            try:
+                res_id = int(res_id)
+            except ValueError:
+                print "id of orm must be integer!"
+                return
+            try:
+                client.orm_execute(model, 'read', [res_id,], ['id',])
+            except xmlrpclib.Fault:
+                print "Record not found!"
+                return
+            self.cur_res_id = res_id
+            self.__cmdlevel = 'orm_id'
+        else:
+            self.__cmdlevel = 'orm'
+        self.cur_orm = model
+
+    def _cmd_res_id(self, res_id):
+        """Select a single resource of an ORM model
+        """
+        if not self.cur_orm:
+            print "Must specify a model first!"
+            return
+        try:
+            res_id = int(res_id)
+        except ValueError:
+            print "id of orm must be integer!"
+            return
+        try:
+            client.orm_execute(self.cur_orm, 'read', [res_id,], ['id',])
+        except xmlrpclib.Fault:
+            print "Record not found!"
+            return
+        self.cur_res_id = res_id
+        self.__cmdlevel = 'orm_id'
+        
+    def _cmd_do(self, *args):
+        """Perform an ORM operation on an object.
+        
+            Please specify a pythonic expression like "read(['name',])"
+            If you are on a single resource, this will be added as a first
+            list argument. Otherwise, you will need to specify the ids, too.
+        """
+        if not self.cur_orm:
+            print "Must be at an ORM level!"
+            return
+        astr = ' '.join(args)
+        if not '(' in astr:
+            print "Syntax: foobar(...)"
+            return
+        try:
+            astr = astr.strip()
+            afn, aexpr = astr.split('(',1)
+            aexpr = '(' + aexpr
+            aexpr = eval(aexpr, {'this': self._last_res}, {})
+        except Exception, e:
+            print 'Tried to eval "%s"' % aexpr
+            print "Exception:", e
+            return
+        if not isinstance(aexpr, tuple):
+            aexpr = (aexpr,)
+        if self.cur_res_id:
+            aexpr = ( [self.cur_res_id,],) + aexpr
+        try:
+            logger.debug("Trying orm execute: %s(%s)", afn, ', '.join(map(repr,aexpr)))
+            res = client.orm_execute(self.cur_orm, afn, *aexpr)
+            server._io_flush()
+        except xmlrpclib.Fault, e:
+            print 'xmlrpc exception: %s' % reduce_homedir( e.faultCode.strip())
+            print 'xmlrpc +: %s' % reduce_homedir(e.faultString.rstrip())
+            return
+        except Exception, e:
+            print "Failed orm execute:", e
+            return
+
+        toprint = repr(res)
+        if len(toprint) < 128:
+            print "Res:", toprint
+        else:
+            print "Res is a %s. Use the print cmd to inspect it." % type(res)
+        self._last_res = res
+
+    def _eval_local(self, aexpr):
+        # put persistent at locals, this etc. in globals
+        loc = self._eloc
+        glo = {}
+        has_at = False
+        if isinstance(self._last_res, dict):
+            glo.update(self._last_res)
+        glo['this'] = self._last_res
+        aexpr = aexpr.strip()
+        if aexpr.startswith('@'):
+            has_at = True
+            aexpr = aexpr[1:]
+        if not aexpr:
+            # like "@" alone
+            return list(self._last_res)
+
+        try:
+            res = eval(aexpr, loc, glo)
+        except Exception, e:
+            print "Exception:", e
+            return
+        if has_at:
+            try:
+                res = self._last_res[res]
+            except Exception, e:
+                print "Exception this[@]:", e
+                return
+        return res
+
+    def _cmd_print(self, *args):
+        """Print any part of the last result.
+        
+        For every orm "do" command or so, the last result is stored in a
+        register, namely 'this'. Write a pythonic expression to inspect
+        this, like:
+            print len(this)
+            print this[4]['foobar']
+        """
+        if not args:
+            # yes, an empty line ;)
+            print
+            return
+        aexpr = ' '.join(args)
+        res = self._eval_local(aexpr)
+        print "Result:"
+        print pretty_repr(res)
+        
+    def _cmd_with(self, *args):
+        """Narrow the last result
+        
+        When the last result is a complex expression, it makes sense sometimes
+        to "dive" into it and inspect a specific part:
+            print len(this)
+            print this[3]
+            with this[3]
+            print this['foobar']
+        """
+        if not args:
+            return
+        aexpr = ' '.join(args)
+        res = self._eval_local(aexpr)
+        toprint = repr(res)
+        if len(toprint) < 60:
+            print "With this:", toprint
+        if res is not None:
+            self._last_res = res
+
+    def _cmd_obj_info(self):
+        """Obtain model info
+        """
+        
+        if not self.cur_orm:
+            print "Must be at an ORM level!"
+            return
+        print "Currently at: %s" % self.cur_orm
 
 usage = """%prog command [options]
 
@@ -1149,7 +1863,10 @@ Basic Commands:
     fields-view-get             Check fields_view_get of all pooler objects
     multi <cmd> [<cmd> ...]     Execute several of the above commands, at a 
                                 single server instance.
+    keep[-running]              Pause and keep the server running, waiting for Ctrl+C
+    inter[active]               Display interactive b-q-i prompt
 """
+
 parser = optparse.OptionParser(usage)
 parser.add_option("-m", "--modules", dest="modules", action="append",
                      help="specify modules to install or check quality")
@@ -1165,6 +1882,15 @@ parser.add_option("--txt-log", dest="txt_log", help="A file to write plain log t
 parser.add_option("--machine-log", dest="mach_log", help="A file to write machine log stream, or 'stderr'")
 parser.add_option("--debug", dest="debug", action='store_true', default=False,
                     help="Enable debugging of both the script and the server")
+parser.add_option("--debug-server", dest="debug_server", action='store_true', default=False,
+                    help="Enable debugging of the server alone")
+parser.add_option("--debug-bqi", dest="debug_bqi", action='store_true', default=False,
+                    help="Enable debugging of this script alone")
+
+parser.add_option("-D", "--define", dest="defines", action="append",
+                    help="Define configuration values for server, (pg84 only)")
+parser.add_option("-P", "--pyarg", dest="pyargs", action="append",
+                    help="Pass this argument to python interpreter")
 
 parser.add_option("-W", dest="warnings", default=False,
                     help="Pass this flag to python, so that warnings are considered")
@@ -1184,21 +1910,115 @@ parser.add_option("--translate-in", dest="translate_in",
                      help="specify .po files to import translation terms")
 parser.add_option("--server-series", help="Specify argument syntax and options of the server.\nExamples: 'v600', 'pg84'")
 
-(opt, args) = parser.parse_args()
+parser.add_option("--color", dest="console_color", action='store_true', default=False,
+                    help="Use color at stdout/stderr logs")
+
+parser.add_option("--console-nodebug", dest="console_nodebug", action='store_true', default=False,
+                    help="Hide debug messages from console, send them to file log only.")
+
+parser.add_option("-n", "--dry-run", dest="dry_run", action='store_true', default=False,
+                    help="Don't start the server, just print the commands.")
+
+parser.add_option("--inter-history", dest="inter_history",
+                    help="Interactive history file")
+
+pgroup = optparse.OptionGroup(parser, 'Config-File options',
+                " These options help run this script with pre-configured settings.")
+
+pgroup.add_option("-c", dest="conffile", 
+            help="Read configuration options for this script from file. " 
+            "Defaults to ~/.openerp-bqirc" )
+pgroup.add_option("--no-bqirc", dest="have_bqirc", action="store_false", default=True,
+            help="Do not read ~/.openerp-bqirc , start with empty options.")
+pgroup.add_option("-s", dest="bqirc_section", action="append",
+            help="Section of the config file which should be followed, like a script")
+
+parser.add_option_group(pgroup)
+
+(copt, args2) = parser.parse_args()
 
 def die(cond, msg):
     if cond:
         print msg
         sys.exit(1)
 
+args = []
+# Now, parse the config files, if any:
+
+opt = optparse.Values(copt.__dict__)
+
+config_stray_opts = []
+def parse_option_section(conf, items, allow_include=True):
+    global opt, copt, args
+    global config_stray_opts
+    nonopts = ('conffile', 'have_bqirc', 'bqirc_section', 'include')
+    default_section = None
+    for key, val in items:
+        if key == 'include' and allow_include:
+            for inc in val.split(' '):
+                parse_option_section(conf, conf.items(inc), allow_include=(allow_include-1))
+
+    for key, val in items:
+        if key in nonopts:
+            continue
+        elif key == 'default_section':
+            default_section = val
+        elif key == 'color_section':
+            parse_color_section(config, val)
+        elif key == 'commands':
+            args += val.split(' ')
+        elif key in dir(copt):
+            if isinstance(getattr(copt, key), list) or \
+                    (key in ('modules',)):
+                val = val.split(' ')
+            elif isinstance(getattr(copt, key), bool):
+                val = bool(val.lower() in ('1', 'true', 't', 'yes'))
+            elif key in ('addons_path', 'root_path', 'xml_log', 'txt_log', 'mach_log', 'inter_history'):
+                val = os.path.expanduser(val)
+            if not getattr(copt, key):
+                setattr(opt, key, val)
+        else:
+            config_stray_opts.append((key, val))
+            pass
+
+    return default_section
+
+def parse_color_section(conf, sname):
+    """Parse the config section sname for colors configuration
+    """
+    pass
+
+if opt.have_bqirc:
+    cfile = os.path.expanduser(copt.conffile or '~/.openerp-bqirc')
+    config = SafeConfigParser()
+    conf_filesread = config.read([cfile,])
+    try:
+        default_section = parse_option_section(config, config.items('general'), 5)
+    except NoSectionError:
+        default_section = []
+        pass
+
+    if copt.bqirc_section:
+        default_section = copt.bqirc_section
+    elif default_section:
+        default_section = default_section.split(' ')
+    else:
+        default_section = []
+
+    if default_section:
+        for ds in default_section:
+            parse_option_section(config, config.items(ds), 5)
+
+args += args2
+
 options = {
     'addons-path' : opt.addons_path or False,
     'quality-logs' : opt.quality_logs or '',
     'root-path' : opt.root_path or '',
     'translate-in': [],
-    'port' : opt.port or 8069,
+    'port' : int(opt.port or 8069),
     'lang': opt.lang or 'en_US',
-    'netport':opt.netport or False,
+    'netport': (opt.netport and int(netport)) or False,
     'dbname': opt.db_name ,
     'modules' : opt.modules,
     'login' : opt.login or 'admin',
@@ -1212,14 +2032,15 @@ if opt.homedir:
     options['homedir'] = os.path.abspath(opt.homedir)+'/'
 
 def reduce_homedir(ste):
-    global options
+    global opt
     return ste.replace(options['homedir'], '~/')
 
-import logging
+console_log_handler = None
 def init_log():
     global opt
+    global console_log_handler
     log = logging.getLogger()
-    if opt.debug:
+    if opt.debug or opt.debug_bqi:
         log.setLevel(logging.DEBUG)
     else:
         log.setLevel(logging.INFO)
@@ -1235,29 +2056,50 @@ def init_log():
         
     if opt.txt_log:
         if opt.txt_log == 'stderr':
-            log.addHandler(logging.StreamHandler())
-            has_stderr = True
+            seh = logging.StreamHandler()
+            log.addHandler(seh)
+            console_log_handler = seh
+            if opt.console_nodebug:
+                seh.setLevel(logging.INFO)
+            if opt.console_color:
+                seh.setFormatter(ColoredFormatter())
         elif opt.txt_log == 'stdout':
-            log.addHandler(logging.StreamHandler(sys.stdout))
-            has_stdout = True
+            soh = logging.StreamHandler(sys.stdout)
+            console_log_handler = soh
+            log.addHandler(soh)
+            if opt.console_nodebug:
+                soh.setLevel(logging.INFO)
+            if opt.console_color:
+                soh.setFormatter(ColoredFormatter())
         else:
-            log.addHandler(logging.FileHandler(opt.txt_log))
+            fh = logging.handlers.RotatingFileHandler(opt.txt_log, backupCount=10)
+            log.addHandler(fh)
+            if os.path.exists(opt.txt_log):
+                fh.doRollover()
             #hnd2.setFormatter()
 
     if opt.mach_log:
         if opt.mach_log == 'stdout':
-            if has_stdout:
+            if console_log_handler is not None:
                 raise Exception("Cannot have two loggers at stdout!")
             hnd3 = logging.StreamHandler(sys.stdout)
-            has_stdout = True
+            console_log_handler = hnd3
         else:
-            hnd3 = logging.FileHandler(opt.mach_log)
+            hnd3 = logging.handlers.RotatingFileHandler(opt.mach_log, backupCount=10)
+            if os.path.exists(opt.mach_log):
+                hnd3.doRollover()
         hnd3.setFormatter(MachineFormatter())
         log.addHandler(hnd3)
 
 init_log()
 
 logger = logging.getLogger('bqi')
+
+if opt.have_bqirc and conf_filesread:
+    for r in conf_filesread:
+        logger.info("Read config from %s" % r)
+    for cso in config_stray_opts:
+        logger.warning("Stray option in config: %s = %s", cso[0], cso[1])
 
 def parse_cmdargs(args):
     """Parse the non-option arguments into an array of commands
@@ -1281,7 +2123,8 @@ def parse_cmdargs(args):
 
         if cmd2 not in ('start-server','create-db','drop-db',
                     'install-module','upgrade-module','check-quality',
-                    'install-translation', 'multi', 'fields-view-get'):
+                    'install-translation', 'multi', 'fields-view-get',
+                    'keep', 'keep-running', 'inter', 'interactive'):
             parser.error("incorrect command: %s" % command)
             return
         args = args[1:]
@@ -1365,8 +2208,8 @@ server = server_thread(root_path=options['root-path'], port=options['port'],
                         netport=options['netport'], addons_path=options['addons-path'],
                         srv_mode=options['server_series'], config=options['config'],
                         do_warnings=bool(opt.warnings in ('all','warn')),
-                        ftp_port=opt.ftp_port,
-                        debug=opt.debug)
+                        ftp_port=opt.ftp_port, defines=opt.defines, pyargs=opt.pyargs,
+                        debug=opt.debug or opt.debug_server)
 
 logger.info('start of script')
 try:
@@ -1402,6 +2245,19 @@ try:
             logger.exception("Cannot scan modules:")
     
     logging.getLogger('bqi.state').info("set num_modules %d", len(mods))
+    if opt.dry_run:
+        logger.info("Dry run! Here is what would happen:")
+        logger.info("%s", ' '.join(server.args))
+        logger.info("And then, do %d steps:", len(cmdargs))
+        for cmd, args, in cmdargs:
+            logger.info(" > %s %s", cmd, ' '.join(args))
+        logger.debug("Options now:")
+        for key, val in opt.__dict__.items():
+            if not val:
+                continue
+            logger.debug("Option: %s (%s): %s", key,type(val), val)
+        sys.exit(0)
+
     server.start_full()
     client = client_worker(uri, options)
     ost = client.get_ostimes()
@@ -1420,6 +2276,10 @@ try:
                 ret = client.create_db(lang=options['lang'])
             elif cmd == 'drop-db':
                 ret = client.drop_db()
+            elif cmd == 'start-server':
+                # a simple login will trigger a db load and ensure
+                # that the server's ORM is working
+                ret = bool( client._login() )
             elif cmd == 'install-module':
                 ret = client.install_module(mods + args)
             elif cmd == 'upgrade-module':
@@ -1430,12 +2290,35 @@ try:
                 ret = client.import_translate(options['translate-in'])
             elif cmd == 'fields-view-get':
                 ret = client.fields_view_get()
+            elif cmd == 'keep' or cmd == 'keep-running':
+                try:
+                    logger.info("Server is running, script is paused. Press Ctrl+C to continue.")
+                    while server.is_running:
+                        time.sleep(60)
+                    logger.info("Server stopped, exiting")
+                except KeyboardInterrupt:
+                    logger.info("Stopping after Ctrl+C")
+                    ret = False
+            elif cmd == 'inter' or cmd == 'interactive':
+                logger.info("Interactive mode. Enjoy!")
+                cmdp = CmdPrompt(client)
+                try:
+                    while True and server.is_running:
+                        r = cmdp.handle()
+                        if not r:
+                            break
+                except KeyboardInterrupt:
+                    log.info("Keyboard interrupt, exiting")
+
+                cmdp.finish()
+
         except ClientException, e:
             logger.error(reduce_homedir("%s" % e))
             server.dump_blame(e)
             ret = False
         except xmlrpclib.Fault, e:
-            logger.error('xmlrpc exception: %s', reduce_homedir(e.faultCode.strip()))
+            e_fc = str(e.faultCode)
+            logger.error('xmlrpc exception: %s', reduce_homedir(e_fc.strip()))
             logger.error('xmlrpc +: %s', reduce_homedir(e.faultString.rstrip()))
             server.dump_blame(e)
             ret = False
