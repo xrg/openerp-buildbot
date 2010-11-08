@@ -1382,7 +1382,7 @@ class CmdPrompt(object):
         return pos
 
     avail_cmds = { 0: [ 'help','db_list', 'debug', 'quit', 'db',
-                        'orm', 'module', 'translation' ],
+                        'orm', 'module', 'translation', 'server' ],
                 'orm': ['help', 'obj_info', 
                         'do', 'res_id',
                         'print', 'with',
@@ -1401,7 +1401,14 @@ class CmdPrompt(object):
                     'print': _complete_print,
                     'with': _complete_print,
                     'help': [],
-                    'server': ['set loglevel', 'set obj-debug', 'set loggerlevel', 'get' ],
+                    'server': [ 'set loglevel', 'set loggerlevel', 
+                                'get loglevel', 'get info', 'get about',
+                                'get login-message', 'get timezone',
+                                'get options', 'get os-time', 'get http-services',
+                                'get environment',
+                                'stats', 'check',
+                                #'restart',
+                                ],
                     }
 
     help = '''
@@ -1625,10 +1632,83 @@ class CmdPrompt(object):
         
         pass # TODO
 
-    def _cmd_server(self):
-        """Server-level settings
+    def _cmd_server(self, *args):
+        """Server-level operations or info
+        
+        This command has several sub-commands:
+            set loglevel <num|name>      Set the logging level. Name may only be supported
+                                         at certain server versions
+            set loggerlevel <logger> <num|name>  Set lever for some logger
+            check                        Perform the "check connectivity" test
+            stats                        Query the server for statistics info.
         """
-        pass  # TODO
+        #    restart                     Attempt to restart the server.
+
+        if not args:
+            print "You must supply a sub-command to 'server'"
+            return
+        try:
+            if args[0] == 'set':
+                if args[1] == 'loglevel':
+                    self._client.execute_common('root', 'set_loglevel', args[2])
+                elif args[1] == 'loggerlevel':
+                    self._client.execute_common('root', 'set_loglevel', args[3], args[2])
+                else:
+                    print "Wrong command"
+                    return
+            elif args[0] == 'get':
+                res = None
+                if args[1] == 'loglevel':
+                    ret = self._client.execute_common('root', 'get_loglevel')
+                #elif args[1] == 'info':
+                #    ret = self._client.execute_common('root', '')
+                elif args[1] == 'about':
+                    ret = self._client.execute_common('pub', 'about')
+                elif args[1] == 'login-message':
+                    ret = self._client.execute_common('pub', 'login_message')
+                elif args[1] == 'timezone':
+                    ret = self._client.execute_common('pub', 'timezone_get')
+                elif args[1] == 'options':
+                    ret = self._client.execute_common('pub', 'get_options')
+                elif args[1] == 'environment':
+                    ret = self._client.execute_common('pub', 'get_server_environment')
+                elif args[1] == 'os-time':
+                    ret = self._client.execute_common('root', 'get_os_time')
+                elif args[1] == 'http-services':
+                    ret = self._client.execute_common('pub', 'list_http_services')
+                else:
+                    print "Wrong command"
+                    return
+                if isinstance(ret, basestring):
+                    print "Result:"
+                    print ret
+                else:
+                    print "Result:\n", pretty_repr(ret)
+            elif args[0] == 'stats':
+                ret = self._client.execute_common('pub', 'get_stats')
+                print ret
+            #elif args[0] == 'restart':
+            #   pass # Non-trivial TODO
+            elif args[0] == 'check':
+                ret = self._client.execute_common('pub', 'check_connectivity')
+            else:
+                print "Unknown sub-command: server %s" % args[0]
+                return
+        # Exceptions are handled locally in the command.
+        except ClientException, e:
+            logger.error(reduce_homedir("%s" % e))
+            server.dump_blame(e)
+            ret = False
+        except xmlrpclib.Fault, e:
+            e_fc = str(e.faultCode)
+            logger.error('xmlrpc exception: %s', reduce_homedir(e_fc.strip()))
+            logger.error('xmlrpc +: %s', reduce_homedir(e.faultString.rstrip()))
+            server.dump_blame(e)
+            ret = False
+        except Exception, e:
+            logger.exception('exc at %s:', ' '.join(args))
+            server.dump_blame(e)
+            ret = False
 
     def _cmd_set(self):
         """Get info about server, database, or orm object
