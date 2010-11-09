@@ -36,6 +36,8 @@ import base64
 # import socket
 import subprocess
 import select
+import string
+import random
 import re
 import zipfile
 
@@ -43,8 +45,6 @@ try:
     import json
 except ImportError:
     json = None
-
-admin_passwd = 'admin'
 
 def to_decode(s):
     try:
@@ -398,12 +398,14 @@ class server_thread(threading.Thread):
 
         # TODO: secure transport, persistent ones.
         if srv_mode == 'v600':
+            self.args.append('--xmlrpc-interface=127.0.0.1')
             self.args.append('--xmlrpc-port=%s' % port )
             self.args.append('--no-xmlrpcs')
             # FIXME: server doesn't support this!
             #if ftp_port:
             #    self.args.append('--ftp_server_port=%d' % int(ftp_port))
         elif srv_mode == 'pg84':
+            self.args.append('--httpd-interface=127.0.0.1' )
             self.args.append('--httpd-port=%s' % port )
             self.args.append('--no-httpds')
             self.args.append('-Dtests.nonfatal=True')
@@ -861,7 +863,7 @@ class client_worker(object):
         self.user = options['login']
         self.pwd = options['pwd']
         self.dbname = options['dbname']
-        self.super_passwd = 'admin' # options['super_passwd']
+        self.super_passwd = options['super_passwd']
         self.series = options['server_series']
         self.has_os_times = self.series in ('pg84', 'v600')
 
@@ -1982,6 +1984,7 @@ parser.add_option("--net_port", dest="netport",help="specify the TCP port for ne
 parser.add_option("-d", "--database", dest="db_name", help="specify the database name")
 parser.add_option("--login", dest="login", help="specify the User Login")
 parser.add_option("--password", dest="pwd", help="specify the User Password")
+parser.add_option("--super-passwd", dest="super_passwd", help="The db admin password")
 parser.add_option("--config", dest="config", help="Pass on this config file to the server")
 parser.add_option("--ftp-port", dest="ftp_port", help="Choose the port to set the ftp server at")
 
@@ -2089,6 +2092,24 @@ if opt.have_bqirc:
         for ds in default_section:
             parse_option_section(config, config.items(ds), 5)
 
+def mkpasswd(nlen):
+    ret = ''
+    rnd = random.SystemRandom()
+    crange = string.ascii_letters + string.digits + '_-.'
+    for c in range(nlen):
+        ret += rnd.choice(crange)
+    return ret
+
+if opt.pwd is None:
+    opt.pwd = 'admin'
+elif opt.pwd and opt.pwd == "@":
+    opt.pwd = mkpasswd(8)
+
+if opt.super_passwd is None:
+    opt.super_passwd = 'admin'
+elif opt.super_passwd and opt.super_passwd == "@":
+    opt.super_passwd = mkpasswd(10)
+
 args += args2
 
 options = {
@@ -2102,7 +2123,8 @@ options = {
     'dbname': opt.db_name ,
     'modules' : opt.modules,
     'login' : opt.login or 'admin',
-    'pwd' : opt.pwd or 'admin',
+    'pwd' : opt.pwd,
+    'super_passwd': opt.super_passwd,
     'config': opt.config,
     'server_series': opt.server_series or 'v600',
     'homedir': '~/'
@@ -2373,6 +2395,8 @@ try:
             elif cmd == 'keep' or cmd == 'keep-running':
                 try:
                     logger.info("Server is running, script is paused. Press Ctrl+C to continue.")
+                    print "Remember, the 'admin' password is \"%s\" and the super-user \"%s\"" % \
+                                (opt.pwd, opt.super_passwd)
                     while server.is_running:
                         time.sleep(60)
                     logger.info("Server stopped, exiting")
@@ -2381,6 +2405,8 @@ try:
                     ret = False
             elif cmd == 'inter' or cmd == 'interactive':
                 logger.info("Interactive mode. Enjoy!")
+                print "Remember, the 'admin' password is \"%s\" and the super-user \"%s\"" % \
+                            (opt.pwd, opt.super_passwd)
                 cmdp = CmdPrompt(client)
                 try:
                     while True and server.is_running:
