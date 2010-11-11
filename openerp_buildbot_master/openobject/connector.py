@@ -240,9 +240,20 @@ class OERPConnector(util.ComparableMixin):
             cids = [changeid,]
         if not cids:
             return []
-        res = change_obj.getChanges(cids)
         
         ret = []
+        tmp_cids = []
+        for id in cids:
+            c = self._change_cache.get(id)
+            if c:
+                ret.append(c)
+            else:
+                tmp_cids.append(id)
+        # print "Found %d of %d changes in cache, %d remaining" % (len(ret), len(cids), len(tmp_cids))
+
+        cids = tmp_cids
+        res = change_obj.getChanges(cids)
+        
         props = self.get_properties_from_db(change_obj, cids)
         for cdict in res:
             c = OpenObjectChange(**cdict)
@@ -745,7 +756,6 @@ class OERPConnector(util.ComparableMixin):
 
     def get_pending_brids_for_builder(self, buildername):
         breq_obj = rpc.RpcProxy('software_dev.commit')
-        
         bids = breq_obj.search([('buildername', '=',  buildername), 
                         ('complete', '=', False), ('claimed_at', '=', False)])
         
