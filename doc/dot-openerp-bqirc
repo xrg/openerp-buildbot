@@ -1,0 +1,66 @@
+; Settings for the base_quality_interrogation script
+; *All* the settings here correspond to the command-line
+; options. The names are the ones of "optparse" code.
+
+[general]
+; This is the section that will always load. We want all our
+; tests to follow these rules:
+port = 8169
+ftp_port=8923
+mach_log = openerp-test.log
+; Have a machine-format log to a "openerp-test.log" file in the
+; directory we run the bqi from.
+txt_log = stdout
+; Also display all logs, bare, to the console. Strongly advised.
+; You could use "stderr", too.
+; xml_log = foobar.log.xml
+; Yes there is an option of xml logging, but only useful if you
+; ever build a parser for them. "mach_log" is a good alternative.
+inter_history = ~/.openerp_bqi_history
+console_color = True
+; Use color when logging to the console.
+console_nodebug = True
+; Hide debug-level from console, but still write them to log file.
+default_section = official
+
+[official]
+db_name= test_bqi_off
+server_series=v600
+; series can flag different server branches, v600 or pg84 so far.
+homedir=~/build/openerp-official/
+; Will shortcut that dir in the logs. Won't affect the tests.
+mach_log = test-bqi-off.log
+; We override the general setting for the log
+
+;addons_path=~/build/openerp-official/addons
+;root_path=~/build/openerp-official/server/bin/
+;; Please adapt these!
+
+[foobar-branch]
+db_name= test_bqi_foobar
+server_series=v600
+homedir=~/stage/repos/openerp/foobar/
+mach_log = ~/logs/test-bqi-foobar.log
+addons_path=%(homedir)s/addons
+;root_path=~/build/openerp-official/server/bin/
+
+
+[test-start]
+; just a description of a test
+commands = start-server
+dry_run = False
+
+[full-test]
+all_modules = True
+commands = -drop-db create-db install-module -- fields-view-get
+
+[test-one-module]
+commands = -drop-db create-db install-module -- fields-view-get
+
+[full-official]
+include = official full-test
+
+[official-knowledge]
+include = official test-one-module
+dry_run = False
+modules = document caldav crm_caldav project_caldav document_ftp document_webdav
