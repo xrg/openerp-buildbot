@@ -145,8 +145,10 @@ class Keeper(object):
                 # Maintain a branch 
                 if pbr['rtype'] == 'bzr':
                     fetch_url = pbr['fetch_url']
+                    p_interval = int(pbr.get('poll_interval', 600))
                     
                     c['change_source'].append(BzrPoller(fetch_url,
+                            poll_interval = p_interval,
                             branch_name=pbr.get('branch_name', None),
                             branch_id=pbr['branch_id'], keeper=self))
                 else:

@@ -172,7 +172,7 @@ class software_buildbot(osv.osv):
             dret['rtype'] = 'bzr'
             dret['branch_path'] = bser.target_path
             dret['fetch_url'] = bser.branch_url
-            dret['poll_interval'] = 600 # bser.poll_interval
+            dret['poll_interval'] = bser.poll_interval or 600
             ret.append(dret)
 
         return ret
@@ -219,7 +219,7 @@ class software_buildbot(osv.osv):
                 bret['steps'].append( ('OpenObjectBzr', {
                         'repourl': bdep.branch_url, 'mode':'update',
                         'workdir': bdep.target_path,
-                        'alwaysUseLatest': True
+                        'alwaysUseLatest': True,
                         }) )
             
             bret['steps'].append( ('OpenObjectBzr', {
@@ -332,7 +332,8 @@ class software_buildseries(propertyMix, osv.osv):
                 string='Buildbot', required=True,
                 help="Machine that will build this series"),
         'sequence': fields.integer('Sequence', required=True),
-        # 'attribute_ids': fields.one2many('software_dev.attr.bseries', '' TODO)
+        'poll_interval': fields.integer('Polling interval',
+                help="Poll the upstream repository every N seconds for changes"),
         'test_ids': fields.one2many('software_dev.teststep', 'test_id', 'Test Steps', 
                 help="The test steps to perform."),
         'dep_branch_ids': fields.many2many('software_dev.buildseries', 
@@ -377,7 +378,7 @@ class software_tsattr(osv.osv):
     """
     _name = 'software_dev.tsattr'
     _columns = {
-        'tstep_id': fields.many2one('software_dev.teststep', 'Test Step', required=True, select=1),
+        'tstep_id': fields.many2one('software_dev.teststep', 'Test Step', required=True, select=1, ondelete="cascade"),
         'name': fields.char('Name', size=64, required=True),
         'value': fields.char('Value', size=256),
         }
@@ -719,6 +720,7 @@ class software_buildrequest(osv.osv):
         """
         self.write(cr, uid, ids, { 'claimed_at': False, 'complete': False,
                 'claimed_by_name': False })
+        return {}
 
 software_buildrequest()
 
