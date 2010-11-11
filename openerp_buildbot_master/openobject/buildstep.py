@@ -282,7 +282,7 @@ class OpenERPTest(LoggingBuildStep):
         # The general part of the b-q-i command
         self.args['command']=["../../../base_quality_interrogation.py",
                             "--machine-log=stdout", '--root-path=bin/',
-                            "--homedir=../",
+                            "--homedir=../", "--no-bqirc",
                             '-d', self.args['dbname']]
         if self.args.get('do_warnings', False):
             self.args['command'].append('-W%s' % self.args.get('do_warnings'))
@@ -321,6 +321,9 @@ class OpenERPTest(LoggingBuildStep):
                 self.args['command'] += ['--', 'fields-view-get' ]
         
         self.args['command'] += ['--', '+drop-db']
+        self.args['env'] = { 'SSH_AGENT_PID': None, 'SSH_AUTH_SOCK': None, 
+                            'SSH_CLIENT': None, 'SSH_CONNECTION': None,
+                            'SSH_TTY': None }
         cmd = LoggedRemoteCommand("OpenObjectShell",self.args)
         self.startCommand(cmd)
 
@@ -999,6 +1002,9 @@ class LintTest(LoggingBuildStep):
         builder_props = self.build.getProperties()
         self.args['workdir'] = builder_props.render(self.args.get('workdir', ''))
         self.args['repo_mode'] = builder_props.render(self.args.get('repo_mode', ''))
+        self.args['env'] = { 'SSH_AGENT_PID': None, 'SSH_AUTH_SOCK': None, 
+                            'SSH_CLIENT': None, 'SSH_CONNECTION': None,
+                            'SSH_TTY': None }
         cmd = StdErrRemoteCommand("OpenObjectShell", self.args)
         self.stderr_log = self.addLog("stderr")
         cmd.useLog(self.stderr_log, True)
