@@ -92,35 +92,6 @@ class OpenObjectShell(SlaveShellCommand):
         SlaveShellCommand.__init__(self, *args, **kwargs)
         self.args.setdefault('logEnviron', False)
 
-class Old(object):
-    def start(self):
-        args = self.args
-        assert args['workdir'] is not None
-        workdir = os.path.join(self.builder.basedir, args['workdir'])
-        # addonsdir = args.get('addonsdir', False)
-        commandline = args.get('command', [])
-
-        try:
-            openerp_env = test_environment()
-            openERP_environment = openerp_env.get_test_environment(self.builder.basedir)
-        except:
-            openERP_environment = None
-
-        c = runprocess.RunProcess(self.builder, commandline,
-                         workdir, environ = openERP_environment ,
-                         logEnviron = False,
-                         timeout = args.get('timeout', None),
-                         sendStdout = args.get('want_stdout', True),
-                         sendStderr = args.get('want_stderr', True),
-                         sendRC = True,
-                         initialStdin = args.get('initial_stdin'),
-                         keepStdinOpen = args.get('keep_stdin_open'),
-                         logfiles = args.get('logfiles',{}),
-                         )
-        self.command = c
-        d = self.command.start()
-        return d
-
 class OpenObjectBzr(Bzr):
     def doVCUpdate(self):
         bzr = self.getCommand('bzr')
@@ -172,5 +143,13 @@ class OpenObjectBzr(Bzr):
         return (not self.sourcedirIsPatched()) and \
                 os.path.isdir(os.path.join(self.builder.basedir,
                                            self.srcdir, ".bzr"))
+
+    def parseGotRevision(self):
+        # A dirty hack, only for the current OpenERP setup.
+        # If we are called for the optional non-revisioned dirs, don't report
+        # the revision as a property to the master, because it would incorrectly
+        # tag the builds with the wrong branch's rev_num.
+        if self.revision:
+            Bzr.parseGotRevision(self)
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
