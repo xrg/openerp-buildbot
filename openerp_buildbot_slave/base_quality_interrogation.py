@@ -46,6 +46,11 @@ try:
 except ImportError:
     json = None
 
+try:
+    from cStringIO import StringIO
+except ImportError:
+    from StringIO import StringIO
+
 def to_decode(s):
     try:
         return s.encode('utf-8')
@@ -855,6 +860,7 @@ class client_worker(object):
     
     def __init__(self, uri, options):
         global server
+        global opt
         self.log = logging.getLogger('bqi.client')
         if not server.is_ready:
             self.log.error("Server not ready, cannot work client")
@@ -865,6 +871,7 @@ class client_worker(object):
         self.dbname = options['dbname']
         self.super_passwd = options['super_passwd']
         self.series = options['server_series']
+        self.do_demo = not opt.no_demo
         self.has_os_times = self.series in ('pg84', 'v600')
 
     def _execute(self, connector, method, *args):
@@ -1025,7 +1032,7 @@ class client_worker(object):
         db_list = self._execute(conn, 'list')
         if self.dbname in db_list:
             raise ClientException("Database already exists, drop it first!")
-        id = self._execute(conn,'create',self.super_passwd, self.dbname, True, lang)
+        id = self._execute(conn,'create',self.super_passwd, self.dbname, self.do_demo, lang)
         self.wait(id)
         server.clear_context()
         if not self.install_module(['base_module_quality',]):
@@ -1334,6 +1341,8 @@ class client_worker(object):
     def update_modules_list(self):
         """ Re-scan the modules list
         """
+        server.clear_context()
+        server.state_dict['severity'] = 'warning'
         obj_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/object')
         uid = self._login()
         assert uid, "Could not login"
@@ -1353,10 +1362,240 @@ class client_worker(object):
         ret = self._orm_execute_int(obj_conn, uid, 'base.module.update', 'read', [wiz_id,])
 
         if ret:
-            print "Module update is %s: Added %d, Updated %d modules" % \
-                    (ret[0].get('state','?'), ret[0].get('add', 0), ret[0].get('update',0))
+            self.log.info("Module update is %s: Added %d, Updated %d modules" % \
+                    (ret[0].get('state','?'), ret[0].get('add', 0), ret[0].get('update',0)))
         else:
-            print "Module update must have failed"
+            self.log.warning("Module update must have failed")
+        return True
+
+    def import_trans(self, *args):
+        raise NotImplementedError # TODO
+
+    def export_trans(self, *args):
+        """Export translations"""
+        
+        import tarfile
+        lang = False
+        out_fname = None
+        all_modules = False
+        format = False
+        sourcedirs = False
+        dest_dir = '.'
+        just_print = False
+        addon_paths = []
+        while args:
+            if args[0] == '-l':
+                lang = args[1]
+                args = args[2:]
+            elif args[0] == '-o':
+                out_fname = args[1]
+                args = args[2:]
+            elif args[0] == '--all':
+                all_modules = True
+                args = args[1:]
+            elif args[0] == '--sourcedirs':
+                sourcedirs = True
+                args = args[1:]
+            elif args[0] == '-n':
+                just_print = True
+                args = args[1:]
+            elif args[0] == '-C':
+                dest_dir = args[1]
+                args = args[2:]
+            elif args[0] == '-F':
+                format = args[1]
+                args = args[2:]
+            else:
+                break
+        
+        if not (out_fname or sourcedirs or dest_dir or just_print):
+            self.log.error("Must specify either an output filename or sourcedirs mode")
+            return False
+        if not (all_modules or args):
+            self.log.error("Must specify some modules")
+            return False
+        if not format:
+            if sourcedirs:
+                format = 'tgz'
+            elif out_fname and (out_fname.endswith('.tar.gz')
+                    or out_fname.endswith('.tgz')):
+                format = 'tgz'
+            elif out_fname and out_fname.endswith('.csv'):
+                format = 'csv'
+            else:
+                format = 'po'
+                
+        if all_modules:
+            mod_domain = [('state', '=','installed'),]
+        else:
+            mod_domain = [('name', 'in', args[:]), ('state', '=','installed')]
+            
+        server.clear_context()
+        server.state_dict['severity'] = 'warning'
+        server.state_dict['context'] = 'i18n.export'
+
+        obj_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/object')
+        uid = self._login()
+        assert uid, "Could not login"
+
+        mod_ids = self._orm_execute_int(obj_conn, uid, 'ir.module.module', 'search',
+                            mod_domain)
+        if not mod_ids:
+            self.log.error("No modules could be located")
+            return False
+
+        wiz_id = False
+        self.log.info("Exporting %s translations, %d modules", 
+                        lang or 'template', len(mod_ids))
+            #server.state_dict['context'] = 'i18n.load.%s' % lang
+        wiz_id = self._orm_execute_int(obj_conn, uid, 
+                    'base.language.export', 'create', 
+                    {'lang': lang, 'format': format,
+                     'modules': [(6,0, mod_ids)] })
+        self._orm_execute_int(obj_conn, uid, 'base.language.export', 
+                'act_getfile', [wiz_id,])
+        ret = self._orm_execute_int(obj_conn, uid, 'base.language.export', 
+                'read', [wiz_id,], ['data','name'], {'bin_size':False})
+        if not ret:
+            self.log.error("Export of translations has failed, no data")
+            return False
+
+        if opt.addons_path:
+            addon_paths = map(os.path.expanduser, map(str.strip, 
+                                opt.addons_path.split(',')))
+
+        if format == 'tgz' and not out_fname:
+            buf = StringIO(base64.decodestring(ret[0]['data']))
+            buf.seek(0)
+            tarf = tarfile.open(mode='r:gz', fileobj=buf)
+            for t in tarf:
+                if t.isdir():
+                    continue
+                if not t.isfile():
+                    self.log.warning("Tar exported from server contained %s of type %s",
+                            t.name, t.type)
+                    continue
+                ddir = dest_dir
+                newdir = False
+                if sourcedirs:
+                    bdir, bname = os.path.split(t.name)
+                    moddir = bdir.split(os.sep, 1)[0]
+                    for ap in addon_paths:
+                        if os.path.exists(os.path.join(ap, moddir)):
+                            ddir = ap
+                            newdir = os.path.join(ap, bdir)
+                            break
+                if just_print:
+                    self.log.info("Exporting %s: %s/%s (dry run)" % ( lang or 'pot', ddir, t.name))
+                    continue
+                self.log.info("Exporting %s: %s/%s" % ( lang or 'pot', ddir, t.name))
+                #if newdir and not os.path.isdir(newdir):
+                #    self.log.debug("Creating directory %s", newdir)
+                #    os.makedirs(newdir)
+                tarf.extract(t, ddir)
+            tarf.close()
+            buf.close()
+        elif format == 'tgz' and out_fname:
+            if dest_dir != '.' and not os.path.isabs(out_fname):
+                out_fname = os.path.join(dest_dir, out_fname)
+            fd = open(out_fname,'wb')
+            fd.write(base64.decodestring(ret[0]['data']))
+            self.log.info("Wrote exported file to %s", out_fname)
+            fd.close()
+        elif format == 'po':
+            if dest_dir != '.' and not os.path.isabs(out_fname):
+                out_fname = os.path.join(dest_dir, out_fname)
+            if just_print:
+                self.log.info("Would export to %s", out_fname)
+            else:
+                fd = open(out_fname,'wb')
+                fd.write(base64.decodestring(ret[0]['data']))
+                self.log.info("Wrote exported file to %s", out_fname)
+                fd.close()
+        elif format == 'csv':
+            if dest_dir != '.' and not os.path.isabs(out_fname):
+                out_fname = os.path.join(dest_dir, out_fname)
+            if just_print:
+                self.log.info("Would export to %s", out_fname)
+            else:
+                fd = open(out_fname,'wb')
+                fd.write(base64.decodestring(ret[0]['data']))
+                self.log.info("Wrote exported file to %s", out_fname)
+                fd.close()
+        else:
+            self.log.warning("Ignored exported translation in %s format", format)
+
+        server.clear_context()
+        return True
+
+    def load_trans(self, *args):
+        """Call the 'Load official translations' wizard for the languages
+        """
+        server.clear_context()
+        server.state_dict['severity'] = 'warning'
+        server.state_dict['context'] = 'i18n.load'
+        
+        overwrite = True
+        if args:
+            if args[0] == '-f':
+                pass
+            elif args[0] == '-N':
+                overwrite = False
+
+        # TODO all langs
+        for l in args:
+            if l.startswith('-'):
+                raise ValueError("Syntax error in arguments")
+
+        obj_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/object')
+        uid = self._login()
+        assert uid, "Could not login"
+
+        wiz_id = False
+        ret = False
+        
+        # If we want to support v5, ever, we shall put the clasic wizard code here
+        
+        for lang in args:
+            self.log.info("Loading translation for %s", lang)
+            server.state_dict['context'] = 'i18n.load.%s' % lang
+            wiz_id = self._orm_execute_int(obj_conn, uid, 'base.language.install', 
+                        'create', {'lang': lang, 'overwrite': overwrite})
+            self._orm_execute_int(obj_conn, uid, 'base.language.install',
+                        'lang_install', [wiz_id,])
+            
+        server.clear_context()
+        return True
+
+    def sync_trans(self, *args):
+        """Call the 'Language terms synchronize' wizard for the languages
+        """
+        server.clear_context()
+        server.state_dict['severity'] = 'warning'
+        server.state_dict['context'] = 'i18n.sync'
+        
+        for l in args:
+            if l.startswith('-'):
+                raise ValueError("Syntax error in arguments")
+
+        obj_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/object')
+        uid = self._login()
+        assert uid, "Could not login"
+
+        wiz_id = False
+        ret = False
+        
+        # If we want to support v5, ever, we shall put the clasic wizard code here
+        
+        for lang in args:
+            self.log.info("Syncing translation terms for %s", lang)
+            server.state_dict['context'] = 'i18n.sync.%s' % lang
+            wiz_id = self._orm_execute_int(obj_conn, uid, 'base.update.translations',
+                        'create', {'lang': lang})
+            self._orm_execute_int(obj_conn, uid, 'base.update.translations', 
+                        'act_update', [wiz_id,])
+            
+        server.clear_context()
         return True
 
 
@@ -1443,6 +1682,7 @@ class CmdPrompt(object):
                                 'stats', 'check',
                                 #'restart',
                                 ],
+                    'translation': ['import', 'export', 'load', 'sync' ],
                     }
 
     help = '''
@@ -1655,7 +1895,7 @@ class CmdPrompt(object):
             #self.dbname = dbname
             #self.__cmdlevel = 'db'
         except KeyError:
-            print "Cannot connect to database %s" % dbname
+            print "Cannot connect to database "
     
     def _cmd_info(self):
         """Get info about server, database, or orm object
@@ -1973,6 +2213,40 @@ class CmdPrompt(object):
             return
         print "Currently at: %s" % self.cur_orm
 
+    def _cmd_translation(self, *args):
+        """import, export or load translations
+        
+        Available modes:
+            import  -f <file> [-l lang-code] [-L lang-name]
+            export [-l <lang>] [-o file| --sourcedirs] [--all | <modules> ...]
+            load [-f|-N] <lang>
+            sync <lang>
+        """
+        if (not args) or (args[0] not in ('import', 'export', 'load', 'sync')):
+            print "One of import|export|load|sync must be specified"
+            return
+        
+        cmd = args[0]
+        args = args[1:]
+        try:
+            # we directly call the client methods, because their argument
+            # syntax should be identical between cmdline and interactive.
+            if cmd == 'import':
+                client.import_trans(*args)
+            elif cmd == 'export':
+                client.export_trans(*args)
+            elif cmd == 'load':
+                client.load_trans(*args)
+            elif cmd == 'sync':
+                client.sync_trans(*args)
+        except xmlrpclib.Fault, e:
+            print 'xmlrpc exception: %s' % reduce_homedir( e.faultCode.strip())
+            print 'xmlrpc +: %s' % reduce_homedir(e.faultString.rstrip())
+            return
+        except Exception, e:
+            print "Failed translate:", e
+            return
+
 usage = """%prog command [options]
 
 Basic Commands:
@@ -2029,6 +2303,9 @@ parser.add_option("--password", dest="pwd", help="specify the User Password")
 parser.add_option("--super-passwd", dest="super_passwd", help="The db admin password")
 parser.add_option("--config", dest="config", help="Pass on this config file to the server")
 parser.add_option("--ftp-port", dest="ftp_port", help="Choose the port to set the ftp server at")
+
+parser.add_option("--no-demo", dest="no_demo", action="store_true", default=False,
+                    help="Do not install demo data for modules installed")
 
 parser.add_option("--language", dest="lang", help="Use that language as default for the new db")
 parser.add_option("--translate-in", dest="translate_in",
@@ -2161,7 +2438,7 @@ options = {
     'translate-in': [],
     'port' : int(opt.port or 8069),
     'lang': opt.lang or 'en_US',
-    'netport': (opt.netport and int(netport)) or False,
+    'netport': (opt.netport and int(opt.netport)) or False,
     'dbname': opt.db_name ,
     'modules' : opt.modules,
     'login' : opt.login or 'admin',
