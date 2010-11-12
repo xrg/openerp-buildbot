@@ -1322,18 +1322,50 @@ class client_worker(object):
     def orm_execute(self, model, func, *args):
         server.clear_context()
         uid = self._login()
-        obj_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/object')
         server.state_dict['severity'] = 'warning'
-        res = self._execute(obj_conn,'execute', self.dbname, uid, self.pwd,
+        obj_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/object')
+        return self._orm_execute_int(obj_conn, uid, model, func, *args)
+
+    def _orm_execute_int(self, conn, uid, model, func, *args):
+        res = self._execute(conn,'execute', self.dbname, uid, self.pwd,
                                     model, func, *args )
         return res
+
+    def update_modules_list(self):
+        """ Re-scan the modules list
+        """
+        obj_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/object')
+        uid = self._login()
+        assert uid, "Could not login"
+
+        wiz_id = False
+        ret = False
+        
+        # If we want to support v5, ever, we shall put the clasic wizard code here
+        
+        try:
+            wiz_id = self._orm_execute_int(obj_conn, uid, 'base.module.update', 'create', {})
+        except xmlrpclib.Fault, e:
+            raise ServerException("No usable wizard for module update found, cannot continue")
+
+        self._orm_execute_int(obj_conn, uid, 'base.module.update', 'update_module', [wiz_id,], {})
+        
+        ret = self._orm_execute_int(obj_conn, uid, 'base.module.update', 'read', [wiz_id,])
+
+        if ret:
+            print "Module update is %s: Added %d, Updated %d modules" % \
+                    (ret[0].get('state','?'), ret[0].get('add', 0), ret[0].get('update',0))
+        else:
+            print "Module update must have failed"
+        return True
+
 
 class CmdPrompt(object):
     """ A command prompt for interactive use of the OpenERP server
     """
 
     def _complete_module_cmd(self, text, state):
-        sub_cmds = ['info', 'install', 'upgrade', 'uninstall',]
+        sub_cmds = ['info', 'install', 'upgrade', 'uninstall', 'refresh-list', ]
         pos = []
         first = text and text.split(' ',1)[0]
         if (not text) or first not in sub_cmds:
@@ -1740,20 +1772,30 @@ class CmdPrompt(object):
             upgrade <mod> ...     Upgrade module(s)
             uninstall <mod> ...   Remove module(s)
         """
-        if not args:
+        if cmd != 'refresh-list' and not args:
             print 'Must supply some modules!'
             return
-        if cmd == 'info':
-            pass
-        elif cmd == 'install':
-            client.install_module(args)
-        elif cmd == 'upgrade':
-            client.upgrade_module(args)
-        elif cmd == 'uninstall':
-            pass
-        else:
-            print "Unknown command: module %s" % cmd
-    
+        try:
+            if cmd == 'info':
+                pass
+            elif cmd == 'install':
+                client.install_module(args)
+            elif cmd == 'upgrade':
+                client.upgrade_module(args)
+            elif cmd == 'uninstall':
+                pass
+            elif cmd == 'refresh-list':
+                client.update_modules_list()
+            else:
+                print "Unknown command: module %s" % cmd
+        except xmlrpclib.Fault, e:
+            print 'xmlrpc exception: %s' % reduce_homedir( e.faultCode.strip())
+            print 'xmlrpc +: %s' % reduce_homedir(e.faultString.rstrip())
+            return
+        except Exception, e:
+            print "Failed module %s:" % cmd, e
+            return
+
     def fetch_orm_names(self):
         try:
             self._orm_cache = client.get_orm_names()
@@ -2414,7 +2456,7 @@ try:
                         if not r:
                             break
                 except KeyboardInterrupt:
-                    log.info("Keyboard interrupt, exiting")
+                    logger.info("Keyboard interrupt, exiting")
 
                 cmdp.finish()
 
