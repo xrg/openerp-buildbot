@@ -29,6 +29,7 @@ import logging
 import logging.handlers
 import threading
 import os
+from fnmatch import fnmatch
 import signal
 import time
 import pickle
@@ -2278,6 +2279,7 @@ parser.add_option("--homedir", dest="homedir", default=None,
 parser.add_option("--xml-log", dest="xml_log", help="A file to write xml-formatted log to")
 parser.add_option("--txt-log", dest="txt_log", help="A file to write plain log to, or 'stderr'")
 parser.add_option("--machine-log", dest="mach_log", help="A file to write machine log stream, or 'stderr'")
+parser.add_option("--max-logs", dest="max_logs", help="Backup that many logs of previous runs")
 parser.add_option("--debug", dest="debug", action='store_true', default=False,
                     help="Enable debugging of both the script and the server")
 parser.add_option("--debug-server", dest="debug_server", action='store_true', default=False,
@@ -2466,6 +2468,7 @@ def init_log():
     else:
         log.setLevel(logging.INFO)
     has_stdout = has_stderr = False
+    max_logs = int(opt.max_logs or 10)
 
     if not (opt.xml_log or opt.txt_log or opt.mach_log):
         # Default to a txt logger
@@ -2493,7 +2496,7 @@ def init_log():
             if opt.console_color:
                 soh.setFormatter(ColoredFormatter())
         else:
-            fh = logging.handlers.RotatingFileHandler(opt.txt_log, backupCount=10)
+            fh = logging.handlers.RotatingFileHandler(opt.txt_log, backupCount=max_logs)
             log.addHandler(fh)
             if os.path.exists(opt.txt_log):
                 fh.doRollover()
@@ -2506,7 +2509,7 @@ def init_log():
             hnd3 = logging.StreamHandler(sys.stdout)
             console_log_handler = hnd3
         else:
-            hnd3 = logging.handlers.RotatingFileHandler(opt.mach_log, backupCount=10)
+            hnd3 = logging.handlers.RotatingFileHandler(opt.mach_log, backupCount=max_logs)
             if os.path.exists(opt.mach_log):
                 hnd3.doRollover()
         hnd3.setFormatter(MachineFormatter())
@@ -2643,9 +2646,17 @@ try:
                 black_modules = filter(bool, opt.black_modules.split(' '))
             else:
                 black_modules = []
+
+            def is_black(modname):
+                for bm in black_modules:
+                    if fnmatch(modname, bm):
+                        return True
+                return False
+
             addon_paths = map(str.strip, options['addons-path'].split(','))
             for mdir, mname in get_modules2(addon_paths):
-                if mname in black_modules:
+                if is_black(mname):
+                    logger.debug("Module %s is black listed, skipping.", mname)
                     continue
                 mrdir = reduce_homedir(mdir)
                 try:
@@ -2669,6 +2680,7 @@ try:
     if opt.dry_run:
         logger.info("Dry run! Here is what would happen:")
         logger.info("%s", ' '.join(server.args))
+        logger.info("Modules considered are: %s", ", ".join(mods))
         logger.info("And then, do %d steps:", len(cmdargs))
         for cmd, args, in cmdargs:
             logger.info(" > %s %s", cmd, ' '.join(args))
