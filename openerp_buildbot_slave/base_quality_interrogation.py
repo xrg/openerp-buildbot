@@ -2264,6 +2264,15 @@ Basic Commands:
                                 single server instance.
     keep[-running]              Pause and keep the server running, waiting for Ctrl+C
     inter[active]               Display interactive b-q-i prompt
+    
+    translation-import -f <file> [-l lang-code] [-L lang-name]
+                                Import file as translation for language
+    translation-export [-l <lang>] [-o file| --sourcedirs] [--all | <modules> ...]
+                                Export translations
+    translation-load [-f|-N] <lang>
+                                Load translations from addons dirs
+    translation-sync <lang>     Sync trnslations from database
+
 """
 
 parser = optparse.OptionParser(usage)
@@ -2548,6 +2557,8 @@ def parse_cmdargs(args):
         if cmd2 not in ('start-server','create-db','drop-db',
                     'install-module','upgrade-module','check-quality',
                     'install-translation', 'multi', 'fields-view-get',
+                    'translation-import', 'translation-export',
+                    'translation-load', 'translation-sync',
                     'keep', 'keep-running', 'inter', 'interactive'):
             parser.error("incorrect command: %s" % command)
             return
@@ -2558,6 +2569,8 @@ def parse_cmdargs(args):
             ret.extend([(x, []) for x in args])
             return ret
         elif cmd2 in ('install-module', 'upgrade-module', 'check-quality',
+                        'translation-import', 'translation-export',
+                        'translation-load', 'translation-sync',
                         'install-translation'):
             # Commands that take args
             cmd_args = []
@@ -2723,6 +2736,14 @@ try:
                 ret = client.import_translate(options['translate-in'])
             elif cmd == 'fields-view-get':
                 ret = client.fields_view_get()
+            elif cmd == 'translation-import':
+                ret = client.import_trans(*args)
+            elif cmd == 'translation-load':
+                ret = client.load_trans(*args)
+            elif cmd == 'translation-export':
+                ret = client.export_trans(*args)
+            elif cmd == 'translation-sync':
+                ret = client.sync_trans(*args)
             elif cmd == 'keep' or cmd == 'keep-running':
                 try:
                     logger.info("Server is running, script is paused. Press Ctrl+C to continue.")
