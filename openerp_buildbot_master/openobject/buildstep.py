@@ -238,7 +238,7 @@ class OpenERPTest(LoggingBuildStep):
                 olmods_found = []
                 for sbuild in self.build.builder.builder_status.generateFinishedBuilds(num_builds=10):
                     log.msg("Scanning back build %d" % sbuild.getNumber())
-                    if sres.getResult() == SUCCESS:
+                    if sbuild.getResult() == SUCCESS:
                         break
                     for sres in sbuild.getTestResults().values():
                         # RFC: should we perform tests for other failures
