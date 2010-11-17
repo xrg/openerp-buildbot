@@ -1678,7 +1678,8 @@ class CmdPrompt(object):
                     'help': [],
                     'server': [ 'set loglevel', 'set loggerlevel', 
                                 'set pgmode',
-                                'get loglevel', 'get info', 'get about',
+                                'get loglevel', 'get log-levels',
+                                'get info', 'get about',
                                 'get login-message', 'get timezone',
                                 'get options', 'get os-time', 'get http-services',
                                 'get environment', 'get pgmode', 'get sqlcount',
@@ -1941,7 +1942,10 @@ class CmdPrompt(object):
             elif args[0] == 'get':
                 res = None
                 if args[1] == 'loglevel':
-                    ret = self._client.execute_common('root', 'get_loglevel')
+                    if client.series == 'pg84':
+                        ret = self._client.execute_common('root', 'get_loglevel', *args[2:])
+                    else:
+                        ret = self._client.execute_common('root', 'get_loglevel')
                 #elif args[1] == 'info':
                 #    ret = self._client.execute_common('root', '')
                 elif args[1] == 'about':
@@ -1962,6 +1966,11 @@ class CmdPrompt(object):
                     ret = self._client.execute_common('root', 'get_pgmode')
                 elif args[1] == 'sqlcount':
                     ret = self._client.execute_common('root', 'get_sqlcount')
+                elif args[1] == 'log-levels':
+                    if client.series == 'pg84':
+                        ret = self._client.execute_common('root', 'get_loglevel', '*')
+                    else:
+                        print "Command not supported for %s server series" % client.server_series
                 else:
                     print "Wrong command"
                     return
@@ -2284,6 +2293,7 @@ Basic Commands:
                                 Load translations from addons dirs
     translation-sync <lang>     Sync trnslations from database
 
+    get-sqlcount                Retrieve and print the SQL counter
 """
 
 parser = optparse.OptionParser(usage)
@@ -2573,6 +2583,7 @@ def parse_cmdargs(args):
                     'install-translation', 'multi', 'fields-view-get',
                     'translation-import', 'translation-export',
                     'translation-load', 'translation-sync',
+                    'get-sqlcount',
                     'keep', 'keep-running', 'inter', 'interactive'):
             parser.error("incorrect command: %s" % command)
             return
@@ -2585,7 +2596,7 @@ def parse_cmdargs(args):
         elif cmd2 in ('install-module', 'upgrade-module', 'check-quality',
                         'translation-import', 'translation-export',
                         'translation-load', 'translation-sync',
-                        'install-translation'):
+                        'install-translation',):
             # Commands that take args
             cmd_args = []
             while args and args[0] != '--':
@@ -2758,6 +2769,11 @@ try:
                 ret = client.export_trans(*args)
             elif cmd == 'translation-sync':
                 ret = client.sync_trans(*args)
+            elif cmd == 'get-sqlcount':
+                scount = client.execute_common('root', 'get_sqlcount')
+                logger.info("SQL counter: %s", scount)
+                del scount
+                ret = True
             elif cmd == 'keep' or cmd == 'keep-running':
                 try:
                     logger.info("Server is running, script is paused. Press Ctrl+C to continue.")
