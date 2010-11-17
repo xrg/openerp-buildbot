@@ -226,7 +226,7 @@ COLOR_MAPPING = {
 }
 
 class ColoredFormatter(logging.Formatter):
-    linere = re.compile(r'\[(.*)\] ([A-Z]+):([\w\.-]+):(.*)$', re.DOTALL)
+    linere = re.compile(r'\[(.*)\] ([A-Z_]+):([\w\.-]+):(.*)$', re.DOTALL)
     def format(self, record):
         res = logging.Formatter.format(self, record)
         if record.name == 'server.stdout':
@@ -442,7 +442,7 @@ class server_thread(threading.Thread):
         # self.is_terminating = False
         
         # Regular expressions:
-        self.linere = re.compile(r'\[(.*)\] ([A-Z]+):([\w\.-]+):(.*)$', re.DOTALL)
+        self.linere = re.compile(r'\[(.*)\] ([A-Z_]+):([\w\.-]+):(.*)$', re.DOTALL)
         self.linewere = re.compile(r'(.*\.py):([0-9]+): ([A-Za-z]*Warning): (.*)$', re.DOTALL)
         
         self.log = logging.getLogger('srv.thread')
