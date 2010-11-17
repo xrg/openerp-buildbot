@@ -1677,10 +1677,11 @@ class CmdPrompt(object):
                     'with': _complete_print,
                     'help': [],
                     'server': [ 'set loglevel', 'set loggerlevel', 
+                                'set pgmode',
                                 'get loglevel', 'get info', 'get about',
                                 'get login-message', 'get timezone',
                                 'get options', 'get os-time', 'get http-services',
-                                'get environment',
+                                'get environment', 'get pgmode',
                                 'stats', 'check',
                                 #'restart',
                                 ],
@@ -1919,6 +1920,7 @@ class CmdPrompt(object):
             set loggerlevel <logger> <num|name>  Set lever for some logger
             check                        Perform the "check connectivity" test
             stats                        Query the server for statistics info.
+            get ...                  Retrieve certain server settings ...
         """
         #    restart                     Attempt to restart the server.
 
@@ -1931,6 +1933,8 @@ class CmdPrompt(object):
                     self._client.execute_common('root', 'set_loglevel', args[2])
                 elif args[1] == 'loggerlevel':
                     self._client.execute_common('root', 'set_loglevel', args[3], args[2])
+                if args[1] == 'pgmode':
+                    self._client.execute_common('root', 'set_pgmode', args[2])
                 else:
                     print "Wrong command"
                     return
@@ -1954,6 +1958,8 @@ class CmdPrompt(object):
                     ret = self._client.execute_common('root', 'get_os_time')
                 elif args[1] == 'http-services':
                     ret = self._client.execute_common('pub', 'list_http_services')
+                elif args[1] == 'pgmode':
+                    ret = self._client.execute_common('root', 'get_pgmode')
                 else:
                     print "Wrong command"
                     return
