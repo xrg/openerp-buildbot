@@ -394,7 +394,9 @@ class server_thread(threading.Thread):
         self.args += ['%sopenerp-server.py' % root_path,]
         if addons_path:
             self.args += [ '--addons-path=%s' % addons_path ]
-        if debug:
+        if opt.debug_sql:
+            self.args += [ '--log-level=debug_sql' ]
+        elif debug:
             self.args += [ '--log-level=debug' ]
         else:
             self.args += [ '--log-level=test' ]
@@ -526,7 +528,8 @@ class server_thread(threading.Thread):
                 olog = self.log_sout
             else:
                 olog = self.log_serr
-            if m and m.group(2) in ('DEBUG', 'DEBUG_RPC', 'DEBUG_SQL'):
+            if m and m.group(2) in ('DEBUG', 'DEBUG_RPC', 'DEBUG_SQL', 
+                                'DEBUG_RPC_ANSWER'):
                 olog.debug(r)
             else:
                 olog.info(r)
@@ -2013,7 +2016,7 @@ class CmdPrompt(object):
                     self._client.execute_common('root', 'set_loglevel', args[2])
                 elif args[1] == 'loggerlevel':
                     self._client.execute_common('root', 'set_loglevel', args[3], args[2])
-                if args[1] == 'pgmode':
+                elif args[1] == 'pgmode':
                     self._client.execute_common('root', 'set_pgmode', args[2])
                 else:
                     print "Wrong command"
@@ -2414,6 +2417,8 @@ parser.add_option("--debug-server", dest="debug_server", action='store_true', de
                     help="Enable debugging of the server alone")
 parser.add_option("--debug-bqi", dest="debug_bqi", action='store_true', default=False,
                     help="Enable debugging of this script alone")
+parser.add_option("--debug-sql", dest="debug_sql", action='store_true', default=False,
+                    help="Set the debugging level of the server to sql, for performance tests")
 
 parser.add_option("-D", "--define", dest="defines", action="append",
                     help="Define configuration values for server, (pg84 only)")
