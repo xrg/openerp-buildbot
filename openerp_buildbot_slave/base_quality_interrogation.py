@@ -1600,6 +1600,84 @@ class client_worker(object):
         server.clear_context()
         return True
 
+    def gen_account_moves(self, howmany):
+        """Generate a (large) number of account moves.
+        
+        Original by Borja López Soilán (Pexego), 2009
+        
+        Small OpenERP function that will create lots of account moves
+        on the selected database, that can later be used for
+        testing the renumber wizard.
+        Note: The database must have demo data, and a fiscal year created
+        """
+        move_ids = []
+        howmany = int(howmany)
+        assert howmany > 0, "Must give a positive number"
+        
+        server.clear_context()
+        server.state_dict['severity'] = 'warning'
+        obj_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/object')
+        
+        uid = self._login()
+        journal_ret = self._orm_execute_int(obj_conn, uid, 'account.journal', 'search',
+                        [('type', '=', 'sale')])
+        if not journal_ret:
+            raise ClientException("Must have one journal of type 'sale' to use")
+        
+        journal_id = journal_ret[0]
+        
+        acc_1 = self._orm_execute_int(obj_conn, uid, 'account.account', 'search',
+                        [('name', 'ilike', 'Cash')])
+        acc_2 = self._orm_execute_int(obj_conn, uid, 'account.account', 'search',
+                        [('name', 'ilike', 'Expenses')])
+        if not (acc_1 and acc_2):
+            raise ClientException("Must have one cash and one Expenses account")
+        acc_1 = acc_1[0]
+        acc_2 = acc_2[0]
+
+        ost = self.get_ostimes()
+        self.log.debug("Going to generate %d account moves", howmany)
+
+        for i in range(1, howmany):
+            amount = random.randint(1, 200000) * 0.25
+            move_id = self._orm_execute_int(obj_conn, uid, 'account.move', 'create', 
+                    { 'ref': 'Test%s' % i,
+                    'type': 'journal_voucher',
+                    'journal_id': journal_id ,
+                    'line_id': [
+                        (0, 0, {
+                            #'analytic_account_id': False, 'currency_id': False,
+                            # 'tax_amount': False,
+                            'account_id': acc_1,
+                            # 'partner_id': False, 'tax_code_id': False,
+                            'credit': amount ,
+                            'date_maturity': False,
+                            'debit': False,
+                            'amount_currency': False,
+                            'ref': 'tst%4s' % i,
+                            'name': 'Test_l1'
+                        }),
+                        (0, 0, {
+                            'account_id': acc_2,
+                            'debit': amount,
+                            'name': 'Test_l2'})
+                        ],
+                        # 'period_id': 1 ?,
+                        'date': '2009-01-%s' % ((i % 31) or 1),
+                        'partner_id': False,
+                        'to_check': 0
+                    }, {})
+            move_ids.append(move_id)
+
+        ost = self.get_ostimes(ost)
+        self.log.info("Moves generated at: User: %.3f, Sys: %.3f %.3f/entry" % \
+                        (ost[0], ost[1], ost[0] / howmany))
+        # Validate all the moves
+        self._orm_execute_int(obj_conn, uid, 'account.move', 'button_validate', move_ids, {})
+        
+        ost = self.get_ostimes(ost)
+        self.log.info("Moves validated at: User: %.3f, Sys: %.3f" % (ost[0], ost[1]))
+        return True
 
 class CmdPrompt(object):
     """ A command prompt for interactive use of the OpenERP server
@@ -1657,7 +1735,7 @@ class CmdPrompt(object):
         return pos
 
     avail_cmds = { 0: [ 'help','db_list', 'debug', 'quit', 'db',
-                        'orm', 'module', 'translation', 'server' ],
+                        'orm', 'module', 'translation', 'server', 'test' ],
                 'orm': ['help', 'obj_info', 
                         'do', 'res_id',
                         'print', 'with',
@@ -1686,6 +1764,7 @@ class CmdPrompt(object):
                                 'stats', 'check',
                                 #'restart',
                                 ],
+                    'test': ['account-moves',],
                     'translation': ['import', 'export', 'load', 'sync' ],
                     }
 
@@ -2266,6 +2345,25 @@ class CmdPrompt(object):
             return
         except Exception, e:
             print "Failed translate:", e
+            return
+
+    def _cmd_test(self, cmd, *args):
+        """Perform some predefined test
+        
+        Available ones are:
+            account-moves <N>           Generate N account moves
+        """
+        try:
+            if cmd == 'account-moves':
+                client.gen_account_moves(args[0])
+            else:
+                print "Unknown sub-command: test %s" % cmd
+        except xmlrpclib.Fault, e:
+            print 'xmlrpc exception: %s' % reduce_homedir( e.faultCode.strip())
+            print 'xmlrpc +: %s' % reduce_homedir(e.faultString.rstrip())
+            return
+        except Exception, e:
+            print "Failed test %s:" % cmd, e
             return
 
 usage = """%prog command [options]
