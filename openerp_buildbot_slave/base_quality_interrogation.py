@@ -1681,7 +1681,7 @@ class CmdPrompt(object):
                                 'get loglevel', 'get info', 'get about',
                                 'get login-message', 'get timezone',
                                 'get options', 'get os-time', 'get http-services',
-                                'get environment', 'get pgmode',
+                                'get environment', 'get pgmode', 'get sqlcount',
                                 'stats', 'check',
                                 #'restart',
                                 ],
@@ -1960,6 +1960,8 @@ class CmdPrompt(object):
                     ret = self._client.execute_common('pub', 'list_http_services')
                 elif args[1] == 'pgmode':
                     ret = self._client.execute_common('root', 'get_pgmode')
+                elif args[1] == 'sqlcount':
+                    ret = self._client.execute_common('root', 'get_sqlcount')
                 else:
                     print "Wrong command"
                     return
