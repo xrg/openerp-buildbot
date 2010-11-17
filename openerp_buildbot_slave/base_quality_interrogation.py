@@ -1462,8 +1462,9 @@ class client_worker(object):
             return False
 
         if opt.addons_path:
-            addon_paths = map(os.path.expanduser, map(str.strip, 
-                                opt.addons_path.split(',')))
+            addon_paths = [os.path.join(opt.root_path,'addons'),] + \
+                            opt.addons_path.split(',')
+            addon_paths = map(os.path.expanduser, map(str.strip, addon_paths))
 
         if format == 'tgz' and not out_fname:
             buf = StringIO(base64.decodestring(ret[0]['data']))
@@ -1487,9 +1488,9 @@ class client_worker(object):
                             newdir = os.path.join(ap, bdir)
                             break
                 if just_print:
-                    self.log.info("Exporting %s: %s/%s (dry run)" % ( lang or 'pot', ddir, t.name))
+                    self.log.info("Exporting %s: %s/%s (dry run)" % ( lang or 'pot', reduce_homedir(ddir), t.name))
                     continue
-                self.log.info("Exporting %s: %s/%s" % ( lang or 'pot', ddir, t.name))
+                self.log.info("Exporting %s: %s/%s" % ( lang or 'pot', reduce_homedir(ddir), t.name))
                 #if newdir and not os.path.isdir(newdir):
                 #    self.log.debug("Creating directory %s", newdir)
                 #    os.makedirs(newdir)
@@ -1505,7 +1506,7 @@ class client_worker(object):
             fd.close()
         elif format == 'po':
             if dest_dir != '.' and not os.path.isabs(out_fname):
-                out_fname = os.path.join(dest_dir, out_fname)
+                out_fname = os.path.join(dest_dir, out_fname) #FIXME
             if just_print:
                 self.log.info("Would export to %s", out_fname)
             else:
@@ -1743,6 +1744,7 @@ class CmdPrompt(object):
             return False
 
         if not command:
+            server._io_flush()
             return True
 
         if command in self.avail_cmds[self.__cmdlevel]:
@@ -1756,6 +1758,7 @@ class CmdPrompt(object):
                 print "Cancelled"
                 self.does_run = False
                 return False
+            server._io_flush()
         else:
             print "Unknown command:", command[:10]
 
@@ -2386,7 +2389,8 @@ def parse_option_section(conf, items, allow_include=True):
                 val = val.split(' ')
             elif isinstance(getattr(copt, key), bool):
                 val = bool(val.lower() in ('1', 'true', 't', 'yes'))
-            elif key in ('addons_path', 'root_path', 'xml_log', 'txt_log', 'mach_log', 'inter_history'):
+            elif key in ('addons_path', 'root_path', 'homedir',
+                        'xml_log', 'txt_log', 'mach_log', 'inter_history'):
                 val = os.path.expanduser(val)
             if not getattr(copt, key):
                 setattr(opt, key, val)
@@ -2461,7 +2465,9 @@ options = {
 }
 
 if opt.homedir:
-    options['homedir'] = os.path.abspath(opt.homedir)+'/'
+    options['homedir'] = os.path.abspath(opt.homedir)
+    if options['homedir'] and options['homedir'][-1] != '/':
+        options['homedir'] += '/'
 
 def reduce_homedir(ste):
     global opt
