@@ -258,6 +258,41 @@ class ColoredFormatter(logging.Formatter):
                 pass
         return res
 
+def print_sql_stats(stats):
+    """ Print the result of get_sql_stats
+    """
+    
+    columns = []
+    col_vals = {}
+    all_sum = 0
+    for lkey, line in stats.items():
+        for col in line:
+            if col not in columns:
+                col_vals[col] = 0
+                columns.append(col[:8])
+    print " " * 26,
+    for col in columns:
+        print "%8s" % col[:8],
+    print " Total"
+    for lkey, line in stats.items():
+        print "%24s :" % lkey[:24],
+        line_sum = 0
+        for col in columns:
+            cval = line.get(col,[False,])[0]
+            if cval is not False:
+                line_sum += cval
+                print " %6s " % cval ,
+                col_vals[col] += cval
+            else:
+                print "      - ",
+        print " %d" % line_sum
+    
+    print "                   Total :",
+    all_sum = 0 
+    for col in columns:
+        print " %6d " % col_vals[col],
+        all_sum +=  col_vals[col]
+    print " %d" % all_sum
 
 class server_thread(threading.Thread):
     
@@ -1764,6 +1799,7 @@ class CmdPrompt(object):
                                 'get login-message', 'get timezone',
                                 'get options', 'get os-time', 'get http-services',
                                 'get environment', 'get pgmode', 'get sqlcount',
+                                'get sqlstats', 'reset sqlstats',
                                 'stats', 'check',
                                 #'restart',
                                 ],
@@ -2048,6 +2084,10 @@ class CmdPrompt(object):
                     ret = self._client.execute_common('root', 'get_pgmode')
                 elif args[1] == 'sqlcount':
                     ret = self._client.execute_common('root', 'get_sqlcount')
+                elif args[1] == 'sqlstats':
+                    ret = self._client.execute_common('root', 'get_sql_stats')
+                    print_sql_stats(ret)
+                    ret = 'OK'
                 elif args[1] == 'log-levels':
                     if client.series == 'pg84':
                         ret = self._client.execute_common('root', 'get_loglevel', '*')
@@ -2068,6 +2108,8 @@ class CmdPrompt(object):
             #   pass # Non-trivial TODO
             elif args[0] == 'check':
                 ret = self._client.execute_common('pub', 'check_connectivity')
+            elif args[0] == 'reset' and args[1] == 'sqlstats':
+                ret = self._client.execute_common('root', 'reset_sql_stats')
             else:
                 print "Unknown sub-command: server %s" % args[0]
                 return
