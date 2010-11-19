@@ -1261,6 +1261,23 @@ class client_worker(object):
         server.clear_context()
         return ret
 
+    def uninstall_module(self, modules):
+        uid = self._login()
+        if not uid:
+            return False
+        server.state_dict['module-mode'] = 'uninstall'
+        obj_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/object')
+        wizard_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/wizard')
+        module_ids = self._execute(obj_conn, 'execute', self.dbname, uid, self.pwd, 
+                            'ir.module.module', 'search', [('name','in',modules)])
+        self._execute(obj_conn, 'execute', self.dbname, uid, self.pwd, 
+                            'ir.module.module', 'button_uninstall', module_ids)
+        
+        server.state_dict['severity'] = 'warning'
+        ret = self._modules_upgrade(uid)
+        server.clear_context()
+        return ret
+
     def fields_view_get(self):
         """ This test tries to retrieve fields of all the pooler (orm) objects.
         
@@ -2168,7 +2185,7 @@ class CmdPrompt(object):
             elif cmd == 'upgrade':
                 client.upgrade_module(args)
             elif cmd == 'uninstall':
-                pass
+                client.uninstall_module(args)
             elif cmd == 'refresh-list':
                 client.update_modules_list()
             else:
