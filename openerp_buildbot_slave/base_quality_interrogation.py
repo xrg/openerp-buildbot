@@ -440,15 +440,16 @@ class server_thread(threading.Thread):
             self.args += [ '-c', config ]
 
         # TODO: secure transport, persistent ones.
+        http_if = opt.http_interface or '127.0.0.1'
         if srv_mode == 'v600':
-            self.args.append('--xmlrpc-interface=127.0.0.1')
+            self.args.append('--xmlrpc-interface=%s' % http_if)
             self.args.append('--xmlrpc-port=%s' % port )
             self.args.append('--no-xmlrpcs')
             # FIXME: server doesn't support this!
             #if ftp_port:
             #    self.args.append('--ftp_server_port=%d' % int(ftp_port))
         elif srv_mode == 'pg84':
-            self.args.append('--httpd-interface=127.0.0.1' )
+            self.args.append('--httpd-interface=%s' % http_if )
             self.args.append('--httpd-port=%s' % port )
             self.args.append('--no-httpds')
             self.args.append('-Dtests.nonfatal=True')
@@ -2489,6 +2490,7 @@ parser.add_option("-W", dest="warnings", default=False,
 
 parser.add_option("--quality-logs", dest="quality_logs", help="specify the path of quality logs files which has to stores")
 parser.add_option("--root-path", dest="root_path", help="specify the root path")
+parser.add_option("--http-interface", dest="http_interface", help="Specify the http interface to listen on, by default is localhost (only).")
 parser.add_option("-p", "--port", dest="port", help="specify the TCP port", type="int")
 parser.add_option("--net_port", dest="netport",help="specify the TCP port for netrpc")
 parser.add_option("-d", "--database", dest="db_name", help="specify the database name")
@@ -2791,7 +2793,10 @@ if opt.translate_in:
                 po_link = '%s/%s/i18n/%s'%(options['addons-path'], module_name, po_file)
             options['translate-in'].append(po_link)
 
-uri = 'http://localhost:' + str(options['port'])
+if (not opt.http_interface) or (opt.http_interface == '0.0.0.0'):
+    uri = 'http://localhost:' + str(options['port'])
+else:
+    uri = 'http://%s:%s' % ( opt.http_interface, str(options['port']))
 
 def get_modules2(ad_paths):
     """Returns the list of module (path, name)s
