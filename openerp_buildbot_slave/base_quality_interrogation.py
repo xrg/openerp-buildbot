@@ -294,6 +294,45 @@ def print_sql_stats(stats):
         all_sum +=  col_vals[col]
     print " %d" % all_sum
 
+def print_table(res, columns=None, max_width=20):
+    """ Print some result table (from orm.read() eg.)
+    
+        res must be in the [ { col: val, col2: val2}, {...}, ...] format
+    """
+    
+    columns_auto = False
+    col_width = {}
+
+    if columns is None:
+        columns = []
+        columns_auto = True
+    else:
+        for c in columns:
+            col_width[c] = min(len(c), max_width)
+
+    # First pass, compute column widths
+    for rec in res:
+        for col, val in rec.items():
+            if col not in columns:
+                if columns_auto:
+                    col_width[col] = min( max(len(col), len('%s' % val)), max_width)
+                    columns.append(col)
+            else:
+                col_width[col] = max(col_width[col], min(len('%s' % val), max_width))
+    
+    col_strs = {}
+    for c in columns:
+        col_strs[c] = '%-' + str(col_width[c]) +'s'
+
+    print '|'.join([ c[:max_width].center(col_width[c]) for c in columns])
+    print '-' * (sum(col_width.values()) + len(columns) - 1)
+
+    for rec in res:
+        lin = []
+        for c in columns:
+            lin.append((col_strs[c] % rec.get(c, ''))[:max_width])
+        print '|'.join(lin)
+
 class server_thread(threading.Thread):
     
     def regparser(self, section, regex, funct, multiline=False):
@@ -1795,6 +1834,7 @@ class CmdPrompt(object):
                 'orm': ['help', 'obj_info', 
                         'do', 'res_id',
                         'print', 'with',
+                        'table',
                         'debug', 'exit',  ],
                 'orm_id': [ 'help', 'do', 'print', 'with', 'debug', 'exit', ]
                 }
@@ -1807,6 +1847,7 @@ class CmdPrompt(object):
                     'module': _complete_module_cmd,
                     'orm': _complete_orm_cmd,
                     'do': [],
+                    'table': [], # TODO
                     'print': _complete_print,
                     'with': _complete_print,
                     'help': [],
@@ -2366,6 +2407,75 @@ class CmdPrompt(object):
             print "With this:", toprint
         if res is not None:
             self._last_res = res
+
+    def _cmd_table(self, *args):
+        """Perform an ORM operation and present results as a table
+        
+           Syntax of this command resembles the SQL select command:
+              > table name, address, active from this
+              > table name, address, active from read([1,2,3])
+        """
+        if not self.cur_orm:
+            print "Must be at an ORM level!"
+            return
+        
+        cols_str = ''
+        while args:
+            if args[0] == 'from':
+                break
+            cols_str += ' ' + args[0]
+            args = args[1:]
+
+        if not args:
+            print "Syntax error, expected 'from' clause (lowercase)"
+        if args[0] != 'from':
+            print "Syntax error, expected 'from' clause."
+        
+        args = args[1:]
+        # we're just after the "from" clause
+        
+        if not '(' in args[0]:
+            # it is a local expression, like "this"
+            aexpr = ' '.join(args)
+            res = self._eval_local(aexpr)
+        else:
+            astr = ' '.join(args)
+            if not '(' in astr:
+                print "Syntax: foobar(...)"
+                return
+            try:
+                astr = astr.strip()
+                afn, aexpr = astr.split('(',1)
+                aexpr = '(' + aexpr
+                aexpr = eval(aexpr, {'this': self._last_res}, {})
+            except Exception, e:
+                print 'Tried to eval "%s"' % aexpr
+                print "Exception:", e
+                return
+            if not isinstance(aexpr, tuple):
+                aexpr = (aexpr,)
+            if self.cur_res_id:
+                aexpr = ( [self.cur_res_id,],) + aexpr
+            try:
+                logger.debug("Trying orm execute: %s(%s)", afn, ', '.join(map(repr,aexpr)))
+                res = client.orm_execute(self.cur_orm, afn, *aexpr)
+                server._io_flush()
+            except xmlrpclib.Fault, e:
+                print 'xmlrpc exception: %s' % reduce_homedir( e.faultCode.strip())
+                print 'xmlrpc +: %s' % reduce_homedir(e.faultString.rstrip())
+                return
+            except Exception, e:
+                print "Failed orm execute:", e
+                return
+        if not res:
+            print "No result!"
+            return
+
+        cols = map(str.strip, cols_str.split(','))
+        if cols == ['*',]:
+            cols = None
+        print_table(res, columns=cols)
+        return
 
     def _cmd_obj_info(self):
         """Obtain model info
