@@ -567,8 +567,7 @@ class server_thread(threading.Thread):
         for fd in self._io_bufs.keys():
             r = self._io_bufs[fd]
         
-            while r.endswith("\n"):
-                r = r[:-1]
+            r = r.rstrip("\n")
 
             if not r:
                 continue
@@ -1904,6 +1903,7 @@ class CmdPrompt(object):
         if not self.does_run:
             return False
 
+        server._io_flush() # before the prompt..
         try:
             cmpt = self.cmd_levelprompts[self.__cmdlevel] % self.__dict__
             cmpt += "> "
@@ -1911,9 +1911,12 @@ class CmdPrompt(object):
             command_line = raw_input(cmpt)
             # print ""
             if not command_line:
+                server._io_flush()
                 return True
 
             command_elements = command_line.split()
+            if not command_elements:
+                return True
             command = command_elements[0]
             args = command_elements[1:]
 
