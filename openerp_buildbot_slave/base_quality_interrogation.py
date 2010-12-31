@@ -2576,7 +2576,7 @@ parser.add_option("-m", "--modules", dest="modules", action="append",
 parser.add_option("--addons-path", dest="addons_path", help="specify the addons path")
 parser.add_option("--all-modules", dest="all_modules", action='store_true', default=False,
                     help="Operate on all modules that are found on addons-path")
-parser.add_option("--black-modules", dest="black_modules", default=False,
+parser.add_option("--black-modules", dest="black_modules", default=None,
                     help="Exclude these modules from all-modules scan (space-separated)")
 parser.add_option("--homedir", dest="homedir", default=None, 
                 help="The directory, whose absolute path will be stripped from messages.")
