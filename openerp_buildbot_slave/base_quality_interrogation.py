@@ -1738,6 +1738,7 @@ class client_worker(object):
                     { 'ref': 'Test%s' % i,
                     'type': 'journal_voucher',
                     'journal_id': journal_id ,
+                    'company_id': 1,
                     'line_id': [
                         (0, 0, {
                             #'analytic_account_id': False, 'currency_id': False,
@@ -1764,13 +1765,13 @@ class client_worker(object):
             move_ids.append(move_id)
 
         ost = self.get_ostimes(ost)
-        self.log.info("Moves generated at: User: %.3f, Sys: %.3f %.3f/entry" % \
-                        (ost[0], ost[1], ost[0] / howmany))
+        self.log.info("Moves generated at: User: %.3f, Sys: %.3f, Real: %.3f %.3f/entry" % \
+                        (ost[0], ost[1], ost[4], ost[0] / howmany))
         # Validate all the moves
         self._orm_execute_int(obj_conn, uid, 'account.move', 'button_validate', move_ids, {})
         
         ost = self.get_ostimes(ost)
-        self.log.info("Moves validated at: User: %.3f, Sys: %.3f" % (ost[0], ost[1]))
+        self.log.info("Moves validated at: User: %.3f, Sys: %.3f, Real: %.3f" % (ost[0], ost[1], ost[4]))
         return True
 
 class CmdPrompt(object):
@@ -2330,7 +2331,9 @@ class CmdPrompt(object):
             res = client.orm_execute(self.cur_orm, afn, *aexpr)
             server._io_flush()
         except xmlrpclib.Fault, e:
-            print 'xmlrpc exception: %s' % reduce_homedir( e.faultCode.strip())
+            if isinstance(e.faultCode, (int, long)):
+                e.faultCode = str(e.faultCode)
+            print 'xmlrpc exception: %s' % reduce_homedir(e.faultCode.strip())
             print 'xmlrpc +: %s' % reduce_homedir(e.faultString.rstrip())
             return
         except Exception, e:
@@ -2464,6 +2467,8 @@ class CmdPrompt(object):
                 res = client.orm_execute(self.cur_orm, afn, *aexpr)
                 server._io_flush()
             except xmlrpclib.Fault, e:
+                if isinstance(e.faultCode, (int, long)):
+                    e.faultCode = str(e.faultCode)
                 print 'xmlrpc exception: %s' % reduce_homedir( e.faultCode.strip())
                 print 'xmlrpc +: %s' % reduce_homedir(e.faultString.rstrip())
                 return
@@ -2516,6 +2521,8 @@ class CmdPrompt(object):
             elif cmd == 'sync':
                 client.sync_trans(*args)
         except xmlrpclib.Fault, e:
+            if isinstance(e.faultCode, (int, long)):
+                e.faultCode = str(e.faultCode)
             print 'xmlrpc exception: %s' % reduce_homedir( e.faultCode.strip())
             print 'xmlrpc +: %s' % reduce_homedir(e.faultString.rstrip())
             return
@@ -2535,6 +2542,8 @@ class CmdPrompt(object):
             else:
                 print "Unknown sub-command: test %s" % cmd
         except xmlrpclib.Fault, e:
+            if isinstance(e.faultCode, (int, long)):
+                e.faultCode = str(e.faultCode)
             print 'xmlrpc exception: %s' % reduce_homedir( e.faultCode.strip())
             print 'xmlrpc +: %s' % reduce_homedir(e.faultString.rstrip())
             return
