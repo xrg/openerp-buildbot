@@ -1858,6 +1858,7 @@ class CmdPrompt(object):
                                 'get login-message', 'get timezone',
                                 'get options', 'get os-time', 'get http-services',
                                 'get environment', 'get pgmode', 'get sqlcount',
+                                'get garbage-stats',
                                 'get sqlstats', 'reset sqlstats',
                                 'stats', 'check',
                                 #'restart',
@@ -2147,6 +2148,8 @@ class CmdPrompt(object):
                     ret = self._client.execute_common('root', 'get_pgmode')
                 elif args[1] == 'sqlcount':
                     ret = self._client.execute_common('root', 'get_sqlcount')
+                elif args[1] == 'garbage-stats':
+                    ret = self._client.execute_common('root', 'get_garbage_stats')
                 elif args[1] == 'sqlstats':
                     ret = self._client.execute_common('root', 'get_sql_stats')
                     print_sql_stats(ret)
