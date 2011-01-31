@@ -33,6 +33,7 @@ from fnmatch import fnmatch
 import signal
 import time
 import pickle
+import glob
 import base64
 # import socket
 import subprocess
@@ -1694,6 +1695,139 @@ class client_worker(object):
         server.clear_context()
         return True
 
+    def import_data_file(self, *args):
+        """ Import an arbitrary data file
+
+        :*args: is a cmdline-like string of options, last of which is the
+        path of the data file itself
+
+        See _cmd_import for details.
+        """
+
+        server.clear_context()
+        module = None
+        ltype = None
+        test_mode = False
+        noupdate = False
+        model = None
+
+        while args:
+            if args[0] == '-l':
+                ltype = args[1]
+                args = args[2:]
+            elif args[0] == '-m':
+                module = args[1]
+                args = args[2:]
+            elif args[0] == '-U':
+                noupdate = True
+                args = args[1:]
+            elif args[0] == '-t':
+                test_mode = True
+                args = args[1:]
+            elif args[0] == '-d':
+                model = args[1]
+                args = args[2:]
+            else:
+                break
+
+        if len(args) < 1:
+            raise ClientException("Must specify one datafile")
+
+        uid = self._login()
+        obj_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/object')
+        server.state_dict['severity'] = 'error'
+        ost_start = self.get_ostimes()
+
+        addon_paths = [os.path.join(opt.root_path,'addons'),]
+        if opt.addons_path:
+             addon_paths += opt.addons_path.split(',')
+        addon_paths = map(os.path.expanduser, map(str.strip, addon_paths))
+
+        for fname in args:
+            module2 = module
+            ltype2 = ltype
+            model2 = model
+
+            barefile = fname # non-expanded
+            datfile = os.path.abspath(os.path.expanduser(args[0]))
+
+            if not module2:
+                for adp in addon_paths:
+                    if datfile.startswith(adp):
+                        barefile = datfile[len(adp):]
+                        if barefile[0] == os.sep:
+                            barefile = barefile[1:]
+                paths = barefile.split(os.sep)
+                if len(paths) >= 2:
+                    module2 = paths[0]
+
+            if not ltype2:
+                paths = args[0].split(os.sep)
+                ext = False
+                if '.' in paths[-1]:
+                    ext = paths[-1].rsplit('.',1)[1].lower()
+                    if ext == 'yml':
+                        ext = 'yaml'
+                if ext not in ('xml', 'csv', 'yaml'):
+                    raise ClientException("File type cannot be determined from extension")
+                ltype2 = ext
+
+            if ltype2 == 'csv' and not model2:
+                paths = args[0].split(os.sep)
+                bname = paths[-1].rsplit('.',1)[0] # strip the extension from last path
+                model2 = bname
+
+            module_ids = self._execute(obj_conn,'execute', self.dbname, uid, self.pwd,
+                                    'ir.module.module','search', [('name','=', module2)])
+            if not module_ids:
+                raise ClientException("Cannot locate module %s for import!" % module2)
+
+            if model:
+                ir_model_ids = self._execute(obj_conn,'execute', self.dbname, uid, self.pwd,
+                                    'ir.model','search', [('name','=', model2)])
+                if not ir_model_ids:
+                    raise ClientException("Cannot locate ORM model %s for import!" % model2)
+
+            self.log.info("Trying to import %s as %s for %s %s%s", reduce_homedir(datfile),
+                        ltype2, module2, (test_mode and 'in test mode ') or '',
+                        (model2 and 'model ' + model2) or '')
+
+            if test_mode:
+                server.state_dict['severity'] = 'test'
+            else:
+                server.state_dict['severity'] = 'warning'
+            server.state_dict['context'] = '%s.import' % (module2)
+            server.state_dict['module-mode'] = 'import'
+            server.state_dict['module-phase'] = 'file'
+            server.state_dict['module'] = module2
+            server.state_dict['module-file'] = barefile
+
+            if not os.path.isfile(fname):
+                raise ClientException('File "%s" doesn\'t exist.' % fname)
+            fd = open(fname, 'rb')
+            data = fd.read()
+            fd.close()
+
+            wiz_id = self._orm_execute_int(obj_conn, uid,
+                    'base_module_record.import', 'create',
+                    {'module_id': module_ids[0], 'format': ltype2,
+                     'mode': (test_mode and 'test') or 'init',
+                     'model_id': (model and ir_model_ids[0]) or False,
+                     'mdata': data,
+                     'noupdate': noupdate
+                    })
+            try:
+                res = self._orm_execute_int(obj_conn, uid, 'base_module_record.import',
+                        'action_import', [wiz_id,])
+            except xmlrpclib.Fault, e:
+                e_fc = str(e.faultCode).split('\n',1)[0]
+                if e_fc in ('warning -- Assertion report',):
+                    self.log.info(e.faultCode.rstrip().split('\n',1)[1])
+                else:
+                    raise
+
+        server.clear_context()
+
     def gen_account_moves(self, howmany):
         """Generate a (large) number of account moves.
         
@@ -1829,8 +1963,59 @@ class CmdPrompt(object):
                     pos.append(k)
         return pos
 
+    def _complete_import(self, text, state):
+        pos = []
+        # print "complete", repr(text), state
+        args = text.split(' ')
+        def __complete_list(li):
+            rprev = ''
+            if len(args) > 1:
+                rprev = ' '.join(args[:-1]) 
+            if rprev and rprev[-1] != ' ':
+                rprev += ' '
+            for l in li:
+                pos.append(rprev+ l)
+
+        parargs = [ '-m ', '-l ', '-d ', '-U ', '-t ' ]
+        filearg = ''
+        if not args:
+            if state == 0:
+                pos += parargs
+        elif args[-1].startswith('-'):
+            if len(args[-1]) == 1:
+                __complete_list(parargs)
+            elif len(args[-1]) == 2:
+                pos.append(text+' ')
+            return pos
+        else:
+            filearg = args[-1]
+
+        if len(args) > 1 and (args[-2].startswith('-')):
+            prev = args[-2]
+            if prev == '-l':
+                __complete_list(['xml', 'csv', 'yaml'])
+                return pos
+            elif prev == '-m':
+                mods = self._complete_module_cmd('upgrade '+args[-1], state)
+                __complete_list([ m[8:] for m in mods])
+                return pos
+            elif prev == '-d':
+                __complete_list(self._complete_orm_cmd(args[-1], state))
+                return pos
+
+        pos2 = []
+        for path in glob.iglob(os.path.expanduser(filearg+'*')):
+            if os.path.isdir(path):
+                pos2.append(path + os.sep)
+            else:
+                pos2.append(path)
+        __complete_list(pos2)
+
+        return pos
+
     avail_cmds = { 0: [ 'help','db_list', 'debug', 'quit', 'db',
-                        'orm', 'module', 'translation', 'server', 'test' ],
+                        'orm', 'module', 'translation', 'server', 'test',
+                        'import', ],
                 'orm': ['help', 'obj_info', 
                         'do', 'res_id',
                         'print', 'with',
@@ -1850,6 +2035,7 @@ class CmdPrompt(object):
                     'table': [], # TODO
                     'print': _complete_print,
                     'with': _complete_print,
+                    'import': _complete_import,
                     'help': [],
                     'server': [ 'set loglevel', 'set loggerlevel', 
                                 'set pgmode',
@@ -2554,15 +2740,47 @@ class CmdPrompt(object):
             print "Failed test %s:" % cmd, e
             return
 
+    def _cmd_import(self, *args):
+        """Import a data file, through the base_module_import wizard.
+
+    Usage:
+        import [-m <module>] [-l {xml|csv|yaml}] [-t] [-U]
+                [-d <model>]  data-file.ext
+
+    Arguments:
+        -m <module> Module to import against, either detected from the
+                    path name, or explicitly specified here.
+        -l          Type of import file. Can be auto-detected from data
+                    file extension
+        -t          Test data mode. Otherwize "initial data" mode.
+        -U          No Update. Activate that flag for the data
+        -d <model>  The model to import against. Needed for csv files,
+                    unless the filename matches (eg. 'ir.model.access.csv')
+        """
+        if (not args):
+            print "At least the filename is required"
+            return
+        try:
+            client.import_data_file(*args)
+        except xmlrpclib.Fault, e:
+            if isinstance(e.faultCode, (int, long)):
+                e.faultCode = str(e.faultCode)
+            print 'xmlrpc exception: %s' % reduce_homedir( e.faultCode.strip())
+            print 'xmlrpc +: %s' % reduce_homedir(e.faultString.rstrip())
+            return
+        except Exception, e:
+            print "Failed import:", e
+            return
+
 usage = """%prog command [options]
 
 Basic Commands:
-    start-server         Start Server
-    create-db            Create new database
-    drop-db              Drop database
-    install-module [<m> ...]   Install module
-    upgrade-module [<m> ...]   Upgrade module
-    install-translation        Install translation file
+    start-server                Start Server
+    create-db                   Create new database
+    drop-db                     Drop database
+    install-module [<m> ...]    Install module
+    upgrade-module [<m> ...]    Upgrade module
+    import [args] <data-file>   Import data file directly into module
     check-quality  [<m> ...]    Calculate quality and dump quality result 
                                 [ into quality_log.pck using pickle ]
     fields-view-get             Check fields_view_get of all pooler objects
@@ -2872,7 +3090,7 @@ def parse_cmdargs(args):
                     'install-translation', 'multi', 'fields-view-get',
                     'translation-import', 'translation-export',
                     'translation-load', 'translation-sync',
-                    'get-sqlcount',
+                    'get-sqlcount', 'import',
                     'keep', 'keep-running', 'inter', 'interactive'):
             parser.error("incorrect command: %s" % command)
             return
@@ -2885,7 +3103,7 @@ def parse_cmdargs(args):
         elif cmd2 in ('install-module', 'upgrade-module', 'check-quality',
                         'translation-import', 'translation-export',
                         'translation-load', 'translation-sync',
-                        'install-translation',):
+                        'install-translation', 'import'):
             # Commands that take args
             cmd_args = []
             while args and args[0] != '--':
@@ -3066,6 +3284,8 @@ try:
                 logger.info("SQL counter: %s", scount)
                 del scount
                 ret = True
+            elif cmd == 'import':
+                ret = client.import_data_file(*args)
             elif cmd == 'keep' or cmd == 'keep-running':
                 try:
                     logger.info("Server is running, script is paused. Press Ctrl+C to continue.")
