@@ -976,11 +976,22 @@ class client_worker(object):
         print "execute: %r %r" % (func, args)
         return self._execute(conn, func, *args)
 
-    def _login(self):
+    def _login(self, user=None, passwd=''):
         conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/common')
-        uid = self._execute(conn, 'login', self.dbname, self.user, self.pwd)
-        if not uid:
-            self.log.error("Cannot login as %s@%s" %(self.user, self.pwd))
+        if user is None:
+            # use the old ones
+            user = self.user
+            passwd = self.pwd
+        uid = self._execute(conn, 'login', self.dbname, user, passwd)
+        if uid:
+            if user != self.user:
+                self.log.info("User changed to %s@%s" %(user, self.dbname))
+                self.user = user
+                self.pwd = passwd
+        else:
+            self.log.error("Cannot login as %s@%s" %(user, self.dbname))
+            if user != self.user:
+                self.log.info("Falling back to %s@%s" %(self.user, self.dbname))
         return uid
 
     def import_translate(self, translate_in):
@@ -2020,7 +2031,7 @@ class CmdPrompt(object):
 
     avail_cmds = { 0: [ 'help','db_list', 'debug', 'quit', 'db',
                         'orm', 'module', 'translation', 'server', 'test',
-                        'import', ],
+                        'import', 'login' ],
                 'orm': ['help', 'obj_info', 
                         'do', 'res_id',
                         'print', 'with',
@@ -2777,6 +2788,20 @@ class CmdPrompt(object):
             print "Failed import:", e
             return
 
+    def _cmd_login(self, login, passwd):
+        """Login as (a different) user
+
+    Usage:
+        login <user> <password>
+
+    Notes:
+        This command will attempt to login <user> in the running server
+        and use that instead of the previous login. All subsequent RPC
+        calls will be executed as that user (hopefully).
+        """
+        
+        client._login(login, passwd)
+
 usage = """%prog command [options]
 
 Basic Commands:
@@ -2793,6 +2818,7 @@ Basic Commands:
                                 single server instance.
     keep[-running]              Pause and keep the server running, waiting for Ctrl+C
     inter[active]               Display interactive b-q-i prompt
+    login <user> <passwd>       Login again, switch user
     
     translation-import -f <file> [-l lang-code] [-L lang-name]
                                 Import file as translation for language
@@ -3095,7 +3121,7 @@ def parse_cmdargs(args):
                     'install-translation', 'multi', 'fields-view-get',
                     'translation-import', 'translation-export',
                     'translation-load', 'translation-sync',
-                    'get-sqlcount', 'import',
+                    'get-sqlcount', 'import', 'login',
                     'keep', 'keep-running', 'inter', 'interactive'):
             parser.error("incorrect command: %s" % command)
             return
@@ -3108,7 +3134,7 @@ def parse_cmdargs(args):
         elif cmd2 in ('install-module', 'upgrade-module', 'check-quality',
                         'translation-import', 'translation-export',
                         'translation-load', 'translation-sync',
-                        'install-translation', 'import'):
+                        'install-translation', 'import', 'login'):
             # Commands that take args
             cmd_args = []
             while args and args[0] != '--':
@@ -3291,6 +3317,8 @@ try:
                 ret = True
             elif cmd == 'import':
                 ret = client.import_data_file(*args)
+            elif cmd == 'login':
+                ret = client._login(*args)
             elif cmd == 'keep' or cmd == 'keep-running':
                 try:
                     logger.info("Server is running, script is paused. Press Ctrl+C to continue.")
