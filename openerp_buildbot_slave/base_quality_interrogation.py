@@ -1777,6 +1777,7 @@ class client_worker(object):
                 bname = paths[-1].rsplit('.',1)[0] # strip the extension from last path
                 model2 = bname
 
+            ost = self.get_ostimes()
             module_ids = self._execute(obj_conn,'execute', self.dbname, uid, self.pwd,
                                     'ir.module.module','search', [('name','=', module2)])
             if not module_ids:
@@ -1822,9 +1823,13 @@ class client_worker(object):
             except xmlrpclib.Fault, e:
                 e_fc = str(e.faultCode).split('\n',1)[0]
                 if e_fc in ('warning -- Assertion report',):
-                    self.log.info(e.faultCode.rstrip().split('\n',1)[1])
+                    self.log.info(e.faultCode.rstrip().split('\n',1)[1].strip())
                 else:
                     raise
+
+        ost = self.get_ostimes(ost)
+        self.log.info("Data file imported at: User: %.3f, Sys: %.3f, Real: %.3f" % \
+                        (ost[0], ost[1], ost[4]))
 
         server.clear_context()
 
