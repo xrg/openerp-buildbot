@@ -13,6 +13,7 @@ from buildbot.process.properties import Properties
 from buildbot.status.builder import SUCCESS, WARNINGS, FAILURE, SKIPPED, EXCEPTION, RETRY
 from buildbot.util.eventual import eventually
 from buildbot.util import json
+from buildbot.db import base
 
 import rpc
 
@@ -47,21 +48,43 @@ def cleanupDict(cdict):
         elif isinstance(cdict[key], dict):
             cleanupDict(cdict[key])
 
+class OERPModel(base.DBConnectorComponent):
+    def is_current(self):
+        # always current
+        return defer.succeed(True)
+
+    def upgrade(self):
+        return None
+
+class OERPChangesConnector(base.DBConnectorComponent):
+    def addChange(self, **kwargs):
+        change = OpenObjectChange(**kwargs)
+        d = threads.deferToThread(self.db.addChangeToDatabase, change)
+        d.addCallback(lambda _ : change)
+        return d
+
+    def getChangeInstance(self, changeid):
+        d = threads.deferToThread(self.db.getChangeNumberedNow,changeid)
+        return d
+
+    def getLatestChangeid(self):
+        d = threads.deferToThread(self.db.getLatestChangeNumberNow)
+        return d
+
 class OERPConnector(util.ComparableMixin):
     # this will refuse to create the database: use 'create-master' for that
     compare_attrs = ["args", "kwargs"]
     synchronized = ["notify", "_end_operation"]
 
-    def __init__(self, spec):
+    def __init__(self, spec, basedir):
         # self._query_times = collections.deque()
         self._spec = spec
+        self._basedir = basedir # is it ever needed to us?
 
         # this is for synchronous calls: runQueryNow, runInteractionNow
-        self._dbapi = spec.get_dbapi()
         self._nonpool = None
         self._nonpool_lastused = None
-        self._nonpool_max_idle = spec.get_maxidle()
-
+        
         self._change_cache = util.LRUCache()
         self._sourcestamp_cache = util.LRUCache()
         self._active_operations = set() # protected by synchronized=
@@ -71,6 +94,8 @@ class OERPConnector(util.ComparableMixin):
         self._pending_operation_count = 0
 
         self._started = False
+        self.model = OERPModel(self)
+        self.changes = OERPChangesConnector(self)
 
     def _getCurrentTime(self):
         # this is a seam for use in testing
@@ -167,6 +192,7 @@ class OERPConnector(util.ComparableMixin):
     # ChangeManager methods
 
     def addChangeToDatabase(self, change):
+        # TODO: cleanup, perhaps move to OERPChangesConnector
         self.runInteractionNow(self._txn_addChangeToDatabase, change)
         self._change_cache.add(change.number, change)
 
@@ -741,6 +767,7 @@ class OERPConnector(util.ComparableMixin):
         return True
 
     def get_active_buildset_ids(self):
+        bset_obj = rpc.RpcProxy('software_dev.commit')
         bsids = bset_obj.search([('complete', '=', False)])
         return list(bsids)
 

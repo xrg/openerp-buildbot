@@ -74,7 +74,6 @@ class OpenObjectChange(Change):
 
 
 class BzrPoller(bzr_poller.BzrPoller):
-    _change_class = OpenObjectChange
     
     def __init__(self, url, poll_interval=10*60, blame_merge_author=False,
                     branch_name=None, branch_id=None, category=None, keeper=None):

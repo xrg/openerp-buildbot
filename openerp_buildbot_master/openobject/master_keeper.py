@@ -241,61 +241,10 @@ class Keeper(object):
             rpc.session.logout()
         except Exception: pass
 
+from buildbot.db import connector as bbot_connector
+import connector
 
-class DBSpec_OpenERP(object):
-    """
-    A specification for the database type and other connection parameters.
-    """
-
-    # List of connkw arguments that are applicable to the connection pool only
-    pool_args = ["max_idle"]
-    def __init__(self, dbapiName, *connargs, **connkw):
-        # special-case 'sqlite3', replacing it with the available implementation
-        self.dbapiName = dbapiName
-        self.connargs = connargs
-        self.connkw = connkw
-
-    @classmethod
-    def from_url(cls, url, basedir=None):
-        return cls('OpenERP')
-
-    def get_dbapi(self):
-        """
-        Get the dbapi module used for this connection (for things like
-        exceptions and module-global attributes
-        """
-        return None  #reflect.namedModule(self.dbapiName)
-
-    def get_sync_connection(self):
-        """
-        Get a synchronous connection to the specified database.  This returns
-        a simple DBAPI connection object.
-        """
-        
-        conn = False
-        return conn
-
-    def get_async_connection_pool(self):
-        """
-        Get an asynchronous (adbapi) connection pool for the specified
-        database.
-        """
-        return False
-
-    def get_maxidle(self):
-        default = None
-        return self.connkw.get("max_idle", default)
-        
-    def get_connector(self):
-        import connector
-        return connector.OERPConnector(self)
-        
-    def get_schemaManager(self, basedir):
-        return False
-
-from buildbot.db import dbspec
-
-dbspec.cur_dbspec = DBSpec_OpenERP
+bbot_connector.db_connector = connector.OERPConnector
 
 if False:
     # TODO!!

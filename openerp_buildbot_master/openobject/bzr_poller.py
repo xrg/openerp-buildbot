@@ -62,9 +62,9 @@ Contact Information
 Maintainer/author: gary.poster@canonical.com
 """
 
-import urllib
-import urlparse
-import StringIO
+#import urllib
+#import urlparse
+#import StringIO
 
 import buildbot.util
 import buildbot.changes.base
@@ -165,7 +165,6 @@ class BzrPoller(buildbot.changes.base.ChangeSource,
                 buildbot.util.ComparableMixin):
 
     compare_attrs = ['url']
-    _change_class = buildbot.changes.changes.Change
 
     def __init__(self, url, poll_interval=10*60, blame_merge_author=False,
                     branch_name=None, branch_id=None, category=None):
@@ -193,9 +192,9 @@ class BzrPoller(buildbot.changes.base.ChangeSource,
             ourbranch = self.url
         else:
             ourbranch = self.branch_name
-        last_cid = self.parent.getLatestChangeNumberNow(branch=self.branch_id)
+        last_cid = self.master.db.getLatestChangeNumberNow(branch=self.branch_id) # TODO defer
         if last_cid:
-            change = self.parent.getChangeNumberedNow(last_cid)
+            change = self.master.db.getChangeNumberedNow(last_cid)
             assert change.branch_id == self.branch_id, "%r != %r" % (change.branch_id, self.branch_id)
             self.last_revision = int(change.revision)
             # We *assume* here that the last change registered with the
@@ -246,8 +245,7 @@ class BzrPoller(buildbot.changes.base.ChangeSource,
             else:
                 twisted.python.log.msg("We have %d changes" % len(changes))
                 for change in changes:
-                    yield self.addChange(
-                        self._change_class(**change))
+                    yield self.master.addChange(**change)
                     self.last_revision = change['revision']
         finally:
             self.polling = False
@@ -276,12 +274,5 @@ class BzrPoller(buildbot.changes.base.ChangeSource,
         changes.reverse()
         return changes
 
-    def addChange(self, change):
-        d = twisted.internet.defer.Deferred()
-        def _add_change():
-            d.callback(
-                self.parent.addChange(change))
-        twisted.internet.reactor.callLater(0, _add_change)
-        return d
 
 #eof
