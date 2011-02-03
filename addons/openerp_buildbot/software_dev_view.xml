@@ -114,13 +114,15 @@
             <field name="model">software_dev.commit</field>
             <field name="type">tree</field>
             <field name="arch" type="xml">
-              <tree>
+              <tree colors="gray: not complete;green:results==0;#ff8000:results==1;red:results==2;blue:results==3;#c000c0:results==4" >
                 <field name="branch_id"/>
+                <field name="revno" />
                 <field name="date"/>
                 <field name="subject"/>
                 <field name="comitter_id"/>
                 <field name="hash"/>
                 <field name="complete" />
+                <field name="results" />
               </tree>
           </field>
         </record>
