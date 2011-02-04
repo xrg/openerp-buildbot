@@ -65,10 +65,13 @@ Maintainer/author: gary.poster@canonical.com
 #import urllib
 #import urlparse
 #import StringIO
+import os
+import time
 
 import buildbot.util
 import buildbot.changes.base
 import buildbot.changes.changes
+from buildbot.util import deferredLocked
 
 import bzrlib.branch
 import bzrlib.errors
@@ -82,6 +85,7 @@ import twisted.internet.task
 import twisted.internet.threads
 import twisted.python.log
 import twisted.spread.pb
+from twisted.internet import defer, utils
 
 
 def generate_change(branch,
@@ -161,13 +165,14 @@ def generate_change(branch,
     return change
 
 
-class BzrPoller(buildbot.changes.base.ChangeSource,
+class BzrPoller(buildbot.changes.base.PollingChangeSource,
                 buildbot.util.ComparableMixin):
 
     compare_attrs = ['url']
 
     def __init__(self, url, poll_interval=10*60, blame_merge_author=False,
-                    branch_name=None, branch_id=None, category=None):
+                    branch_name=None, branch_id=None, category=None,
+                    proxy_location=None, slave_proxy_url=None):
         # poll_interval is in seconds, so default poll_interval is 10
         # minutes.
         # bzr+ssh://bazaar.launchpad.net/~launchpad-pqm/launchpad/devel/
@@ -179,78 +184,82 @@ class BzrPoller(buildbot.changes.base.ChangeSource,
            url = 'file://' + url
         self.url = url
         self.poll_interval = poll_interval
-        self.loop = twisted.internet.task.LoopingCall(self.poll)
         self.blame_merge_author = blame_merge_author
         self.branch_name = branch_name
         self.branch_id = branch_id
         self.category = category
+        self.proxy_location = os.path.expanduser(proxy_location)
+        self.slave_proxy_url = slave_proxy_url
+        self.initLock = defer.DeferredLock()
+        self.lastPoll = time.time()
 
     def startService(self):
         twisted.python.log.msg("BzrPoller(%s) starting" % self.url)
-        buildbot.changes.base.ChangeSource.startService(self)
-        if self.branch_name is None:
-            ourbranch = self.url
-        else:
-            ourbranch = self.branch_name
-        last_cid = self.master.db.getLatestChangeNumberNow(branch=self.branch_id) # TODO defer
-        if last_cid:
-            change = self.master.db.getChangeNumberedNow(last_cid)
-            assert change.branch_id == self.branch_id, "%r != %r" % (change.branch_id, self.branch_id)
-            self.last_revision = int(change.revision)
-            # We *assume* here that the last change registered with the
-            # branch is a head earlier than our current revision.
-            # But, it might happen that the repo is diverged and that change
-            # is no longer in the history...
-        else:
-            self.last_revision = None
-        
-        try:
-            # Just try to open the branch. There is sth wrong in bzrlib
-            # wrt. the import order, so try to consume the exception here.
-            branch = bzrlib.branch.Branch.open_containing(self.url)[0]
-        except Exception, e:
-            twisted.python.log.err("Cannot open the branch: %s" % e)
+        d = self.initRepository()
+        buildbot.changes.base.PollingChangeSource.startService(self)
 
-        self.polling = False
-        twisted.internet.reactor.callWhenRunning(
-            self.loop.start, self.poll_interval)
+    @deferredLocked('initLock')
+    def initRepository(self):
+        d = defer.succeed(None)
+        def checkout_branch(_):
+            """ Checkout the remote (LP) branch into the local proxy_location
+            """
+            d = utils.getProcessOutputAndValue('bzr',
+                    ['branch', '-q', '--bind', '--no-tree',
+                        self.url, self.proxy_location])
+            d.addCallback(self._convert_nonzero_to_failure)
+            d.addErrback(self._stop_on_failure)
+            self.lastPoll = time.time()
+            return d
 
-    def stopService(self):
-        twisted.python.log.msg("BzrPoller(%s) shutting down" % self.url)
-        self.loop.stop()
-        return buildbot.changes.base.ChangeSource.stopService(self)
+        def get_last_revision(_):
+            last_cid = self.master.db.getLatestChangeNumberNow(branch=self.branch_id) # TODO defer
+            if last_cid:
+                change = self.master.db.getChangeNumberedNow(last_cid)
+                assert change.branch_id == self.branch_id, "%r != %r" % (change.branch_id, self.branch_id)
+                self.last_revision = int(change.revision)
+                # We *assume* here that the last change registered with the
+                # branch is a head earlier than our current revision.
+                # But, it might happen that the repo is diverged and that change
+                # is no longer in the history...
+            else:
+                self.last_revision = None
+
+        def try_open_url(_):
+            try:
+                # Just try to open the branch. There is sth wrong in bzrlib
+                # wrt. the import order, so try to consume the exception here.
+                branch = bzrlib.branch.Branch.open_containing(self.proxy_location or self.url)[0]
+            except Exception, e:
+                twisted.python.log.err("Cannot open the branch: %s" % e)
+
+        d.addCallback(try_open_url)
+        if self.proxy_location:
+            if not os.path.isdir(self.proxy_location):
+                d.addCallback(checkout_branch)
+        d.addCallback(get_last_revision)
+        return d
 
     def describe(self):
         return "BzrPoller watching %s" % self.url
 
-    @twisted.internet.defer.inlineCallbacks
+    @deferredLocked('initLock')
     def poll(self):
-        if self.polling: # this is called in a loop, and the loop might
-            # conceivably overlap.
-            return
-        self.polling = True
-        try:
-            # On a big tree, even individual elements of the bzr commands
-            # can take awhile. So we just push the bzr work off to a
-            # thread.
-            changes = []
-            try:
-                changes = yield twisted.internet.threads.deferToThread(
-                    self.getRawChanges)
-            except (SystemExit, KeyboardInterrupt):
-                raise
-            except Exception, e:
-                # we'll try again next poll.  Meanwhile, let's report.
-                twisted.python.log.err("Exc: %s" % e)
-            else:
-                twisted.python.log.msg("We have %d changes" % len(changes))
-                for change in changes:
-                    yield self.master.addChange(**change)
-                    self.last_revision = change['revision']
-        finally:
-            self.polling = False
+        d = defer.succeed(None)
+        if self.proxy_location:
+            d.addCallback(self._update_branch)
+        d.addCallback(self._get_changes)
+        return d
 
-    def getRawChanges(self):
+    def _update_branch(self, _):
+        twisted.python.log.msg("Updating branch from %s" % self.url)
+        branch = bzrlib.branch.Branch.open_containing(self.proxy_location)[0]
+        d = twisted.internet.threads.deferToThread(branch.update)
+        self.lastPoll = time.time()
+        return d
+
+    @defer.deferredGenerator
+    def _get_changes(self, _):
         branch = bzrlib.branch.Branch.open_containing(self.url)[0]
         branch_name = self.branch_name
         changes = []
@@ -272,7 +281,26 @@ class BzrPoller(buildbot.changes.base.ChangeSource,
                     change.setdefault('category', self.category)
                     changes.append(change)
         changes.reverse()
-        return changes
+        for change in changes:
+            d = self.master.addChange(**change)
+            wfd = defer.waitForDeferred(d)
+            yield wfd
+            self.last_revision = change['revision']
+        twisted.python.log.msg("We have %d changes" % len(changes))
+
+    def _stop_on_failure(self, f):
+        "utility method to stop the service when a failure occurs"
+        if self.running:
+            d = defer.maybeDeferred(lambda : self.stopService())
+            d.addErrback(twisted.python.log.err, 'while stopping broken BzrPoller service')
+        return f
+
+    def _convert_nonzero_to_failure(self, res):
+        "utility method to handle the result of getProcessOutputAndValue"
+        (stdout, stderr, code) = res
+        if code != 0:
+            raise EnvironmentError('command failed with exit code %d: %s' % (code, stderr))
+        return (stdout, stderr, code)
 
 
 #eof

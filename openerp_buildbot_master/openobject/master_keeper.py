@@ -112,6 +112,8 @@ class Keeper(object):
         c['change_source']=[]
         
         c_mail = {}
+        poller_kwargs = {}
+        slave_proxy_url = None
 
         bbot_obj = rpc.RpcProxy('software_dev.buildbot')
         bbot_data = bbot_obj.read(self.bbot_id)
@@ -124,6 +126,10 @@ class Keeper(object):
             for attr in bbot_attr_obj.read(bids):
                 if attr['name'].startswith('mail_'):
                     c_mail[attr['name']] = attr['value']
+                elif attr['name'] == 'proxy_location':
+                    poller_kwargs[attr['name']] = attr['value']
+                elif attr['name'] == 'slave_proxy_url':
+                    slave_proxy_url = attr['value']
                 else:
                     c[attr['name']] = attr['value']
 
@@ -146,11 +152,23 @@ class Keeper(object):
                 if pbr['rtype'] == 'bzr':
                     fetch_url = pbr['fetch_url']
                     p_interval = int(pbr.get('poll_interval', 600))
-                    
+                    kwargs = poller_kwargs.copy()
+                    category = ''
+                    if 'group' in pbr:
+                        category = pbr['group'].replace('/','_').replace('\\','_') # etc.
+                        kwargs['category'] = pbr['group']
+                    if 'proxy_location' in kwargs:
+                        if not kwargs['proxy_location'].endswith(os.sep):
+                            kwargs['proxy_location'] += os.sep
+                        if category:
+                            kwargs['proxy_location'] += category + '_'
+                        kwargs['proxy_location'] += pbr.get('branch_name', 'branch-%d' % pbr['branch_id'])
+    
                     c['change_source'].append(BzrPoller(fetch_url,
                             poll_interval = p_interval,
                             branch_name=pbr.get('branch_name', None),
-                            branch_id=pbr['branch_id'], keeper=self))
+                            branch_id=pbr['branch_id'], keeper=self,
+                            **kwargs))
                 else:
                     raise NotImplementedError("No support for %s repos yet" % pbr['rtype'])
 
@@ -182,6 +200,12 @@ class Keeper(object):
 
                 print "Adding step %s(%r)" % (bstep[0], kwargs)
                 klass = dic_steps[bstep[0]]
+                if slave_proxy_url and bstep[0] in ('OpenObjectBzr',):
+                    tbname = bld['branch_name']
+                    if 'group' in props:
+                        tbname = props['group'].replace('/','_').replace('\\','_') + '_' + tbname
+                    tbname = tbname.replace(' ','%20').replace('/','%2F')
+                    kwargs['proxy_url'] = slave_proxy_url + '/' + tbname
                 fact.addStep(klass(**kwargs))
             
             c['builders'].append({

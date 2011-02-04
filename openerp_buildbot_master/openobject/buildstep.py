@@ -630,8 +630,8 @@ class OpenObjectBzr(Bzr):
         else:
             return self.describe(True, fail=True)
 
-    def __init__(self, repourl=None, baseURL=None,
-                 defaultBranch=None,workdir=None, mode='update', alwaysUseLatest=True, 
+    def __init__(self, repourl=None, baseURL=None, proxy_url=None,
+                 defaultBranch=None,workdir=None, mode='update', alwaysUseLatest=True,
                  timeout=40*60, retry=None, **kwargs):
         # LoggingBuildStep.__init__(self, **kwargs)
         Bzr.__init__(self, repourl=repourl, baseURL=baseURL,
@@ -641,6 +641,8 @@ class OpenObjectBzr(Bzr):
         self.branch = repourl
         self.description = ["updating", "branch %s"%(repourl)]
         self.descriptionDone = ["updated", "branch %s"%(repourl)]
+        self.args['proxy_url'] = proxy_url
+        self.addFactoryArguments(proxy_url=proxy_url)
         self.env_info = ''
         self.summaries = {}
         self.build_result = SUCCESS
@@ -666,6 +668,9 @@ class OpenObjectBzr(Bzr):
         else:
             self.args['revision'] = None
         self.args['patch'] = patch
+        
+        if self.args.get('proxy_url'):
+            self.args['repourl'] = self.args['proxy_url']
 
         revstuff = []
         self.description.extend(revstuff)

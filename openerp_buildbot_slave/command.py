@@ -96,9 +96,9 @@ class OpenObjectBzr(Bzr):
     def doVCUpdate(self):
         bzr = self.getCommand('bzr')
         if self.revision:
-            command = [bzr, 'pull', self.sourcedata.split('\n')[0],
-                        '-q', '--overwrite',
-                        '-r', str(self.revision)]
+            command = [bzr, 'pull', '-q', '--overwrite',
+                        '-r', str(self.revision),
+                        self.sourcedata.split('\n')[0] ]
         else:
             command = [bzr, 'update', '-q']
         srcdir = os.path.join(self.builder.basedir, self.srcdir)
@@ -135,14 +135,15 @@ class OpenObjectBzr(Bzr):
         return True
 
     def sourcedirIsUpdateable(self):
+        if not os.path.isdir(os.path.join(self.builder.basedir,
+                                           self.srcdir, ".bzr")):
+            return False
         if os.path.exists(os.path.join(self.builder.basedir, self.srcdir, ".buildbot-patched")):
             return False
         if os.path.exists(os.path.join(self.builder.basedir, self.srcdir, ".bzr", 'checkout', 'limbo')):
             return False
         # contrary to base class, we allow update when self.revision
-        return (not self.sourcedirIsPatched()) and \
-                os.path.isdir(os.path.join(self.builder.basedir,
-                                           self.srcdir, ".bzr"))
+        return not self.sourcedirIsPatched()
 
     def parseGotRevision(self):
         # A dirty hack, only for the current OpenERP setup.

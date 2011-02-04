@@ -76,11 +76,13 @@ class OpenObjectChange(Change):
 class BzrPoller(bzr_poller.BzrPoller):
     
     def __init__(self, url, poll_interval=10*60, blame_merge_author=False,
-                    branch_name=None, branch_id=None, category=None, keeper=None):
+                    branch_name=None, branch_id=None, category=None, keeper=None,
+                    proxy_location=None, slave_proxy_url=None):
         bzr_poller.BzrPoller.__init__(self, url=url, poll_interval=poll_interval,
                     blame_merge_author=blame_merge_author,
                     branch_id=branch_id,
-                    branch_name=branch_name, category=category)
+                    branch_name=branch_name, category=category,
+                    proxy_location=proxy_location, slave_proxy_url=slave_proxy_url)
         self.keeper = keeper
 
 
