@@ -71,6 +71,25 @@ class OERPChangesConnector(base.DBConnectorComponent):
         d = threads.deferToThread(self.db.getLatestChangeNumberNow)
         return d
 
+    def changeEventGenerator(self, branches=[], categories=[], committers=[], minTime=0):
+        change_obj = rpc.RpcProxy('software_dev.commit')
+        domain = []
+
+        if branches:
+            domain.append( ('branch_id', 'in', branches) )
+        # if categories: Not Implemented yet
+        #    domain.append( ('category_id', 'in', categories) )
+
+        if committers:
+            domain.append( ('comitter_id', 'in', committers ) )
+
+        rows = change_obj.search(domain, 0, 0, 'id desc')
+
+        changes = self.db.runInteractionNow(self.db._get_change_num, rows)
+        print "changeEventGenerator: %d changes" % len(changes)
+        for chg in changes:
+            yield chg
+
 class OERPConnector(util.ComparableMixin):
     # this will refuse to create the database: use 'create-master' for that
     compare_attrs = ["args", "kwargs"]
@@ -213,24 +232,6 @@ class OERPConnector(util.ComparableMixin):
             self.notify("add-change", change.number)
         except Exception, e:
             log.err("Cannot add change: %s" % e)
-
-    def changeEventGenerator(self, branches=[], categories=[], committers=[], minTime=0):
-        change_obj = rpc.RpcProxy('software_dev.commit')
-        domain = []
-        
-        if branches:
-            domain.append( ('branch_id', 'in', branches) )
-        # if categories: Not Implemented yet
-        #    domain.append( ('category_id', 'in', categories) )
-        
-        if committers:
-            domain.append( ('comitter_id', 'in', committers ) )
-        
-        rows = change_obj.search(domain, 0, 0, 'id desc')
-        
-        changes = self.runInteractionNow(self._get_change_num, rows)
-        for chg in changes:
-            yield chg
 
     def getLatestChangeNumberNow(self, branch=None, t=None):
         change_obj = rpc.RpcProxy('software_dev.commit')
