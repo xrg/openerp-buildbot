@@ -173,6 +173,8 @@ class software_buildbot(osv.osv):
             dret['branch_path'] = bser.target_path
             dret['fetch_url'] = bser.branch_url
             dret['poll_interval'] = bser.poll_interval or 600
+            if bser.group_id:
+                dret['group'] = bser.group_id.name
             ret.append(dret)
 
         return ret
@@ -526,7 +528,7 @@ class software_commit(propertyMix, osv.osv):
                 }
             cstat_obj.create(cr, uid, sval, context=context)
 
-        return {}
+        return True
 
 
     def getChanges(self, cr, uid, ids, context=None):
@@ -720,7 +722,7 @@ class software_buildrequest(osv.osv):
         """
         self.write(cr, uid, ids, { 'claimed_at': False, 'complete': False,
                 'claimed_by_name': False })
-        return {}
+        return True
 
 software_buildrequest()
 
