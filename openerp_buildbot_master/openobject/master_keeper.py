@@ -113,6 +113,7 @@ class Keeper(object):
         
         c_mail = {}
         poller_kwargs = {}
+        proxied_bzrs = {} # map the remote branches to local ones.
         slave_proxy_url = None
 
         bbot_obj = rpc.RpcProxy('software_dev.buildbot')
@@ -169,6 +170,12 @@ class Keeper(object):
                             branch_name=pbr.get('branch_name', None),
                             branch_id=pbr['branch_id'], keeper=self,
                             **kwargs))
+                    if slave_proxy_url and kwargs.get('proxy_location'):
+                        tbname = pbr.get('branch_name', 'branch-%d' % pbr['branch_id'])
+                        if category:
+                            tbname = category + '_' + tbname
+                        tbname = tbname.replace(' ','%20').replace('/','%2F')
+                        proxied_bzrs[fetch_url] = slave_proxy_url + '/' + tbname
                 else:
                     raise NotImplementedError("No support for %s repos yet" % pbr['rtype'])
 
@@ -198,14 +205,11 @@ class Keeper(object):
                 if 'keeper' in kwargs:
                     kwargs['keeper'] = self
 
-                print "Adding step %s(%r)" % (bstep[0], kwargs)
+                
                 klass = dic_steps[bstep[0]]
-                if slave_proxy_url and bstep[0] in ('OpenObjectBzr',):
-                    tbname = bld['branch_name']
-                    if 'group' in props:
-                        tbname = props['group'].replace('/','_').replace('\\','_') + '_' + tbname
-                    tbname = tbname.replace(' ','%20').replace('/','%2F')
-                    kwargs['proxy_url'] = slave_proxy_url + '/' + tbname
+                if bstep[0] in ('OpenObjectBzr',) and kwargs['repourl'] in proxied_bzrs:
+                    kwargs['proxy_url'] = proxied_bzrs[kwargs['repourl']]
+                print "Adding step %s(%r)" % (bstep[0], kwargs)
                 fact.addStep(klass(**kwargs))
             
             c['builders'].append({
