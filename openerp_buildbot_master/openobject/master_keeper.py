@@ -77,6 +77,13 @@ class Keeper(object):
         self.loop = twisted.internet.task.LoopingCall(self.poll_config)
         
         self.loop.start(self.poll_interval)
+        self.ms_scan = None
+        try:
+            import lp_poller
+            self.ms_scan = lp_poller.MS_Scanner()
+            self.ms_scan.startService()
+        except ImportError:
+            log.err("Could not import the Launchpad scanner, please check your installation!")
 
     def poll_config(self):
         bbot_obj = rpc.RpcProxy('software_dev.buildbot')
