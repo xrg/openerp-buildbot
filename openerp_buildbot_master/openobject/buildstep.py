@@ -151,6 +151,7 @@ class OpenERPTest(LoggingBuildStep):
                     force_modules=None,
                     black_modules=None,
                     test_mode='full',
+                    server_series='v600',
                     do_warnings=None, lang=None, debug=False,
                     repo_mode=WithProperties('%(repo_mode)s'),
                     **kwargs):
@@ -166,14 +167,15 @@ class OpenERPTest(LoggingBuildStep):
                                 do_warnings=do_warnings, lang=lang,
                                 repo_mode=repo_mode,
                                 debug=debug,
-                                test_mode=test_mode)
+                                test_mode=test_mode,
+                                server_series=server_series)
         self.args = {'port' :port, 'workdir':workdir, 'dbname': dbname, 
                     'netport':netport, 'addonsdir':addonsdir, 'logfiles':{},
                     'ftp_port': ftp_port,
                     'force_modules': (force_modules or []),
                     'black_modules': (black_modules or []),
                     'do_warnings': do_warnings, 'lang': lang,
-                    'test_mode': test_mode,
+                    'test_mode': test_mode, 'server_series': server_series,
                     'repo_mode': repo_mode, 'debug': debug }
         description = ["Performing OpenERP Test..."]
         self.description = description
@@ -223,7 +225,10 @@ class OpenERPTest(LoggingBuildStep):
         else:
             more_mods = []
             if self.args['repo_mode'] == 'server':
-                repo_expr = r'bin/addons/([^/]+)/.+$'
+                if self.args['server_series'] == 'srv-lib':
+                    repo_expr = r'openerp/addons/([^/]+)/.+$'
+                else:
+                    repo_expr = r'bin/addons/([^/]+)/.+$'
             else:
                 if self.args['repo_mode'] != 'addons':
                     log.msg("Repo mode is \"%s\"" % self.args['repo_mode'])
@@ -280,9 +285,13 @@ class OpenERPTest(LoggingBuildStep):
         self.args['logfiles'] = self.logfiles
         
         # The general part of the b-q-i command
+        root_path = 'bin/'
+        if self.args['server_series'] == 'srv-lib':
+            root_path = './'
         self.args['command']=["../../../base_quality_interrogation.py",
-                            "--machine-log=stdout", '--root-path=bin/',
+                            "--machine-log=stdout", '--root-path='+root_path,
                             "--homedir=../", "--no-bqirc",
+                            '--server-series=%s' % self.args['server_series'],
                             '-d', self.args['dbname']]
         if self.args.get('do_warnings', False):
             self.args['command'].append('-W%s' % self.args.get('do_warnings'))
@@ -1020,7 +1029,7 @@ class LintTest(LoggingBuildStep):
         """
         severity = SUCCESS
         if self.args['repo_mode'] == 'server':
-            repo_expr = r'bin/addons/([^/]+)/.+$'
+            repo_expr = r'(?:bin|openerp)/addons/([^/]+)/.+$'
         else:
             repo_expr = r'([^/]+)/.+$'
 
