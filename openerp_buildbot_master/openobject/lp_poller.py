@@ -99,8 +99,10 @@ class MS_Scanner(service.Service, util.ComparableMixin):
                         
                         namedict = {'name': br.name, 'lp': br.bzr_identity, 'unique_name': br.unique_name }
                         defaults = { 'is_template': False, 'branch_url': br.bzr_identity,
-                                    'name': tmpl['name'] % namedict 
+                                    'name': tmpl['name'] % namedict,
                                    }
+                        if br.description:
+                            defaults['description'] = br.description,
                         nbranch = bseries_obj.copy(tmpl['id'], defaults)
                         log.msg('Registered new branch %s at #%d' % (defaults['name'], nbranch))
                         break
