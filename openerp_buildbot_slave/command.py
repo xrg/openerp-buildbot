@@ -126,7 +126,7 @@ class OpenObjectBzr(Bzr):
         # so already created.
         d = os.path.join(self.builder.basedir, dirname)
         if not os.path.exists(d):
-            return defer.succeed(0)
+            return defer.succeed(True)
         return Bzr.doClobber(self, dummy, dirname, **kwargs)
 
     def sourcedataMatches(self):
