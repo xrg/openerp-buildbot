@@ -458,6 +458,8 @@ class server_thread(threading.Thread):
                 config=None):
         threading.Thread.__init__(self)
         self.root_path = root_path
+        if srv_mode == 'srv-lib':
+            self.root_path = os.path.join(self.root_path, 'openerp')
         self.port = port
         # self.addons_path = addons_path
         self.args = [ 'python%s' %(pyver or ''),] 
@@ -481,7 +483,7 @@ class server_thread(threading.Thread):
 
         # TODO: secure transport, persistent ones.
         http_if = opt.http_interface or '127.0.0.1'
-        if srv_mode == 'v600':
+        if srv_mode in ('v600', 'srv-lib'):
             self.args.append('--xmlrpc-interface=%s' % http_if)
             self.args.append('--xmlrpc-port=%s' % port )
             self.args.append('--no-xmlrpcs')
@@ -952,7 +954,7 @@ class client_worker(object):
         self.super_passwd = options['super_passwd']
         self.series = options['server_series']
         self.do_demo = not opt.no_demo
-        self.has_os_times = self.series in ('pg84', 'v600')
+        self.has_os_times = self.series in ('pg84', 'v600', 'srv-lib')
 
     def _execute(self, connector, method, *args):
         self.log.debug("Sending command '%s' to server", method)
@@ -1342,7 +1344,7 @@ class client_worker(object):
         server.state_dict['severity'] = 'error'
         ost_start = self.get_ostimes()
         
-        if self.series == 'v600':
+        if self.series in ('v600', 'srv-lib'):
             # the obj_list is broken in XML-RPC1 for v600
             obj_list = [] # = self._execute(obj_conn, 'obj_list', self.dbname, uid, self.pwd)
         elif self.series == 'pg84':
@@ -2881,7 +2883,7 @@ parser.add_option("--no-demo", dest="no_demo", action="store_true", default=Fals
 parser.add_option("--language", dest="lang", help="Use that language as default for the new db")
 parser.add_option("--translate-in", dest="translate_in",
                      help="specify .po files to import translation terms")
-parser.add_option("--server-series", help="Specify argument syntax and options of the server.\nExamples: 'v600', 'pg84'")
+parser.add_option("--server-series", help="Specify argument syntax and options of the server.\nExamples: 'v600', 'pg84', 'srv-lib'")
 
 parser.add_option("--color", dest="console_color", action='store_true', default=False,
                     help="Use color at stdout/stderr logs")
