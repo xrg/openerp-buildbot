@@ -221,6 +221,7 @@
                 <field name="is_distinct"/>
                 <field name="is_build" />
                 <field name="target_path" />
+                <field name="is_template" />
                 <field name="latest_commit_id" />
                 <field name="dep_branch_ids" colspan="4" />
                 <field name="description" colspan="4" />

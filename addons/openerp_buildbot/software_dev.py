@@ -163,7 +163,7 @@ class software_buildbot(osv.osv):
         found_branches = []   # ids of branches we have made so far
 
         bseries_obj = self.pool.get('software_dev.buildseries')
-        series_ids = bseries_obj.search(cr, uid, [('builder_id','in',ids), ('is_build','=',True)], context=ctx)  # :(
+        series_ids = bseries_obj.search(cr, uid, [('builder_id','in',ids), ('is_build','=',True), ('is_template', '=', False)], context=ctx)  # :(
 
         for bser in bseries_obj.browse(cr, uid, series_ids, context=ctx):
             dret = {}
@@ -192,7 +192,7 @@ class software_buildbot(osv.osv):
         """
         ret = []
         bs_obj = self.pool.get('software_dev.buildseries')
-        bids = bs_obj.search(cr, uid, [('builder_id', 'in', ids), ('is_build','=',True)], context=context)
+        bids = bs_obj.search(cr, uid, [('builder_id', 'in', ids), ('is_build','=',True), ('is_template', '=', False)], context=context)
         for bldr in bs_obj.browse(cr, uid, bids, context=context):
             dir_name = ''
             if bldr.group_id:
@@ -250,7 +250,7 @@ class software_buildbot(osv.osv):
         the buildbot
         """
         bs_obj = self.pool.get('software_dev.buildseries')
-        bids = bs_obj.search(cr, uid, [('builder_id', 'in', ids), ('is_build','=',True)], context=context)
+        bids = bs_obj.search(cr, uid, [('builder_id', 'in', ids), ('is_build','=',True), ('is_template', '=', False)], context=context)
         qry = 'SELECT MAX(write_date) FROM "%s" WHERE builder_id = ANY(%%s) AND is_build;' %\
                     (bs_obj._table)
         cr.execute(qry, (ids,))
@@ -344,12 +344,15 @@ class software_buildseries(propertyMix, osv.osv):
             help="Branches that are built along with this branch"),
         'buildername': fields.function(_get_buildername, string='Builder name',
                 method=True, type='char', readonly=True),
+        'is_template': fields.boolean('Template', required=True,
+                help="If checked, will just be a template branch for auto-scanned ones."),
     }
 
     _defaults = {
         'is_distinct': False,
         'is_build': True,
         'sequence': 10,
+        'is_template': False,
     }
 
 software_buildseries()
