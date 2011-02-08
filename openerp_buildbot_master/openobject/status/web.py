@@ -141,6 +141,7 @@ class LatestBuilds(HtmlResource):
         cxt['builders'] = []
         builders_grouped = {}
         groups_seq = {}  # sequence of groups
+        groups_pub = {}  # public flag of groups
         for bn in builders:
             base_builder_url = base_builders_url + urllib.quote(bn, safe='')
             builder = status.getBuilder(bn)
@@ -152,12 +153,13 @@ class LatestBuilds(HtmlResource):
             bname = html.escape(bname.replace('-',' ', 1))
             bldr_cxt = { 'name': bname , 'url': base_builder_url, 
                         'builds': [], 
-                        'sequence': bld_props.get('sequence', 10) }
+                        'sequence': bld_props.get('sequence', 10),
+                        'last_tstamp': 0}
             if categ:
-                if bld_props.get('group_public', True):
-                    builders_grouped.setdefault(categ, []).append(bldr_cxt)
-                    if 'group_seq' in bld_props:
-                        groups_seq[categ] = bld_props['group_seq']
+                groups_pub[categ] = bld_props.get('group_public', True)
+                builders_grouped.setdefault(categ, []).append(bldr_cxt)
+                if 'group_seq' in bld_props:
+                    groups_seq[categ] = bld_props['group_seq']
             else:
                 cxt['builders'].append(bldr_cxt)
 
@@ -195,19 +197,27 @@ class LatestBuilds(HtmlResource):
                                 'tftime': tftime, 'ttitle': ttitle,
                                 'last_t': ustr(last_change(ss, True)),
                                 'class_b': class_b })
+                if build.getTimes()[1] > bldr_cxt['last_tstamp']:
+                    bldr_cxt['last_tstamp'] = build.getTimes()[1]
 
-            
             builder_status = builder.getState()[0]
             bldr_cxt['status'] = builder_status
         
         # Now, sort the builders and grouped:
-        cxt['builders'].sort(key=lambda bld: bld['sequence'])
+        now = time.time()
+        cxt['builders'].sort(key=lambda bld: (bld['sequence'], now - bld['last_tstamp']))
         for bldrs in builders_grouped.values():
-            bldrs.sort(key=lambda bld: bld['sequence'])
+            bldrs.sort(key=lambda bld: (bld['sequence'], now - bld['last_tstamp']))
 
         cxt['builders_grouped'] = [] # will be list of tuples
         for gk, bldrs in builders_grouped.items():
-            cxt['builders_grouped'].append((groups_seq.get(gk,10), gk, bldrs))
+            cxt['builders_grouped'].append(
+                    { 'group_name': gk,
+                      'group_seq': groups_seq.get(gk,10),
+                      'public': groups_pub.get(gk,True),
+                      'builders': bldrs
+                    })
+            cxt['builders_grouped'].sort(key=lambda bgrp: bgrp['group_seq'])
             
         template = req.site.buildbot_service.templates.get_template(self.tpl_page)
         return template.render(**cxt)

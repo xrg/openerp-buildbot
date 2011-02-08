@@ -181,7 +181,8 @@
                         </td> </tr>
                         <tr><td>
                             {% for bgroup in builders_grouped %}
-                                <h2>Branches of {{ bgroup[1] }}</h2>
+                            {% if bgroup.public %}
+                                <h2>Branches of {{ bgroup.group_name }}</h2>
                                 <table class="grid" width="100%" id="latest_builds">
                                     <tr class="header" style="vertical-align:center font-size: 18px;">
                                         <td class="grid-cell" align="center">Branches / Builds</td>
@@ -192,7 +193,7 @@
                                         <td class="grid-cell" align="center">Current Status</td>
                                     </tr>
                                         
-                                    {% for bldr in bgroup[2] %}
+                                    {% for bldr in bgroup.builders %}
                                     <tr class='grid-row'>
                                         <td class="grid-cell" align="center"><a href="{{ bldr.url }}">{{ bldr.name }}</a></td>
                                         {% for b in bldr.builds %}
@@ -209,6 +210,7 @@
                                     {% endfor %}
                                 </table>
                                 <br/>
+                            {% endif %}
                             {% endfor %}
                     </td></tr>
 
