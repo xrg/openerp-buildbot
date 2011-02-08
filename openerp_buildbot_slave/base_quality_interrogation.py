@@ -537,7 +537,7 @@ class server_thread(threading.Thread):
                 'OpenERP server is running, waiting for connections...', 
                 self.setRunning)
         self.regparser('web-services',
-                re.compile(r'starting (.+) service at ([0-9\.]+) port ([0-9]+)'),
+                re.compile(r'starting (.+) service at ([0-9a-f\.\:\[\]]+) port ([0-9]+)'),
                 self.setListening)
         self.regparser('init',re.compile(r'module (.+):'), self.unsetTestContext)
         
@@ -831,7 +831,8 @@ class server_thread(threading.Thread):
                 raise ServerException("Server took too long to start")
             time.sleep(1)
             t += 1
-        if self._lports.get('HTTP') != str(self.port):
+        if self._lports.get('HTTP') != str(self.port) \
+                and (self._lports.get('HTTP6') != str(self.port)):
             self.log.warning("server does not listen HTTP at port %s" % self.port)
         return True
         
