@@ -281,11 +281,4 @@ import connector
 
 bbot_connector.db_connector = connector.OERPConnector
 
-if False:
-    # TODO!!
-
-    # locks.debuglog = log.msg
-    db_lock = locks.MasterLock("database")
-    cpu_lock = locks.SlaveLock("cpu")
-
 #eof
