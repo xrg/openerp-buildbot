@@ -104,8 +104,8 @@ class OERPConnector(util.ComparableMixin):
         self._nonpool = None
         self._nonpool_lastused = None
         
-        self._change_cache = util.LRUCache()
-        self._sourcestamp_cache = util.LRUCache()
+        self._change_cache = util.LRUCache(max_size=500)
+        self._sourcestamp_cache = util.LRUCache(max_size=500)
         self._active_operations = set() # protected by synchronized=
         self._pending_notifications = []
         self._subscribers = bbcollections.defaultdict(set)
