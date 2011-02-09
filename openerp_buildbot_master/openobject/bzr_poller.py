@@ -195,6 +195,7 @@ class BzrPoller(buildbot.changes.base.PollingChangeSource,
         self.proxy_location = os.path.expanduser(proxy_location)
         self.slave_proxy_url = slave_proxy_url
         self.initLock = defer.DeferredLock()
+        self.updateLock = defer.DeferredLock()
         self.lastPoll = time.time()
         self.last_revision = None
 
@@ -256,18 +257,17 @@ class BzrPoller(buildbot.changes.base.PollingChangeSource,
         d.addCallback(self._get_changes)
         return d
 
+    @deferredLocked('updateLock')
     def _update_branch(self, _):
-        twisted.python.log.msg("Updating branch from %s" % self.url)
-        def do_update():
-            branch = bzrlib.branch.Branch.open_containing(self.proxy_location)[0]
-            branch.update()
-        d = twisted.internet.threads.deferToThread(do_update)
+        twisted.python.log.msg("Updating branch from %s to %s" % (self.url, self.proxy_location))
+        d = utils.getProcessOutputAndValue('bzr', ['pull', '-q', ], path=self.proxy_location)
+        d.addCallback(self._convert_nonzero_to_failure)
         self.lastPoll = time.time()
         return d
 
     @defer.deferredGenerator
     def _get_changes(self, _):
-        branch = bzrlib.branch.Branch.open_containing(self.url)[0]
+        branch = bzrlib.branch.Branch.open_containing(self.proxy_location or self.url)[0]
         branch_name = self.branch_name
         changes = []
         change = generate_change(branch,
