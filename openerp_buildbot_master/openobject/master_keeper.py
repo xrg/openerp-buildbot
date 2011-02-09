@@ -78,6 +78,7 @@ class Keeper(object):
         
         self.loop.start(self.poll_interval)
         self.ms_scan = None
+        os.umask(int('0027',8))
         try:
             import lp_poller
             self.ms_scan = lp_poller.MS_Scanner()
