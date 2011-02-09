@@ -229,6 +229,45 @@
           </field>
         </record>
 
+        <record id="view_softdev_bseries_tree" model="ir.ui.view">
+          <field name="name">Build Series</field>
+            <field name="model">software_dev.buildseries</field>
+            <field name="type">tree</field>
+            <field name="arch" type="xml">
+              <tree>
+		<field name="group_id" />
+                <field name="name"/>
+                <field name="branch_url" />
+                <field name="is_build" />
+                <field name="target_path" />
+                <field name="is_template" />
+                <field name="latest_commit_id" />
+              </tree>
+          </field>
+        </record>
+
+         <record id="view_softdev_bseries_search" model="ir.ui.view">
+            <field name="name">Build Series Search</field>
+            <field name="model">software_dev.buildseries</field>
+            <field name="type">search</field>
+            <field name="arch" type="xml">
+                <search string="Build Series Search">
+                    <group col="10" colspan="4">
+                        <field name="name"/>
+                        <field name="branch_url"/>
+                        <field name="latest_commit_id"/>
+                    </group>
+                    <newline/>
+                    <group expand="0" string="Group By..." colspan="4" col="4" groups="base.group_extended">
+                        <filter icon="terp-check" name="is_template" string="Templates" domain="[('is_template', '=', True)]"/>
+                        <filter icon="terp-check" name="is_build" string="Build" domain="[('is_build', '=', True)]"/>
+                        <filter string="Group" icon="terp-stock_effects-object-colorize" domain="[]" context="{'group_by':'group_id'}"/>
+                    </group>
+                </search>
+
+            </field>
+        </record>
+
         <record id="action_softdev_bseries" model="ir.actions.act_window">
           <field name="name">Build Series</field>
           <field name="type">ir.actions.act_window</field>
