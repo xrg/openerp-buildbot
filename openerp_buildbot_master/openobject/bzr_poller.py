@@ -91,7 +91,8 @@ from twisted.internet import defer, utils
 def generate_change(branch,
                     old_revno=None, old_revid=None,
                     new_revno=None, new_revid=None,
-                    blame_merge_author=False):
+                    blame_merge_author=False,
+                    last_revision=None):
     """Return a dict of information about a change to the branch.
 
     Dict has keys of "files", "who", "comments", and "revision", as used by
@@ -112,6 +113,9 @@ def generate_change(branch,
     change = {} # files, who, comments, revision; NOT branch (= branch.nick)
     if new_revno is None:
         new_revno = branch.revno()
+    if last_revision and (new_revno == last_revision):
+        # early exit when branch is up to date
+        return None
     if new_revid is None:
         new_revid = branch.get_rev_id(new_revno)
     # TODO: This falls over if this is the very first revision
@@ -254,8 +258,10 @@ class BzrPoller(buildbot.changes.base.PollingChangeSource,
 
     def _update_branch(self, _):
         twisted.python.log.msg("Updating branch from %s" % self.url)
-        branch = bzrlib.branch.Branch.open_containing(self.proxy_location)[0]
-        d = twisted.internet.threads.deferToThread(branch.update)
+        def do_update():
+            branch = bzrlib.branch.Branch.open_containing(self.proxy_location)[0]
+            branch.update()
+        d = twisted.internet.threads.deferToThread(do_update)
         self.lastPoll = time.time()
         return d
 
@@ -264,10 +270,10 @@ class BzrPoller(buildbot.changes.base.PollingChangeSource,
         branch = bzrlib.branch.Branch.open_containing(self.url)[0]
         branch_name = self.branch_name
         changes = []
-        change = generate_change(
-            branch, blame_merge_author=self.blame_merge_author)
-        if (self.last_revision is None or
-            change['revision'] != self.last_revision):
+        change = generate_change(branch,
+                    blame_merge_author=self.blame_merge_author,
+                    last_revision=self.last_revision)
+        if change:
             change['branch'] = branch_name
             change['branch_id'] = self.branch_id
             change['category'] = self.category
@@ -281,14 +287,16 @@ class BzrPoller(buildbot.changes.base.PollingChangeSource,
                     change['branch_id'] = self.branch_id
                     change.setdefault('category', self.category)
                     changes.append(change)
-        changes.reverse()
-        for change in changes:
-            d = self.master.addChange(**change)
-            wfd = defer.waitForDeferred(d)
-            yield wfd
-            self.last_revision = change['revision']
-        twisted.python.log.msg("We have %d changes" % len(changes))
-
+        if changes:
+            self.last_revision = changes[0]['revision']
+            twisted.python.log.msg("We have %d changes" % len(changes))
+            changes.reverse()
+        
+            for change in changes:
+                wfd = defer.waitForDeferred(self.master.addChange(**change))
+                yield wfd
+                wfd.getResult()
+ 
     def _stop_on_failure(self, f):
         "utility method to stop the service when a failure occurs"
         if self.running:

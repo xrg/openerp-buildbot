@@ -229,13 +229,16 @@ class OERPConnector(util.ComparableMixin):
             if prop_arr:
                 change_obj.setProperties(change.number, prop_arr)
 
-            self.notify("add-change", change.number)
+            # self.notify("add-change", change.number)
         except Exception, e:
             log.err("Cannot add change: %s" % e)
 
     def getLatestChangeNumberNow(self, branch=None, t=None):
         change_obj = rpc.RpcProxy('software_dev.commit')
-        res = change_obj.search([('branch_id','=', branch)], 0, 1, "id desc")
+        args = []
+        if branch:
+            args = [('branch_id','=', branch)]
+        res = change_obj.search(args, 0, 1, "date desc")
         if (not res) or not res[0]:
             return None
         return res[0]

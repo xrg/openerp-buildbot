@@ -75,7 +75,9 @@ class Keeper(object):
         assert bbot_id, "No buildbot for %r exists!" % db_props.get('code','buildbot')
         self.bbot_id = bbot_id[0]
         self.loop = twisted.internet.task.LoopingCall(self.poll_config)
-        
+        from twisted.internet import reactor
+        reactor.suggestThreadPoolSize(30)
+
         self.loop.start(self.poll_interval)
         self.ms_scan = None
         os.umask(int('0027',8))
