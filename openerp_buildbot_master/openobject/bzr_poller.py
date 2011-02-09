@@ -192,6 +192,7 @@ class BzrPoller(buildbot.changes.base.PollingChangeSource,
         self.slave_proxy_url = slave_proxy_url
         self.initLock = defer.DeferredLock()
         self.lastPoll = time.time()
+        self.last_revision = None
 
     def startService(self):
         twisted.python.log.msg("BzrPoller(%s) starting" % self.url)
