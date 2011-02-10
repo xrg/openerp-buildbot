@@ -173,6 +173,7 @@ class BzrPoller(buildbot.changes.base.PollingChangeSource,
                 buildbot.util.ComparableMixin):
 
     compare_attrs = ['url']
+    updateLock = defer.DeferredLock() # class-wide
 
     def __init__(self, url, poll_interval=10*60, blame_merge_author=False,
                     branch_name=None, branch_id=None, category=None,
@@ -195,7 +196,6 @@ class BzrPoller(buildbot.changes.base.PollingChangeSource,
         self.proxy_location = os.path.expanduser(proxy_location)
         self.slave_proxy_url = slave_proxy_url
         self.initLock = defer.DeferredLock()
-        self.updateLock = defer.DeferredLock()
         self.lastPoll = time.time()
         self.last_revision = None
 
