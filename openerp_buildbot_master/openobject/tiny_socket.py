@@ -104,12 +104,138 @@ class mysocket:
 from xmlrpclib import Transport,ProtocolError
 
 import httplib
+
+class _fileobject2(object):
+    def __init__(self, fobj):
+        self.__fobj = fobj
+    def __getattr__(self, name):
+        return getattr(self.__fobj, name)
+
+    def read(self, size=-1):
+        ret = self.__fobj.read(size)
+        return ret
+        
+    def readline(self, size=-1):
+        buf = self.__fobj._rbuf
+        buf.seek(0, 2)  # seek end
+        if buf.tell() > 0:
+            # check if we already have it in our buffer
+            buf.seek(0)
+            bline = buf.readline(size)
+            if bline.endswith('\n') or len(bline) == size:
+                self.__fobj._rbuf = StringIO()
+                self.__fobj._rbuf.write(buf.read())
+                return bline
+            del bline
+        if size < 0:
+            # Read until \n or EOF, whichever comes first
+            rbufsize = max(self._rbufsize, self.default_bufsize)
+            buf.seek(0, 2)  # seek end
+            self.__fobj._rbuf = StringIO()  # reset _rbuf.  we consume it via buf.
+            while True:
+                try:
+                    data = self._sock.recv(rbufsize)
+                except IOError, err:
+                    if err.errno in (errno.EINTR, errno.EAGAIN, errno.EWOULDBLOCK):
+                        continue
+                    self.__fobj._rbuf = buf
+                    raise
+                except Exception:
+                    self.__fobj._rbuf = buf
+                    raise
+                if not data:
+                    break
+                nl = data.find('\n')
+                if nl >= 0:
+                    nl += 1
+                    buf.write(data[:nl])
+                    self.__fobj._rbuf.write(data[nl:])
+                    del data
+                    break
+                buf.write(data)
+            return buf.getvalue()
+        else:
+            # Read until size bytes or \n or EOF seen, whichever comes first
+            buf.seek(0, 2)  # seek end
+            buf_len = buf.tell()
+            if buf_len >= size:
+                buf.seek(0)
+                rv = buf.read(size)
+                self._rbuf = StringIO()
+                self.__fobj._rbuf.write(buf.read())
+                return rv
+            self._rbuf = StringIO()  # reset _rbuf.  we consume it via buf.
+            while True:
+                try:
+                    data = self._sock.recv(self._rbufsize)
+                except IOError, err:
+                    if err.errno in (errno.EINTR, errno.EAGAIN, errno.EWOULDBLOCK):
+                        continue
+                    self._rbuf = buf
+                    raise
+                except Exception:
+                    self._rbuf = buf
+                    raise
+                if not data:
+                    break
+                left = size - buf_len
+                # did we just receive a newline?
+                nl = data.find('\n', 0, left)
+                if nl >= 0:
+                    nl += 1
+                    # save the excess data to _rbuf
+                    self.__fobj._rbuf.write(data[nl:])
+                    if buf_len:
+                        buf.write(data[:nl])
+                        break
+                    else:
+                        # Shortcut.  Avoid data copy through buf when returning
+                        # a substring of our first recv().
+                        return data[:nl]
+                n = len(data)
+                if n == size and not buf_len:
+                    # Shortcut.  Avoid data copy through buf when
+                    # returning exactly all of our first recv().
+                    return data
+                if n >= left:
+                    buf.write(data[:left])
+                    self.__fobj._rbuf.write(data[left:])
+                    break
+                buf.write(data)
+                buf_len += n
+                #assert buf_len == buf.tell()
+            return buf.getvalue()
+
+class HTTPResponse2(httplib.HTTPResponse):
+    def __init__(self, sock, debuglevel=0, strict=0, method=None):
+        self.fp = _fileobject2(sock.makefile('rb'))
+        self.debuglevel = debuglevel
+        self.strict = strict
+        self._method = method
+
+        self.msg = None
+
+        # from the Status-Line of the response
+        self.version = httplib._UNKNOWN # HTTP-Version
+        self.status = httplib._UNKNOWN  # Status-Code
+        self.reason = httplib._UNKNOWN  # Reason-Phrase
+
+        self.chunked = httplib._UNKNOWN         # is "chunked" being used?
+        self.chunk_left = httplib._UNKNOWN      # bytes left to read in current chunk
+        self.length = httplib._UNKNOWN          # number of bytes left in response
+        self.will_close = httplib._UNKNOWN      # conn will close at end of response
+
+    
 class HTTP11(httplib.HTTP):
     _http_vsn = 11
     _http_vsn_str = 'HTTP/1.1'
 
     def is_idle(self):
         return self._conn and self._conn._HTTPConnection__state == httplib._CS_IDLE
+
+    def _setup(self,conn):
+        conn.response_class = HTTPResponse2
+        httplib.HTTP._setup(self, conn)
 
 try:
     if sys.version_info[0:2] < (2,6):
@@ -124,6 +250,10 @@ try:
             return self._conn and self._conn._HTTPConnection__state == httplib._CS_IDLE
             # Still, we have a problem here, because we cannot tell if the connection is
             # closed.
+
+        def _setup(self,conn):
+            conn.response_class = HTTPResponse2
+            httplib.HTTPS._setup(self, conn)
 
 except AttributeError:
     # if not in httplib, define a class that will always fail.
