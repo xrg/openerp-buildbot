@@ -231,15 +231,6 @@ class BzrPoller(buildbot.changes.base.PollingChangeSource,
             else:
                 self.last_revision = None
 
-        def try_open_url(_):
-            try:
-                # Just try to open the branch. There is sth wrong in bzrlib
-                # wrt. the import order, so try to consume the exception here.
-                branch = bzrlib.branch.Branch.open_containing(self.proxy_location or self.url)[0]
-            except Exception, e:
-                twisted.python.log.err("Cannot open the branch: %s" % e)
-
-        d.addCallback(try_open_url)
         if self.proxy_location:
             if not os.path.isdir(self.proxy_location):
                 d.addCallback(checkout_branch)
@@ -299,9 +290,9 @@ class BzrPoller(buildbot.changes.base.PollingChangeSource,
  
     def _stop_on_failure(self, f):
         "utility method to stop the service when a failure occurs"
-        if self.running:
-            d = defer.maybeDeferred(lambda : self.stopService())
-            d.addErrback(twisted.python.log.err, 'while stopping broken BzrPoller service')
+        twisted.python.log.err("Stopping BzrPoller")
+        d = defer.maybeDeferred(lambda : self.stopService())
+        d.addErrback(twisted.python.log.err, 'while stopping broken BzrPoller service')
         return f
 
     def _convert_nonzero_to_failure(self, res):
