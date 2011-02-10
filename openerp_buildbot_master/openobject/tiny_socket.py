@@ -30,7 +30,11 @@ import cPickle
 import sys
 import logging
 import gzip
-import StringIO
+try:
+    from cStringIO import StringIO
+except ImportError:
+    from StringIO import StringIO
+import errno
 
 class Myexception(Exception):
     def __init__(self, faultCode, faultString):
@@ -173,7 +177,7 @@ class PersistentTransport(Transport):
         p, u = self.getparser()
 
         if response.msg.get('content-encoding') == 'gzip':
-            gzdata = StringIO.StringIO()
+            gzdata = StringIO()
             while not response.isclosed():
                 rdata = response.read(1024)
                 if not rdata:
@@ -246,7 +250,7 @@ class PersistentTransport(Transport):
         connection.putheader("Content-Type", "text/xml")
 
         if self._send_gzip and len(request_body) > 512:
-            buffer = StringIO.StringIO()
+            buffer = StringIO()
             output = gzip.GzipFile(mode='wb', fileobj=buffer)
             output.write(request_body)
             output.close()
