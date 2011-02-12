@@ -229,7 +229,7 @@ class OERPConnector(util.ComparableMixin):
             if prop_arr:
                 change_obj.setProperties(change.number, prop_arr)
 
-            # self.notify("add-change", change.number)
+            self.notify("add-change", change.number)
         except Exception, e:
             log.err("Cannot add change: %s" % e)
 
