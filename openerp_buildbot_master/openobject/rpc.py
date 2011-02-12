@@ -224,7 +224,7 @@ class PyroConnection(Connection):
             result = self.proxy.dispatch( obj[1:], method, *encodedArgs )
         return self.stringToUnicode( result )
 
-    def call(self, obj, method, args= None, auth_level='db'):
+    def call(self, obj, method, args=None, auth_level='db'):
         try:
             try:
                 #import traceback
@@ -711,7 +711,13 @@ class RpcFunction(object):
         self.object = object
         self.func = func_name
 
-    def __call__(self, *args):
+    def __call__(self, *args, **kwargs):
+        if kwargs:
+            if 'exec_dict' not in session.server_options:
+                # There is no safe way to convert back to positional arguments,
+                # so just report that to caller.
+                raise RpcException("The server we are connected doesn't support keyword arguments.")
+            return session.execute('/object', 'exec_dict', self.object, self.func, args, kwargs)
         return session.execute('/object', 'execute', self.object, self.func, *args)
 
 #eof
