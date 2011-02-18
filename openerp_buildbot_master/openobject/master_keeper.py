@@ -232,7 +232,7 @@ class Keeper(object):
                 'category': props.get('group', None),
             })
 
-            cfilt = ChangeFilter_debug(branch=bld['branch_name'])
+            cfilt = ChangeFilter(branch=bld['branch_name'])
             # FIXME
             c['schedulers'].append(
                 OpenObjectScheduler(name = "Scheduler for %s" %(bld['name']),
