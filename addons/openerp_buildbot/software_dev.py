@@ -670,8 +670,8 @@ class software_buildset(osv.osv):
         'reason': fields.char('Reason', size=256),
         
         #`sourcestampid` INTEGER NOT NULL,
-        'submitted_at': fields.datetime('Submitted at', required=False),
-        'complete': fields.boolean('Complete', required=True),
+        'submitted_at': fields.datetime('Submitted at', required=False, select=True),
+        'complete': fields.boolean('Complete', required=True, select=True),
         'complete_at': fields.datetime('Complete At'),
         'results': fields.integer('Results'),
     }
@@ -697,7 +697,7 @@ class software_buildrequest(osv.osv):
         # claimed_at is the time at which a master most recently asserted that
         # it is responsible for running the build: this will be updated
         # periodically to maintain the claim
-        'claimed_at': fields.datetime('Claimed at'),
+        'claimed_at': fields.datetime('Claimed at', selec=True),
 
         # claimed_by indicates which buildmaster has claimed this request. The
         # 'name' contains hostname/basedir, and will be the same for subsequent
@@ -705,7 +705,7 @@ class software_buildrequest(osv.osv):
         # and will be different for subsequent runs. This allows each buildmaster
         # to distinguish their current claims, their old claims, and the claims
         # of other buildmasters, to treat them each appropriately.
-        'claimed_by_name': fields.char('Claimed by name',size=256),
+        'claimed_by_name': fields.char('Claimed by name',size=256, select=True),
         'claimed_by_incarnation': fields.char('Incarnation',size=256),
 
         # 'complete': fields.integer()
@@ -733,21 +733,15 @@ class software_bbuild(osv.osv):
     """A buildbot build
     """
     _inherit = "software_dev.commit"
-
-    def _get_buildername(self, cr, uid, ids, name, args, context=None):
-        res = {}
-        for b in self.browse(cr, uid, ids, context=context):
-            res[b.id] = b.branch_id.buildername
-        return res
-
+    
     _columns = {
         'build_number': fields.integer('Build number', select=1),
         # 'number' is scoped to both the local buildmaster and the buildername
         # 'br_id' matches buildrequests.id
         'build_start_time': fields.datetime('Build start time'),
         'build_finish_time': fields.datetime('Build finish time'),
-        'buildername': fields.function(_get_buildername, string='Builder name',
-                method=True, type='char', readonly=True, size=512, store=True),
+        'buildername': fields.related('branch_id', 'buildername', type='char', string='Builder name',
+                        readonly=True, size=512, store=True, select=True),
         'build_summary': fields.text('Result', help="A summary of the build results"),
         'test_results': fields.one2many('software_dev.test_result', 'build_id', 
                 string='Test results'),
