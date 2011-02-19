@@ -291,7 +291,7 @@ class BzrPoller(buildbot.changes.base.PollingChangeSource,
     def _stop_on_failure(self, f):
         "utility method to stop the service when a failure occurs"
         twisted.python.log.err("Stopping BzrPoller")
-        d = defer.maybeDeferred(lambda : self.stopService())
+        d = defer.maybeDeferred(lambda : self.running and self.stopService())
         d.addErrback(twisted.python.log.err, 'while stopping broken BzrPoller service')
         return f
 
