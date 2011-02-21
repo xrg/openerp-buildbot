@@ -250,15 +250,14 @@ class software_buildbot(osv.osv):
         the buildbot
         """
         bs_obj = self.pool.get('software_dev.buildseries')
-        bids = bs_obj.search(cr, uid, [('builder_id', 'in', ids), ('is_template', '=', False)], context=context)
-        qry = 'SELECT MAX(write_date) FROM "%s" WHERE builder_id = ANY(%%s) AND is_build;' %\
+        qry = 'SELECT MAX(GREATEST(write_date, create_date)) FROM "%s" WHERE builder_id = ANY(%%s);' %\
                     (bs_obj._table)
         cr.execute(qry, (ids,))
         res = cr.fetchone()
         # TODO: look at atrributes, properties, buildbot data etc.
         if not res:
             return False
-        return res # ?
+        return res
 
 software_buildbot()
 
