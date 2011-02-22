@@ -41,7 +41,7 @@ class ChangeFilter_debug(ChangeFilter):
         return ChangeFilter.filter_change(self, change)
 
 class Keeper(object):
-    
+
     def __init__(self, db_props, bmconfig):
         """
             @param db_props a dict with info how to connect to db
@@ -103,6 +103,10 @@ class Keeper(object):
                 # Zope makes it so difficult to locate the BuildMaster instance,
                 # so...
                 if self.bbot_tstamp is not None:
+                    # Since this will spawn a new Keeper object, we have to stop the
+                    # previous one:
+                    self.loop.stop()
+                    self.ms_scan.stopService()
                     os.kill(os.getpid(), signal.SIGHUP)
                 self.bbot_tstamp = new_tstamp
             except Exception:
@@ -276,6 +280,7 @@ class Keeper(object):
         log.msg("Here is where the keeper sleeps..")
         self.loop.stop()
         try:
+            self.ms_scan.stopService()
             rpc.session.logout()
         except Exception: pass
 
