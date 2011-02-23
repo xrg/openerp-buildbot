@@ -1118,6 +1118,10 @@ class client_worker(object):
             self.log.debug("Progress: %s", progress)
         return True
 
+    def list_db(self):
+        conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/db')
+        return self._execute(conn, 'list')
+
     def create_db(self, lang='en_US'):
         conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/db')
         # obj_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/object')
@@ -2034,7 +2038,7 @@ class CmdPrompt(object):
 
         return pos
 
-    avail_cmds = { 0: [ 'help','db_list', 'debug', 'quit', 'db',
+    avail_cmds = { 0: [ 'help', 'debug', 'quit', 'db',
                         'orm', 'module', 'translation', 'server', 'test',
                         'import', 'login' ],
                 'orm': ['help', 'obj_info', 
@@ -2049,7 +2053,7 @@ class CmdPrompt(object):
     sub_commands = { 'debug': ['on', 'off', 'server on', 'server off', 
                                 'console on', 'console off', 'console silent',
                                 'object on', 'object off',],
-                    'db': ['load', 'create', 'drop' ],
+                    'db': ['load', 'list', 'create', 'drop' ],
                     'module': _complete_module_cmd,
                     'orm': _complete_orm_cmd,
                     'do': [],
@@ -2285,13 +2289,31 @@ class CmdPrompt(object):
     def _cmd_db(self, *args):
         """Connect to database
         """
+        if not len(args):
+            print "Usage: db {list|load|create|drop}"
+            return False
+        cmd = args[0]
+        args = args[1:]
         try:
-            uid = self._client._login()
-            #self.dbname = dbname
-            #self.__cmdlevel = 'db'
-        except KeyError:
-            print "Cannot connect to database "
-    
+            if cmd == 'list':
+                dbs = self._client.list_db()
+                print "Available dbs:", ', '.join(dbs)
+            elif cmd == 'load':
+                uid = self._client._login()
+                #self.dbname = dbname
+                #self.__cmdlevel = 'db'
+            elif cmd == 'create':
+                self._client.create_db()
+            elif cmd == 'drop':
+                self._client.drop_db()
+        except xmlrpclib.Fault, e:
+            print 'xmlrpc exception: %s' % reduce_homedir( e.faultCode.strip())
+            print 'xmlrpc +: %s' % reduce_homedir(e.faultString.rstrip())
+            return
+        except Exception, e:
+            print "Failed %s database:" % cmd, e
+            return
+
     def _cmd_info(self):
         """Get info about server, database, or orm object
         """
