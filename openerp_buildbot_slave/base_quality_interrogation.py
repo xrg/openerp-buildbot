@@ -452,7 +452,7 @@ class server_thread(threading.Thread):
                     'module-line': mobj.group(2),
                     'Message': 'Cursor not explicitly closed'})
 
-    def __init__(self, root_path, port, netport, addons_path, pyver=None, 
+    def __init__(self, root_path, port, netport, addons_path, dbname, pyver=None, 
                 srv_mode='v600', timed=False, debug=False, do_warnings=False,
                 ftp_port=None, defines=False, pyargs=False,
                 config=None):
@@ -487,6 +487,8 @@ class server_thread(threading.Thread):
             self.args.append('--xmlrpc-interface=%s' % http_if)
             self.args.append('--xmlrpc-port=%s' % port )
             self.args.append('--no-xmlrpcs')
+            # self.args.append('--no-database-list') No, it cannot work!
+            # We need to be able to list db's for the drop-db and create-db actions. :S
             # FIXME: server doesn't support this!
             #if ftp_port:
             #    self.args.append('--ftp_server_port=%d' % int(ftp_port))
@@ -495,6 +497,7 @@ class server_thread(threading.Thread):
             self.args.append('--httpd-port=%s' % port )
             self.args.append('--no-httpds')
             self.args.append('-Dtests.nonfatal=True')
+            self.args.append('-Ddatabases.allowed=%s' % dbname)
             if ftp_port:
                 self.args.append('-Dftp.port=%s' % ftp_port)
             if defines:
@@ -507,7 +510,6 @@ class server_thread(threading.Thread):
             self.args.append('--netrpc-port=%s' % netport)
         else:
             self.args.append('--no-netrpc')
-
 
         if timed:
             self.args.insert(0, 'time')
@@ -3212,6 +3214,7 @@ def load_mod_info(mdir, module):
 
 server = server_thread(root_path=options['root-path'], port=options['port'],
                         netport=options['netport'], addons_path=options['addons-path'],
+                        dbname=options['dbname'],
                         srv_mode=options['server_series'], config=options['config'],
                         do_warnings=bool(opt.warnings in ('all','warn')),
                         ftp_port=opt.ftp_port, defines=opt.defines, pyargs=opt.pyargs,
