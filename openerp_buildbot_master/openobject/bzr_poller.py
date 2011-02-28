@@ -198,6 +198,7 @@ class BzrPoller(buildbot.changes.base.PollingChangeSource,
         self.initLock = defer.DeferredLock()
         self.lastPoll = time.time()
         self.last_revision = None
+        self.local_run = False # would skip pulling from LP, for testing
 
     def startService(self):
         twisted.python.log.msg("BzrPoller(%s) starting" % self.url)
@@ -243,7 +244,7 @@ class BzrPoller(buildbot.changes.base.PollingChangeSource,
     @deferredLocked('initLock')
     def poll(self):
         d = defer.succeed(None)
-        if self.proxy_location:
+        if self.proxy_location and not self.local_run:
             d.addCallback(self._update_branch)
         d.addCallback(self._get_changes)
         return d

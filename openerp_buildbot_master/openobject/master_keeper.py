@@ -129,6 +129,7 @@ class Keeper(object):
         poller_kwargs = {}
         proxied_bzrs = {} # map the remote branches to local ones.
         slave_proxy_url = None
+        bzr_local_run = None
 
         bbot_obj = rpc.RpcProxy('software_dev.buildbot')
         bbot_data = bbot_obj.read(self.bbot_id)
@@ -145,6 +146,8 @@ class Keeper(object):
                     poller_kwargs[attr['name']] = attr['value']
                 elif attr['name'] == 'slave_proxy_url':
                     slave_proxy_url = attr['value']
+                elif attr['name'] == 'bzr_local_run':
+                    bzr_local_run = True
                 else:
                     c[attr['name']] = attr['value']
 
@@ -184,6 +187,8 @@ class Keeper(object):
                             branch_name=pbr.get('branch_name', None),
                             branch_id=pbr['branch_id'], keeper=self,
                             **kwargs))
+                    if bzr_local_run:
+                        c['change_source'][-1].local_run = bzr_local_run
                     if slave_proxy_url and kwargs.get('proxy_location'):
                         tbname = pbr.get('branch_name', 'branch-%d' % pbr['branch_id'])
                         if category:
