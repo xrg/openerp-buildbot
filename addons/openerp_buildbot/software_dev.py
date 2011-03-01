@@ -342,7 +342,7 @@ class software_buildseries(propertyMix, osv.osv):
             string="Dependencies",
             help="Branches that are built along with this branch"),
         'buildername': fields.function(_get_buildername, string='Builder name',
-                method=True, type='char', readonly=True),
+                method=True, type='char', readonly=True), # fnct_search?
         'is_template': fields.boolean('Template', required=True,
                 help="If checked, will just be a template branch for auto-scanned ones."),
     }
@@ -444,6 +444,8 @@ class software_commit(propertyMix, osv.osv):
         'change_ids': fields.one2many('software_dev.filechange', 'commit_id', 'Changes'),
         'stat_ids': fields.one2many('software_dev.changestats', 'commit_id', 'Statistics'),
         'parent_id': fields.many2one('software_dev.commit', 'Parent commit'),
+        'merge_id': fields.many2one('software_dev.commit', 'Commit to merge',
+                    help='If set, this is the second parent, which is merged with "Parent Commit"'),
         #'contained_commit_ids': fields.many2many('software_dev.commit', 
         #    'software_dev_commit_cont_rel', 'end_commit_id', 'sub_commit_id',
         #    help="Commits that are contained in this, but not the parent commit"),
@@ -554,6 +556,10 @@ class software_commit(propertyMix, osv.osv):
                 'hash': cmt.hash,
                 'filesb': [],
                 }
+            if cmt.parent_id:
+                cdict['parent_id'] = cmt.parent_id.id
+                cdict['parent_revno'] = cmt.parent_id.revno
+                
             for cf in cmt.change_ids:
                 cdict['filesb'].append( {
                         'filename': cf.filename,
@@ -796,5 +802,53 @@ class software_dev_property(osv.osv):
     }
     
 software_dev_property()
+
+class software_dev_mergereq(osv.osv):
+    """ This represents scheduled merges, of one commit onto a branch.
+    
+        Once the scheduler is ready to merge, it will /transform/ this
+        records into commits, where com.merge_id = this.commit_id and
+        com.parent_id = this.branch_id.latest-commit.id. It will then
+        delete the mergerequest. All merge/test results will be recorded
+        at the generated commit.
+    """
+    _order = 'id'
+    _name = 'software_dev.mergerequest'
+    _columns = {
+        'commit_id': fields.many2one('software_dev.commit', 'Commit', 
+                        required=True, select=True),
+        'branch_id': fields.many2one('software_dev.buildseries', 'Target Branch',
+                        required=True, select=True),
+        }
+
+    def prepare_commits(self, cr, uid, buildername, context=None):
+        """Turn first merge request for buildername into commit.
+           @return [commit.id,] or empty list []
+        """
+    
+        ids = self.search(cr, uid, [('branch_id.buildername', '=', buildername)], 
+                limit=1, order='id', context=context)
+        if ids:
+            commit_obj = self.pool.get('software_dev.commit')
+            bro = self.browse(cr, uid, ids[0], context=context)
+            bot_user = self.pool.get('software_dev.vcs_user').get_user(cr, uid, 'mergebot@openerp', context=context)
+            latest_commits = commit_obj.search(cr, uid, [('branch_id', '=', bro.branch_id.id), ('revno', '!=', False)],
+                    order='id DESC', limit=1, context=context)
+            
+            vals = {
+                    'subject': 'Merge %s into %s' % ( bro.commit_id.revno, bro.branch_id.name),
+                    'date': time.strftime('%Y-%m-%d %H:%M:%S'),
+                    'branch_id': bro.branch_id.id,
+                    'comitter_id': bot_user,
+                    'parent_id': latest_commits[0],
+                    'merge_id': bro.commit_id.id,
+                    }
+            new_id = commit_obj.create(cr, uid, vals, context=context)
+            self.unlink(cr, uid, ids[:1])
+            return [new_id,]
+        else:
+            return []
+
+software_dev_mergereq()
 
 #eof

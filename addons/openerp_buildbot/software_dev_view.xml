@@ -492,5 +492,42 @@
             action="action_softdev_bbslaves"
             parent="softdev_config" sequence="100" />
 
+    <!-- pending merges -->
+        <record id="view_softdev_merge_form" model="ir.ui.view">
+          <field name="name">Pending merges</field>
+            <field name="model">software_dev.mergerequest</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+              <form>
+                <field name="commit_id" colspan="4"/>
+                <field name="branch_id"/>
+              </form>
+          </field>
+        </record>
+
+        <record id="view_softdev_merge_tree" model="ir.ui.view">
+          <field name="name">Pending merges Tree</field>
+            <field name="model">software_dev.mergerequest</field>
+            <field name="type">tree</field>
+            <field name="arch" type="xml">
+              <tree>
+                <field name="commit_id"/>
+                <field name="branch_id"/>
+              </tree>
+          </field>
+        </record>
+
+        <record id="action_softdev_mergerequest" model="ir.actions.act_window">
+          <field name="name">Merge Requests</field>
+          <field name="type">ir.actions.act_window</field>
+            <field name="res_model">software_dev.mergerequest</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+         </record>
+
+        <menuitem id="softdev_mergerequest" name="Pending Merges"
+            action="action_softdev_mergerequest"
+            parent="softdev_config" sequence="50"  />
+
 </data>
 </openerp>
