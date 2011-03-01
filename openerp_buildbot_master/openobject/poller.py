@@ -38,6 +38,8 @@ class OpenObjectChange(Change):
         self.filesb = kwargs.pop('filesb',[])
         self.hash = kwargs.pop('hash', None)
         self.number = kwargs.pop('id', None)
+        self.parent_id = kwargs.pop('parent_id', None)
+        self.parent_revno = kwargs.pop('parent_revno', None)
         self.authors = kwargs.pop('authors', [])
         files = kwargs.pop('files', False)
         if not files:

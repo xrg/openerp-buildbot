@@ -286,6 +286,9 @@ class OERPConnector(util.ComparableMixin):
         
         props = self.get_properties_from_db(change_obj, cids)
         for cdict in res:
+            for k in cdict:
+                if cdict[k] is False:
+                    cdict[k] = None
             c = OpenObjectChange(**cdict)
 
             p = props.get(cdict['id'], Properties())
@@ -353,6 +356,14 @@ class OERPConnector(util.ComparableMixin):
 
         branch = None # res['branch_url']
         revision = res.get('revno', False) or res.get('hash', '')
+        
+        if not revision:
+            # it must be a merge "commit" that is not yet in VCS
+            if not res.get('parent_id', False):
+                log.msg('Commit %d without revision or parent found! Ignoring.' % ssid)
+                return None
+            par_res = sstamp_obj.read(res['parent_id'][0])
+            revision = par_res.get('revno', False) or par_res.get('hash', '')
 
         patch = None
         #if patchid is not None:
@@ -362,6 +373,8 @@ class OERPConnector(util.ComparableMixin):
         
         changeid = ssid
         changes = [self.getChangeNumberedNow(changeid, t), ]
+        if res.get('merge_id', False):
+            changes.insert(0, self.getChangeNumberedNow(res['merge_id'][0], t))
         ss = SourceStamp(branch, revision, patch, changes )
             # project=project, repository=repository)
         ss.ssid = ssid
@@ -571,16 +584,26 @@ class OERPConnector(util.ComparableMixin):
                                     master_incarnation, t, limit=None):
         breq_obj = rpc.RpcProxy('software_dev.commit')
         
-        print "Get unclaimed buildrequests for %s after %s" % (buildername, time2str(old))
-        bids = breq_obj.search([('buildername', '=', buildername),
+        domain = [('buildername', '=', buildername),
                         ('complete', '=', False), 
                         '|', '|' , ('claimed_at','=', False), ('claimed_at', '<', time2str(old)),
                         '&', ('claimed_by_name', '=', master_name),
-                        ('claimed_by_incarnation', '!=', master_incarnation)], 
-                        0, limit or False, 'priority DESC, submitted_at')
-        print "Got %d unclaimed buildrequests" % len(bids)
+                        ('claimed_by_incarnation', '!=', master_incarnation)]
+        bids = breq_obj.search(domain, 0, limit or False, 'priority DESC, submitted_at')
+
+        # in buildbot v2.5 we cannot have a buildrequest that is not a commit,
+        # so we hack around that and create pseydo-requests for all merge records
+        if buildername and not bids:
+            # The queue for this is empty. Let's see if we have any pending merges
+            # to do.
+            mreq_obj = rpc.RpcProxy('software_dev.mergerequest')
+            bids = mreq_obj.prepare_commits(buildername)
+
+        log.msg("Get %d unclaimed buildrequests for %s after %s" % \
+                    (len(bids), buildername, time2str(old)))
         requests = [self.getBuildRequestWithNumber(bid, t)
                     for bid in bids]
+        
         return requests
 
     def claim_buildrequests(self, now, master_name, master_incarnation, brids,
@@ -750,7 +773,6 @@ class OERPConnector(util.ComparableMixin):
             return False
         return True
 
-
     def _check_buildset(self, t, bsid, now):
         # Since there is no difference from buildset->buildrequest, 
         # nothing to do.
@@ -799,6 +821,34 @@ class OERPConnector(util.ComparableMixin):
 
     def setChangeCacheSize(self, max_size):
         self._change_cache.setMaxSize(max_size)
+
+    # Other functions
+    def requestMerge(self, commit, target, target_path):
+        """ Request a merge of commit into target branch
+        
+        @param commit commit number
+        @param target name of target branch
+        @param target_path one of 'server', 'addons' etc.
+        """
+        branch_obj = rpc.RpcProxy('software_dev.buildseries')
+        try:
+            branch_ids = branch_obj.search([('name','=', target), ('target_path','=', target_path)])
+            if not branch_ids:
+                log.err('No branch for %s/%s found! Will not place merge!' % (target_path, target))
+                return False
+            # if we have several similar names, the first by buildseries.order wins
+            mr_obj = rpc.RpcProxy('software_dev.mergerequest')
+            mr_obj.create({'commit_id': commit, 'branch_id': branch_ids[0]})
+            
+            # Find the corresponding scheduler of branch_id to trigger it
+            bres =  branch_obj.read(branch_ids[:1], ['buildername'])
+            if bres:
+                return {'trigger': bres[0]['buildername']}
+
+        except rpc.RpcException, e:
+            log.err("Cannot place merge request: %s" % e)
+            return False
+        return None
 
 threadable.synchronize(OERPConnector)
 #eof

@@ -196,6 +196,7 @@ class OpenObjectMailNotifier(MailNotifier):
         files_removed_lbl = ''
         failed_tests_data = ''
         branch_link = ''
+        revision = ''
 
         rev_no = change.revision
         if change.hash:

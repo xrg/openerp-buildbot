@@ -21,12 +21,12 @@
 ##############################################################################
 
 from buildbot.steps.source import Source, Bzr, SVN
-from buildbot.steps.shell import ShellCommand
+# from buildbot.steps.shell import ShellCommand
 from buildbot.process.buildstep import LoggingBuildStep, LoggedRemoteCommand, LogLineObserver
-from buildbot.status.builder import SUCCESS, FAILURE, WARNINGS, EXCEPTION
+from buildbot.status.builder import SUCCESS, FAILURE, WARNINGS, EXCEPTION, SKIPPED
 from buildbot.status.builder import TestResult
 from buildbot.steps.master import MasterShellCommand
-from buildbot.process.properties import Properties, WithProperties
+from buildbot.process.properties import WithProperties
 
 import os
 import re
@@ -34,6 +34,7 @@ import logging
 from openobject import tools
 from openobject.tools import ustr
 from twisted.python import log
+from twisted.internet import defer
 
 try:
     import cStringIO
@@ -656,6 +657,22 @@ class OpenObjectBzr(Bzr):
         self.summaries = {}
         self.build_result = SUCCESS
 
+    def computeSourceRevision(self, changes):
+        """Return the one of changes that we need to consider.
+        
+        Unlike the parent Bzr algorithm, we do not want to have
+        the maximum revno as the "master" change here.
+        Our convention is that changes[1] is the master one, 
+        changes[0] needs to be merged in.
+        
+        Typically we only need the first of the changes list.
+        To be reviewed, if the criterion should be the repourl
+        or the branch of each change
+        """
+        if not changes:
+            return None
+        return changes[-1].revision or changes[-1].parent_revno
+
     def startVC(self, branch, revision, patch):
         slavever = self.slaveVersion("bzr")
         if not slavever:
@@ -810,7 +827,15 @@ class BzrMerge(LoggingBuildStep):
     name = 'bzr_merge'
     haltOnFailure = True
     warnOnWarnings = True
-    
+
+    known_strs = [ (r'Text conflict in (.+)$', FAILURE ),
+                   (r'Conflict adding file (.+)\. +Moved.*$', FAILURE),
+                   (r'Contents conflict in (.+)$', FAILURE),
+                   # (r'No lint for (.+)$', SUCCESS ),
+                   # Must come last:
+                   (r'([^:]+):[0-9]+: .+$', SUCCESS ),
+                ]
+
     def describe(self, done=False,success=False,warn=False,fail=False):
          if done:
             if success:
@@ -840,6 +865,10 @@ class BzrMerge(LoggingBuildStep):
         self.description = description
         self.env_info = ''
         self.summaries = {}
+        self.known_res = []
+        self.build_result = SUCCESS
+        for kns in self.known_strs:
+            self.known_res.append((re.compile(kns[0]), kns[1]))
 
     def start(self):
         s = self.build.getSourceStamp()
@@ -857,38 +886,76 @@ class BzrMerge(LoggingBuildStep):
         self.startCommand(cmd)
 
     def createSummary(self, log):
-        counts = {"log": 0}
-        summaries = {self.name:{'log': [], 'state':None}}
-        io = StringIO(log.getText()).readlines()
-        for line in io:
-            if line.find("ERROR") != -1:
-                pos = line.find("ERROR") + len("ERROR")
-                line = line[pos:]
-                summaries[self.name]["log"].append(line)
-                counts["log"] += 1
-            else:
-                pass
-        self.summaries = summaries
-        if counts["log"]:
-            msg = "".join(summaries[self.name]["log"])
-            self.addCompleteLog("Bzr Merge : ERROR", msg)
-            self.setProperty("Bzr Merge : ERROR", counts["log"])
-        if sum(counts.values()):
-            self.setProperty("Bzr Merge : MessageCount", sum(counts.values()))
+        """ Try to read the bzr merge output and parse results
+        """
+        severity = SUCCESS
+        if self.args['workdir'] == 'server':
+            repo_expr = r'(?:bin|openerp)/addons/([^/]+)/.+$'
+        else:
+            repo_expr = r'([^/]+)/.+$'
+
+        t_results= {}
+        
+        repo_re = re.compile(repo_expr)
+        for line in StringIO(log.getText()).readlines():
+            for rem, sev in self.known_res:
+                m = rem.match(line)
+                if not m:
+                    continue
+                fname = m.group(1)
+                if sev > severity:
+                    severity = sev
+                mf = repo_re.match(fname)
+                if mf:
+                    module = (mf.group(1), 'merge')
+                else:
+                    module = ('merge', 'rest')
+                
+                if module not in t_results:
+                    t_results[module] = TestResult(name=module,
+                                        results=SUCCESS,
+                                        text='', logs={'stdout': u''})
+                if t_results[module].results < sev:
+                    t_results[module].results = sev
+                if line.endswith('\r\n'):
+                    line = line[:-2] + '\n'
+                elif not line.endswith('\n'):
+                    line += '\n'
+                if sev > SUCCESS:
+                    t_results[module].text += ustr(line)
+                else:
+                    t_results[module].logs['stdout'] += ustr(line)
+                
+                break # don't attempt more matching of the same line
+
+        # use t_results
+        for tr in t_results.values():
+            if self.build_result < tr.results:
+                self.build_result = tr.results
+            # and, after it's clean..
+            self.build.build_status.addTestResult(tr)
+
+        self.build_result = severity
+
+        build_id = self.build.requests[0].id # FIXME when builds have their class
+        # self.descriptionDone = self.descriptionDone[:]
+        self.build.builder.db.saveTResults(build_id, self.name,
+                                            self.build_result, t_results.values())
+
+        if severity >= FAILURE:
+            try:
+                orm_id = self.getProperty('orm_id') or '?'
+            except KeyError:
+                orm_id = '?'
+            self.setProperty('failure_tag', 'openerp-mergefail-%s-%s' % \
+                                (orm_id, build_id) )
 
     def evaluateCommand(self, cmd):
-        state = 'pass'
-        for ch, txt in cmd.logs['stdio'].getChunks():
-            if ch == 2:
-                if txt.find('environment')!= -1:
-                    pos = txt.find('environment')
-                    self.env_info = txt[pos:]
         res = SUCCESS
         if cmd.rc != 0:
             res = FAILURE
-            state = 'skip'
-        self.summaries[self.name]['state'] = state
-        # TODO: send the result to the db
+        if self.build_result > res:
+            res = self.build_result
         return res
 
 class BzrRevert(LoggingBuildStep):
@@ -915,7 +982,7 @@ class BzrRevert(LoggingBuildStep):
             return self.describe(True, fail=True)
 
 
-    def __init__(self, workdir=None, **kwargs):
+    def __init__(self, workdir=WithProperties('%(repo_mode)s'), **kwargs):
         LoggingBuildStep.__init__(self, **kwargs)
         self.addFactoryArguments(workdir=workdir)
         self.args = {'workdir':workdir}
@@ -926,7 +993,9 @@ class BzrRevert(LoggingBuildStep):
         self.summaries = {}
 
     def start(self):
-        self.args['command']=["bzr","revert"]
+        builder_props = self.build.getProperties()
+        self.args['workdir'] = builder_props.render(self.args.get('workdir', ''))
+        self.args['command']=["bzr","revert", '-q', '--no-backup']
         cmd = LoggedRemoteCommand("OpenObjectShell",self.args)
         self.startCommand(cmd)
 
@@ -1272,5 +1341,172 @@ class BzrTagFailure(MasterShellCommand):
             print "exc:", e
         return False
 
+
+class ProposeMerge(LoggingBuildStep):
+    """ If this commit has built, ask to merge into another branch
+    
+        This step must be setup /after/ the test/build steps, when everything
+        has worked right. It will then do no more than register the current
+        commit as a candidate for merging into another branch.
+    """
+    name = 'Merge Request'
+    flunkOnFailure = False
+    warnOnFailure = False
+
+    def __init__(self, target_branch, workdir=WithProperties('%(repo_mode)s'), **kwargs):
+
+        LoggingBuildStep.__init__(self, **kwargs)
+        self.addFactoryArguments(target_branch=target_branch, workdir=workdir)
+        self.args = {'target_branch': target_branch, 'workdir': workdir }
+        # Compute defaults for descriptions:
+        description = ["Requesting merge"]
+        self.description = description
+        self.build_result = SUCCESS
+
+
+    def doStepIf(self, *args):
+        """ Check if this step needs to run
+        """
+        try:
+            if self.build.getProperty('failure_tag'):
+                return False
+        except KeyError:
+            return True
+        except Exception, e:
+            print "exc:", e
+        return True
+
+    def start(self):
+        builder_props = self.build.getProperties()
+        self.args['workdir'] = builder_props.render(self.args.get('workdir', ''))
+        change = self.build.allChanges()[-1]
+        self.changeno = change.number
+        res = self.build.builder.db.requestMerge(commit=change.number, 
+                        target=self.args['target_branch'], target_path=self.args['workdir'])
+        if not res:
+            # could not request
+            self.build_result = FAILURE
+            self.description = 'Could not request merge'
+            self.finished(FAILURE)
+        
+        if isinstance(res, dict) and res.get('trigger'):
+            for sched in self.build.builder.botmaster.master.allSchedulers():
+                if res['trigger'] in sched.builderNames:
+                    d = sched.run()
+                    d.addCallback(lambda x: self.finished(SUCCESS))
+                    return d
+        self.finished(SUCCESS)
+
+class BzrPerformMerge(BzrMerge):
+    """If there is a merge_id in the current commit, merge that
+    """
+    name = 'bzr-perform-merge'
+    haltOnFailure = True
+    flunkOnFailure = True
+    warnOnWarnings = True
+
+
+    def __init__(self, branch=None, workdir=WithProperties('%(repo_mode)s'), proxied_bzrs={}, **kwargs):
+        BzrMerge.__init__(self, **kwargs)
+        self.addFactoryArguments(branch=branch, workdir=workdir, proxied_bzrs=proxied_bzrs)
+        self.args = {'branch': branch,'workdir':workdir, 'proxied_bzrs': proxied_bzrs}
+        # Compute defaults for descriptions:
+        self.branch = branch
+        description = ["Merging Branch"]
+        self.description = description
+        self.env_info = ''
+        self.summaries = {}
+
+    def doStepIf(self, *args):
+        s = self.build.getSourceStamp()
+        if len(s.changes) > 1:
+            return True
+        else:
+            return False
+
+    def start(self):
+        builder_props = self.build.getProperties()
+        self.args['workdir'] = builder_props.render(self.args.get('workdir', ''))
+        # We have to compute the source URL for the merge branch
+        s = self.build.getSourceStamp()
+
+        if len(s.changes) != 2:
+            log.err("Strange, we are into a merge loop with %d changes" % len(s.changes))
+
+        if len(s.changes) < 2: # fuse
+            return SKIPPED
+
+        change = s.changes[0]
+        # print "Have this change: %s @ %s / %s / %s" %( change.revision, change.branch, change.repository, change.revlink)
+
+        repourl = self.args['proxied_bzrs'].get(change.branch, change.branch)
+        self.args['command']=['bzr', 'merge', '-q']
+        self.args['command'] += ["-r", str(change.revision), repourl]
+
+        cmd = LoggedRemoteCommand("OpenObjectShell", self.args)
+        self.startCommand(cmd)
+
+class BzrCommit(LoggingBuildStep):
+    """Commit the (merged) changes into bzr
+    """
+    name = 'Bzr commit'
+    haltOnFailure = True
+    warnOnWarnings = True
+
+    def describe(self, done=False,success=False,warn=False,fail=False):
+         if done:
+            if success:
+                return ['Bzr commit finished!']
+            if warn:
+                return ['Warnings at bzr commit !']
+            if fail:
+                return ['Bzr commit Failed !']
+         return self.description
+
+    def getText(self, cmd, results):
+        if results == SUCCESS:
+            return self.describe(True, success=True)
+        elif results == WARNINGS:
+            return self.describe(True, warn=True)
+        else:
+            return self.describe(True, fail=True)
+
+
+    def __init__(self, workdir=WithProperties('%(repo_mode)s'), **kwargs):
+
+        LoggingBuildStep.__init__(self, **kwargs)
+        self.addFactoryArguments(workdir=workdir)
+        self.args = {'workdir': workdir }
+        # Compute defaults for descriptions:
+        description = ["Performing bzr commit"]
+        self.description = description
+        self.build_result = SUCCESS
+
+    def start(self):
+        self.args['command']=["bzr","commit","-q"]
+        
+        builder_props = self.build.getProperties()
+        self.args['workdir'] = builder_props.render(self.args.get('workdir', ''))
+
+        s = self.build.getSourceStamp()
+        self.args['command'] += ['-m', s.changes[-1].comments]
+        
+        cmd = StdErrRemoteCommand("OpenObjectShell", self.args)
+        self.stderr_log = self.addLog("stderr")
+        cmd.useLog(self.stderr_log, True)
+        self.startCommand(cmd)
+
+    def createSummary(self, slog):
+        """ Try to read the file-lint.sh output and parse results
+        """
+        pass
+
+    def evaluateCommand(self, cmd):
+        res = SUCCESS
+        if cmd.rc != 0:
+            res = FAILURE
+        if self.build_result > res:
+            res = self.build_result
+        return res
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

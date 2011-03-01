@@ -16,7 +16,9 @@ from buildbot.buildslave import BuildSlave
 from buildbot.process import factory
 from buildbot.schedulers.filter import ChangeFilter
 from openobject.scheduler import OpenObjectScheduler, OpenObjectAnyBranchScheduler
-from openobject.buildstep import OpenObjectBzr, OpenObjectSVN, BzrMerge, BzrRevert, OpenERPTest, LintTest, BzrStatTest, BzrCommitStats, BzrTagFailure
+from openobject.buildstep import OpenObjectBzr, OpenObjectSVN, BzrMerge, BzrRevert, \
+        OpenERPTest, LintTest, BzrStatTest, BzrCommitStats, BzrTagFailure, \
+        ProposeMerge, BzrPerformMerge, BzrCommit # , BzrPush
 from openobject.poller import BzrPoller
 from openobject.status import web, mail, logs
 import twisted.internet.task
@@ -209,6 +211,9 @@ class Keeper(object):
                 'LintTest': LintTest,
                 'BzrMerge': BzrMerge,
                 'BzrTagFailure': BzrTagFailure,
+                'ProposeMerge': ProposeMerge,
+                'BzrPerformMerge': BzrPerformMerge,
+                'BzrCommit': BzrCommit,
                 }
 
         for bld in builders:
@@ -226,8 +231,12 @@ class Keeper(object):
 
                 
                 klass = dic_steps[bstep[0]]
-                if bstep[0] in ('OpenObjectBzr',) and kwargs['repourl'] in proxied_bzrs:
+                if bstep[0] in ('OpenObjectBzr') and kwargs['repourl'] in proxied_bzrs:
                     kwargs['proxy_url'] = proxied_bzrs[kwargs['repourl']]
+                if bstep[0] == 'BzrPerformMerge':
+                    # Pass all of them to buildstep, so that it can resolve
+                    # all the changes it will be receiving.
+                    kwargs['proxied_bzrs'] = proxied_bzrs
                 print "Adding step %s(%r)" % (bstep[0], kwargs)
                 fact.addStep(klass(**kwargs))
             

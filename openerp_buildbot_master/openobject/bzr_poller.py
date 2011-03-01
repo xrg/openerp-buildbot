@@ -220,17 +220,21 @@ class BzrPoller(buildbot.changes.base.PollingChangeSource,
             return d
 
         def get_last_revision(_):
+            self.last_revision = None
             last_cid = self.master.db.getLatestChangeNumberNow(branch=self.branch_id) # TODO defer
-            if last_cid:
+            while last_cid:
                 change = self.master.db.getChangeNumberedNow(last_cid)
                 assert change.branch_id == self.branch_id, "%r != %r" % (change.branch_id, self.branch_id)
+                if not change.revision:
+                    # This must have been a failed merge "commit", go up
+                    last_cid = change.parent_id
+                    continue
                 self.last_revision = int(change.revision)
                 # We *assume* here that the last change registered with the
                 # branch is a head earlier than our current revision.
                 # But, it might happen that the repo is diverged and that change
                 # is no longer in the history...
-            else:
-                self.last_revision = None
+                break
 
         if self.proxy_location:
             if not os.path.isdir(self.proxy_location):
