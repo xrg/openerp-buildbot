@@ -1457,6 +1457,9 @@ class MergeToLP(ProposeMerge):
                 FAILURE: ('Disapprove', 'Do not merge this, the tests of Buildbot have failed!'),
                 }
 
+    def __init__(self, target_branch=None, **kwargs):
+        ProposeMerge.__init__(self, target_branch=target_branch, **kwargs)
+
     def doStepIf(self, *args):
         return True
 
