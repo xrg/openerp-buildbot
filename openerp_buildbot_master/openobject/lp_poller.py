@@ -35,13 +35,103 @@ from buildbot import util
 import rpc
 
 from launchpadlib.launchpad import Launchpad
+from launchpadlib.credentials import Credentials, UnencryptedFileCredentialStore, RequestTokenAuthorizationEngine
+from lazr.restfulclient.errors import HTTPError
 
-cachedir = os.path.expanduser("~/.launchpadlib/cache/")
+class MS_Service(service.Service, util.ComparableMixin):
+    """Provide others with authenticated Launchpad connections
+    
+        Will take care of authentication tokens, etc.
+    """
+    auth_poll_interval = 60 # seconds
+    _credentials = None
 
-if os.path.isdir(cachedir) and not os.path.exists(os.path.join(cachedir, 'CACHEDIR.TAG')):
-    fd = open(os.path.join(cachedir, 'CACHEDIR.TAG'), 'wb')
-    fd.write('Signature: 8a477f597d28d172789f06886806bc55\n# Cache of LauncpadLib')
-    fd.close()
+    _cachedir = os.path.expanduser("~/.launchpadlib/cache/")
+    _creds_file = os.path.expanduser("~/.launchpadlib/buildbot-creds")
+    _try_auth_loop = None
+    _lp_server = 'staging'
+    _app_name = 'test.openobject.com'
+    _afac = None
+    __instance = None
+
+    def describe(self):
+        pass
+
+    def _open_auth(self):
+        """ Load existing credentials or request new ones
+        """
+        self._cstore = UnencryptedFileCredentialStore(self._creds_file)
+        
+        assert not self._credentials
+        self._credentials = self._cstore.load(self._afac.unique_consumer_id)
+        if self._credentials:
+            return
+
+        def _poll_req_auth_2():
+            d = defer.maybeDeferred(self._poll_request_auth)
+            d.addErrback(log.err, 'while waiting Launchpad Authorization')
+            return d
+
+        self._credentials = Credentials(self._app_name)
+        request_token_info = self._credentials.get_request_token(web_root=self._lp_server)
+
+        self._try_auth_loop = task.LoopingCall(_poll_req_auth_2)
+        log.msg("LP: Please go to %s and authorize me!" % request_token_info)
+        self._try_auth_loop.start(self.auth_poll_interval)
+
+    def _poll_request_auth(self):
+        log.msg("LP: Still waiting auth for: %s" % self._credentials._request_token)
+    
+        try:
+            self._credentials.exchange_request_token_for_access_token( web_root=self._lp_server)
+            log.msg("LP: I have authentication!")
+            
+            self._cstore.save(self._credentials, self._afac.unique_consumer_id)
+
+            self._try_auth_loop.stop()
+            self._try_auth_loop = None
+        except HTTPError:
+            # The user hasn't authorized the token yet.
+            return
+
+    def startService(self):
+        service.Service.startService(self)
+
+        if os.path.isdir(self._cachedir) and not os.path.exists(os.path.join(self._cachedir, 'CACHEDIR.TAG')):
+            fd = open(os.path.join(self._cachedir, 'CACHEDIR.TAG'), 'wb')
+            fd.write('Signature: 8a477f597d28d172789f06886806bc55\n# Cache of LauncpadLib')
+            fd.close()
+
+        self._afac = RequestTokenAuthorizationEngine(self._lp_server, self._app_name)
+        reactor.callWhenRunning(self._open_auth)
+
+    def stopService(self):
+        if self._try_auth_loop:
+            self._try_auth_loop.stop()
+        return service.Service.stopService(self)
+
+    def get_Launchpad(self):
+        if not self._credentials.access_token:
+            log.err('Launchpad authentication is not ready yet!')
+            raise RuntimeError("Please authenticate first! See logs for token.")
+        return Launchpad(credentials=self._credentials, credential_store=self._cstore,
+                authorization_engine=self._afac, service_root=self._lp_server,
+                cache=self._cachedir)
+    
+    @classmethod
+    def startInstance(cls):
+        cls.__instance = cls()
+        cls.__instance.startService()
+
+    @classmethod
+    def stopInstance(cls):
+        if cls.__instance:
+            cls.__instance.stopService()
+            cls.__instance = None
+
+    @classmethod
+    def get_LP(cls):
+        return cls.__instance.get_Launchpad()
 
 class MS_Scanner(service.Service, util.ComparableMixin):
     """
@@ -59,8 +149,8 @@ class MS_Scanner(service.Service, util.ComparableMixin):
 
     def scan(self):
         global cachedir
-        if not self._lp:
-            self._lp = Launchpad.login_anonymously('buildbot spider', 'production', cachedir)
+        if self._lp is None:
+            self._lp = MS_Service.get_LP()
         
         bseries_obj = rpc.RpcProxy('software_dev.buildseries')
         tmpl_ids = bseries_obj.search([('is_template','=', True)])
@@ -123,6 +213,7 @@ class MS_Scanner(service.Service, util.ComparableMixin):
     def stopService(self):
         if self._loop:
             self._loop.stop()
+        del self._lp
         return service.Service.stopService(self)
 
 #eof

@@ -85,6 +85,7 @@ class Keeper(object):
         os.umask(int('0027',8))
         try:
             import lp_poller
+            lp_poller.MS_Service.startInstance()
             self.ms_scan = lp_poller.MS_Scanner()
             self.ms_scan.startService()
         except ImportError:
@@ -296,6 +297,8 @@ class Keeper(object):
         log.msg("Here is where the keeper sleeps..")
         self.loop.stop()
         try:
+            import lp_poller
+            lp_poller.MS_Service.stopInstance()
             self.ms_scan.stopService()
             rpc.session.logout()
         except Exception: pass
