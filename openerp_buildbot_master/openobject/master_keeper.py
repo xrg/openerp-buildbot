@@ -18,7 +18,7 @@ from buildbot.schedulers.filter import ChangeFilter
 from openobject.scheduler import OpenObjectScheduler, OpenObjectAnyBranchScheduler
 from openobject.buildstep import OpenObjectBzr, OpenObjectSVN, BzrMerge, BzrRevert, \
         OpenERPTest, LintTest, BzrStatTest, BzrCommitStats, BzrTagFailure, \
-        ProposeMerge, BzrPerformMerge, BzrCommit # , BzrPush
+        ProposeMerge, BzrPerformMerge, BzrCommit, BzrSyncUp
 from openobject.poller import BzrPoller
 from openobject.status import web, mail, logs
 import twisted.internet.task
@@ -215,6 +215,7 @@ class Keeper(object):
                 'ProposeMerge': ProposeMerge,
                 'BzrPerformMerge': BzrPerformMerge,
                 'BzrCommit': BzrCommit,
+                'BzrSyncUp': BzrSyncUp,
                 }
 
         for bld in builders:
@@ -234,7 +235,7 @@ class Keeper(object):
                 klass = dic_steps[bstep[0]]
                 if bstep[0] in ('OpenObjectBzr') and kwargs['repourl'] in proxied_bzrs:
                     kwargs['proxy_url'] = proxied_bzrs[kwargs['repourl']]
-                if bstep[0] == 'BzrPerformMerge':
+                if bstep[0] in ('BzrPerformMerge', 'BzrSyncUp'):
                     # Pass all of them to buildstep, so that it can resolve
                     # all the changes it will be receiving.
                     kwargs['proxied_bzrs'] = proxied_bzrs

@@ -1542,6 +1542,7 @@ class BzrCommit(LoggingBuildStep):
                 change = s.changes[-1]
                 change.revision = revno
                 self.build.builder.db.saveCommit(change)
+                self.setProperty('revision', change.revision)
                 self.description = "Commit recorded in DB"
         except Exception, e:
             log.err("Cannot commit output: %s" % e)
@@ -1554,5 +1555,50 @@ class BzrCommit(LoggingBuildStep):
         if self.build_result > res:
             res = self.build_result
         return res
+
+class BzrSyncUp(MasterShellCommand):
+    """ Pull from the buildslave, push to LP (if needed)
+    
+    It should run on the master, because only that one may have a key
+    to upload into Launchpad.
+    
+    """
+    
+    name = "bzr-sync-up"
+    flunkOnFailure = False
+    warnOnFailure = True
+    alwaysRun = False
+    
+    def __init__(self, proxied_bzrs={}, command=False, **kwargs):
+        def _get_proxy_path(props):
+            return proxied_bzrs.get(props['branch_url'], False) \
+                    or props['branch_url']
+        
+        def _get_slavename(props):
+            ret = ''
+            if 'group' in props:
+                ret = props['group'].replace(' ', '_') + '_'
+            ret += props['branch_url'].rsplit('/')[-1]
+            return ret
+
+        if not command:
+            command = ['./bzr-pushpull.sh',
+                    '-s', WithProperties('%(slavename)s'),
+                    '-l', WithProperties('%(branch_url)s'),
+                    '-r', WithProperties('%(revision)s'),
+                    '-m', WithProperties('%(repo_mode)s'),
+                    '-b', WithProperties('%(gsl)s', gsl=_get_slavename),
+                    '-p', WithProperties('%(proxy_url)s', proxy_url=_get_proxy_path)
+                    ]
+
+        MasterShellCommand.__init__(self, command, **kwargs)
+
+    def doStepIf(self, *args):
+        """ Check if this step needs to run
+        """
+        if self.build.result >= FAILURE:
+            return False
+        else:
+            return True
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
