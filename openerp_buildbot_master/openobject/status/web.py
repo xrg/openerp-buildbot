@@ -137,6 +137,7 @@ class LatestBuilds(HtmlResource):
         branches = [b for b in req.args.get("branch", []) if b]
         num_cols = get_args_int(req.args, 'num', 5)
         
+        num_builders = get_args_int(req.args, "nbuilders", 25)
         cxt['num_cols'] = num_cols
         cxt['builders'] = []
         builders_grouped = {}
@@ -145,8 +146,10 @@ class LatestBuilds(HtmlResource):
         for bn in builders:
             base_builder_url = base_builders_url + urllib.quote(bn, safe='')
             builder = status.getBuilder(bn)
-            bld_props = status.botmaster.builders[bn].properties # hack into the structure
             categ = builder.category
+            if categ and len(builders_grouped.get(categ,[])) >= num_builders:
+                continue
+            bld_props = status.botmaster.builders[bn].properties # hack into the structure
             bname = bn
             if categ and bn.startswith(categ + '-'):
                 bname = bname[len(categ)+1:]
