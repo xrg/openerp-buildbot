@@ -184,7 +184,8 @@ class Keeper(object):
                             kwargs['proxy_location'] += category + '_'
                         kwargs['proxy_location'] += pbr.get('branch_name', 'branch-%d' % pbr['branch_id'])
     
-                    c['change_source'].append(BzrPoller(fetch_url,
+                    if p_interval > 0:
+                        c['change_source'].append(BzrPoller(fetch_url,
                             poll_interval = p_interval,
                             branch_name=pbr.get('branch_name', None),
                             branch_id=pbr['branch_id'], keeper=self,
