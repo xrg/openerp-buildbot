@@ -1,6 +1,6 @@
 {
     "name" : "Integration Server",
-    "version" : "2.4",
+    "version" : "2.5",
     "depends" : [
                     "base",
                 ],

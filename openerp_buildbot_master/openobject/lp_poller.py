@@ -49,7 +49,7 @@ class MS_Service(service.Service, util.ComparableMixin):
     _cachedir = os.path.expanduser("~/.launchpadlib/cache/")
     _creds_file = os.path.expanduser("~/.launchpadlib/buildbot-creds")
     _try_auth_loop = None
-    _lp_server = 'staging'
+    _lp_server = 'production'
     _app_name = 'test.openobject.com'
     _afac = None
     __instance = None
