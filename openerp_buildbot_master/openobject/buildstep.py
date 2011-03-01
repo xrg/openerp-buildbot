@@ -35,6 +35,7 @@ from openobject import tools
 from openobject.tools import ustr
 from twisted.python import log
 from twisted.internet import defer
+from openobject.lp_poller import MS_Service
 
 try:
     import cStringIO
@@ -1358,16 +1359,20 @@ class ProposeMerge(LoggingBuildStep):
         This step must be setup /after/ the test/build steps, when everything
         has worked right. It will then do no more than register the current
         commit as a candidate for merging into another branch.
+        
+        If watch_lp is True, then the proposal will only happen if it's also
+        registered on LP
     """
     name = 'Merge Request'
     flunkOnFailure = False
     warnOnFailure = False
 
-    def __init__(self, target_branch, workdir=WithProperties('%(repo_mode)s'), **kwargs):
+    def __init__(self, target_branch, workdir=WithProperties('%(repo_mode)s'), 
+            watch_lp=False, alt_branch=None, **kwargs):
 
         LoggingBuildStep.__init__(self, **kwargs)
-        self.addFactoryArguments(target_branch=target_branch, workdir=workdir)
-        self.args = {'target_branch': target_branch, 'workdir': workdir }
+        self.addFactoryArguments(target_branch=target_branch, workdir=workdir, watch_lp=watch_lp, alt_branch=alt_branch)
+        self.args = {'target_branch': target_branch, 'workdir': workdir, 'watch_lp': watch_lp, 'alt_branch': alt_branch }
         # Compute defaults for descriptions:
         description = ["Requesting merge"]
         self.description = description
@@ -1393,6 +1398,32 @@ class ProposeMerge(LoggingBuildStep):
         self.args['workdir'] = builder_props.render(self.args.get('workdir', ''))
         change = self.build.allChanges()[-1]
         self.changeno = change.number
+        if self.args['watch_lp']:
+            try:
+                lp = MS_Service.get_LP()
+                branch_url = self.build.allChanges()[0].branch
+                if not branch_url.startswith('lp:'):
+                    raise ValueError("This is not a launchpad branch")
+                # branch_url = branch_url.replace('lp:~', 'lp://staging/~')
+                tb_url = self.args['target_branch']
+                lp_branch = lp.branches.getByUrl(url=branch_url)
+                if not lp_branch:
+                    log.err("Cannot locate branch %s in Launchpad" % branch_url)
+                    raise KeyError(branch_url)
+                for mp in lp_branch.landing_targets:
+                    if mp.queue_status not in ['Work in progress', 'Needs review', 'Needs review', 'Needs Information']:
+                        continue
+                    if self.args['alt_branch'] == '*':
+                        break
+                    if mp.target_branch.bzr_identity in (tb_url, self.args['alt_branch']):
+                        break
+                else:
+                    # Branch doesn't have a merge proposal!
+                    return SKIPPED
+
+            except Exception, e:
+                log.err("Something has gone bad, cannot watch LP: %s" % e)
+            
         res = self.build.builder.db.requestMerge(commit=change.number, 
                         target=self.args['target_branch'], target_path=self.args['workdir'])
         if not res:
@@ -1407,6 +1438,62 @@ class ProposeMerge(LoggingBuildStep):
                     d = sched.run()
                     d.addCallback(lambda x: self.finished(SUCCESS))
                     return d
+        self.finished(SUCCESS)
+
+class MergeToLP(ProposeMerge):
+    """ Send the merge results to a corresponding LP merge
+    
+        Note that this step will be placed *after* all the others, not before,
+        like the ProposeMerge.
+    """
+    name = 'Update Merge Proposal'
+    flunkOnFailure = False
+    haltOnFailure = False
+    warnOnWarnings = False
+    alwaysRun = True
+    status_mappings = { SUCCESS: ('Approve', 'The code seems able to be merged'), 
+                WARNINGS: ('Needs Fixing', 'The code may be merged, but some warning points could be improved'),
+                EXCEPTION: ('Abstain', 'Buildbot was not able to test this merge proposal'),
+                FAILURE: ('Disapprove', 'Do not merge this, the tests of Buildbot have failed!'),
+                }
+
+    def doStepIf(self, *args):
+        return True
+
+    def start(self):
+        builder_props = self.build.getProperties()
+        self.args['workdir'] = builder_props.render(self.args.get('workdir', ''))
+        changes = self.build.allChanges()
+        
+        if self.build.result not in self.status_mappings:
+            return SKIPPED
+        
+        try:
+            lp = MS_Service.get_LP()
+            branch_url = changes[0].branch
+            if not branch_url.startswith('lp:'):
+                raise ValueError("This is not a launchpad branch")
+            tb_url = None
+            if len(changes) > 1:
+                tb_url = changes[-1].branch
+            assert branch_url != tb_url
+            lp_branch = lp.branches.getByUrl(url=branch_url)
+            if not lp_branch:
+                raise KeyError(branch_url)
+            sm = self.status_mappings[self.build.result]
+            for mp in lp_branch.landing_targets:
+                if mp.queue_status not in ['Work in progress', 'Needs review', 'Needs Fixing', 'Needs Information']:
+                    continue
+                if self.args['alt_branch'] != '*' \
+                        and mp.target_branch.bzr_identity not in (tb_url, self.args['target_branch'], self.args['alt_branch']):
+                    continue
+                log.msg("attaching information to %s" % mp)
+                mp.createComment(vote=sm[0], subject=sm[1], content=self.build.build_status.reason)
+        
+        except Exception, e:
+            log.err("Something has gone bad, cannot update LP: %s" % e)
+            self.finished(FAILURE)
+
         self.finished(SUCCESS)
 
 class BzrPerformMerge(BzrMerge):

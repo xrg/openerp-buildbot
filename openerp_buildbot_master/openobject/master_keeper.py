@@ -18,7 +18,7 @@ from buildbot.schedulers.filter import ChangeFilter
 from openobject.scheduler import OpenObjectScheduler, OpenObjectAnyBranchScheduler
 from openobject.buildstep import OpenObjectBzr, OpenObjectSVN, BzrMerge, BzrRevert, \
         OpenERPTest, LintTest, BzrStatTest, BzrCommitStats, BzrTagFailure, \
-        ProposeMerge, BzrPerformMerge, BzrCommit, BzrSyncUp
+        ProposeMerge, BzrPerformMerge, BzrCommit, BzrSyncUp, MergeToLP
 from openobject.poller import BzrPoller
 from openobject.status import web, mail, logs
 import twisted.internet.task
@@ -217,6 +217,7 @@ class Keeper(object):
                 'BzrPerformMerge': BzrPerformMerge,
                 'BzrCommit': BzrCommit,
                 'BzrSyncUp': BzrSyncUp,
+                'MergeToLP': MergeToLP,
                 }
 
         for bld in builders:
