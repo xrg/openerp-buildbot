@@ -174,8 +174,7 @@ class MS_Scanner(service.Service, util.ComparableMixin):
             project = self._lp.projects[projname]
             assert project, projname
             log.msg('Scanning branches in %s' % project.name)
-            for br in project.getBranches(modified_since=min_tstamp, \
-                    status=('Experimental', 'Development', 'Mature')):
+            for br in project.getBranches(modified_since=min_tstamp):
                 if br.private:
                     continue
                 for tmpl in templates:
@@ -183,6 +182,13 @@ class MS_Scanner(service.Service, util.ComparableMixin):
                         log.msg('Matched branch %s against template #%d' % (br.bzr_identity, tmpl['id']))
                         old_ids = bseries_obj.search([('branch_url','=', br.bzr_identity), 
                                             ('builder_id', '=', tmpl['builder_id'][0])])
+        
+                        if br.lifecycle_status not in ('Experimental', 'Development', 'Mature'):
+                            if old_ids:
+                                log.msg('Deactivating polling for branches %s' % old_ids)
+                                bseries_obj.write(old_ids,{'poll_interval': -1 })
+                            break
+
                         if old_ids:
                             log.msg('Branch already there with id %r, continuing' % old_ids)
                             break # we shall not match against rest of templates
