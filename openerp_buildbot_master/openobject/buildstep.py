@@ -954,6 +954,8 @@ class BzrMerge(LoggingBuildStep):
                 orm_id = '?'
             self.setProperty('failure_tag', 'openerp-mergefail-%s-%s' % \
                                 (orm_id, build_id) )
+        else:
+            self.setProperty('need_commit', 't')
 
     def evaluateCommand(self, cmd):
         res = SUCCESS
@@ -1071,11 +1073,12 @@ class LintTest(LoggingBuildStep):
 
 
     def __init__(self, workdir=WithProperties('%(repo_mode)s'), 
-                    repo_mode=WithProperties('%(repo_mode)s'), **kwargs):
+                    repo_mode=WithProperties('%(repo_mode)s'),
+                    strict=False, **kwargs):
 
         LoggingBuildStep.__init__(self, **kwargs)
-        self.addFactoryArguments(workdir=workdir, repo_mode=repo_mode)
-        self.args = {'workdir': workdir, 'repo_mode': repo_mode }
+        self.addFactoryArguments(workdir=workdir, repo_mode=repo_mode, strict=strict)
+        self.args = {'workdir': workdir, 'repo_mode': repo_mode, 'stict': strict }
         # Compute defaults for descriptions:
         description = ["Performing lint check"]
         self.description = description
@@ -1083,6 +1086,8 @@ class LintTest(LoggingBuildStep):
         self.build_result = SUCCESS
         for kns in self.known_strs:
             self.known_res.append((re.compile(kns[0]), kns[1]))
+        if self.args.get('strict', False):
+            self.haltOnFailure = True
 
     def start(self):
         self.args['command']=["../../../file-lint.sh",]
@@ -1375,6 +1380,8 @@ class ProposeMerge(LoggingBuildStep):
         try:
             if self.build.getProperty('failure_tag'):
                 return False
+            if self.build.result >= FAILURE:
+                return False
         except KeyError:
             return True
         except Exception, e:
@@ -1487,8 +1494,19 @@ class BzrCommit(LoggingBuildStep):
         self.description = description
         self.build_result = SUCCESS
 
+    def doStepIf(self, *args):
+        """ Check if the branch is changed, so that commit makes sense
+        """
+        try:
+            if self.build.result >= FAILURE:
+                return False
+
+            return self.build.getProperty('need_commit') == 't'
+        except KeyError:
+            return False
+
     def start(self):
-        self.args['command']=["bzr","commit","-q"]
+        self.args['command']=["bzr","commit", "--local"] # not -q, we need to read the revno
         
         builder_props = self.build.getProperties()
         self.args['workdir'] = builder_props.render(self.args.get('workdir', ''))
@@ -1504,7 +1522,30 @@ class BzrCommit(LoggingBuildStep):
     def createSummary(self, slog):
         """ Try to read the file-lint.sh output and parse results
         """
-        pass
+        revno_re = re.compile(r'Committed revision ([0-9]+)\.')
+        try:
+            revno = False
+            for line in StringIO(slog.getText().replace('\r','\n')).readlines():
+                line = line.strip()
+                if not line:
+                    continue
+                if 'ERROR' in line:
+                    self.build_result = FAILURE
+                    self.description = 'Commit FAILED!'
+                    continue
+                m = revno_re.match(line)
+                if m:
+                    revno = m.group(1)
+                    break
+            if revno:
+                s = self.build.getSourceStamp()
+                change = s.changes[-1]
+                change.revision = revno
+                self.build.builder.db.saveCommit(change)
+                self.description = "Commit recorded in DB"
+        except Exception, e:
+            log.err("Cannot commit output: %s" % e)
+        
 
     def evaluateCommand(self, cmd):
         res = SUCCESS

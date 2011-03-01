@@ -381,6 +381,18 @@ class OERPConnector(util.ComparableMixin):
         self._sourcestamp_cache.add(ssid, ss)
         return ss
 
+    def saveCommit(self, change):
+        """ Save revision from Change object back into db
+        
+            Used after a merge happening in buildslave
+        """
+        assert change.revision and change.number
+        commit_obj = rpc.RpcProxy('software_dev.commit')
+        vals = { 'revno': change.revision }
+        if change.hash:
+            vals['hash'] = change.hash
+        commit_obj.write([change.number], vals)
+
     # Properties methods
 
     def get_properties_from_db(self, rpc_obj, ids, t=None):
