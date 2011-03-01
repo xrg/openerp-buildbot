@@ -213,13 +213,15 @@
             <field name="arch" type="xml">
               <form>
                 <field name="name"/>
-                <field name="sequence" />
                 <field name="group_id" />
                 <field name="branch_url" />
                 <field name="builder_id" />
+                
+                <field name="sequence" />
                 <field name="test_ids" />
                 <field name="is_distinct"/>
                 <field name="is_build" />
+                <field name="poll_interval" />
                 <field name="target_path" />
                 <field name="is_template" />
                 <field name="latest_commit_id" />
