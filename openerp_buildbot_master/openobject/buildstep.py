@@ -831,6 +831,11 @@ class BzrMerge(LoggingBuildStep):
     known_strs = [ (r'Text conflict in (.+)$', FAILURE ),
                    (r'Conflict adding file (.+)\. +Moved.*$', FAILURE),
                    (r'Contents conflict in (.+)$', FAILURE),
+                   (r'Conflict because (.+) is not versioned, but has versioned children\.', FAILURE),
+                   (r'Conflict adding files to (.+)\.  Created directory\.', FAILURE),
+                   (r'Conflict: can\'t delete (.+) because it is not empty\.  Not deleting\.', FAILURE),
+                   (r'Path conflict: (.+) / ', FAILURE),
+                   (r'Conflict moving (.+) into .+\.  Cancelled move.', FAILURE),
                    # (r'No lint for (.+)$', SUCCESS ),
                    # Must come last:
                    (r'([^:]+):[0-9]+: .+$', SUCCESS ),
