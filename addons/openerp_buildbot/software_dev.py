@@ -364,7 +364,7 @@ class software_teststep(propertyMix, osv.osv):
     _order = "sequence, id"
     _columns = {
         'test_id': fields.many2one('software_dev.buildseries', 'Test', 
-                required=True, select=1),
+                required=True, on_delete="cascade", select=1),
         'sequence': fields.integer('Sequence', required=True),
         'name': fields.char('Name', required=True, size=64),
         'attribute_ids': fields.one2many('software_dev.tsattr', 'tstep_id', 'Attributes'),
