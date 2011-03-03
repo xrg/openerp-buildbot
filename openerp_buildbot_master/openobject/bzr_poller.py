@@ -207,7 +207,7 @@ class BzrPoller(buildbot.changes.base.PollingChangeSource,
 
     @deferredLocked('initLock')
     def initRepository(self):
-        d = defer.succeed(None)
+        
         def checkout_branch(_):
             """ Checkout the remote (LP) branch into the local proxy_location
             """
@@ -236,9 +236,15 @@ class BzrPoller(buildbot.changes.base.PollingChangeSource,
                 # is no longer in the history...
                 break
 
+        def _updateLock_release(x):
+            self.updateLock.release()
+            return x
+        d = defer.succeed(None)
         if self.proxy_location:
             if not os.path.isdir(self.proxy_location):
+                d = self.updateLock.acquire()
                 d.addCallback(checkout_branch)
+                d.addBoth(_updateLock_release)
         d.addCallback(get_last_revision)
         return d
 
