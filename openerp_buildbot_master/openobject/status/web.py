@@ -133,19 +133,31 @@ class LatestBuilds(HtmlResource):
             cats = cats.split(',')
         else:
             cats = None
-        builders = req.args.get("builder", status.getBuilderNames(cats))
+        builders = map(status.getBuilder, req.args.get("builder", status.getBuilderNames(cats)))
         branches = [b for b in req.args.get("branch", []) if b]
         num_cols = get_args_int(req.args, 'num', 5)
         
+        def __builder_lastfinish(bn):
+            "Get the most recent time a builder has finished a build"
+            fb = bn.getLastFinishedBuild()
+            if fb:
+                return fb.getTimes()[1]
+            else:
+                return 0
+
+        builders.sort(key=__builder_lastfinish, reverse=True)
+        # put the most recent builders on top. This may fetch one build per
+        # builder, but is still much better than fetching all of them.
+
         num_builders = get_args_int(req.args, "nbuilders", 25)
         cxt['num_cols'] = num_cols
         cxt['builders'] = []
         builders_grouped = {}
         groups_seq = {}  # sequence of groups
         groups_pub = {}  # public flag of groups
-        for bn in builders:
+        for builder in builders:
+            bn = builder.name
             base_builder_url = base_builders_url + urllib.quote(bn, safe='')
-            builder = status.getBuilder(bn)
             categ = builder.category
             if categ and len(builders_grouped.get(categ,[])) >= num_builders:
                 continue
