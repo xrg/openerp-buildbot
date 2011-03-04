@@ -82,13 +82,19 @@ class OERPChangesConnector(base.DBConnectorComponent):
 
         if committers:
             domain.append( ('comitter_id', 'in', committers ) )
+            
+        if minTime:
+            domain.append(('date', '>', time2str(minTime)))
 
-        rows = change_obj.search(domain, 0, 0, 'id desc')
+        rows = change_obj.search(domain, 0, 300, 'id desc')
 
-        changes = self.db.runInteractionNow(self.db._get_change_num, rows)
-        print "changeEventGenerator: %d changes" % len(changes)
-        for chg in changes:
-            yield chg
+        while rows:
+            rpart = rows[:100]
+            rows = rows[100:]
+            changes = self.db.runInteractionNow(self.db._get_change_num, rpart)
+            print "changeEventGenerator: %d changes" % len(changes)
+            for chg in changes:
+                yield chg
 
 class OERPConnector(util.ComparableMixin):
     # this will refuse to create the database: use 'create-master' for that
