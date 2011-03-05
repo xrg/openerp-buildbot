@@ -49,11 +49,13 @@ if [ -z "$SLAVE_BASE_URL" ] ; then
     exit 2
 fi
 
+BUILDDIRNAME=$(basename $PROXY_PATH)
+
 PROXY_PATH=$(echo $PROXY_PATH | sed 's|^file://||;s|%20| |g')
 
 $DRY cd "$PROXY_PATH"
 # ignoring revision so far
-$DRY bzr pull -q --overwrite "$SLAVE_BASE_URL/$BUILDERNAME/$REPO_MODE"
+$DRY bzr pull -q --overwrite "$SLAVE_BASE_URL/$BUILDDIRNAME/$REPO_MODE"
 $DRY bzr push -q "$BRANCH_URL"
 
 #eof
