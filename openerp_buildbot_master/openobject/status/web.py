@@ -192,6 +192,7 @@ class LatestBuilds(HtmlResource):
                 try:
                     ss = build.getSourceStamp()
                     commiter = ""
+                    revision = "-"
                     if list(build.getResponsibleUsers()):
                         for who in build.getResponsibleUsers():
                             commiter += "%s" % html.escape(reduce_eml(who))
