@@ -180,13 +180,6 @@ class BzrPoller(buildbot.changes.base.PollingChangeSource,
                     proxy_location=None, slave_proxy_url=None):
         # poll_interval is in seconds, so default poll_interval is 10
         # minutes.
-        # bzr+ssh://bazaar.launchpad.net/~launchpad-pqm/launchpad/devel/
-        # works, lp:~launchpad-pqm/launchpad/devel/ doesn't without help.
-        if url.startswith('lp:'):
-            #url = 'bzr+ssh://bazaar.launchpad.net/' + url[3:]
-            url = 'https://code.launchpad.net/' + url[3:]
-        elif url.startswith('/'):
-           url = 'file://' + url
         self.url = url
         self.poll_interval = poll_interval
         self.blame_merge_author = blame_merge_author
@@ -199,6 +192,15 @@ class BzrPoller(buildbot.changes.base.PollingChangeSource,
         self.lastPoll = time.time()
         self.last_revision = None
         self.local_run = False # would skip pulling from LP, for testing
+
+    def _get_url(self):
+        # bzr+ssh://bazaar.launchpad.net/~launchpad-pqm/launchpad/devel/
+        # works, lp:~launchpad-pqm/launchpad/devel/ doesn't without help.
+        if self.url.startswith('lp:'):
+           #url = 'bzr+ssh://bazaar.launchpad.net/' + url[3:]
+           return 'https://code.launchpad.net/' + self.url[3:]
+        elif selfurl.startswith('/'):
+            return 'file://' + url
 
     def startService(self):
         twisted.python.log.msg("BzrPoller(%s) starting" % self.url)
@@ -213,7 +215,7 @@ class BzrPoller(buildbot.changes.base.PollingChangeSource,
             """
             d = utils.getProcessOutputAndValue('bzr',
                     ['branch', '-q', '--bind', '--no-tree',
-                        self.url, self.proxy_location])
+                        self._get_url(), self.proxy_location])
             d.addCallback(self._convert_nonzero_to_failure)
             d.addErrback(self._stop_on_failure)
             self.lastPoll = time.time()
@@ -269,14 +271,14 @@ class BzrPoller(buildbot.changes.base.PollingChangeSource,
 
     @defer.deferredGenerator
     def _get_changes(self, _):
-        branch = bzrlib.branch.Branch.open_containing(self.proxy_location or self.url)[0]
+        branch = bzrlib.branch.Branch.open_containing(self.proxy_location or self._get_url())[0]
         branch_name = self.branch_name
         changes = []
         change = generate_change(branch,
                     blame_merge_author=self.blame_merge_author,
                     last_revision=self.last_revision)
         if change:
-            change['branch'] = branch_name
+            change['branch'] = self.url
             change['branch_id'] = self.branch_id
             change['category'] = self.category
             changes.append(change)
@@ -285,7 +287,7 @@ class BzrPoller(buildbot.changes.base.PollingChangeSource,
                     change = generate_change(
                         branch, new_revno=change['revision']-1,
                         blame_merge_author=self.blame_merge_author)
-                    change['branch'] = branch_name
+                    change['branch'] = self.url
                     change['branch_id'] = self.branch_id
                     change.setdefault('category', self.category)
                     changes.append(change)
