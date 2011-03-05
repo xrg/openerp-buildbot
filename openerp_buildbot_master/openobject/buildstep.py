@@ -1602,7 +1602,7 @@ class BzrCommit(LoggingBuildStep):
         self.args['workdir'] = builder_props.render(self.args.get('workdir', ''))
 
         s = self.build.getSourceStamp()
-        self.args['command'] += ['-m', s.changes[-1].comments]
+        self.args['command'] += ['-m', str(s.changes[-1].comments)]
         
         cmd = StdErrRemoteCommand("OpenObjectShell", self.args)
         self.stderr_log = self.addLog("stderr")
