@@ -1496,6 +1496,7 @@ class MergeToLP(ProposeMerge):
         except Exception, e:
             log.err("Something has gone bad, cannot update LP: %s" % e)
             self.finished(FAILURE)
+            return
 
         self.finished(SUCCESS)
 
