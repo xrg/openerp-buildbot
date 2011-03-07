@@ -121,6 +121,8 @@ class OERPConnector(util.ComparableMixin):
         self._started = False
         self.model = OERPModel(self)
         self.changes = OERPChangesConnector(self)
+        self._unclaimed_brs_stamp = None
+        self._unclaimed_brs = []    # cache for get_unclaimed_buildrequests
 
     def _getCurrentTime(self):
         # this is a seam for use in testing
@@ -235,6 +237,7 @@ class OERPConnector(util.ComparableMixin):
             if prop_arr:
                 change_obj.setProperties(change.number, prop_arr)
 
+            self._unclaimed_brs_stamp = None # trigger a refresh
             self.notify("add-change", change.number)
         except Exception, e:
             log.err("Cannot add change: %s" % e)
@@ -602,20 +605,37 @@ class OERPConnector(util.ComparableMixin):
                                     master_incarnation, t, limit=None):
         breq_obj = rpc.RpcProxy('software_dev.commit')
         
-        domain = [('buildername', '=', buildername),
-                        ('complete', '=', False), 
-                        '|', '|' , ('claimed_at','=', False), ('claimed_at', '<', time2str(old)),
-                        '&', ('claimed_by_name', '=', master_name),
-                        ('claimed_by_incarnation', '!=', master_incarnation)]
-        bids = breq_obj.search(domain, 0, limit or False, 'priority DESC, submitted_at')
+        old = int(round(old-1)) # 10 sec resolution
 
+        if (old, master_name, master_incarnation) != self._unclaimed_brs_stamp:
+            #our cache is out of date, refresh it!
+            self._unclaimed_brs_stamp = (old, master_name, master_incarnation)
+            self._unclaimed_brs = {}
+
+            # Read unclaimed buildrequests for *all* buildernames at one go
+            domain = [ ('complete', '=', False),
+                            '|', '|' , ('claimed_at','=', False), ('claimed_at', '<', time2str(old)),
+                            '&', ('claimed_by_name', '=', master_name),
+                            ('claimed_by_incarnation', '!=', master_incarnation)]
+            tmp_bids = breq_obj.search(domain, 0, False, 'priority DESC, submitted_at')
+            
+            while tmp_bids:
+                bids_res = breq_obj.read(tmp_bids[:200], ['buildername'])
+                tmp_bids = tmp_bids[200:]
+                for br in bids_res:
+                    self._unclaimed_brs.setdefault(br['buildername'],[]).append(br['id'])
+            
         # in buildbot v2.5 we cannot have a buildrequest that is not a commit,
         # so we hack around that and create pseydo-requests for all merge records
-        if buildername and not bids:
+        if buildername and buildername not in self._unclaimed_brs:
             # The queue for this is empty. Let's see if we have any pending merges
             # to do.
             mreq_obj = rpc.RpcProxy('software_dev.mergerequest')
-            bids = mreq_obj.prepare_commits(buildername)
+            self._unclaimed_brs[buildername] = mreq_obj.prepare_commits(buildername)
+            # even if prepare_commits returns [], we will mark the buildername in
+            # the dict, causing this step to skip while this cache is in effect.
+
+        bids = self._unclaimed_brs.get(buildername, [])
 
         log.msg("Get %d unclaimed buildrequests for %s after %s" % \
                     (len(bids), buildername, time2str(old)))
