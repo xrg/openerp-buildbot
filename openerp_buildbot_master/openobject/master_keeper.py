@@ -164,7 +164,7 @@ class Keeper(object):
         
         # Get the repositories we have to poll and maintain
         polled_brs = bbot_obj.get_polled_branches([self.bbot_id])
-        print "got polled brs:", polled_brs
+        print "Got %d polled branches" % (len(polled_brs))
         
         for pbr in polled_brs:
             pmode = pbr.get('mode','branch')

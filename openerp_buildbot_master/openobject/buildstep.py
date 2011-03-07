@@ -1469,6 +1469,7 @@ class MergeToLP(ProposeMerge):
         changes = self.build.allChanges()
         
         if self.build.result not in self.status_mappings:
+            self.description = 'No status for %r' % self.build.result
             return SKIPPED
         
         try:
@@ -1484,6 +1485,7 @@ class MergeToLP(ProposeMerge):
             if not lp_branch:
                 raise KeyError(branch_url)
             sm = self.status_mappings[self.build.result]
+            self.description = "No proposal for branch"
             for mp in lp_branch.landing_targets:
                 if mp.queue_status not in ['Work in progress', 'Needs review', 'Needs Fixing', 'Needs Information']:
                     continue
@@ -1492,6 +1494,7 @@ class MergeToLP(ProposeMerge):
                     continue
                 log.msg("attaching information to %s" % mp)
                 mp.createComment(vote=sm[0], subject=sm[1], content=self.build.build_status.reason)
+                self.description = "Commented a Proposal"
         
         except Exception, e:
             log.err("Something has gone bad, cannot update LP: %s" % e)
