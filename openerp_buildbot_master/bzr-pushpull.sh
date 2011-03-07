@@ -8,6 +8,8 @@ BUILDERNAME=
 PROXY_PATH=
 MASTER_DIR=$(dirname "$0")
 DRY=
+SYNC_MODE=full
+
 while [ -n "$1" ] ; do
     case "$1" in 
 	-b)
@@ -33,6 +35,9 @@ while [ -n "$1" ] ; do
 	    shift 1
 	    continue
 	;;
+	--sync-mode)
+	    SYNC_MODE="$2"
+	    ;;
 	*)
 	    echo "Invalid argument: $1"
 	    exit 4
@@ -55,7 +60,9 @@ PROXY_PATH=$(echo $PROXY_PATH | sed 's|^file://||;s|%20| |g')
 
 $DRY cd "$PROXY_PATH"
 # ignoring revision so far
-$DRY bzr pull -q --overwrite "$SLAVE_BASE_URL/$BUILDDIRNAME/$REPO_MODE"
+if [ "$SYNC_MODE" != 'push-only' ] ; then
+    $DRY bzr pull -q --overwrite "$SLAVE_BASE_URL/$BUILDDIRNAME/$REPO_MODE"
+fi
 $DRY bzr push -q "$BRANCH_URL"
 
 #eof

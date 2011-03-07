@@ -27,6 +27,7 @@ from buildbot.status.builder import SUCCESS, FAILURE, WARNINGS, EXCEPTION, SKIPP
 from buildbot.status.builder import TestResult
 from buildbot.steps.master import MasterShellCommand
 from buildbot.process.properties import WithProperties
+from buildbot.status.builder import Results as status_Results
 
 import os
 import re
@@ -1662,8 +1663,9 @@ class BzrSyncUp(MasterShellCommand):
     flunkOnFailure = False
     warnOnFailure = True
     alwaysRun = False
+
     
-    def __init__(self, proxied_bzrs={}, command=False, **kwargs):
+    def __init__(self, proxied_bzrs={}, threshold=None, sync_mode=None, command=False, **kwargs):
         def _get_proxy_path(props):
             return proxied_bzrs.get(props['branch_url'], False) \
                     or props['branch_url']
@@ -1684,13 +1686,29 @@ class BzrSyncUp(MasterShellCommand):
                     '-b', WithProperties('%(gsl)s', gsl=_get_slavename),
                     '-p', WithProperties('%(proxy_url)s', proxy_url=_get_proxy_path)
                     ]
+            if sync_mode:
+                command += [ '--sync-mode', str(sync_mode) ]
 
         MasterShellCommand.__init__(self, command, **kwargs)
+        if isinstance(threshold, int):
+            pass
+        elif isinstance(threshold, basestring) and threshold:
+            for x, status in enumerate(status_Results):
+                if threshold.lower() == status:
+                    threshold = x
+                    break
+            else:
+                threshold = FAILURE
+        else:
+            threshold = FAILURE
+
+        self.addFactoryArguments(threshold=threshold)
+        self.args = {'threshold': threshold}
 
     def doStepIf(self, *args):
         """ Check if this step needs to run
         """
-        if self.build.result >= FAILURE:
+        if self.build.result >= self.args['threshold']:
             return False
         else:
             return True
