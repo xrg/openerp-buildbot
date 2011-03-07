@@ -1395,7 +1395,7 @@ class client_worker(object):
                             'module': module or '', 'severity': 'error', 
                             'Message': 'No form view for model %s' % mod['model'] })
                 else:
-                    if ((ost[4] or 0.0) > 0.5 or (ost[0] or 0.0) > 0.3) and self.has_os_times:
+                    if ((ost[4] or 0.0) > 1.5 or (ost[0] or 0.0) > 0.6) and self.has_os_times:
                         server.dump_blame(None, {'context': '%s.check' % (module or 'custom'),
                             'module': module or '', 'severity': 'warning', 
                             'Message': 'Form view model %s is slow (u%.3f, r%.3f), please optimize' % \
