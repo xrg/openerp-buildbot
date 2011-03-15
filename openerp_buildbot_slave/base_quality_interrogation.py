@@ -513,6 +513,9 @@ class server_thread(threading.Thread):
 
         if timed:
             self.args.insert(0, 'time')
+        if opt.smtp_maildir:
+            self.args.append('--smtp=maildir:%s' % os.path.abspath(os.path.expanduser(opt.smtp_maildir)))
+            self.args.append('--smtp-user=user')
         self.proc = None
         self.is_running = False
         self.is_ready = False
@@ -2900,6 +2903,7 @@ parser.add_option("--password", dest="pwd", help="specify the User Password")
 parser.add_option("--super-passwd", dest="super_passwd", help="The db admin password")
 parser.add_option("--config", dest="config", help="Pass on this config file to the server")
 parser.add_option("--ftp-port", dest="ftp_port", help="Choose the port to set the ftp server at")
+parser.add_option("--smtp-maildir", dest="smtp_maildir", help="Maildir to use instead of SMTP server, for test mails")
 
 parser.add_option("--no-demo", dest="no_demo", action="store_true", default=False,
                     help="Do not install demo data for modules installed")
@@ -2973,7 +2977,8 @@ def parse_option_section(conf, items, allow_include=True):
             elif isinstance(getattr(copt, key), bool):
                 val = bool(val.lower() in ('1', 'true', 't', 'yes'))
             elif key in ('addons_path', 'root_path', 'homedir',
-                        'xml_log', 'txt_log', 'mach_log', 'inter_history'):
+                        'xml_log', 'txt_log', 'mach_log', 'inter_history', 
+                        'smtp_maildir'):
                 val = os.path.expanduser(val)
             if not getattr(copt, key):
                 setattr(opt, key, val)
