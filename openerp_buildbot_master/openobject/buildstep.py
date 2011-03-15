@@ -121,6 +121,18 @@ class BqiObserver(LogLineObserver):
             self.step.setProgress('tests', self.numTests)
 
 ports_pool = None
+dbnames_pool = None
+
+class unique_dbnames(object):
+    """ A simple pseydo-iterator that will produce unique database names
+    """
+    def __init__(self):
+        self.__count = 0
+        self.__uniq = hex(id(self))[-4:]
+
+    def next(self):
+        self.__count += 1
+        return 'test-db-%s%x' % (self.__uniq, self.__count)
 
 class OpenERPTest(LoggingBuildStep):
     name = 'OpenERP-Test'
@@ -149,6 +161,14 @@ class OpenERPTest(LoggingBuildStep):
         else:
             return self.describe(True, fail=True)
 
+    def _get_random_dbname(self, props):
+        global dbnames_pool
+        return dbnames_pool.borrow(True)
+
+    #def _get_builddir(self, props):
+    #    # must be a function because it shall be rendered late, at start()
+    #    return self.build.builder.builddir.replace('/', '_')
+
     def __init__(self, workdir=None, dbname=False, addonsdir=None, 
                     netport=None, port=None, ftp_port=None,
                     force_modules=None,
@@ -163,6 +183,11 @@ class OpenERPTest(LoggingBuildStep):
             black_modules = black_modules.split(' ')
         if isinstance(force_modules, basestring):
             force_modules = force_modules.split(' ')
+        if not dbname:
+            dbname = '%(random)s'
+        if isinstance(dbname, basestring) and '%' in dbname:
+            dbname = WithProperties(dbname, random=self._get_random_dbname)
+
         self.addFactoryArguments(workdir=workdir, dbname=dbname, addonsdir=addonsdir, 
                                 netport=netport, port=port, ftp_port=ftp_port, logfiles={},
                                 force_modules=(force_modules or []),
@@ -184,13 +209,13 @@ class OpenERPTest(LoggingBuildStep):
         self.description = description
         self.summaries = {}
         self.build_result = SUCCESS
-        
+
         self.addLogObserver('stdio', BqiObserver())
         self.progressMetrics += ('tests',)
 
     def start(self):
         self.logfiles = {}
-        global ports_pool
+        global ports_pool, dbnames_pool
         builder_props = self.build.getProperties()
         if not ports_pool:
             # Effectively, the range of these ports will limit the number of
@@ -199,6 +224,9 @@ class OpenERPTest(LoggingBuildStep):
             max_port = builder_props.getProperty('max_port',8299)
             port_spacing = builder_props.getProperty('port_spacing',4)
             ports_pool = tools.Pool(iter(range(min_port, max_port, port_spacing)))
+
+        if not dbnames_pool:
+            dbnames_pool = tools.Pool(unique_dbnames())
 
         if not self.args.get('addonsdir'):
             if builder_props.getProperty('addons_dir'):
@@ -209,8 +237,8 @@ class OpenERPTest(LoggingBuildStep):
             self.args['port'] = self.get_free_port()
         if self.args.get('ftp_port') is None: # False will skip the arg
             self.args['ftp_port'] = self.get_free_port()
-        if not self.args.get('dbname'):
-            self.args['dbname'] = self.build.builder.builddir.replace('/', '_')
+        self.args['dbname'] = builder_props.render(self.args.get('dbname', False))
+        assert self.args['dbname'], "I can't go on without a dbname!"
         if not self.args.get('workdir'):
             self.args['workdir'] = 'server'
         
@@ -293,7 +321,7 @@ class OpenERPTest(LoggingBuildStep):
             root_path = './'
         self.args['command']=["../../../base_quality_interrogation.py",
                             "--machine-log=stdout", '--root-path='+root_path,
-                            "--homedir=../", "--no-bqirc",
+                            "--homedir=../", "-c", '~/.openerp-bqirc-bbot',
                             '--server-series=%s' % self.args['server_series'],
                             '-d', self.args['dbname']]
         if self.args.get('do_warnings', False):
@@ -597,7 +625,7 @@ class OpenERPTest(LoggingBuildStep):
                             (orm_id, build_id) )
 
     def evaluateCommand(self, cmd):
-        global ports_pool
+        global ports_pool, dbnames_pool
         res = SUCCESS
         if cmd.rc != 0:
             # TODO: more results from b-q-i, it has discrete exit codes.
@@ -615,6 +643,11 @@ class OpenERPTest(LoggingBuildStep):
             except RuntimeError, e:
                 log.err("%s" % e)
 
+        try:
+            if 'test-db-' in self.args['dbname']:
+                dbnames_pool.free(self.args['dbname'])
+        except RuntimeError, e:
+            log.err("%s" % e)
         return res
 
 class OpenObjectBzr(Bzr):
