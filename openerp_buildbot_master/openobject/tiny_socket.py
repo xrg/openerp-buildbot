@@ -265,6 +265,7 @@ class PersistentTransport(Transport):
     """Handles an HTTP transaction to an XML-RPC server, persistently."""
 
     def __init__(self, use_datetime=0, send_gzip=False):
+        Transport.__init__(self)
         self._use_datetime = use_datetime
         self._http = {}
         self._log = logging.getLogger('Rpc.Transport')
