@@ -1698,7 +1698,7 @@ class BzrSyncUp(MasterShellCommand):
     alwaysRun = False
 
     
-    def __init__(self, proxied_bzrs={}, threshold=None, sync_mode=None, command=False, **kwargs):
+    def __init__(self, proxied_bzrs={}, threshold=None, sync_mode=None, command=False, alt_branch=None, **kwargs):
         def _get_proxy_path(props):
             return proxied_bzrs.get(props['branch_url'], False) \
                     or props['branch_url']
@@ -1713,7 +1713,7 @@ class BzrSyncUp(MasterShellCommand):
         if not command:
             command = ['./bzr-pushpull.sh',
                     '-s', WithProperties('%(slavename)s'),
-                    '-l', WithProperties('%(branch_url)s'),
+                    '-l', alt_branch or WithProperties('%(branch_url)s'),
                     '-r', WithProperties('%(revision)s'),
                     '-m', WithProperties('%(repo_mode)s'),
                     '-b', WithProperties('%(gsl)s', gsl=_get_slavename),
@@ -1735,8 +1735,8 @@ class BzrSyncUp(MasterShellCommand):
         else:
             threshold = FAILURE
 
-        self.addFactoryArguments(threshold=threshold)
-        self.args = {'threshold': threshold}
+        self.addFactoryArguments(threshold=threshold, alt_branch=alt_branch)
+        self.args = {'threshold': threshold, 'alt_branch': alt_branch}
 
     def doStepIf(self, *args):
         """ Check if this step needs to run

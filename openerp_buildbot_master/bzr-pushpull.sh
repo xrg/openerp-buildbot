@@ -48,6 +48,10 @@ done
 
 set -e
 
+if [ "$SYNC_MODE" == 'dry' ] ; then
+    DRY=echo
+fi
+
 SLAVE_BASE_URL=$(grep "^$SLAVENAME" $MASTER_DIR/bzr-pushpull.cfg | tr -s ' ' | cut -d ' ' -f 2)
 if [ -z "$SLAVE_BASE_URL" ] ; then
     echo "Don't know how to pull from $SLAVENAME"
