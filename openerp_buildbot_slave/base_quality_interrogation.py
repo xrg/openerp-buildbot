@@ -1964,6 +1964,12 @@ class CmdPrompt(object):
             if obj.startswith(text):
                 pos.append(obj)
         return pos
+        
+    def _complete_describe_cmd(self, text, state):
+        if not self.cur_orm:
+            return self._complete_orm_cmd(text, state)
+        else:
+            return []
 
     def _complete_print(self, text, state):
         pos = []
@@ -2043,13 +2049,13 @@ class CmdPrompt(object):
 
     avail_cmds = { 0: [ 'help', 'debug', 'quit', 'db',
                         'orm', 'module', 'translation', 'server', 'test',
-                        'import', 'login' ],
-                'orm': ['help', 'obj_info', 
+                        'import', 'login', 'describe' ],
+                'orm': ['help', 'obj_info', 'describe',
                         'do', 'res_id',
                         'print', 'with',
                         'table',
                         'debug', 'exit',  ],
-                'orm_id': [ 'help', 'do', 'print', 'with', 'debug', 'exit', ]
+                'orm_id': [ 'help', 'do', 'print', 'describe', 'with', 'debug', 'exit', ]
                 }
     cmd_levelprompts = { 0: 'BQI', 'db': 'BQI DB', 'orm': 'BQI %(cur_orm)s',
                         'orm_id': 'BQI %(cur_orm)s#%(cur_res_id)d', }
@@ -2059,6 +2065,7 @@ class CmdPrompt(object):
                     'db': ['load', 'list', 'create', 'drop' ],
                     'module': _complete_module_cmd,
                     'orm': _complete_orm_cmd,
+                    'describe': _complete_describe_cmd,
                     'do': [],
                     'table': [], # TODO
                     'print': _complete_print,
@@ -2581,6 +2588,53 @@ class CmdPrompt(object):
         else:
             print "Res is a %s. Use the print cmd to inspect it." % type(res)
         self._last_res = res
+
+    def _cmd_describe(self, *args):
+        """ Describe an ORM model, its fields [and properties]
+        
+            Can be called either within the ORM, or like 'describe orm.model' from
+            the root level.
+        """
+        model = None
+        if self.cur_orm:
+            model = self.cur_orm
+        elif args:
+            model = args[0]
+        else:
+            print "ORM model must be specified!"
+            return
+        
+        logger.debug("Trying %s.fields_get()", model)
+        res = client.orm_execute(model, 'fields_get')
+        server._io_flush()
+
+        # Form the table
+        rows = []
+        for field, props in res.items():
+            crow = {'Field': field, 'String': props.pop('string'), 
+                    'Type': props.pop('type')}
+            rest = []
+            if 'size' in props:
+                crow['Type'] += '(%s)' % props.pop('size')
+            if 'function' in props:
+                props.pop('function')
+                crow['Type'] = 'fn:' + crow['Type']
+            if crow['Type'] in ('one2one', 'one2many', 'many2one', 'many2many') \
+                    and 'relation' in props:
+                crow['Type'] += '(%s)' % props.pop('relation')
+            for attr in ('required', 'readonly', 'select', 'selectable', 'translate', 'view_load'):
+                if attr in props:
+                    if props.pop(attr):
+                        rest.append(attr)
+            for k, v in props.items():
+                # rest of them
+                rest.append('%s: %s' % (k, v))
+            
+            crow['Modifiers'] = ' '.join(rest)
+            rows.append(crow)
+            
+        print_table(rows, ['Field', 'String', 'Type', 'Modifiers'], max_width=80)
+        return
 
     def _eval_local(self, aexpr):
         # put persistent at locals, this etc. in globals
