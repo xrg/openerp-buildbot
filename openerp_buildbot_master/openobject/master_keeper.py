@@ -15,6 +15,7 @@ import logging
 from buildbot.buildslave import BuildSlave
 from buildbot.process import factory
 from buildbot.schedulers.filter import ChangeFilter
+from buildbot import manhole
 from openobject.scheduler import OpenObjectScheduler, OpenObjectAnyBranchScheduler
 from openobject.buildstep import OpenObjectBzr, OpenObjectSVN, BzrMerge, BzrRevert, \
         OpenERPTest, LintTest, BzrStatTest, BzrCommitStats, BzrTagFailure, \
@@ -151,6 +152,14 @@ class Keeper(object):
                     slave_proxy_url = attr['value']
                 elif attr['name'] == 'bzr_local_run':
                     bzr_local_run = True
+                elif attr['name'] == 'manhole':
+                    try:
+                        mtype, margs = attr['value'].split('|', 1)
+                        margs = margs.split('|')
+                        klass = getattr(manhole, mtype + 'Manhole')
+                        c['manhole'] = klass(*margs)
+                    except Exception, e:
+                        print "Cannot configure manhole:", e
                 else:
                     c[attr['name']] = attr['value']
 
