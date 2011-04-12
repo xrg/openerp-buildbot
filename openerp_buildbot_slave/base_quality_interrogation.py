@@ -2741,14 +2741,32 @@ class CmdPrompt(object):
         else:
             print "ORM model must be specified!"
             return
-        
+
         logger.debug("Trying %s.fields_get()", model)
         res = client.orm_execute(model, 'fields_get')
         server._io_flush()
 
+        def col_sorted(tups):
+            """ Sort a list of (fieldname, value) tuples
+
+            This is a special sort, because it considers some builtin columns
+            and some frequently used ones will be sorted first
+            """
+
+            coldict = { 'id': 0, '__vptr': 5,
+                    'create_uid': 10, 'create_date': 11,
+                    'write_uid': 20, 'write_date': 21,
+                    'xmlid': 30,
+                    'name': 40, 'date': 42, 'state': 42, 'description': 43,
+                    'user_id': 44, 'company_id': 45
+                    }
+            return sorted(tups, key=lambda x: coldict.get(x[0], x[0]))
+
         # Form the table
         rows = []
-        for field, props in res.items():
+        help_flds = {}
+        selection_flds = {}
+        for field, props in col_sorted(res.items()):
             crow = {'Field': field, 'String': props.pop('string'), 
                     'Type': props.pop('type')}
             rest = []
@@ -2760,6 +2778,15 @@ class CmdPrompt(object):
             if crow['Type'] in ('one2one', 'one2many', 'many2one', 'many2many') \
                     and 'relation' in props:
                 crow['Type'] += '(%s)' % props.pop('relation')
+
+            if 'help' in props:
+                help_flds[field] = props.pop('help')
+
+            if 'selection' in props:
+                sels = dict(props.pop('selection'))
+                rest.append('selection=(%s)' % (', ').join(sels.keys()))
+                selection_flds[field] = sels
+
             for attr in ('required', 'readonly', 'select', 'selectable', 'translate', 'view_load'):
                 if attr in props:
                     if props.pop(attr):
@@ -2769,11 +2796,21 @@ class CmdPrompt(object):
                 if not v:
                     continue
                 rest.append('%s: %r' % (k, v))
-            
+
             crow['Modifiers'] = '\n'.join(rest)
             rows.append(crow)
-            
+
+        print_centered('Model: "%s"' % model)
         print_table(rows, ['Field', 'String', 'Type', 'Modifiers'], max_width=True)
+        print
+        if selection_flds:
+            print "Selection fields:"
+            for field, sels in col_sorted(selection_flds.items()):
+                print_lexicon(sels, title="  for %s:" % field, indent=6)
+            print
+        if help_flds:
+            print_lexicon(help_flds, title="Help Strings:", sort_fn=col_sorted)
+            print
         return
 
     def _eval_local(self, aexpr):
