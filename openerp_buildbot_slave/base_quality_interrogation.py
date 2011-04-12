@@ -295,17 +295,41 @@ def print_sql_stats(stats):
         all_sum +=  col_vals[col]
     print " %d" % all_sum
 
+def splitval(val, cw, do_pad=True):
+    """ Split some column data at cw, respecting whitespace or newline
+
+        @return val, remain  the two strings
+    """
+    if do_pad and len(val) < cw:
+        pad = ' ' *(cw - len(val))
+        return val.replace('\n', ' ') + pad, None
+    elif len(val) <= cw:
+        return val.replace('\n', ' '), None
+
+    s = 0
+    for splt in ('\n', ' ', ':', '.', ','):
+        s = val.rfind(splt, 3, cw-1)
+        if s > 3:
+            s += 1
+            break
+    if s <= 0:
+        s = cw
+    pad = ''
+    if do_pad and s < cw:
+        pad = ' ' * (cw - s)
+    return val[:s].replace('\n',' ') + pad, val[s:]
+
 def print_table(res, columns=None, max_width=True, wrap=True):
     """ Print some result table (from orm.read() eg.)
-    
+
         res must be in the [ { col: val, col2: val2}, {...}, ...] format
-        
+
         @param max_width Maximum width of any column, or True for 30, auto-formatting
                 of last column
         @param wrap Do wrap column data if they don't fit their column width
     """
     global opt
-    
+
     columns_auto = False
     col_width = {}
     auto_width_last = False
@@ -331,17 +355,17 @@ def print_table(res, columns=None, max_width=True, wrap=True):
                     columns.append(col)
             else:
                 col_width[col] = max(col_width[col], min(len('%s' % val), max_width))
-    
+
     if auto_width_last:
         first_width = sum([col_width[col] for col in columns[:-1]]) + len(columns) - 2
-        
+
         if first_width + 5 < opt.console_width:
             col_width[columns[-1]] = opt.console_width - first_width
         else:
             # Wide format, turn off wrapping.
             wrap = False
         # print "column widths:", first_width ,col_width
-        
+
     col_strs = {}
     for c in columns:
         col_strs[c] = '%-' + str(col_width[c]) +'s'
@@ -349,30 +373,6 @@ def print_table(res, columns=None, max_width=True, wrap=True):
     print '|'.join([ c[:max_width].center(col_width[c]) for c in columns])
     print '-' * (sum(col_width.values()) + len(columns) - 1)
 
-    def splitval(val, cw):
-        """ Split some column data at cw, respecting whitespace or newline
-        
-            @return val, remain  the two strings
-        """
-        if len(val) < cw:
-            pad = ' ' *(cw - len(val))
-            return val.replace('\n', ' ') + pad, None
-        elif len(val) == cw:
-            return val.replace('\n', ' '), None
-        
-        s = 0
-        for splt in ('\n', ' ', ':', '.', ','):
-            s = val.rfind(splt, 3, cw-1)
-            if s > 3:
-                s += 1
-                break
-        if s <= 0:
-            s = cw
-        pad = ''
-        if s < cw:
-            pad = ' ' * (cw - s)
-        return val[:s].replace('\n',' ') + pad, val[s:]
-        
     for rec in res:
         lin = []
         nline = {} # wrap values for next line
@@ -404,6 +404,63 @@ def print_table(res, columns=None, max_width=True, wrap=True):
                     # pad with blanks
                     lin.append(col_strs[c] % '')
             print '|'.join(lin)
+
+def print_centered(sstr):
+    """Print a string, centered at the middle of the console width
+    """
+    global opt
+
+    if len(sstr) >= opt.console_width:
+        print sstr
+    else:
+        pad = (opt.console_width - len(sstr)) / 2
+        print ' '* pad, sstr
+
+def print_lexicon(kdic, title=None, sort_fn=None, indent=4):
+    """ Print a dictionary as a lexicon definition
+
+    That is, in the format:
+        key1    Description that
+                has several lines
+        key2    next description
+    ...
+
+    @param title  A heading line to be printed before the lexicon
+    @param sort_fn function that sorts the dictionary
+    @param indent  how many chars the key will be indented
+    """
+
+    if title:
+        print title
+
+    if sort_fn is None:
+        sort_fn = lambda x: x
+
+    keylen = 6
+    for k in kdic:
+        l = len('%s' % k)
+        if  l > keylen and l < 30:
+            keylen = l
+
+    for k, v in sort_fn(kdic.items()):
+        kstr = '%s' % k
+        if len(kstr)  < keylen:
+            kstr += ' ' * (keylen - len(kstr))
+        lin = (' ' * indent) + kstr + ' '
+
+        if len(lin) > opt.console_width:
+            val, nval = '', v
+        else:
+            val, nval = splitval(v, opt.console_width - len(lin), do_pad=False)
+
+        print lin + val
+        cw = opt.console_width - (indent + keylen +1)
+        pad = ' ' * (indent + keylen +1)
+        while nval:
+            val, nval = splitval(nval, cw, do_pad=False)
+            print pad + val
+
+    return None
 
 class server_thread(threading.Thread):
     
@@ -2672,7 +2729,7 @@ class CmdPrompt(object):
 
     def _cmd_describe(self, *args):
         """ Describe an ORM model, its fields [and properties]
-        
+
             Can be called either within the ORM, or like 'describe orm.model' from
             the root level.
         """
