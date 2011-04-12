@@ -1808,7 +1808,7 @@ class client_worker(object):
 
             if model:
                 ir_model_ids = self._execute(obj_conn,'execute', self.dbname, uid, self.pwd,
-                                    'ir.model','search', [('name','=', model2)])
+                                    'ir.model','search', [('model','=', model2)])
                 if not ir_model_ids:
                     raise ClientException("Cannot locate ORM model %s for import!" % model2)
 
