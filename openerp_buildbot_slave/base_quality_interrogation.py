@@ -295,15 +295,26 @@ def print_sql_stats(stats):
         all_sum +=  col_vals[col]
     print " %d" % all_sum
 
-def print_table(res, columns=None, max_width=20):
+def print_table(res, columns=None, max_width=True, wrap=True):
     """ Print some result table (from orm.read() eg.)
     
         res must be in the [ { col: val, col2: val2}, {...}, ...] format
+        
+        @param max_width Maximum width of any column, or True for 30, auto-formatting
+                of last column
+        @param wrap Do wrap column data if they don't fit their column width
     """
+    global opt
     
     columns_auto = False
     col_width = {}
+    auto_width_last = False
 
+    if max_width is True:
+        max_width = 30
+        auto_width_last = True
+        if columns and (len(columns) > opt.console_width / 30):
+            max_width = (opt.console_width / len(columns)) -1
     if columns is None:
         columns = []
         columns_auto = True
@@ -321,6 +332,16 @@ def print_table(res, columns=None, max_width=20):
             else:
                 col_width[col] = max(col_width[col], min(len('%s' % val), max_width))
     
+    if auto_width_last:
+        first_width = sum([col_width[col] for col in columns[:-1]]) + len(columns) - 2
+        
+        if first_width + 5 < opt.console_width:
+            col_width[columns[-1]] = opt.console_width - first_width
+        else:
+            # Wide format, turn off wrapping.
+            wrap = False
+        # print "column widths:", first_width ,col_width
+        
     col_strs = {}
     for c in columns:
         col_strs[c] = '%-' + str(col_width[c]) +'s'
@@ -328,11 +349,61 @@ def print_table(res, columns=None, max_width=20):
     print '|'.join([ c[:max_width].center(col_width[c]) for c in columns])
     print '-' * (sum(col_width.values()) + len(columns) - 1)
 
+    def splitval(val, cw):
+        """ Split some column data at cw, respecting whitespace or newline
+        
+            @return val, remain  the two strings
+        """
+        if len(val) < cw:
+            pad = ' ' *(cw - len(val))
+            return val.replace('\n', ' ') + pad, None
+        elif len(val) == cw:
+            return val.replace('\n', ' '), None
+        
+        s = 0
+        for splt in ('\n', ' ', ':', '.', ','):
+            s = val.rfind(splt, 3, cw-1)
+            if s > 3:
+                s += 1
+                break
+        if s <= 0:
+            s = cw
+        pad = ''
+        if s < cw:
+            pad = ' ' * (cw - s)
+        return val[:s].replace('\n',' ') + pad, val[s:]
+        
     for rec in res:
         lin = []
+        nline = {} # wrap values for next line
         for c in columns:
-            lin.append((col_strs[c] % rec.get(c, ''))[:max_width])
+            val = col_strs[c] % rec.get(c, '')
+            val, nval = splitval(val, col_width[c])
+            if nval:
+                nline[c] = nval
+            lin.append(val)
+
         print '|'.join(lin)
+        if not wrap:
+            continue
+        ncount = 0
+        while nline:
+            lin = []
+            ncount += 1
+            if ncount > 50:
+                break
+            for c in columns:
+                if c in nline:
+                    val, nval = splitval(nline[c], col_width[c]-2)
+                    lin.append('+ '+val)
+                    if nval:
+                        nline[c] = nval
+                    else:
+                        del nline[c]
+                else:
+                    # pad with blanks
+                    lin.append(col_strs[c] % '')
+            print '|'.join(lin)
 
 class server_thread(threading.Thread):
     
@@ -2047,7 +2118,7 @@ class CmdPrompt(object):
 
         return pos
 
-    avail_cmds = { 0: [ 'help', 'debug', 'quit', 'db',
+    avail_cmds = { 0: [ 'help', 'debug', 'quit', 'db', 'console',
                         'orm', 'module', 'translation', 'server', 'test',
                         'import', 'login', 'describe' ],
                 'orm': ['help', 'obj_info', 'describe',
@@ -2063,6 +2134,7 @@ class CmdPrompt(object):
                                 'console on', 'console off', 'console silent',
                                 'object on', 'object off',],
                     'db': ['load', 'list', 'create', 'drop' ],
+                    'console': ['width',],
                     'module': _complete_module_cmd,
                     'orm': _complete_orm_cmd,
                     'describe': _complete_describe_cmd,
@@ -2284,6 +2356,15 @@ class CmdPrompt(object):
                 doc = doc.split('\n')[0]
                 print "      " + cmd + ' '* (26 - len(cmd)) + doc
         print ""
+
+    def _cmd_console(self, cmd=None, *args):
+        global opt
+        if cmd == 'width':
+            if args:
+                opt.console_width = int(args[0])
+            print "Console width set to %d" % opt.console_width
+        else:
+            print "Unknown command!"
 
     def _cmd_quit(self):
         """Quit the interactive mode and continue bqi script
@@ -2628,12 +2709,14 @@ class CmdPrompt(object):
                         rest.append(attr)
             for k, v in props.items():
                 # rest of them
-                rest.append('%s: %s' % (k, v))
+                if not v:
+                    continue
+                rest.append('%s: %r' % (k, v))
             
-            crow['Modifiers'] = ' '.join(rest)
+            crow['Modifiers'] = '\n'.join(rest)
             rows.append(crow)
             
-        print_table(rows, ['Field', 'String', 'Type', 'Modifiers'], max_width=80)
+        print_table(rows, ['Field', 'String', 'Type', 'Modifiers'], max_width=True)
         return
 
     def _eval_local(self, aexpr):
@@ -2781,6 +2864,7 @@ class CmdPrompt(object):
         if not self.cur_orm:
             print "Must be at an ORM level!"
             return
+        # TODO
         print "Currently at: %s" % self.cur_orm
 
     def _cmd_translation(self, *args):
@@ -2969,6 +3053,8 @@ parser.add_option("--server-series", help="Specify argument syntax and options o
 
 parser.add_option("--color", dest="console_color", action='store_true', default=False,
                     help="Use color at stdout/stderr logs")
+parser.add_option("--console-width", dest="console_width", type="int", default=100,
+                    help="Width of console, for formatting")
 
 parser.add_option("--console-nodebug", dest="console_nodebug", action='store_true', default=False,
                     help="Hide debug messages from console, send them to file log only.")
