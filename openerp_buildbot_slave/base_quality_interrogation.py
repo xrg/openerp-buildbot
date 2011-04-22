@@ -2772,6 +2772,8 @@ class CmdPrompt(object):
             rest = []
             if 'size' in props:
                 crow['Type'] += '(%s)' % props.pop('size')
+            elif crow['Type'] == 'float' and 'digits' in props:
+                crow['Type'] += '(%s,%s)' % tuple(props.pop('digits'))
             if 'function' in props:
                 props.pop('function')
                 crow['Type'] = 'fn:' + crow['Type']
