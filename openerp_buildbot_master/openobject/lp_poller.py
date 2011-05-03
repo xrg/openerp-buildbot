@@ -32,7 +32,7 @@ from twisted.python import log
 
 from buildbot import util
 
-import rpc
+from openerp_libclient import rpc
 
 from launchpadlib.launchpad import Launchpad
 from launchpadlib.credentials import Credentials, UnencryptedFileCredentialStore, RequestTokenAuthorizationEngine

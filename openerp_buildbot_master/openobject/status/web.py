@@ -35,7 +35,7 @@ import re
 import urllib, time
 from buildbot import version, util
 # from openobject.buildstep import blame_severities
-from openobject.tools import ustr
+from openerp_libclient.tools import ustr
 
 ROOT_PATH = '.'
 

@@ -31,7 +31,7 @@ from email.Header import Header
 from email.Utils import formatdate, COMMASPACE
 from buildbot.status.builder import SUCCESS, FAILURE, WARNINGS
 from twisted.web import html
-from openobject import tools
+from openerp_libclient import tools
 
 class OpenObjectMailNotifier(MailNotifier):
     def __init__(self, projectURL="http://localhost/", reply_to=None,

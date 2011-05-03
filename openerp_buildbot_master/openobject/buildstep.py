@@ -32,8 +32,8 @@ from buildbot.status.builder import Results as status_Results
 import os
 import re
 import logging
-from openobject import tools
-from openobject.tools import ustr
+from openerp_libclient import tools
+from openerp_libclient.tools import ustr
 from twisted.python import log
 from twisted.internet import defer
 from openobject.lp_poller import MS_Service
