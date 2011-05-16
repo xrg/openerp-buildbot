@@ -55,6 +55,7 @@ OpenERP buildbot
 =================
 Our buildbot is an "implementation" of the upstream framework. It consists
 of the following key elements:
+
     - Buildbot classes (master / slave)
     - OpenERP module for a controlling database (through a stable openerp)
     - The "base_quality_interrogation" script (= engine)
@@ -101,9 +102,11 @@ Now, the b-q-i script does most of the work for us. It:
 The b-q-i has a stateful engine, which will combine log lines from the 
 server in order to produce meaningful error messages. Consider the case
 of the log:
-    INFO: module foobar: loading spam.xml
+    
+    ``INFO: module foobar: loading spam.xml
     ...
-    ERROR: KeyError: id foobar.model_bar
+    ERROR: KeyError: id foobar.model_bar``
+
 it helps a lot to know that the KeyError exception happened while loading
 that "spam.xml" file at "foobar" module.
 
@@ -150,11 +153,12 @@ even the particular YAML tests that trigger them. That's where the b-q-i
 will try to help us with the "context" concept. It will report us some
 keyword of "where" each operation takes place.
 With "modname" being a module, context can be:
+    
     - modname.startup (when the server loads it at startup)
     - modname.install (when we install it afterwards)
     - modname.upgrade
     - modname.test
-    [ - modname.test.some_test_file.yml  RFC ]
+    - [ modname.test.some_test_file.yml  RFC ]
 
 These will be decoded at the buildbot master side as individual "steps" and 
 thus appear as separate entries in the "OpenERP-Test" build step.
