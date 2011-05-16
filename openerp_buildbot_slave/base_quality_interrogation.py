@@ -2437,7 +2437,16 @@ class CmdPrompt(object):
 
 
     def _cmd_db(self, *args):
-        """Connect to database
+        """List/Connect/Create or Drop a database
+        
+            Usage:
+                db list
+                db load
+                db create
+                db drop
+            
+            Note: at create, the demo-data and language settings come from bqi's 
+                  command line
         """
         if not len(args):
             print "Usage: db {list|load|create|drop}"
