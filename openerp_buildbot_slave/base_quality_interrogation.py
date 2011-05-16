@@ -444,6 +444,8 @@ def print_lexicon(kdic, title=None, sort_fn=None, indent=4):
 
     for k, v in sort_fn(kdic.items()):
         kstr = '%s' % k
+        if not isinstance(v, basestring):
+            v = '%s' % v
         if len(kstr)  < keylen:
             kstr += ' ' * (keylen - len(kstr))
         lin = (' ' * indent) + kstr + ' '
