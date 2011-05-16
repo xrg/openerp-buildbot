@@ -4,7 +4,7 @@
 #    
 #    OpenERP, Open Source Management Solution
 #    Copyright (C) 2004-2009 Tiny SPRL (<http://tiny.be>).
-#    Copyright (C) 2010 OpenERP SA. (http://www.openerp.com)
+#    Copyright (C) 2010-2011 OpenERP SA. (http://www.openerp.com)
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU Affero General Public License as
@@ -17,7 +17,7 @@
 #    GNU Affero General Public License for more details.
 #
 #    You should have received a copy of the GNU Affero General Public License
-#    along with this program.  If not, see <http://www.gnu.org/licenses/>.     
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ##############################################################################
 
@@ -32,7 +32,6 @@ import os
 from fnmatch import fnmatch
 import signal
 import time
-import pickle
 import glob
 import base64
 # import socket
@@ -45,11 +44,13 @@ import zipfile
 
 try:
     import json
+    __hush_pyflakes = [json,]
 except ImportError:
     json = None
 
 try:
     from cStringIO import StringIO
+    __hush_pyflakes = [StringIO,]
 except ImportError:
     from StringIO import StringIO
 
@@ -474,10 +475,10 @@ class server_thread(threading.Thread):
                     a tuple(bqi-class, log_level, string ) to log.
         @param multiline If true, this output can span multiple lines
         """
-        self.__parsers.setdefault(section, []).append( (regex, funct, multiline) )
+        self._parsers.setdefault(section, []).append( (regex, funct, multiline) )
 
     def regparser_exc(self, etype, erege, funct):
-        self.__exc_parsers.append( (etype, erege, funct))
+        self._exc_parsers.append( (etype, erege, funct))
 
     def setRunning(self, section, level, line):
         self.log.info("Server is ready!")
@@ -582,11 +583,151 @@ class server_thread(threading.Thread):
                     'module-line': mobj.group(2),
                     'Message': 'Cursor not explicitly closed'})
 
+    def __init__(self):
+        threading.Thread.__init__(self)
+        self.is_running = False
+        self.is_ready = False
+        # Will hold info about current op. of the server
+        self.state_dict = {'module-mode': 'startup'}
+        self.log = logging.getLogger('srv.thread')
+        self.log_state = logging.getLogger('bqi.state') # will receive command-like messages
+        self._parsers = {}
+        self._exc_parsers = []
+
+    def _init_parsers(self):
+        self.regparser('web-services', 
+                'the server is running, waiting for connections...', 
+                self.setRunning)
+        self.regparser('server', 
+                'OpenERP server is running, waiting for connections...', 
+                self.setRunning)
+        self.regparser('web-services',
+                re.compile(r'starting (.+) service at ([0-9a-f\.\:\[\]]+) port ([0-9]+)'),
+                self.setListening)
+        self.regparser('init',re.compile(r'module (.+):'), self.unsetTestContext)
+        
+        self.regparser('init',re.compile(r'module (.+): creating or updating database tables'),
+                self.setModuleLoading)
+        self.regparser('init', re.compile(r'module (.+): loading objects$'),
+                self.setClearContext)
+        self.regparser('init', 'updating modules list', self.setClearContext)
+        self.regparser('init', re.compile(r'.*\: Assertions report:$', re.DOTALL),
+                self.setClearContext)
+
+        self.regparser('init', re.compile(r'module (.+): registering objects$'),
+                self.setModuleLoading2)
+        self.regparser('init',re.compile(r'module (.+): loading (.+)$'),
+                self.setModuleFile)
+        self.regparser('tests.*', re.compile(r'.*', re.DOTALL), self.setTestContext, multiline=True)
+        self.regparser('report', re.compile(r'rml_except: (.+)', re.DOTALL), self.reportExcept, multiline=True)
+        self.regparser('report', re.compile(r'Exception at: (.+)', re.DOTALL), self.reportExcept, multiline=True)
+        self.regparser('db.cursor', re.compile(r'Cursor not closed explicitly.*Cursor was created at (.+.py):([0-9]+)$', re.DOTALL), self.cursorHanging, multiline=True)
+        
+        self.regparser_exc('XMLSyntaxError', re.compile(r'line ([0-9]+), column ([0-9]+)'),
+                            lambda etype, ematch: { 'file-line': ematch.group(1), 'file-col': ematch.group(2)} )
+
+    def dump_blame(self, exc=None, ekeys=None):
+        """Dump blame information for sth that went wrong
+        
+        @param exc the exception object, if available
+        @param ekeys extra blame keys to dump
+        """
+        blog = logging.getLogger('bqi.blame')
+        
+        
+        sdict = self.state_dict.copy()
+        
+        if exc:
+            emsg = ''
+            if isinstance(exc, xmlrpclib.Fault):
+                # faultCode from openerp is string, but standard is int
+                if isinstance(exc.faultCode, int):
+                    emsg = exc.faultString.strip()
+                else:
+                    emsg = "%s" % exc.faultCode
+                # try to get the server-side exception
+                # Note that exc is /not/ the exception object of the server
+                # itself, but the one that was transformed into an xmlrpc
+                # fault and sent to us. So, we can only do string processing
+                # on it.
+                try:
+                    faultLines = exc.faultString.rstrip().split('\n')
+                    lfl = len(faultLines)-1
+                    
+                    while lfl > 0:
+                        if not faultLines[lfl]:
+                            lfl -= 1
+                            continue
+                        if ':' not in faultLines[lfl][:20]:
+                            lfl -= 1
+                            continue
+                        break
+
+                    if lfl < 0:
+                        stype = ''
+                        sstr = '\n'.join(faultLines[-2])
+                    else:
+                        ses = faultLines[lfl]
+                        stype, sstr = ses.split(':',1)
+                        if '--' in sstr:
+                            stype = 'osv.%s' % (sstr.split('--')[1].strip())
+                            emsg = ' '.join(faultLines[lfl+1:])
+                    
+                    if stype:
+                        sdict['Exception type'] = stype
+                    
+                    # now, use the parsers to get even more useful information
+                    # from the exception string. They should return a dict
+                    # of keys to append to our blame info.
+                    # First parser to match wins, others will be skipped.
+                    for etype, erege, funct in self._exc_parsers:
+                        if etype == None or etype == stype:
+                            mm = None
+                            if isinstance(erege, basestring):
+                                mm = (sstr == erege)
+                            else:
+                                mm = erege.search(sstr)
+                            if not mm:
+                                continue
+                        
+                            # we have a match here
+                            red = funct(etype, mm)
+                            if isinstance(red, dict):
+                                sdict.update(red)
+                            else:
+                                self.log.debug("why did parser %r return %r?", funct, red)
+                            break # don't process other handlers
+                    else:
+                        self.log.debug("No exception parser for %s: %s", stype, sstr)
+                
+                except Exception:
+                    self.log.debug("Cannot parse xmlrpc exception: %s" % exc.faultString, exc_info=True)
+            elif len(exc.args):
+                emsg = "%s" % exc.args[0]
+                sdict["Exception type"] = "%s.%s" % (exc.__class__.__module__ or '', exc.__class__.__name__)
+            else:
+                emsg = "%s" % exc # better than str(), works with unicode
+                sdict["Exception type"] = "%s.%s" % (exc.__class__.__module__ or '', exc.__class__.__name__)
+
+            emsg = reduce_homedir(emsg)
+            sdict["Exception"] = emsg.replace('\n', ' ')
+
+        if ekeys:
+            sdict.update(ekeys)
+        s = ''
+        # Format all the blame dict into a string
+        for key, val in sdict.items():
+            if val:
+                s += "%s: %s\n" % (key, val)
+
+        blog.info(s.rstrip())
+
+class local_server_thread(server_thread):
     def __init__(self, root_path, port, netport, addons_path, dbname, pyver=None, 
                 srv_mode='v600', timed=False, debug=False, do_warnings=False,
                 ftp_port=None, defines=False, pyargs=False,
                 config=None):
-        threading.Thread.__init__(self)
+        server_thread.__init__(self)
         self.root_path = root_path
         if srv_mode == 'srv-lib':
             self.root_path = os.path.join(self.root_path, 'openerp')
@@ -647,56 +788,17 @@ class server_thread(threading.Thread):
             self.args.append('--smtp=maildir:%s' % os.path.abspath(os.path.expanduser(opt.smtp_maildir)))
             self.args.append('--smtp-user=user')
         self.proc = None
-        self.is_running = False
-        self.is_ready = False
         self._lports = {}
         self._io_bufs = {} # Buffers for stdin, stdio processing
-        # Will hold info about current op. of the server
-        self.state_dict = {'module-mode': 'startup'}
 
-        # self.is_terminating = False
-        
         # Regular expressions:
         self.linere = re.compile(r'\[(.*)\] ([A-Z_]+):([\w\.-]+):(.*)$', re.DOTALL)
         self.linewere = re.compile(r'(.*\.py):([0-9]+): ([A-Za-z]*Warning): (.*)$', re.DOTALL)
         
-        self.log = logging.getLogger('srv.thread')
         self.log_sout = logging.getLogger('server.stdout')
         self.log_serr = logging.getLogger('server.stderr')
-        self.log_state = logging.getLogger('bqi.state') # will receive command-like messages
 
-        self.__parsers = {}
-        self.__exc_parsers = []
-        self.regparser('web-services', 
-                'the server is running, waiting for connections...', 
-                self.setRunning)
-        self.regparser('server', 
-                'OpenERP server is running, waiting for connections...', 
-                self.setRunning)
-        self.regparser('web-services',
-                re.compile(r'starting (.+) service at ([0-9a-f\.\:\[\]]+) port ([0-9]+)'),
-                self.setListening)
-        self.regparser('init',re.compile(r'module (.+):'), self.unsetTestContext)
-        
-        self.regparser('init',re.compile(r'module (.+): creating or updating database tables'),
-                self.setModuleLoading)
-        self.regparser('init', re.compile(r'module (.+): loading objects$'),
-                self.setClearContext)
-        self.regparser('init', 'updating modules list', self.setClearContext)
-        self.regparser('init', re.compile(r'.*\: Assertions report:$', re.DOTALL),
-                self.setClearContext)
-
-        self.regparser('init', re.compile(r'module (.+): registering objects$'),
-                self.setModuleLoading2)
-        self.regparser('init',re.compile(r'module (.+): loading (.+)$'),
-                self.setModuleFile)
-        self.regparser('tests.*', re.compile(r'.*', re.DOTALL), self.setTestContext, multiline=True)
-        self.regparser('report', re.compile(r'rml_except: (.+)', re.DOTALL), self.reportExcept, multiline=True)
-        self.regparser('report', re.compile(r'Exception at: (.+)', re.DOTALL), self.reportExcept, multiline=True)
-        self.regparser('db.cursor', re.compile(r'Cursor not closed explicitly.*Cursor was created at (.+.py):([0-9]+)$', re.DOTALL), self.cursorHanging, multiline=True)
-        
-        self.regparser_exc('XMLSyntaxError', re.compile(r'line ([0-9]+), column ([0-9]+)'),
-                            lambda etype, ematch: { 'file-line': ematch.group(1), 'file-col': ematch.group(2)} )
+        self._init_parsers()
 
     def _io_flush(self):
         """ Process any remaining data in _io_bufs
@@ -799,7 +901,7 @@ class server_thread(threading.Thread):
         if '.' in mmatch.group(3):
             pkeys.append( mmatch.group(3).split('.', 1)[0]+'.*')
         for pk in pkeys:
-            parsers.extend(self.__parsers.get(pk,[]))
+            parsers.extend(self._parsers.get(pk,[]))
         
         pmatches = [] # we will put all matched parsers here.
         for regex, funct, multiline in parsers:
@@ -972,102 +1074,68 @@ class server_thread(threading.Thread):
                 and (self._lports.get('HTTP6') != str(self.port)):
             self.log.warning("server does not listen HTTP at port %s" % self.port)
         return True
-        
-    def dump_blame(self, exc=None, ekeys=None):
-        """Dump blame information for sth that went wrong
-        
-        @param exc the exception object, if available
-        @param ekeys extra blame keys to dump
-        """
-        blog = logging.getLogger('bqi.blame')
-        
-        
-        sdict = self.state_dict.copy()
-        
-        if exc:
-            emsg = ''
-            if isinstance(exc, xmlrpclib.Fault):
-                # faultCode from openerp is string, but standard is int
-                if isinstance(exc.faultCode, int):
-                    emsg = exc.faultString.strip()
-                else:
-                    emsg = "%s" % exc.faultCode
-                # try to get the server-side exception
-                # Note that exc is /not/ the exception object of the server
-                # itself, but the one that was transformed into an xmlrpc
-                # fault and sent to us. So, we can only do string processing
-                # on it.
-                try:
-                    faultLines = exc.faultString.rstrip().split('\n')
-                    lfl = len(faultLines)-1
-                    
-                    while lfl > 0:
-                        if not faultLines[lfl]:
-                            lfl -= 1
-                            continue
-                        if ':' not in faultLines[lfl][:20]:
-                            lfl -= 1
-                            continue
-                        break
 
-                    if lfl < 0:
-                        stype = ''
-                        sstr = '\n'.join(faultLines[-2])
-                    else:
-                        ses = faultLines[lfl]
-                        stype, sstr = ses.split(':',1)
-                        if '--' in sstr:
-                            stype = 'osv.%s' % (sstr.split('--')[1].strip())
-                            emsg = ' '.join(faultLines[lfl+1:])
-                    
-                    if stype:
-                        sdict['Exception type'] = stype
-                    
-                    # now, use the parsers to get even more useful information
-                    # from the exception string. They should return a dict
-                    # of keys to append to our blame info.
-                    # First parser to match wins, others will be skipped.
-                    for etype, erege, funct in self.__exc_parsers:
-                        if etype == None or etype == stype:
-                            mm = None
-                            if isinstance(erege, basestring):
-                                mm = (sstr == erege)
-                            else:
-                                mm = erege.search(sstr)
-                            if not mm:
-                                continue
-                        
-                            # we have a match here
-                            red = funct(etype, mm)
-                            if isinstance(red, dict):
-                                sdict.update(red)
-                            else:
-                                self.log.debug("why did parser %r return %r?", funct, red)
-                            break # don't process other handlers
-                    else:
-                        self.log.debug("No exception parser for %s: %s", stype, sstr)
-                
-                except Exception:
-                    self.log.debug("Cannot parse xmlrpc exception: %s" % exc.faultString, exc_info=True)
-            elif len(exc.args):
-                emsg = "%s" % exc.args[0]
-                sdict["Exception type"] = "%s.%s" % (exc.__class__.__module__ or '', exc.__class__.__name__)
-            else:
-                emsg = "%s" % exc # better than str(), works with unicode
-                sdict["Exception type"] = "%s.%s" % (exc.__class__.__module__ or '', exc.__class__.__name__)
+class xml_session(object):
+    """ This class resembles the openerp_libclient.session, using xmlrpclib
+    """
+    def __init__(self):
+        self.uid = None
+        self.passwd = None
+        self.super_passwd = None
+        self.dbname = None
+        self.uri = None
+    
+    def open(self, proto, **kwargs):
+        assert proto == 'http', "Built-in client cannot handle %s protocol" % proto
+        
+        self.uri = 'http://%s:%s' % (kwargs['host'], kwargs['port'])
+        self.user = kwargs['user']
+        self.passwd = kwargs['passwd']
+        self.dbname = kwargs['dbname']
+        self.super_passwd = kwargs.get('superpass', 'admin')
+        
+    def login(self):
+        conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/common')
+        print "trying to login"
+        uid = conn.login(self.dbname, self.user, self.passwd)
+        print "login:", uid
+        self.uid = uid
+        return uid
 
-            emsg = reduce_homedir(emsg)
-            sdict["Exception"] = emsg.replace('\n', ' ')
+    def call(self, obj, method, args, auth_level='db', notify=True):
+        conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/' + obj)
+        if auth_level == 'pub':
+            pass
+        elif auth_level == 'root':
+            args= (self.super_passwd,) + args
+        elif auth_level == 'db':
+            if not self.uid:
+                raise Exception("Session not open!")
+            args = (self.dbname, self.uid, self.passwd,) + args
+        else:
+            raise RuntimeError("Incorrect level %s" % auth_level)
+        res = getattr(conn,method)(*args)
+        return res
+        
+    def logged(self):
+        return self.uid is not None
 
-        if ekeys:
-            sdict.update(ekeys)
-        s = ''
-        # Format all the blame dict into a string
-        for key, val in sdict.items():
-            if val:
-                s += "%s: %s\n" % (key, val)
+class bqi_RPCProxy(object):
+    def __init__(self, session, resource):
+        self.resource = resource
+        self.session = session
 
-        blog.info(s.rstrip())
+    def __getattr__(self, name):
+        return bqi_RPCFunction(self.session, self.resource, name)
+
+class bqi_RPCFunction(object):
+    def __init__(self, session, obj, func_name):
+        self.obj = obj
+        self.func = func_name
+        self.session = session
+
+    def __call__(self, *args):
+        return self.session.call('object', method='execute', args=(self.obj, self.func)+args)
 
 class client_worker(object):
     """ This object will connect to a server and perform the various tests.
@@ -1083,64 +1151,76 @@ class client_worker(object):
             self.log.error("Server not ready, cannot work client")
             raise RuntimeError()
         self.uri = uri
-        self.user = options['login']
-        self.pwd = options['pwd']
+        
         self.dbname = options['dbname']
         self.super_passwd = options['super_passwd']
         self.series = options['server_series']
         self.do_demo = not opt.no_demo
-        self.has_os_times = self.series in ('pg84', 'v600', 'srv-lib')
+        self.has_os_times = self.series in ('pg84', 'v600', 'srv-lib') #TODO
+        if opt.url:
+            self._session_class = client_session
+        else:
+            self._session_class = xml_session
+        
+        self.session = self._session_class()
+        self.session.open(**connect_dsn)
 
+    def try_login(self):
+        if not self.session.logged():
+            self.session.login()
+
+    def orm_proxy(self, model):
+        """ Return ORM proxy object, like client lib
+        """
+        self.try_login()
+        return bqi_RPCProxy(self.session, model)
+        
     def _execute(self, connector, method, *args):
+        raise RuntimeError()
+    
+    def rpc_call(self, obj, method, *args, **kwargs):
+        auth_level = 'db'
+        if kwargs:
+            auth_level = kwargs.pop('auth_level')
+        if kwargs:
+            raise RuntimeError("Invalid kwargs: %r" % kwargs)
+        if auth_level == 'db':
+            self.try_login()
         self.log.debug("Sending command '%s' to server", method)
-        res = getattr(connector,method)(*args)
+        res = self.session.call(obj, method=method, args=args, auth_level=auth_level)
         self.log.debug("Command '%s' returned from server", method)
         return res
     
     def execute_common(self, level, func, *args):
-        conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/common')
-        if level == 'pub':
-            pass
-        elif level == 'root':
-            args= (self.super_passwd,) + args
-        elif level == 'db':
-            uid = self._login()
-            if not uid:
-                raise Exception("Could not login!")
-            args = (self.dbname, uid, self.pwd,) + args
-        else:
-            raise RuntimeError("Incorrect level %s" % level)
         server.state_dict['severity'] = 'warning'
         print "execute: %r %r" % (func, args)
-        return self._execute(conn, func, *args)
+        return self.rpc_call('common', func, *args, auth_level=level)
 
     def _login(self, user=None, passwd=''):
-        conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/common')
+        global connect_dsn
         if user is None:
-            # use the old ones
-            user = self.user
-            passwd = self.pwd
-        uid = self._execute(conn, 'login', self.dbname, user, passwd)
+            # use the existing session
+            session = self.session
+        else:
+            session = self._session_class()
+            session.open(**connect_dsn)
+        
+        uid = session.login()
         if uid:
-            if user != self.user:
+            if session is not self.session:
                 self.log.info("User changed to %s@%s" %(user, self.dbname))
-                self.user = user
-                self.pwd = passwd
+                self.session = session
         else:
             self.log.error("Cannot login as %s@%s" %(user, self.dbname))
-            if user != self.user:
-                self.log.info("Falling back to %s@%s" %(self.user, self.dbname))
+            if session is not self.session:
+                self.log.info("Falling back to previous session")
         return uid
 
     def import_translate(self, translate_in):
-        uid = self._login()
-        if not uid:
-            return False
         # TODO !
-        conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/wizard')
         server.state_dict['module-mode'] = 'translate'
         self.log.debug("Executing module.lang.import %s", translate_in)
-        wiz_id = self._execute(conn, 'create',self.dbname, uid, self.pwd, 'module.lang.import')
+        wiz_id = self.rpc_call('wizard', 'create', 'module.lang.import')
         if not wiz_id:
             raise ServerException("The language import wizard doesn't exist")
         for trans_in in translate_in:
@@ -1148,7 +1228,7 @@ class client_worker(object):
             state = 'init'
             datas = {'form':{}}
             while state!='end':
-                res = self._execute(conn,'execute',self.dbname, uid, self.pwd, wiz_id, datas, state, {})
+                res = self.rpc_call('wizard','execute', wiz_id, datas, state, {})
                 if 'datas' in res:
                     datas['form'].update( res['datas'].get('form',{}) )
                 if res['type']=='form':
@@ -1167,11 +1247,8 @@ class client_worker(object):
         return True
 
     def check_quality(self, modules, quality_logs):
-        uid = self._login()
         quality_logs += 'quality-logs'
-        if not uid:
-            return False
-        conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/object')
+        qual_obj = self.orm_proxy('module.quality.check')
         final = {}
         qlog = logging.getLogger('bqi.qlogs')
         
@@ -1181,9 +1258,7 @@ class client_worker(object):
             test_detail = {}
             server.state_dict['module-mode'] = 'quality'
             try:
-                quality_result = self._execute(conn,'execute', self.dbname, 
-                                    uid, self.pwd,
-                                    'module.quality.check','check_quality',module)
+                quality_result = qual_obj.check_quality(module)
                 # self.log.debug("Quality result: %r", quality_result)
                 detail_html = ''
                 html = '''<html><body><a name="TOP"></a>'''
@@ -1224,8 +1299,7 @@ class client_worker(object):
                     ost[i] -= prev[i]
             return ost
         try:
-            conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/common')
-            ost = self._execute(conn,'get_os_time', self.super_passwd)
+            ost = self.rpc_call('common','get_os_time', auth_level='root')
             if prev is not None:
                 ost = ost + ost
                 if len(prev) > 5:
@@ -1242,29 +1316,23 @@ class client_worker(object):
     def wait(self, id, timeout=600.0):
         progress=0.0
         expire = time.time() + timeout
-        conn = xmlrpclib.ServerProxy(self.uri+'/xmlrpc/db')
         while not progress==1.0:
             if time.time() >= expire:
                 raise ClientException("Timed out creating the database")
             time.sleep(2.0)
-            progress,users = self._execute(conn,'get_progress',self.super_passwd, id)
+            progress,users = self.rpc_call('db','get_progress', id, auth_level='root')
             self.log.debug("Progress: %s", progress)
         return True
 
     def list_db(self):
-        conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/db')
-        return self._execute(conn, 'list')
+        return self.rpc_call('db', 'list', auth_level='pub')
 
     def create_db(self, lang='en_US'):
-        conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/db')
-        # obj_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/object')
-        #wiz_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/wizard')
-        #login_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/common')
         server.state_dict['severity'] = 'blocking'
-        db_list = self._execute(conn, 'list')
+        db_list = self.list_db()
         if self.dbname in db_list:
             raise ClientException("Database already exists, drop it first!")
-        id = self._execute(conn,'create',self.super_passwd, self.dbname, self.do_demo, lang)
+        id = self.rpc_call('db','create', self.dbname, self.do_demo, lang, auth_level='root')
         self.wait(id)
         server.clear_context()
         if not self.install_module(['base_module_quality',]):
@@ -1275,11 +1343,10 @@ class client_worker(object):
         return True
 
     def drop_db(self):
-        conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/db')
-        db_list = self._execute(conn,'list')
+        db_list = self.list_db()
         if self.dbname in db_list:
             self.log.info("Going to drop db: %s", self.dbname)
-            self._execute(conn, 'drop', self.super_passwd, self.dbname)
+            self.rpc_call('db', 'drop', self.dbname, auth_level='root')
             self.log.info("Dropped db: %s", self.dbname)
             return True
         else:
@@ -1287,29 +1354,20 @@ class client_worker(object):
             return False
 
     def install_module(self, modules):
-        uid = self._login()
-        if not uid:
-            return False
-        
         # what buttons to press at each state:
         self.log.debug("Installing modules: %s", ', '.join(modules))
         server.state_dict['module-mode'] = 'install'
-        obj_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/object')
+        module_obj = self.orm_proxy('ir.module.module')
         
-        bad_mids = self._execute(obj_conn, 'execute', self.dbname, uid, self.pwd, 
-                        'ir.module.module', 'search', 
-                        [('name','in',modules), ('state','=','uninstallable')])
-        module_ids = self._execute(obj_conn, 'execute', self.dbname, uid, self.pwd, 
-                        'ir.module.module', 'search', [('name','in',modules)])
+        bad_mids = module_obj.search([('name','in',modules), ('state','=','uninstallable')])
+        module_ids = module_obj.search([('name','in',modules)])
         if not module_ids:
             self.log.error("Cannot find any of [%s] modules to install!",
                             ', '.join(modules))
             return False
         
         # Read the names of modules, so that we can identify them.
-        mod_names_res = self._execute(obj_conn, 'execute', self.dbname, uid, self.pwd, 
-                        'ir.module.module', 'read', module_ids,
-                        ['name'])
+        mod_names_res = module_obj.read(module_ids, ['name'])
         mod_names = {}
         for mr in mod_names_res:
             mod_names[mr['id']] = mr['name']
@@ -1338,8 +1396,7 @@ class client_worker(object):
             try:
                 # We have to try one-by-one, because we want to be able to
                 # recover from an exception.
-                self._execute(obj_conn, 'execute', self.dbname, uid, self.pwd, 
-                            'ir.module.module', 'button_install', [mid,])
+                module_obj.button_install([mid,])
             except xmlrpclib.Fault, e:
                 logger.error('xmlrpc exception: %s', reduce_homedir(e.faultCode.strip()))
                 logger.error('xmlrpc +: %s', reduce_homedir(e.faultString.rstrip()))
@@ -1347,25 +1404,21 @@ class client_worker(object):
                             'module': mod_names[mid], 'severity': 'error'})
 
         server.state_dict['severity'] = 'blocking'
-        ret = self._modules_upgrade(uid)
+        ret = self._modules_upgrade()
         server.clear_context()
         return ret
 
         
-    def _modules_upgrade(self, uid):
+    def _modules_upgrade(self):
         """ Perform the modules upgrade wizard, for ones previously selected
         """
-        obj_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/object')
-        wizard_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/wizard')
-
         wiz_id = False
         ret = False
         try:
             form_presses = { 'init': 'start', 'next': 'start',  'config': 'end',  'start': 'end'}
-            wiz_id = self._execute(wizard_conn, 'create', self.dbname, uid, self.pwd, 
-                            'module.upgrade.simple')
+            wiz_id = self.rpc_call('wizard', 'create', 'module.upgrade.simple')
             datas = {}
-            ret = self.run_wizard(wizard_conn, uid, wiz_id, form_presses, datas)
+            ret = self.run_wizard(wiz_id, form_presses, datas)
             return True
         except xmlrpclib.Fault, e:
             if e.faultCode == 'wizard.module.upgrade.simple':
@@ -1375,19 +1428,18 @@ class client_worker(object):
                 raise
 
         try:
-            wiz_id = self._execute(obj_conn, 'execute', self.dbname, uid, self.pwd, 
-                            'base.module.upgrade', 'create', {})
+            wiz_obj = self.orm_proxy('base.module.upgrade')
+            wiz_id = wiz_obj.create({})
         except xmlrpclib.Fault, e:
             raise ServerException("No usable wizard for module upgrade found, cannot continue")
 
-        ret = self._execute(obj_conn, 'execute', self.dbname, uid, self.pwd,
-                        'base.module.upgrade', 'upgrade_module', [wiz_id,], {})
+        ret = wiz_obj.upgrade_module([wiz_id,], {})
         self.log.debug("Upgrade wizard returned: %r", ret)
         
         assert ret, "The upgrade wizard must return some dict, like redirect to the config view"
         return True
 
-    def run_wizard(self, wizard_conn, uid, wiz_id, form_presses, datas):
+    def run_wizard(self, wiz_id, form_presses, datas):
         """ Simple Execute of a wizard, press form_presses until end.
         
             This tries to go through a wizard, by trying the states found
@@ -1403,8 +1455,7 @@ class client_worker(object):
         i = 0
         good_state = True
         while state!='end':
-            res = self._execute(wizard_conn, 'execute', self.dbname, uid, self.pwd, 
-                            wiz_id, datas, state, {})
+            res = self.rpc_call('wizard', 'execute', wiz_id, datas, state, {})
             i += 1
             if i > 100:
                 log.error("Wizard abort after %d steps", i)
@@ -1438,36 +1489,24 @@ class client_worker(object):
         return good_state
 
     def upgrade_module(self, modules):
-        uid = self._login()
-        if not uid:
-            return False
         server.state_dict['module-mode'] = 'upgrade'
-        obj_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/object')
-        wizard_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/wizard')
-        module_ids = self._execute(obj_conn, 'execute', self.dbname, uid, self.pwd, 
-                            'ir.module.module', 'search', [('name','in',modules)])
-        self._execute(obj_conn, 'execute', self.dbname, uid, self.pwd, 
-                            'ir.module.module', 'button_upgrade', module_ids)
+        module_obj = self.orm_proxy('ir.module.module')
+        module_ids = module_obj.search([('name','in',modules)])
+        module_obj.button_upgrade(module_ids)
         
         server.state_dict['severity'] = 'blocking'
-        ret = self._modules_upgrade(uid)
+        ret = self._modules_upgrade()
         server.clear_context()
         return ret
 
     def uninstall_module(self, modules):
-        uid = self._login()
-        if not uid:
-            return False
         server.state_dict['module-mode'] = 'uninstall'
-        obj_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/object')
-        wizard_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/wizard')
-        module_ids = self._execute(obj_conn, 'execute', self.dbname, uid, self.pwd, 
-                            'ir.module.module', 'search', [('name','in',modules)])
-        self._execute(obj_conn, 'execute', self.dbname, uid, self.pwd, 
-                            'ir.module.module', 'button_uninstall', module_ids)
+        module_obj = self.orm_proxy('ir.module.module')
+        module_ids = module_obj.search([('name','in',modules)])
+        module_obj.button_uninstall(module_ids)
         
         server.state_dict['severity'] = 'warning'
-        ret = self._modules_upgrade(uid)
+        ret = self._modules_upgrade()
         server.clear_context()
         return ret
 
@@ -1478,8 +1517,6 @@ class client_worker(object):
         involves an important part of the ORM logic.
         """
         server.clear_context()
-        uid = self._login()
-        obj_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/object')
         server.state_dict['severity'] = 'error'
         ost_start = self.get_ostimes()
         
@@ -1487,18 +1524,18 @@ class client_worker(object):
             # the obj_list is broken in XML-RPC1 for v600
             obj_list = [] # = self._execute(obj_conn, 'obj_list', self.dbname, uid, self.pwd)
         elif self.series == 'pg84':
-            obj_list = self._execute(obj_conn, 'obj_list', self.super_passwd)
+            obj_list = self.rpc_call('object', 'obj_list', auth_level='root')
             self.log.debug("Got these %d objects: %r ...", len(obj_list), obj_list[:20])
         
         # Get the models from the ir.model object
-        ir_model_ids = self._execute(obj_conn,'execute', self.dbname, uid, self.pwd,
-                                    'ir.model','search', [])
+        ir_model_obj = self.orm_proxy('ir.model')
+        ir_model_ids = ir_model_obj.search([])
         
         # also, look for model references in ir.model.data
-        imd_ids = self._execute(obj_conn,'execute', self.dbname, uid, self.pwd,
-                                    'ir.model.data','search',[('model','=','ir.model')])
-        imd_res = self._execute(obj_conn,'execute', self.dbname, uid, self.pwd,
-                                    'ir.model.data','read', imd_ids, ['module', 'name', 'res_id'])
+        imd_obj = self.orm_proxy('ir.model.data')
+        imd_ids = imd_obj.search([('model','=','ir.model')])
+        imd_res = imd_obj.read(imd_ids, ['module', 'name', 'res_id'])
+        
         model_tbl = {}
         for it in imd_res:
             if it['res_id'] not in ir_model_ids:
@@ -1509,8 +1546,7 @@ class client_worker(object):
                 continue
             model_tbl[it['res_id']] = (it['module'], it['name'])
         
-        model_res = self._execute(obj_conn,'execute', self.dbname, uid, self.pwd,
-                                    'ir.model', 'read', ir_model_ids, ['name', 'model'])
+        model_res = ir_model_obj.read(ir_model_ids, ['name', 'model'])
         ost_for = self.get_ostimes(ost_start)
         self.log.debug("Resolved the list of models in User: %.3f, Sys: %.3f, Real: %.3f",
                                     ost_for[0], ost_for[1], ost_for[4])
@@ -1520,7 +1556,9 @@ class client_worker(object):
             module = model_tbl.get(mod['id'],(None,False))[0]
             self.log.debug("Testing %s.%s", module or '<root>', mod['model'])
             try:
-                fvg = self._execute(obj_conn,'execute', self.dbname, uid, self.pwd,
+                # We are using direct rpc calls, rather than ORM proxies, because we
+                # want to be low level.
+                fvg = self.rpc_call('object','execute',
                                 mod['model'], 'fields_view_get', False, 'form', {}, True)
                 ost = self.get_ostimes(ost)
                 if not fvg:
@@ -1553,48 +1591,29 @@ class client_worker(object):
         """ Retrieve the list of loaded OSV objects
         """
         server.clear_context()
-        uid = self._login()
-        obj_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/object')
         server.state_dict['severity'] = 'warning'
 
         # Get the models from the ir.model object
-        ir_model_ids = self._execute(obj_conn,'execute', self.dbname, uid, self.pwd,
-                                    'ir.model','search', [])
+        ir_model_obj = self.orm_proxy('ir.model')
+        ir_model_ids = ir_model_obj.search([])
 
-        model_res = self._execute(obj_conn,'execute', self.dbname, uid, self.pwd,
-                                    'ir.model', 'read', ir_model_ids, ['model'])
+        model_res = ir_model_obj.read(ir_model_ids, ['model'])
 
         return [ mod['model'] for mod in model_res]
         
     def get_orm_keys(self, model):
         server.clear_context()
-        uid = self._login()
-        obj_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/object')
+        
+        model_obj = self.orm_proxy(model)
         server.state_dict['severity'] = 'warning'
-        fks = self._execute(obj_conn,'execute', self.dbname, uid, self.pwd,
-                                    model, 'fields_get_keys' )
+        fks = model_obj.fields_get_keys()
         return fks
-
-    def orm_execute(self, model, func, *args):
-        server.clear_context()
-        uid = self._login()
-        server.state_dict['severity'] = 'warning'
-        obj_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/object')
-        return self._orm_execute_int(obj_conn, uid, model, func, *args)
-
-    def _orm_execute_int(self, conn, uid, model, func, *args):
-        res = self._execute(conn,'execute', self.dbname, uid, self.pwd,
-                                    model, func, *args )
-        return res
 
     def update_modules_list(self):
         """ Re-scan the modules list
         """
         server.clear_context()
         server.state_dict['severity'] = 'warning'
-        obj_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/object')
-        uid = self._login()
-        assert uid, "Could not login"
 
         wiz_id = False
         ret = False
@@ -1602,13 +1621,14 @@ class client_worker(object):
         # If we want to support v5, ever, we shall put the clasic wizard code here
         
         try:
-            wiz_id = self._orm_execute_int(obj_conn, uid, 'base.module.update', 'create', {})
-        except xmlrpclib.Fault, e:
+            upd_wiz = self.orm_proxy('base.module.update')
+            wiz_id = upd_wiz.create({})
+        except xmlrpclib.Fault:
             raise ServerException("No usable wizard for module update found, cannot continue")
 
-        self._orm_execute_int(obj_conn, uid, 'base.module.update', 'update_module', [wiz_id,], {})
+        upd_wiz.update_module([wiz_id,], {})
         
-        ret = self._orm_execute_int(obj_conn, uid, 'base.module.update', 'read', [wiz_id,])
+        ret = upd_wiz.read([wiz_id,])
 
         if ret:
             self.log.info("Module update is %s: Added %d, Updated %d modules" % \
@@ -1683,12 +1703,8 @@ class client_worker(object):
         server.state_dict['severity'] = 'warning'
         server.state_dict['context'] = 'i18n.export'
 
-        obj_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/object')
-        uid = self._login()
-        assert uid, "Could not login"
-
-        mod_ids = self._orm_execute_int(obj_conn, uid, 'ir.module.module', 'search',
-                            mod_domain)
+        module_obj = self.orm_proxy('ir.module.module')
+        mod_ids = module_obj.search(mod_domain)
         if not mod_ids:
             self.log.error("No modules could be located")
             return False
@@ -1697,14 +1713,11 @@ class client_worker(object):
         self.log.info("Exporting %s translations, %d modules", 
                         lang or 'template', len(mod_ids))
             #server.state_dict['context'] = 'i18n.load.%s' % lang
-        wiz_id = self._orm_execute_int(obj_conn, uid, 
-                    'base.language.export', 'create', 
-                    {'lang': lang, 'format': format,
+        ble_obj = self.orm_proxy('base.language.export')
+        wiz_id = ble_obj.create( {'lang': lang, 'format': format,
                      'modules': [(6,0, mod_ids)] })
-        self._orm_execute_int(obj_conn, uid, 'base.language.export', 
-                'act_getfile', [wiz_id,])
-        ret = self._orm_execute_int(obj_conn, uid, 'base.language.export', 
-                'read', [wiz_id,], ['data','name'], {'bin_size':False})
+        ble_obj.act_getfile([wiz_id,])
+        ret = ble_obj.read([wiz_id,], ['data','name'], {'bin_size':False})
         if not ret:
             self.log.error("Export of translations has failed, no data")
             return False
@@ -1797,22 +1810,17 @@ class client_worker(object):
             if l.startswith('-'):
                 raise ValueError("Syntax error in arguments")
 
-        obj_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/object')
-        uid = self._login()
-        assert uid, "Could not login"
-
         wiz_id = False
         ret = False
         
         # If we want to support v5, ever, we shall put the clasic wizard code here
         
+        bli_obj = self.orm_proxy('base.language.install')
         for lang in args:
             self.log.info("Loading translation for %s", lang)
             server.state_dict['context'] = 'i18n.load.%s' % lang
-            wiz_id = self._orm_execute_int(obj_conn, uid, 'base.language.install', 
-                        'create', {'lang': lang, 'overwrite': overwrite})
-            self._orm_execute_int(obj_conn, uid, 'base.language.install',
-                        'lang_install', [wiz_id,])
+            wiz_id = bli_obj.create({'lang': lang, 'overwrite': overwrite})
+            bli_obj.lang_install([wiz_id,])
             
         server.clear_context()
         return True
@@ -1828,22 +1836,17 @@ class client_worker(object):
             if l.startswith('-'):
                 raise ValueError("Syntax error in arguments")
 
-        obj_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/object')
-        uid = self._login()
-        assert uid, "Could not login"
-
         wiz_id = False
         ret = False
         
         # If we want to support v5, ever, we shall put the clasic wizard code here
         
+        but_obj = self.orm_proxy('base.update.translations')
         for lang in args:
             self.log.info("Syncing translation terms for %s", lang)
             server.state_dict['context'] = 'i18n.sync.%s' % lang
-            wiz_id = self._orm_execute_int(obj_conn, uid, 'base.update.translations',
-                        'create', {'lang': lang})
-            self._orm_execute_int(obj_conn, uid, 'base.update.translations', 
-                        'act_update', [wiz_id,])
+            wiz_id = but_obj.create({'lang': lang})
+            but_obj.act_update([wiz_id,])
             
         server.clear_context()
         return True
@@ -1886,8 +1889,6 @@ class client_worker(object):
         if len(args) < 1:
             raise ClientException("Must specify one datafile")
 
-        uid = self._login()
-        obj_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/object')
         server.state_dict['severity'] = 'error'
         ost_start = self.get_ostimes()
 
@@ -1931,14 +1932,14 @@ class client_worker(object):
                 model2 = bname
 
             ost = self.get_ostimes()
-            module_ids = self._execute(obj_conn,'execute', self.dbname, uid, self.pwd,
-                                    'ir.module.module','search', [('name','=', module2)])
+            module_obj = self.orm_proxy('ir.module.module')
+            module_ids = module_obj.search([('name','=', module2)])
             if not module_ids:
                 raise ClientException("Cannot locate module %s for import!" % module2)
 
             if model:
-                ir_model_ids = self._execute(obj_conn,'execute', self.dbname, uid, self.pwd,
-                                    'ir.model','search', [('model','=', model2)])
+                model_obj = self.orm_proxy('ir.model')
+                ir_model_ids = model_obj.search([('model','=', model2)])
                 if not ir_model_ids:
                     raise ClientException("Cannot locate ORM model %s for import!" % model2)
 
@@ -1962,17 +1963,16 @@ class client_worker(object):
             data = fd.read()
             fd.close()
 
-            wiz_id = self._orm_execute_int(obj_conn, uid,
-                    'base_module_record.import', 'create',
-                    {'module_id': module_ids[0], 'format': ltype2,
+            bmi_obj = self.orm_proxy('base_module_record.import')
+            wiz_id = bmi_obj.create( {'module_id': module_ids[0], 
+                     'format': ltype2,
                      'mode': (test_mode and 'test') or 'init',
                      'model_id': (model and ir_model_ids[0]) or False,
                      'mdata': data,
                      'noupdate': noupdate
                     })
             try:
-                res = self._orm_execute_int(obj_conn, uid, 'base_module_record.import',
-                        'action_import', [wiz_id,])
+                res = bmi_obj.action_import([wiz_id,])
             except xmlrpclib.Fault, e:
                 e_fc = str(e.faultCode).split('\n',1)[0]
                 if e_fc in ('warning -- Assertion report',):
@@ -2002,20 +2002,18 @@ class client_worker(object):
         
         server.clear_context()
         server.state_dict['severity'] = 'warning'
-        obj_conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/object')
-        
-        uid = self._login()
-        journal_ret = self._orm_execute_int(obj_conn, uid, 'account.journal', 'search',
-                        [('type', '=', 'sale')])
+        journal_obj = self.orm_proxy('account.journal')
+        journal_ret = journal_obj.search([('type', '=', 'sale')])
         if not journal_ret:
             raise ClientException("Must have one journal of type 'sale' to use")
         
         journal_id = journal_ret[0]
         
-        acc_1 = self._orm_execute_int(obj_conn, uid, 'account.account', 'search',
-                        [('name', 'ilike', 'Cash')])
-        acc_2 = self._orm_execute_int(obj_conn, uid, 'account.account', 'search',
-                        [('name', 'ilike', 'Expenses')])
+        account_obj = self.orm_proxy('account.account')
+        account_move_obj = self.orm_proxy('account.move')
+        
+        acc_1 = account_obj.search([('name', 'ilike', 'Cash')])
+        acc_2 = account_obj.search([('name', 'ilike', 'Expenses')])
         if not (acc_1 and acc_2):
             raise ClientException("Must have one cash and one Expenses account")
         acc_1 = acc_1[0]
@@ -2026,7 +2024,7 @@ class client_worker(object):
 
         for i in range(1, howmany):
             amount = random.randint(1, 200000) * 0.25
-            move_id = self._orm_execute_int(obj_conn, uid, 'account.move', 'create', 
+            move_id = account_move_obj.create(
                     { 'ref': 'Test%s' % i,
                     'type': 'journal_voucher',
                     'journal_id': journal_id ,
@@ -2060,7 +2058,7 @@ class client_worker(object):
         self.log.info("Moves generated at: User: %.3f, Sys: %.3f, Real: %.3f %.3f/entry" % \
                         (ost[0], ost[1], ost[4], ost[0] / howmany))
         # Validate all the moves
-        self._orm_execute_int(obj_conn, uid, 'account.move', 'button_validate', move_ids, {})
+        account_move_obj.button_validate(move_ids, {})
         
         ost = self.get_ostimes(ost)
         self.log.info("Moves validated at: User: %.3f, Sys: %.3f, Real: %.3f" % (ost[0], ost[1], ost[4]))
@@ -2231,6 +2229,7 @@ class CmdPrompt(object):
         self.__cmdlevel = 0
         self.dbname = None
         self.cur_orm = None
+        self.cur_orm_obj = None
         self.cur_res_id = None
         self._orm_cache = []
         self._last_res = None
@@ -2346,10 +2345,10 @@ class CmdPrompt(object):
                 print "Command 'debug object ...' is only available at orm level!"
                 return
             argo = args and args[0] or 'on'
-            if client.series in ('pg84',):
-                self._client.execute_common('root', 'set_obj_debug', client.dbname, self.cur_orm, (argo == 'on') and 1 or 0)
+            if self._client.series in ('pg84',):
+                self._client.execute_common('root', 'set_obj_debug', self._client.dbname, self.cur_orm, (argo == 'on') and 1 or 0)
             else:
-                print "Cannot change the ORM log level for %s server" % client.series
+                print "Cannot change the ORM log level for %s server" % self._client.series
                 return
             return
         do_server = True
@@ -2512,7 +2511,7 @@ class CmdPrompt(object):
             elif args[0] == 'get':
                 res = None
                 if args[1] == 'loglevel':
-                    if client.series == 'pg84':
+                    if self._client.series == 'pg84':
                         ret = self._client.execute_common('root', 'get_loglevel', *args[2:])
                     else:
                         ret = self._client.execute_common('root', 'get_loglevel')
@@ -2543,10 +2542,10 @@ class CmdPrompt(object):
                     print_sql_stats(ret)
                     ret = 'OK'
                 elif args[1] == 'log-levels':
-                    if client.series == 'pg84':
+                    if self._client.series == 'pg84':
                         ret = self._client.execute_common('root', 'get_loglevel', '*')
                     else:
-                        print "Command not supported for %s server series" % client.server_series
+                        print "Command not supported for %s server series" % self._client.server_series
                 else:
                     print "Wrong command"
                     return
@@ -2598,6 +2597,7 @@ class CmdPrompt(object):
             self.__cmdlevel = 0
             self.cur_res_id = None
             self.cur_orm = None
+            self.cur_orm_obj = None
             self.dbname = None
             self._eloc = {}
         self._last_res = None
@@ -2616,29 +2616,30 @@ class CmdPrompt(object):
             print 'Must supply some modules!'
             return
         try:
+            imm_obj = self._client.orm_proxy('ir.module.module')
             if cmd == 'info':
-                inst_mods = self._client.orm_execute('ir.module.module', 'search', [('name','in', args)])
+                inst_mods = imm_obj.search([('name','in', args)])
                 if not inst_mods:
                     print "No modules with these names found!"
                     return
-                for mod in self._client.orm_execute('ir.module.module', 'read', inst_mods):
+                for mod in imm_obj.read(inst_mods):
                     print_lexicon(mod, title="\nModule %s" % mod['name'], sort_fn=self._col_sorted)
             elif cmd == 'list':
-                inst_mods = self._client.orm_execute('ir.module.module', 'search', [('state','=', 'installed')])
+                inst_mods = imm_obj.search([('state','=', 'installed')])
                 if not inst_mods:
                     print "No modules installed! ??"
                 else:
-                    res = self._client.orm_execute('ir.module.module', 'read', inst_mods, ['name', 'shortdesc'])
+                    res = imm_obj.read(inst_mods, ['name', 'shortdesc'])
                     print "Installed modules:"
                     print_table(res, ['id', 'name', 'shortdesc'])
             elif cmd == 'install':
-                client.install_module(args)
+                self._client.install_module(args)
             elif cmd == 'upgrade':
-                client.upgrade_module(args)
+                self._client.upgrade_module(args)
             elif cmd == 'uninstall':
-                client.uninstall_module(args)
+                self._client.uninstall_module(args)
             elif cmd == 'refresh-list':
-                client.update_modules_list()
+                self._client.update_modules_list()
             else:
                 print "Unknown command: module %s" % cmd
         except xmlrpclib.Fault, e:
@@ -2651,7 +2652,7 @@ class CmdPrompt(object):
 
     def fetch_orm_names(self):
         try:
-            self._orm_cache = client.get_orm_names()
+            self._orm_cache = self._client.get_orm_names()
         except Exception, e:
             print "exc:", e
 
@@ -2664,7 +2665,8 @@ class CmdPrompt(object):
             print "Must select one orm model!"
             return
         try:
-            client.get_orm_keys(model)
+            self._client.get_orm_keys(model)
+            orm_obj = self._client.orm_proxy(model)
         except xmlrpclib.Fault:
             print "Wrong ORM model!"
             return
@@ -2675,7 +2677,7 @@ class CmdPrompt(object):
                 print "id of orm must be integer!"
                 return
             try:
-                client.orm_execute(model, 'read', [res_id,], ['id',])
+                orm_obj.read([res_id,], ['id',])
             except xmlrpclib.Fault:
                 print "Record not found!"
                 return
@@ -2684,6 +2686,7 @@ class CmdPrompt(object):
         else:
             self.__cmdlevel = 'orm'
         self.cur_orm = model
+        self.cur_orm_obj = orm_obj
 
     def _cmd_res_id(self, res_id):
         """Select a single resource of an ORM model
@@ -2697,7 +2700,7 @@ class CmdPrompt(object):
             print "id of orm must be integer!"
             return
         try:
-            client.orm_execute(self.cur_orm, 'read', [res_id,], ['id',])
+            self.cur_orm_obj('read', [res_id,], ['id',])
         except xmlrpclib.Fault:
             print "Record not found!"
             return
@@ -2714,6 +2717,7 @@ class CmdPrompt(object):
         if not self.cur_orm:
             print "Must be at an ORM level!"
             return
+        assert self.cur_orm_obj
         astr = ' '.join(args)
         if not '(' in astr:
             print "Syntax: foobar(...)"
@@ -2733,7 +2737,7 @@ class CmdPrompt(object):
             aexpr = ( [self.cur_res_id,],) + aexpr
         try:
             logger.debug("Trying orm execute: %s(%s)", afn, ', '.join(map(repr,aexpr)))
-            res = client.orm_execute(self.cur_orm, afn, *aexpr)
+            res = getattr(self.cur_orm, afn)(*aexpr)
             server._io_flush()
         except xmlrpclib.Fault, e:
             if isinstance(e.faultCode, (int, long)):
@@ -2777,14 +2781,17 @@ class CmdPrompt(object):
         model = None
         if self.cur_orm:
             model = self.cur_orm
+            obj = self.cur_orm_obj
         elif args:
             model = args[0]
+            obj = self._client.orm_proxy(model)
         else:
             print "ORM model must be specified!"
             return
 
+        assert obj
         logger.debug("Trying %s.fields_get()", model)
-        res = client.orm_execute(model, 'fields_get')
+        res = obj.fields_get()
         server._io_flush()
 
         # Form the table
@@ -2957,7 +2964,7 @@ class CmdPrompt(object):
                 aexpr = ( [self.cur_res_id,],) + aexpr
             try:
                 logger.debug("Trying orm execute: %s(%s)", afn, ', '.join(map(repr,aexpr)))
-                res = client.orm_execute(self.cur_orm, afn, *aexpr)
+                res = getattr(self.cur_orm_obj, afn)(*aexpr)
                 server._io_flush()
             except xmlrpclib.Fault, e:
                 if isinstance(e.faultCode, (int, long)):
@@ -3007,13 +3014,13 @@ class CmdPrompt(object):
             # we directly call the client methods, because their argument
             # syntax should be identical between cmdline and interactive.
             if cmd == 'import':
-                client.import_trans(*args)
+                self._client.import_trans(*args)
             elif cmd == 'export':
-                client.export_trans(*args)
+                self._client.export_trans(*args)
             elif cmd == 'load':
-                client.load_trans(*args)
+                self._client.load_trans(*args)
             elif cmd == 'sync':
-                client.sync_trans(*args)
+                self._client.sync_trans(*args)
         except xmlrpclib.Fault, e:
             if isinstance(e.faultCode, (int, long)):
                 e.faultCode = str(e.faultCode)
@@ -3032,7 +3039,7 @@ class CmdPrompt(object):
         """
         try:
             if cmd == 'account-moves':
-                client.gen_account_moves(args[0])
+                self._client.gen_account_moves(args[0])
             else:
                 print "Unknown sub-command: test %s" % cmd
         except xmlrpclib.Fault, e:
@@ -3066,7 +3073,7 @@ class CmdPrompt(object):
             print "At least the filename is required"
             return
         try:
-            client.import_data_file(*args)
+            self._client.import_data_file(*args)
         except xmlrpclib.Fault, e:
             if isinstance(e.faultCode, (int, long)):
                 e.faultCode = str(e.faultCode)
@@ -3089,7 +3096,7 @@ class CmdPrompt(object):
         calls will be executed as that user (hopefully).
         """
         
-        client._login(login, passwd)
+        self._client._login(login, passwd)
 
 usage = """%prog command [options]
 
@@ -3121,6 +3128,10 @@ Basic Commands:
 """
 
 parser = optparse.OptionParser(usage)
+parser.add_option("-R", "--remote", action="store_true", default=False,
+                    help="Remote mode. Connect to running OpenERP server, rather than launching one"),
+parser.add_option("-H", "--url", default=False,
+                    help="URL of remote server to connect to"),
 parser.add_option("-m", "--modules", dest="modules", action="append",
                      help="specify modules to install or check quality")
 parser.add_option("--addons-path", dest="addons_path", help="specify the addons path")
@@ -3331,7 +3342,6 @@ def init_log():
         log.setLevel(logging.DEBUG)
     else:
         log.setLevel(logging.INFO)
-    has_stdout = has_stderr = False
     max_logs = int(opt.max_logs or 10)
 
     if not (opt.xml_log or opt.txt_log or opt.mach_log):
@@ -3443,9 +3453,6 @@ cmdargs = parse_cmdargs(args)
 if len(cmdargs) < 1:
     parser.error("You have to specify a command!")
 
-#die(lmodules and (not opt.db_name),
-#        "the modules option cannot be used without the database (-d) option")
-
 die(opt.translate_in and (not opt.db_name),
         "the translate-in option cannot be used without the database (-d) option")
 
@@ -3500,13 +3507,49 @@ def load_mod_info(mdir, module):
 
     return {}
 
-server = server_thread(root_path=options['root-path'], port=options['port'],
+connect_dsn =  {'user': options['login'], 
+            'passwd': options['pwd'], 
+            'superpass': options['super_passwd'],
+            'dbname': options['dbname'],
+            }
+
+def parse_url_dsn(url):
+    import urlparse
+    global connect_dsn
+    netloc_re = re.compile( r'(?:(?P<user>[^:@]+?)(?:\:(?P<pass>[^@]*?))?@)?'
+        r'(?P<host>(?:[\w\-\.]+)|(?:\[[0-9a-fA-F:]+\]))'
+        r'(?:\:(?P<port>[0-9]{1,5}))?$')
+    uparts = urlparse.urlparse(url, allow_fragments=False)
+    
+    if uparts.scheme:
+        connect_dsn['proto'] = uparts.scheme
+    if uparts.netloc:
+        um = netloc_re.match(uparts.netloc)
+        if not um:
+            raise ValueError("Cannot decode net locator: %s" % uparts.netloc)
+        for k, v in um.groupdict().items():
+            if v is not None:
+                connect_dsn[k] = v
+    if uparts.query:
+        pass
+    # path, params, fragment
+
+parse_url_dsn(uri)
+
+if opt.url:
+    parse_url_dsn(opt.url)
+
+if not opt.remote:
+    server = local_server_thread(root_path=options['root-path'], port=options['port'],
                         netport=options['netport'], addons_path=options['addons-path'],
                         dbname=options['dbname'],
                         srv_mode=options['server_series'], config=options['config'],
                         do_warnings=bool(opt.warnings in ('all','warn')),
                         ftp_port=opt.ftp_port, defines=opt.defines, pyargs=opt.pyargs,
                         debug=opt.debug or opt.debug_server)
+else:
+    # connect to remote server!
+    pass
 
 logger.info('start of script')
 try:
