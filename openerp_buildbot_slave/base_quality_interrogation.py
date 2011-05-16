@@ -2607,16 +2607,30 @@ class CmdPrompt(object):
         
         Available ones are:
             info <mod>...         Get module information
+            list                  List installed modules
             install <mod> ...     Install module(s)
             upgrade <mod> ...     Upgrade module(s)
             uninstall <mod> ...   Remove module(s)
         """
-        if cmd != 'refresh-list' and not args:
+        if cmd not in ('refresh-list', 'list') and not args:
             print 'Must supply some modules!'
             return
         try:
             if cmd == 'info':
-                pass
+                inst_mods = self._client.orm_execute('ir.module.module', 'search', [('name','in', args)])
+                if not inst_mods:
+                    print "No modules with these names found!"
+                    return
+                for mod in self._client.orm_execute('ir.module.module', 'read', inst_mods):
+                    print_lexicon(mod, title="\nModule %s" % mod['name'], sort_fn=self._col_sorted)
+            elif cmd == 'list':
+                inst_mods = self._client.orm_execute('ir.module.module', 'search', [('state','=', 'installed')])
+                if not inst_mods:
+                    print "No modules installed! ??"
+                else:
+                    res = self._client.orm_execute('ir.module.module', 'read', inst_mods, ['name', 'shortdesc'])
+                    print "Installed modules:"
+                    print_table(res, ['id', 'name', 'shortdesc'])
             elif cmd == 'install':
                 client.install_module(args)
             elif cmd == 'upgrade':
@@ -2738,6 +2752,22 @@ class CmdPrompt(object):
             print "Res is a %s. Use the print cmd to inspect it." % type(res)
         self._last_res = res
 
+    def _col_sorted(self, tups):
+        """ Sort a list of (fieldname, value) tuples
+
+        This is a special sort, because it considers some builtin columns
+        and some frequently used ones will be sorted first
+        """
+
+        coldict = { 'id': 0, '__vptr': 5,
+                'create_uid': 10, 'create_date': 11,
+                'write_uid': 20, 'write_date': 21,
+                'xmlid': 30,
+                'name': 40, 'date': 42, 'state': 42, 'description': 43,
+                'user_id': 44, 'company_id': 45
+                }
+        return sorted(tups, key=lambda x: coldict.get(x[0], x[0]))
+
     def _cmd_describe(self, *args):
         """ Describe an ORM model, its fields [and properties]
 
@@ -2757,27 +2787,11 @@ class CmdPrompt(object):
         res = client.orm_execute(model, 'fields_get')
         server._io_flush()
 
-        def col_sorted(tups):
-            """ Sort a list of (fieldname, value) tuples
-
-            This is a special sort, because it considers some builtin columns
-            and some frequently used ones will be sorted first
-            """
-
-            coldict = { 'id': 0, '__vptr': 5,
-                    'create_uid': 10, 'create_date': 11,
-                    'write_uid': 20, 'write_date': 21,
-                    'xmlid': 30,
-                    'name': 40, 'date': 42, 'state': 42, 'description': 43,
-                    'user_id': 44, 'company_id': 45
-                    }
-            return sorted(tups, key=lambda x: coldict.get(x[0], x[0]))
-
         # Form the table
         rows = []
         help_flds = {}
         selection_flds = {}
-        for field, props in col_sorted(res.items()):
+        for field, props in self._col_sorted(res.items()):
             crow = {'Field': field, 'String': props.pop('string'), 
                     'Type': props.pop('type')}
             rest = []
@@ -2818,11 +2832,11 @@ class CmdPrompt(object):
         print
         if selection_flds:
             print "Selection fields:"
-            for field, sels in col_sorted(selection_flds.items()):
+            for field, sels in self._col_sorted(selection_flds.items()):
                 print_lexicon(sels, title="  for %s:" % field, indent=6)
             print
         if help_flds:
-            print_lexicon(help_flds, title="Help Strings:", sort_fn=col_sorted)
+            print_lexicon(help_flds, title="Help Strings:", sort_fn=self._col_sorted)
             print
         return
 
