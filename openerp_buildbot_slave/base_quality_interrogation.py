@@ -54,6 +54,9 @@ try:
 except ImportError:
     from StringIO import StringIO
 
+# will be imported later:
+client_session = None
+
 def to_decode(s):
     try:
         return s.encode('utf-8')
@@ -1135,7 +1138,7 @@ class bqi_RPCFunction(object):
         self.session = session
 
     def __call__(self, *args):
-        return self.session.call('object', method='execute', args=(self.obj, self.func)+args)
+        return self.session.call('/object', method='execute', args=(self.obj, self.func)+args)
 
 class client_worker(object):
     """ This object will connect to a server and perform the various tests.
@@ -1194,7 +1197,7 @@ class client_worker(object):
     def execute_common(self, level, func, *args):
         server.state_dict['severity'] = 'warning'
         print "execute: %r %r" % (func, args)
-        return self.rpc_call('common', func, *args, auth_level=level)
+        return self.rpc_call('/common', func, *args, auth_level=level)
 
     def _login(self, user=None, passwd=''):
         global connect_dsn
@@ -1220,7 +1223,7 @@ class client_worker(object):
         # TODO !
         server.state_dict['module-mode'] = 'translate'
         self.log.debug("Executing module.lang.import %s", translate_in)
-        wiz_id = self.rpc_call('wizard', 'create', 'module.lang.import')
+        wiz_id = self.rpc_call('/wizard', 'create', 'module.lang.import')
         if not wiz_id:
             raise ServerException("The language import wizard doesn't exist")
         for trans_in in translate_in:
@@ -1228,7 +1231,7 @@ class client_worker(object):
             state = 'init'
             datas = {'form':{}}
             while state!='end':
-                res = self.rpc_call('wizard','execute', wiz_id, datas, state, {})
+                res = self.rpc_call('/wizard','execute', wiz_id, datas, state, {})
                 if 'datas' in res:
                     datas['form'].update( res['datas'].get('form',{}) )
                 if res['type']=='form':
@@ -1299,7 +1302,7 @@ class client_worker(object):
                     ost[i] -= prev[i]
             return ost
         try:
-            ost = self.rpc_call('common','get_os_time', auth_level='root')
+            ost = self.rpc_call('/common','get_os_time', auth_level='root')
             if prev is not None:
                 ost = ost + ost
                 if len(prev) > 5:
@@ -1320,19 +1323,19 @@ class client_worker(object):
             if time.time() >= expire:
                 raise ClientException("Timed out creating the database")
             time.sleep(2.0)
-            progress,users = self.rpc_call('db','get_progress', id, auth_level='root')
+            progress,users = self.rpc_call('/db','get_progress', id, auth_level='root')
             self.log.debug("Progress: %s", progress)
         return True
 
     def list_db(self):
-        return self.rpc_call('db', 'list', auth_level='pub')
+        return self.rpc_call('/db', 'list', auth_level='pub')
 
     def create_db(self, lang='en_US'):
         server.state_dict['severity'] = 'blocking'
         db_list = self.list_db()
         if self.dbname in db_list:
             raise ClientException("Database already exists, drop it first!")
-        id = self.rpc_call('db','create', self.dbname, self.do_demo, lang, auth_level='root')
+        id = self.rpc_call('/db','create', self.dbname, self.do_demo, lang, auth_level='root')
         self.wait(id)
         server.clear_context()
         if not self.install_module(['base_module_quality',]):
@@ -1346,7 +1349,7 @@ class client_worker(object):
         db_list = self.list_db()
         if self.dbname in db_list:
             self.log.info("Going to drop db: %s", self.dbname)
-            self.rpc_call('db', 'drop', self.dbname, auth_level='root')
+            self.rpc_call('/db', 'drop', self.dbname, auth_level='root')
             self.log.info("Dropped db: %s", self.dbname)
             return True
         else:
@@ -1416,7 +1419,7 @@ class client_worker(object):
         ret = False
         try:
             form_presses = { 'init': 'start', 'next': 'start',  'config': 'end',  'start': 'end'}
-            wiz_id = self.rpc_call('wizard', 'create', 'module.upgrade.simple')
+            wiz_id = self.rpc_call('/wizard', 'create', 'module.upgrade.simple')
             datas = {}
             ret = self.run_wizard(wiz_id, form_presses, datas)
             return True
@@ -1455,7 +1458,7 @@ class client_worker(object):
         i = 0
         good_state = True
         while state!='end':
-            res = self.rpc_call('wizard', 'execute', wiz_id, datas, state, {})
+            res = self.rpc_call('/wizard', 'execute', wiz_id, datas, state, {})
             i += 1
             if i > 100:
                 log.error("Wizard abort after %d steps", i)
@@ -1524,7 +1527,7 @@ class client_worker(object):
             # the obj_list is broken in XML-RPC1 for v600
             obj_list = [] # = self._execute(obj_conn, 'obj_list', self.dbname, uid, self.pwd)
         elif self.series == 'pg84':
-            obj_list = self.rpc_call('object', 'obj_list', auth_level='root')
+            obj_list = self.rpc_call('/object', 'obj_list', auth_level='root')
             self.log.debug("Got these %d objects: %r ...", len(obj_list), obj_list[:20])
         
         # Get the models from the ir.model object
@@ -1558,7 +1561,7 @@ class client_worker(object):
             try:
                 # We are using direct rpc calls, rather than ORM proxies, because we
                 # want to be low level.
-                fvg = self.rpc_call('object','execute',
+                fvg = self.rpc_call('/object','execute',
                                 mod['model'], 'fields_view_get', False, 'form', {}, True)
                 ost = self.get_ostimes(ost)
                 if not fvg:
