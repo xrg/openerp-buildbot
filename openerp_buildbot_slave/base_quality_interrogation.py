@@ -2237,6 +2237,7 @@ class CmdPrompt(object):
         self._orm_cache = []
         self._last_res = None
         self._eloc = {}
+        self._logger = logging.getLogger('bqi.cli')
         import readline
         
         readline.set_completer(self._complete)
@@ -2290,15 +2291,16 @@ class CmdPrompt(object):
             try:
                 cmd(*args)
             except Exception, e:
-                print "Command %s failed: %s" % (command, e)
+                self._logger.error("Command %s failed: %s", command, e)
+                self._logger.debug("Exception:", exc_info=True)
                 print
             except KeyboardInterrupt:
-                print "Cancelled"
+                self._logger.warning("Cancelled")
                 self.does_run = False
                 return False
             server._io_flush()
         else:
-            print "Unknown command:", command[:10]
+            self._logger.error("Unknown command: %s", command[:10])
 
         if not self.does_run:
             return False
@@ -2310,10 +2312,8 @@ class CmdPrompt(object):
         "Temporary debugger for completion"
         try:
             return self._complete_2(text,state)
-        except Exception, e:
-            import traceback
-            traceback.print_exc()
-            print "Exc:", e
+        except Exception:
+            self._logger.warning('Cannot complete:', exc_info=True)
 
     def _complete_2(self, text, state):
         possible = []
