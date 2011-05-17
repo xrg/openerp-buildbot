@@ -2803,7 +2803,7 @@ class CmdPrompt(object):
             aexpr = ( [self.cur_res_id,],) + aexpr
         try:
             logger.debug("Trying orm execute: %s(%s)", afn, ', '.join(map(repr,aexpr)))
-            res = getattr(self.cur_orm, afn)(*aexpr)
+            res = getattr(self.cur_orm_obj, afn)(*aexpr)
             server._io_flush()
         except xmlrpclib.Fault, e:
             if isinstance(e.faultCode, (int, long)):
@@ -2813,6 +2813,7 @@ class CmdPrompt(object):
             return
         except Exception, e:
             print "Failed orm execute:", e
+            self._logger.debug("Failed %s():", afn, exc_info=True)
             return
 
         toprint = repr(res)
