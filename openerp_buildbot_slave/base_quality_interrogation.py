@@ -596,6 +596,7 @@ class server_thread(threading.Thread):
         self.log_state = logging.getLogger('bqi.state') # will receive command-like messages
         self._parsers = {}
         self._exc_parsers = []
+        self._lports = {}
 
     def _init_parsers(self):
         self.regparser('web-services', 
@@ -725,6 +726,26 @@ class server_thread(threading.Thread):
 
         blog.info(s.rstrip())
 
+    def start_full(self):
+        """ start and wait until server is up, ready to serve
+        """
+        self.state_dict['severity'] = 'blocking'
+        self.start()
+        time.sleep(2.0)
+        t = 0
+        while not self.is_ready:
+            if not self.is_running:
+                raise ServerException("Server cannot start")
+            if t > 120:
+                self.stop()
+                raise ServerException("Server took too long to start")
+            time.sleep(1)
+            t += 1
+        if self._lports.get('HTTP') != str(self.port) \
+                and (self._lports.get('HTTP6') != str(self.port)):
+            self.log.warning("server does not listen HTTP at port %s" % self.port)
+        return True
+
 class local_server_thread(server_thread):
     def __init__(self, root_path, port, netport, addons_path, dbname, pyver=None, 
                 srv_mode='v600', timed=False, debug=False, do_warnings=False,
@@ -791,7 +812,6 @@ class local_server_thread(server_thread):
             self.args.append('--smtp=maildir:%s' % os.path.abspath(os.path.expanduser(opt.smtp_maildir)))
             self.args.append('--smtp-user=user')
         self.proc = None
-        self._lports = {}
         self._io_bufs = {} # Buffers for stdin, stdio processing
 
         # Regular expressions:
@@ -1058,25 +1078,52 @@ class local_server_thread(server_thread):
         finally:
             self.is_running = False
         
-    def start_full(self):
-        """ start and wait until server is up, ready to serve
-        """
-        self.state_dict['severity'] = 'blocking'
-        self.start()
-        time.sleep(2.0)
-        t = 0
-        while not self.is_ready:
-            if not self.is_running:
-                raise ServerException("Server cannot start")
-            if t > 120:
-                self.stop()
-                raise ServerException("Server took too long to start")
-            time.sleep(1)
-            t += 1
-        if self._lports.get('HTTP') != str(self.port) \
-                and (self._lports.get('HTTP6') != str(self.port)):
-            self.log.warning("server does not listen HTTP at port %s" % self.port)
-        return True
+
+class remote_server_thread(server_thread):
+    def __init__(self, **kwargs):
+        server_thread.__init__(self)
+        global opt
+        self._must_stop = False
+        self.session = None
+        self.port = opt.port
+    
+    def run(self):
+        self.log.info("Run")
+        self.is_running = True
+        global opt, connect_dsn
+
+        try:
+            # we open an independent connection to the server
+            if opt.url:
+                self.session = client_session()
+            else:
+                self.session = xml_session()
+
+            self.session.open(**connect_dsn)
+            # when open suceeds, it means the server is running and reachable
+            self.is_ready = True
+            self._lports['HTTP'] = self.port # fool self.start_full()
+
+            while not self._must_stop:
+                self.session.loop_once()
+                time.sleep(5)
+
+            # TODO: connect to remote-enabled loggers, if any
+            self.is_ready = False
+            self.log.info("Stopped watching server")
+        finally:
+            self.is_running = False
+
+    def stop(self):
+        self.log.info("Disconnecting from server")
+        # session close? TODO
+        if self.session:
+            self.session.logout()
+        self._must_stop = True
+        pass
+    
+    def _io_flush(self):
+        pass
 
 class xml_session(object):
     """ This class resembles the openerp_libclient.session, using xmlrpclib
@@ -1090,12 +1137,22 @@ class xml_session(object):
     
     def open(self, proto, **kwargs):
         assert proto == 'http', "Built-in client cannot handle %s protocol" % proto
+        global logger
         
         self.uri = 'http://%s:%s' % (kwargs['host'], kwargs['port'])
         self.user = kwargs['user']
         self.passwd = kwargs['passwd']
         self.dbname = kwargs['dbname']
         self.super_passwd = kwargs.get('superpass', 'admin')
+        
+        # do a trivial connectivity check:
+        try:
+            conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/db')
+            sv = conn.server_version()
+        except xmlrpclib.Fault, e:
+            logger.error("Cannot connect to server: %s", e)
+            logger.debug("Cannot connect:", exc_info=True)
+            raise ClientException(e.faultString)
         
     def login(self):
         conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/common')
@@ -1119,9 +1176,15 @@ class xml_session(object):
             raise RuntimeError("Incorrect level %s" % auth_level)
         res = getattr(conn,method)(*args)
         return res
-        
+
     def logged(self):
         return self.uid is not None
+
+    def loop_once(self):
+        pass
+
+    def logout(self):
+        self.uri = None #let all further attempts fail
 
 class bqi_RPCProxy(object):
     def __init__(self, session, resource):
@@ -3559,7 +3622,7 @@ if not opt.remote:
                         debug=opt.debug or opt.debug_server)
 else:
     # connect to remote server!
-    pass
+    server = remote_server_thread()
 
 logger.info('start of script')
 try:
