@@ -3541,6 +3541,13 @@ parse_url_dsn(uri)
 
 if opt.url:
     parse_url_dsn(opt.url)
+    try:
+        from openerp_libclient import protocols
+        __hush_pyflakes = [protocols,]
+        from openerp_libclient import session as libclient_session
+        client_session = libclient_session.Session
+    except ImportError:
+        raise ImportError("openerp client library not found. Cannot use url parameter")
 
 if not opt.remote:
     server = local_server_thread(root_path=options['root-path'], port=options['port'],
