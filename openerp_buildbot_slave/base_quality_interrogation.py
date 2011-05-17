@@ -355,10 +355,10 @@ def print_table(res, columns=None, max_width=True, wrap=True):
         for col, val in rec.items():
             if col not in columns:
                 if columns_auto:
-                    col_width[col] = min( max(len(col), len('%s' % val)), max_width)
+                    col_width[col] = min( max(len(col), len('%s' % (val,))), max_width)
                     columns.append(col)
             else:
-                col_width[col] = max(col_width[col], min(len('%s' % val), max_width))
+                col_width[col] = max(col_width[col], min(len('%s' % (val,)), max_width))
 
     if auto_width_last:
         first_width = sum([col_width[col] for col in columns[:-1]]) + len(columns) - 2
@@ -381,7 +381,7 @@ def print_table(res, columns=None, max_width=True, wrap=True):
         lin = []
         nline = {} # wrap values for next line
         for c in columns:
-            val = col_strs[c] % rec.get(c, '')
+            val = col_strs[c] % (rec.get(c, ''),)
             val, nval = splitval(val, col_width[c])
             if nval:
                 nline[c] = nval
@@ -442,14 +442,14 @@ def print_lexicon(kdic, title=None, sort_fn=None, indent=4):
 
     keylen = 6
     for k in kdic:
-        l = len('%s' % k)
+        l = len('%s' % (k,))
         if  l > keylen and l < 30:
             keylen = l
 
     for k, v in sort_fn(kdic.items()):
-        kstr = '%s' % k
+        kstr = '%s' % (k,)
         if not isinstance(v, basestring):
-            v = '%s' % v
+            v = '%s' % (v,)
         if len(kstr)  < keylen:
             kstr += ' ' * (keylen - len(kstr))
         lin = (' ' * indent) + kstr + ' '
