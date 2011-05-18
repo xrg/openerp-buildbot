@@ -205,9 +205,14 @@ class MS_Scanner(service.Service, util.ComparableMixin):
 
     def startService(self):
         service.Service.startService(self)
+        def do_err(*args):
+            log.err("Error while scanning Launchpad")
+            # invalidate the LP handler, let it reconnect
+            self._lp = None
+            
         def do_poll():
             d = defer.maybeDeferred(self.scan)
-            d.addErrback(log.err, 'while scanning Launchpad')
+            d.addErrback(do_err)
             return d
 
         # delay starting the loop until the reactor is running
