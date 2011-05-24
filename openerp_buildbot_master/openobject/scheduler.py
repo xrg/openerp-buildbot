@@ -25,6 +25,7 @@ from sourcestamp import OpenObjectSourceStamp
 # from buildbot import buildset
 from datetime import datetime
 
+raise ImportError("Don't use me!")
 
 class OpenObjectScheduler(Scheduler):
     def __init__(self, name, **kwargs):
