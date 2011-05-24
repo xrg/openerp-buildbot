@@ -73,7 +73,11 @@ class MS_Service(service.Service, util.ComparableMixin):
             return d
 
         self._credentials = Credentials(self._app_name)
-        request_token_info = self._credentials.get_request_token(web_root=self._lp_server)
+        try:
+            request_token_info = self._credentials.get_request_token(web_root=self._lp_server)
+        except Exception, e:
+            log.err("Cannot get authentication token, will not connect to LP at all: %s" % e)
+            return
 
         self._try_auth_loop = task.LoopingCall(_poll_req_auth_2)
         log.msg("LP: Please go to %s and authorize me!" % request_token_info)
