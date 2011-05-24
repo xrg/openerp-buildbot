@@ -351,7 +351,8 @@ class BuildsMatrix(StatusResourceBuilder):
 
 class OpenObjectWebStatus(WebStatus):
     def __init__(self, http_port=None, distrib_port=None, allowForce=False):
-        WebStatus.__init__(self, http_port=http_port, distrib_port=distrib_port, allowForce=allowForce)
+        WebStatus.__init__(self, http_port=http_port, distrib_port=distrib_port, 
+                allowForce=allowForce, provide_feeds=['rss', 'atom'])
 
     def setupUsualPages(self, *args, **kwargs):
         WebStatus.setupUsualPages(self, *args, **kwargs)
