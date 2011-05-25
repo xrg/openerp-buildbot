@@ -702,7 +702,7 @@ class software_buildrequest(osv.osv):
         # claimed_at is the time at which a master most recently asserted that
         # it is responsible for running the build: this will be updated
         # periodically to maintain the claim
-        'claimed_at': fields.datetime('Claimed at', selec=True),
+        'claimed_at': fields.datetime('Claimed at', select=True),
 
         # claimed_by indicates which buildmaster has claimed this request. The
         # 'name' contains hostname/basedir, and will be the same for subsequent
