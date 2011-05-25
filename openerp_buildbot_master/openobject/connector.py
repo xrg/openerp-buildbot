@@ -474,8 +474,9 @@ class BuildRequestsCCOE(OERPbaseComponent):
                 domain.append(('claimed_by_incarnation', '=', master_incarnation))
             
             res_ids = self._proxy.search(domain) # order?
+            if not res_ids:
+                return []
             res = self._proxy.read(res_ids, self._read_fields)
-            # print "getBuildRequests", domain, res_ids
             return [self._commit2br(r) for r in res if (buildername is None or r['buildername'] == buildername)]
         
         return threads.deferToThread(thd)
@@ -851,6 +852,7 @@ class OERPConnector(util.ComparableMixin, service.MultiService):
         """
         d = self.changes.pruneChanges(self.changeHorizon)
         d.addErrback(log.err, 'while pruning changes')
+        self.master.botmaster.maybeStartBuildsForAllBuilders()
         return d
 
     def saveTResults(self, build_id, name, build_result, t_results):
