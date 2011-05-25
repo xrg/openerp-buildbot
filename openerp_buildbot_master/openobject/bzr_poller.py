@@ -84,6 +84,7 @@ import twisted.internet.selectreactor
 import twisted.internet.task
 import twisted.internet.threads
 import twisted.python.log
+from twisted.python.failure import Failure
 import twisted.spread.pb
 from twisted.internet import defer, utils
 
@@ -307,10 +308,15 @@ class BzrPoller(buildbot.changes.base.PollingChangeSource,
  
     def _stop_on_failure(self, f):
         "utility method to stop the service when a failure occurs"
-        twisted.python.log.err("Stopping BzrPoller")
         d = defer.maybeDeferred(lambda : self.running and self.stopService())
         d.addErrback(twisted.python.log.err, 'while stopping broken BzrPoller service')
-        return f
+        if f and isinstance(f, Failure) and isinstance(f.value, EnvironmentError):
+            twisted.python.log.err("Stopping BzrPoller: %s" % f.value.args[0])
+            # don't return, we handled it already
+            return None
+        else:
+            twisted.python.log.err("Stopping BzrPoller")
+            return f
 
     def _convert_nonzero_to_failure(self, res):
         "utility method to handle the result of getProcessOutputAndValue"
