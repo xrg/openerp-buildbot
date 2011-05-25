@@ -1465,13 +1465,10 @@ class ProposeMerge(LoggingBuildStep):
             self.build_result = FAILURE
             self.description = 'Could not request merge'
             self.finished(FAILURE)
+            return
         
         if isinstance(res, dict) and res.get('trigger'):
-            for sched in self.build.builder.botmaster.master.allSchedulers():
-                if res['trigger'] in sched.builderNames:
-                    d = sched.run()
-                    d.addCallback(lambda x: self.finished(SUCCESS))
-                    return d
+            return self.build.builder.botmaster.maybeStartBuildsForBuilder(res['trigger'])
         self.finished(SUCCESS)
 
 class MergeToLP(ProposeMerge):
