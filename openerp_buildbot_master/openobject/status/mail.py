@@ -114,7 +114,7 @@ class OpenObjectMailNotifier(MailNotifier):
                 body = self.get_TEXT_mail(name,build,build_url,waterfall_url,failed_step, failed_tests, status_text, test_reasoning, change)
                 
             m = self.createEmail({'body': body, 'type': mtype},
-                    builderName=build.builder.name, projectName=self.projectName, 
+                    builderName=build.builder.name, title=self.projectName, 
                     results=results, build=build)
 
             m['To'] = ", ".join(to_recipients)
@@ -138,8 +138,8 @@ class OpenObjectMailNotifier(MailNotifier):
         branch_link = ''
 
         rev_no = change.revision
-        if change.hash:
-            revision = "Revision: <b>%s</b><br />\n" % change.hash
+        if 'hash' in change.properties:
+            revision = "Revision: <b>%s</b><br />\n" % change.properties['hash']
         branch = ""
         try:
             if change.branch:
@@ -199,8 +199,8 @@ class OpenObjectMailNotifier(MailNotifier):
         revision = ''
 
         rev_no = change.revision
-        if change.hash:
-            revision = change.hash
+        if 'hash' in change.properties:
+            revision = change.properties['hash']
         branch = ""
         try:
             if change.branch:
