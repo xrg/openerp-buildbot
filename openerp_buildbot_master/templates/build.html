@@ -153,6 +153,7 @@ Build #{{ b.getNumber() }}
 <tr><th>Name</th><th>Value</th><th>Source</th></tr>
 
 {% for p in properties %}
+  {% if p.source != 'Change-int' %}
   <tr class="{{ loop.cycle('alt', '') }}">
     <td class="left">{{ p.name|e }}</td>
   {% if p.short_value %}
@@ -162,6 +163,7 @@ Build #{{ b.getNumber() }}
   {% endif %}
     <td>{{ p.source|e }}</td>
   </tr>
+  {% endif %}
 {% endfor %}
 
 </table>
