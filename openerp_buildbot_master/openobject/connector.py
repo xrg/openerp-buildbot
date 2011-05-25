@@ -8,7 +8,7 @@ from buildbot import util
 
 from poller import OpenObjectChange
 from buildbot.status.builder import SUCCESS, WARNINGS, FAILURE, SKIPPED, EXCEPTION, RETRY
-from buildbot.util import json
+from buildbot.util import json, datetime2epoch, epoch2datetime
 from buildbot.db import base
 from buildbot.db.buildrequests import NotClaimedError, AlreadyClaimedError
 
@@ -98,17 +98,25 @@ class OERPChangesConnector(OERPbaseComponent):
             cdict = change.copy()
             cdict['branch_id'] = int(change.pop('repository'))
             cleanupDict(cdict)
-            for f in cdict['files']:
-                cleanupDict(f)
+            when_dt = cdict.pop('when_timestamp', None)
+            if when_dt:
+                cdict['when'] = datetime2epoch(when_dt)
+            else:
+                cdict['when'] = False
             try:
                 prop_arr = []
-                for pname, pvalue in change.properties.items():
-                    if pvalue[1] == 'Change-int':
+                for pname, pvalue in change.pop('properties', {}).items():
+                    if pname in ('hash', 'authors', 'filesb'):
                         # these ones must pop from the properties into cdict, they
                         # are extended attributes of the change
                         cdict[pname] = pvalue[0]
+                        if isinstance(cdict[pname], dict):
+                            cleanupDict(cdict[pname])
                     else:
                         prop_arr.append((pname, json.dumps(pvalue)))
+                cdict['rev'] = cdict['revision'] # an unfortunate API trick FIXME
+                cdict['who'] = cdict['author']
+                cdict.pop('files', None)
                 change_id = self._proxy.submit_change(cdict)
                 if prop_arr:
                     self._proxy.setProperties(change_id, prop_arr)
@@ -143,7 +151,7 @@ class OERPChangesConnector(OERPbaseComponent):
             cdict['files'] = [ f['filename'] for f in cdict['filesb']]
             cdict['is_dir'] = 0
             cdict['links'] = []
-            cdict['when_timestamp'] = datetime.fromtimestamp(cdict['when'])
+            cdict['when_timestamp'] = epoch2datetime(cdict['when'])
             cdict['category'] = None # TODO
             cdict.setdefault('revlink', None)
             cdict['project'] = None

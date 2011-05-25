@@ -71,7 +71,7 @@ import time
 import buildbot.util
 import buildbot.changes.base
 import buildbot.changes.changes
-from buildbot.util import deferredLocked
+from buildbot.util import deferredLocked, epoch2datetime
 
 import bzrlib.branch
 import bzrlib.errors
@@ -139,6 +139,7 @@ def generate_change(branch,
     props['authors'] = gaas[1:]
     # maybe useful to know:
     # name, email = bzrtools.config.parse_username(change['who'])
+    change['when_timestamp'] = epoch2datetime(new_rev.timestamp)
     change['comments'] = new_rev.message
     change['revision'] = new_revno
     props['hash'] = new_revid
@@ -168,9 +169,7 @@ def generate_change(branch,
         filesb.append({'filename': oldpath, 'ctype': 'r',
                         'newpath': newpath,
                         'lines_add':0, 'lines_rem':0 })
-    change['properties'] = {}
-    for k, v in props:
-        change['properties'][k] = (v, 'Change-int')
+    change['properties'] = props
     return change
 
 
@@ -234,7 +233,7 @@ class BzrPoller(buildbot.changes.base.PollingChangeSource,
                 assert change['repository'] == str(self.branch_id), "%r != %r" % (change['repository'], self.branch_id)
                 if not change['revision']:
                     # This must have been a failed merge "commit", go up
-                    last_cid = change['properties'].get('parent_id', False)
+                    last_cid = change['properties'].get('parent_id', (False, False))[0]
                     continue
                 self.last_revision = int(change['revision'])
                 # We *assume* here that the last change registered with the
