@@ -15,15 +15,15 @@ import logging
 from buildbot.buildslave import BuildSlave
 from buildbot.process import factory
 from buildbot.schedulers.filter import ChangeFilter
+from buildbot.schedulers.basic import BaseBasicScheduler, SingleBranchScheduler
 from buildbot import manhole
-from openobject.scheduler import OpenObjectScheduler, OpenObjectAnyBranchScheduler
 from openobject.buildstep import OpenObjectBzr, OpenObjectSVN, BzrMerge, BzrRevert, \
         OpenERPTest, LintTest, BzrStatTest, BzrCommitStats, BzrTagFailure, \
         ProposeMerge, BzrPerformMerge, BzrCommit, BzrSyncUp, MergeToLP
 from openobject.poller import BzrPoller
 from openobject.status import web, mail, logs
 import twisted.internet.task
-import rpc
+from openerp_libclient import rpc
 import os
 import signal
 
@@ -69,8 +69,9 @@ class Keeper(object):
         c['change_source']=[]
         c['status'] = []
         
-        r = rpc.session.login(db_props)
-        if r != 0:
+        rpc.openSession(**db_props)
+        r = rpc.login()
+        if not r:
             raise Exception("Could not login!")
         
         bbot_obj = rpc.RpcProxy('software_dev.buildbot')
@@ -246,11 +247,11 @@ class Keeper(object):
                 klass = dic_steps[bstep[0]]
                 if bstep[0] in ('OpenObjectBzr') and kwargs['repourl'] in proxied_bzrs:
                     kwargs['proxy_url'] = proxied_bzrs[kwargs['repourl']]
+                print "Adding step %s(%r)" % (bstep[0], kwargs)
                 if bstep[0] in ('BzrPerformMerge', 'BzrSyncUp'):
                     # Pass all of them to buildstep, so that it can resolve
                     # all the changes it will be receiving.
                     kwargs['proxied_bzrs'] = proxied_bzrs
-                print "Adding step %s(%r)" % (bstep[0], kwargs)
                 fact.addStep(klass(**kwargs))
             
             c['builders'].append({
@@ -265,13 +266,13 @@ class Keeper(object):
 
             cfilt = ChangeFilter(branch=bld['branch_name'])
             # FIXME
+            
             c['schedulers'].append(
-                OpenObjectScheduler(name = "Scheduler for %s" %(bld['name']),
+                SingleBranchScheduler(name = "Scheduler %s" % bld['name'],
                                     builderNames = [bld['name'], ],
                                     change_filter=cfilt,
                                     treeStableTimer= bld.get('tstimer',None),
-                                    properties={},
-                                    keeper=self)
+                                    properties={})
                                 )
 
         if bbot_data['http_port']:

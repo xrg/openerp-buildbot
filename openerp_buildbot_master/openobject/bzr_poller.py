@@ -133,15 +133,16 @@ def generate_change(branch,
     else:
         gaas = new_rev.get_apparent_authors()
     
+    props = {}
     change['who'] = gaas[0]
-    change['authors'] = gaas[1:]
+    props['authors'] = gaas[1:]
     # maybe useful to know:
     # name, email = bzrtools.config.parse_username(change['who'])
     change['comments'] = new_rev.message
     change['revision'] = new_revno
-    change['hash'] = new_revid
+    props['hash'] = new_revid
     files = change['files'] = []
-    filesb = change['filesb'] = []
+    filesb = props['filesb'] = []
     changes = repository.revision_tree(new_revid).changes_from(
         repository.revision_tree(old_revid))
     tmp_kfiles = set()
@@ -166,6 +167,9 @@ def generate_change(branch,
         filesb.append({'filename': oldpath, 'ctype': 'r',
                         'newpath': newpath,
                         'lines_add':0, 'lines_rem':0 })
+    change['properties'] = {}
+    for k, v in props:
+        change['properties'][k] = (v, 'Change-int')
     return change
 
 
@@ -223,15 +227,15 @@ class BzrPoller(buildbot.changes.base.PollingChangeSource,
 
         def get_last_revision(_):
             self.last_revision = None
-            last_cid = self.master.db.getLatestChangeNumberNow(branch=self.branch_id) # TODO defer
+            last_cid = self.master.db.changes._getLatestChangeNumberNow(branch=self.branch_id) # TODO defer
             while last_cid:
-                change = self.master.db.getChangeNumberedNow(last_cid)
-                assert change.branch_id == self.branch_id, "%r != %r" % (change.branch_id, self.branch_id)
-                if not change.revision:
+                change = self.master.db.changes._get_change_num(last_cid)
+                assert change['repository'] == str(self.branch_id), "%r != %r" % (change['repository'], self.branch_id)
+                if not change['revision']:
                     # This must have been a failed merge "commit", go up
-                    last_cid = change.parent_id
+                    last_cid = change['properties'].get('parent_id', False)
                     continue
-                self.last_revision = int(change.revision)
+                self.last_revision = int(change['revision'])
                 # We *assume* here that the last change registered with the
                 # branch is a head earlier than our current revision.
                 # But, it might happen that the repo is diverged and that change
@@ -279,7 +283,7 @@ class BzrPoller(buildbot.changes.base.PollingChangeSource,
                     last_revision=self.last_revision)
         if change:
             change['branch'] = self.url
-            change['branch_id'] = self.branch_id
+            change['repository'] = str(self.branch_id)
             change['category'] = self.category
             changes.append(change)
             if self.last_revision is not None:
@@ -288,7 +292,7 @@ class BzrPoller(buildbot.changes.base.PollingChangeSource,
                         branch, new_revno=change['revision']-1,
                         blame_merge_author=self.blame_merge_author)
                     change['branch'] = self.url
-                    change['branch_id'] = self.branch_id
+                    change['repository'] = str(self.branch_id)
                     change.setdefault('category', self.category)
                     changes.append(change)
         if changes:

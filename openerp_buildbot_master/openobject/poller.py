@@ -29,11 +29,14 @@ from buildbot.changes.changes import Change
 from bzrlib.branch import Branch
 import bzrlib
 import re
+import warnings
 
 import bzr_poller
 
 class OpenObjectChange(Change):
     def __init__(self, **kwargs):
+        warnings.warn("You are using deprecated OpenObjectChange.", 
+                DeprecationWarning, stacklevel=3)
         self.branch_id = kwargs.pop('branch_id')
         self.filesb = kwargs.pop('filesb',[])
         self.hash = kwargs.pop('hash', None)
