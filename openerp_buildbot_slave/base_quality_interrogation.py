@@ -56,6 +56,7 @@ except ImportError:
 
 # will be imported later:
 client_session = None
+client_kwargs = {}
 
 def to_decode(s):
     try:
@@ -617,7 +618,6 @@ class server_thread(threading.Thread):
         self.log = logging.getLogger('srv.thread')
         self.log_state = logging.getLogger('bqi.state') # will receive command-like messages
         logging.getLogger('RPC.Remote').setLevel(1000) # we don't want that, we debug anyway
-        # TODO: notifier
         self._parsers = {}
         self._exc_parsers = []
         self._lports = {}
@@ -1173,7 +1173,7 @@ class remote_server_thread(server_thread):
         try:
             # we open an independent connection to the server
             if opt.url:
-                self.session = client_session()
+                self.session = client_session(**client_kwargs)
             else:
                 self.session = xml_session()
 
@@ -1307,8 +1307,9 @@ class client_worker(object):
             self._session_class = client_session
         else:
             self._session_class = xml_session
+            self._session_kwargs = {}
         
-        self.session = self._session_class()
+        self.session = self._session_class(**client_kwargs)
         self.session.open(**connect_dsn)
 
     def try_login(self):
@@ -1325,15 +1326,14 @@ class client_worker(object):
         raise RuntimeError()
     
     def rpc_call(self, obj, method, *args, **kwargs):
-        auth_level = 'db'
-        if kwargs:
-            auth_level = kwargs.pop('auth_level')
+        auth_level = kwargs.pop('auth_level', 'db')
+        notify = kwargs.pop('notify', True)
         if kwargs:
             raise RuntimeError("Invalid kwargs: %r" % kwargs)
         if auth_level == 'db':
             self.try_login()
         self.log.debug("Sending command '%s' to server", method)
-        res = self.session.call(obj, method=method, args=args, auth_level=auth_level)
+        res = self.session.call(obj, method=method, args=args, auth_level=auth_level, notify=notify)
         self.log.debug("Command '%s' returned from server", method)
         return res
     
@@ -1348,7 +1348,7 @@ class client_worker(object):
             # use the existing session
             session = self.session
         else:
-            session = self._session_class()
+            session = self._session_class(**client_kwargs)
             session.open(**connect_dsn)
         
         uid = session.login()
@@ -1568,9 +1568,10 @@ class client_worker(object):
         ret = False
         try:
             form_presses = { 'init': 'start', 'next': 'start',  'config': 'end',  'start': 'end'}
-            wiz_id = self.rpc_call('/wizard', 'create', 'module.upgrade.simple')
+            wiz_id = self.rpc_call('/wizard', 'create', 'module.upgrade.simple', notify=False)
             datas = {}
-            ret = self.run_wizard(wiz_id, form_presses, datas)
+            if wiz_id:
+                ret = self.run_wizard(wiz_id, form_presses, datas, notify=False)
             return True
         except xmlrpclib.Fault, e:
             if e.faultCode == 'wizard.module.upgrade.simple':
@@ -1597,7 +1598,7 @@ class client_worker(object):
         assert ret, "The upgrade wizard must return some dict, like redirect to the config view"
         return True
 
-    def run_wizard(self, wiz_id, form_presses, datas):
+    def run_wizard(self, wiz_id, form_presses, datas, notify=False):
         """ Simple Execute of a wizard, press form_presses until end.
         
             This tries to go through a wizard, by trying the states found
@@ -1613,7 +1614,7 @@ class client_worker(object):
         i = 0
         good_state = True
         while state!='end':
-            res = self.rpc_call('/wizard', 'execute', wiz_id, datas, state, {})
+            res = self.rpc_call('/wizard', 'execute', wiz_id, datas, state, {}, notify=notify)
             i += 1
             if i > 100:
                 log.error("Wizard abort after %d steps", i)
@@ -3736,6 +3737,8 @@ if opt.url:
         __hush_pyflakes = [protocols,]
         from openerp_libclient import session as libclient_session
         client_session = libclient_session.Session
+        client_kwargs = {'notifier': libclient_session.FilterNotifier() }
+        client_kwargs['notifier']._filter_fn = reduce_homedir
         del RpcException
         del RpcServerException
         from openerp_libclient.errors import RpcException, RpcServerException
