@@ -1154,7 +1154,19 @@ class local_server_thread(server_thread):
             self.log.info("Finished server with: %d", self.proc.returncode)
         finally:
             self.is_running = False
-        
+
+class RemLogHandler(object):
+    def __init__(self, parent):
+        self.parent = parent
+        self.log_sout = logging.getLogger('server.stdout')
+    
+    def handle(self, rec):
+        # parse TODO
+        tf = time.strftime('%Y-%m-%d %H:%M:%S')
+        if rec.level > logging.DEBUG:
+            self.log_sout.info('[%s] %s:%s:%s', tf, rec.levelname, rec.name, rec.msg)
+        else:
+            self.log_sout.debug('[%s] %s:%s:%s', tf, rec.levelname, rec.name, rec.msg)
 
 class remote_server_thread(server_thread):
     def __init__(self, **kwargs):
@@ -1179,6 +1191,7 @@ class remote_server_thread(server_thread):
 
             self.session.open(**connect_dsn)
             # when open suceeds, it means the server is running and reachable
+            self.setup_remote_logs(connect_dsn)
             self.is_ready = True
             self._lports['HTTP'] = self.port # fool self.start_full()
 
@@ -1204,6 +1217,25 @@ class remote_server_thread(server_thread):
     
     def _io_flush(self):
         pass
+    
+    def setup_remote_logs(self, dsn):
+        def _loop_get_logs(trans):
+            try:
+                while not self._must_stop:
+                    trans.process_next_logs()
+            except Exception:
+                self.log.warning("Remote logging stopped:", exc_info=True)
+        try:
+            handler = RemLogHandler(self)
+            trans = getTransportFromDSN(dsn, handler=handler)
+            thr = threading.Thread(name='remote_log_watcher',
+                    target=_loop_get_logs,  args=(trans,))
+            # fire and forget
+            thr.daemon = True
+            thr.start()
+            self.log.info("Remote log watcher established for server")
+        except Exception:
+            self.log.warning("Cannot establish remote log watching:", exc_info=True)
 
 class xml_session(object):
     """ This class resembles the openerp_libclient.session, using xmlrpclib
@@ -3744,6 +3776,10 @@ if opt.url:
         from openerp_libclient.errors import RpcException, RpcServerException
     except ImportError:
         raise ImportError("openerp client library not found. Cannot use url parameter")
+    try:
+        from openerp_libclient.extra.log_client import getTransportFromDSN
+    except ImportError:
+        raise ImportError("openerp client library doesn't have remote logging utility")
 
 if not opt.remote:
     server = local_server_thread(root_path=options['root-path'], port=options['port'],
