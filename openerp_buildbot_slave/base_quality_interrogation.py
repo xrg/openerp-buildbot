@@ -94,6 +94,14 @@ class ClientException(Exception):
 class ServerException(Exception):
     pass
 
+class __RpcException(Exception):
+    # Placeholder class, to use instead of openerp_libclient's
+    pass
+
+# we don't care if they point to the same class
+RpcException = __RpcException
+RpcServerException = __RpcException
+
 # --- cut here
 import logging
 # import types
@@ -224,10 +232,24 @@ COLOR_MAPPING = {
     'bqi.client': (DEFAULT, WHITE, False),
     'bqi.client.ERROR': (RED, WHITE, False),
     'bqi.client.DEBUG': (CYAN, _NOTHING, False),
+    'bqi.cli.ERROR': (RED, WHITE, True),
     'bqi.state': (BLACK,WHITE, False),
     'srv.thread': (DEFAULT, WHITE, False),
     'srv.thread.WARNING': (YELLOW, _NOTHING, False),
     'srv.thread.DEBUG': (CYAN, _NOTHING, False),
+    'RPC.Transport': (DEFAULT, WHITE, False),
+    'RPC.Transport.WARNING': (YELLOW, _NOTHING, False),
+    'RPC.Transport.DEBUG': (CYAN, _NOTHING, False),
+    'RPC.Connection': (DEFAULT, WHITE, False),
+    'RPC.Connection.ERROR': (RED, DEFAULT, False),
+    'RPC.Connection.WARNING': (YELLOW, _NOTHING, False),
+    'RPC.Connection.DEBUG': (CYAN, _NOTHING, False),
+    'RPC.Session': (DEFAULT, WHITE, False),
+    'RPC.Session.WARNING': (YELLOW, _NOTHING, False),
+    'RPC.Session.DEBUG': (CYAN, _NOTHING, False),
+    'RPC.WARNING': (YELLOW, DEFAULT, True),
+    'RPC.ERROR': (RED, DEFAULT, True),
+    'RPC.CRITICAL': (WHITE, RED, True),
 }
 
 class ColoredFormatter(logging.Formatter):
@@ -594,6 +616,8 @@ class server_thread(threading.Thread):
         self.state_dict = {'module-mode': 'startup'}
         self.log = logging.getLogger('srv.thread')
         self.log_state = logging.getLogger('bqi.state') # will receive command-like messages
+        logging.getLogger('RPC.Remote').setLevel(1000) # we don't want that, we debug anyway
+        # TODO: notifier
         self._parsers = {}
         self._exc_parsers = []
         self._lports = {}
@@ -706,6 +730,59 @@ class server_thread(threading.Thread):
                 
                 except Exception:
                     self.log.debug("Cannot parse xmlrpc exception: %s" % exc.faultString, exc_info=True)
+            elif isinstance(exc, RpcServerException):
+                try:
+                    emsg = "%s" % exc.code
+                    faultLines = exc.backtrace.split('\n')
+                    lfl = len(faultLines)-1
+                    
+                    while lfl > 0:
+                        if not faultLines[lfl]:
+                            lfl -= 1
+                            continue
+                        if ':' not in faultLines[lfl][:20]:
+                            lfl -= 1
+                            continue
+                        break
+                    
+                    if lfl < 0:
+                        stype = ''
+                        sstr = '\n'.join(faultLines[-2])
+                    else:
+                        ses = faultLines[lfl]
+                        stype, sstr = ses.split(':',1)
+                        if '--' in sstr:
+                            stype = 'osv.%s' % (sstr.split('--')[1].strip())
+                            emsg = ' '.join(faultLines[lfl+1:])
+                    
+                    sdict['Exception type'] = stype or exc.type
+                    
+                    # now, use the parsers to get even more useful information
+                    # from the exception string. They should return a dict
+                    # of keys to append to our blame info.
+                    # First parser to match wins, others will be skipped.
+                    for etype, erege, funct in self._exc_parsers:
+                        if etype == None or etype == stype:
+                            mm = None
+                            if isinstance(erege, basestring):
+                                mm = (sstr == erege)
+                            else:
+                                mm = erege.search(sstr)
+                            if not mm:
+                                continue
+                        
+                            # we have a match here
+                            red = funct(etype, mm)
+                            if isinstance(red, dict):
+                                sdict.update(red)
+                            else:
+                                self.log.debug("why did parser %r return %r?", funct, red)
+                            break # don't process other handlers
+                    else:
+                        self.log.debug("No exception parser for %s: %s", stype, sstr)
+                
+                except Exception:
+                    self.log.debug("Cannot parse rpc exception: %s" % exc, exc_info=True)
             elif len(exc.args):
                 emsg = "%s" % exc.args[0]
                 sdict["Exception type"] = "%s.%s" % (exc.__class__.__module__ or '', exc.__class__.__name__)
@@ -1086,6 +1163,7 @@ class remote_server_thread(server_thread):
         self._must_stop = False
         self.session = None
         self.port = opt.port
+        self._init_parsers()
     
     def run(self):
         self.log.info("Run")
@@ -1111,6 +1189,8 @@ class remote_server_thread(server_thread):
             # TODO: connect to remote-enabled loggers, if any
             self.is_ready = False
             self.log.info("Stopped watching server")
+        except RpcException, e:
+            self.log.error("Remote connection failed with %s: %s", e.__class__.__name__, e.info)
         finally:
             self.is_running = False
 
@@ -1350,6 +1430,9 @@ class client_worker(object):
                 self.log.error('xmlrpc +: %s', reduce_homedir(e.faultString.rstrip()))
                 server.dump_blame(e, ekeys={ 'context': '%s.qlog' % module,
                             'module': module, 'severity': 'warning'})
+            except RpcException, e:
+                server.dump_blame(e, ekeys={ 'context': '%s.qlog' % module,
+                            'module': module, 'severity': 'warning'})
             # and continue with other modules..
         return True
 
@@ -1468,6 +1551,9 @@ class client_worker(object):
                 logger.error('xmlrpc +: %s', reduce_homedir(e.faultString.rstrip()))
                 server.dump_blame(e, ekeys={ 'context': '%s.install' % mod_names[mid],
                             'module': mod_names[mid], 'severity': 'error'})
+            except RpcException, e:
+                server.dump_blame(e, ekeys={ 'context': '%s.install' % mod_names[mid],
+                            'module': mod_names[mid], 'severity': 'error'})
 
         server.state_dict['severity'] = 'blocking'
         ret = self._modules_upgrade()
@@ -1492,11 +1578,17 @@ class client_worker(object):
                 wiz_id = False
             else:
                 raise
+        except RpcException, e:
+            if e.args[0] == 'wizard.module.upgrade.simple':
+                self.log.debug("Could not find the old-style wizard for module upgrade, trying the new one")
+                wiz_id = False
+            else:
+                raise
 
         try:
             wiz_obj = self.orm_proxy('base.module.upgrade')
             wiz_id = wiz_obj.create({})
-        except xmlrpclib.Fault, e:
+        except (xmlrpclib.Fault, RpcException), e:
             raise ServerException("No usable wizard for module upgrade found, cannot continue")
 
         ret = wiz_obj.upgrade_module([wiz_id,], {})
@@ -1646,6 +1738,10 @@ class client_worker(object):
                 server.dump_blame(e, ekeys={ 'context': '%s.check' % (module or 'custom'),
                             'module': module or '', 'severity': 'error',
                             'Message': '%s.fields_view_get() is broken' % mod['model'] })
+            except RpcException, e:
+                server.dump_blame(e, ekeys={ 'context': '%s.check' % (module or 'custom'),
+                            'module': module or '', 'severity': 'error',
+                            'Message': '%s.fields_view_get() is broken' % mod['model'] })
         
         # Statistics:
         ost = self.get_ostimes(ost_for)
@@ -1689,7 +1785,7 @@ class client_worker(object):
         try:
             upd_wiz = self.orm_proxy('base.module.update')
             wiz_id = upd_wiz.create({})
-        except xmlrpclib.Fault:
+        except (xmlrpclib.Fault, RpcException):
             raise ServerException("No usable wizard for module update found, cannot continue")
 
         upd_wiz.update_module([wiz_id,], {})
@@ -2045,6 +2141,11 @@ class client_worker(object):
                     self.log.info(e.faultCode.rstrip().split('\n',1)[1].strip())
                 else:
                     raise
+            except RpcServerException, e:
+                if e.type == 'warning' and e.code == 'Assertion report':
+                    self.log.info(e.args[1])
+                else:
+                    raise
 
         ost = self.get_ostimes(ost)
         self.log.info("Data file imported at: User: %.3f, Sys: %.3f, Real: %.3f" % \
@@ -2135,7 +2236,7 @@ class CmdPrompt(object):
     """
 
     def _complete_module_cmd(self, text, state):
-        sub_cmds = ['info', 'install', 'upgrade', 'uninstall', 'refresh-list', ]
+        sub_cmds = ['info', 'list', 'install', 'upgrade', 'uninstall', 'refresh-list', ]
         pos = []
         first = text and text.split(' ',1)[0]
         if (not text) or first not in sub_cmds:
@@ -2534,6 +2635,9 @@ class CmdPrompt(object):
             print 'xmlrpc exception: %s' % reduce_homedir( e.faultCode.strip())
             print 'xmlrpc +: %s' % reduce_homedir(e.faultString.rstrip())
             return
+        except RpcException:
+            print "Failed %s database:" % cmd
+            return
         except Exception, e:
             print "Failed %s database:" % cmd, e
             return
@@ -2643,6 +2747,9 @@ class CmdPrompt(object):
             logger.error('xmlrpc +: %s', reduce_homedir(e.faultString.rstrip()))
             server.dump_blame(e)
             ret = False
+        except RpcException, e:
+            server.dump_blame(e)
+            ret = False
         except Exception, e:
             logger.exception('exc at %s:', ' '.join(args))
             server.dump_blame(e)
@@ -2712,6 +2819,9 @@ class CmdPrompt(object):
             print 'xmlrpc exception: %s' % reduce_homedir( e.faultCode.strip())
             print 'xmlrpc +: %s' % reduce_homedir(e.faultString.rstrip())
             return
+        except RpcException:
+            print "Failed module %s:" % cmd
+            return
         except Exception, e:
             print "Failed module %s:" % cmd, e
             return
@@ -2736,6 +2846,9 @@ class CmdPrompt(object):
         except xmlrpclib.Fault:
             print "Wrong ORM model!"
             return
+        except RpcException, e:
+            print "%s: %s" % e.args
+            return
         if res_id:
             try:
                 res_id = int(res_id)
@@ -2744,7 +2857,7 @@ class CmdPrompt(object):
                 return
             try:
                 orm_obj.read([res_id,], ['id',])
-            except xmlrpclib.Fault:
+            except (xmlrpclib.Fault, RpcException):
                 print "Record not found!"
                 return
             self.cur_res_id = res_id
@@ -2767,7 +2880,8 @@ class CmdPrompt(object):
             return
         try:
             self.cur_orm_obj('read', [res_id,], ['id',])
-        except xmlrpclib.Fault:
+        except (xmlrpclib.Fault, RpcException):
+            # TODO: fine-grain
             print "Record not found!"
             return
         self.cur_res_id = res_id
@@ -2810,6 +2924,8 @@ class CmdPrompt(object):
                 e.faultCode = str(e.faultCode)
             print 'xmlrpc exception: %s' % reduce_homedir(e.faultCode.strip())
             print 'xmlrpc +: %s' % reduce_homedir(e.faultString.rstrip())
+            return
+        except RpcException, e:
             return
         except Exception, e:
             print "Failed orm execute:", e
@@ -3039,6 +3155,8 @@ class CmdPrompt(object):
                 print 'xmlrpc exception: %s' % reduce_homedir( e.faultCode.strip())
                 print 'xmlrpc +: %s' % reduce_homedir(e.faultString.rstrip())
                 return
+            except RpcException:
+                return
             except Exception, e:
                 print "Failed orm execute:", e
                 return
@@ -3094,6 +3212,8 @@ class CmdPrompt(object):
             print 'xmlrpc exception: %s' % reduce_homedir( e.faultCode.strip())
             print 'xmlrpc +: %s' % reduce_homedir(e.faultString.rstrip())
             return
+        except RpcException:
+            return
         except Exception, e:
             print "Failed translate:", e
             return
@@ -3114,6 +3234,9 @@ class CmdPrompt(object):
                 e.faultCode = str(e.faultCode)
             print 'xmlrpc exception: %s' % reduce_homedir( e.faultCode.strip())
             print 'xmlrpc +: %s' % reduce_homedir(e.faultString.rstrip())
+            return
+        except RpcException:
+            print "Failed test %s:" % cmd
             return
         except Exception, e:
             print "Failed test %s:" % cmd, e
@@ -3146,6 +3269,9 @@ class CmdPrompt(object):
                 e.faultCode = str(e.faultCode)
             print 'xmlrpc exception: %s' % reduce_homedir( e.faultCode.strip())
             print 'xmlrpc +: %s' % reduce_homedir(e.faultString.rstrip())
+            return
+        except RpcException, e:
+            print "Failed import"
             return
         except Exception, e:
             print "Failed import:", e
@@ -3610,6 +3736,9 @@ if opt.url:
         __hush_pyflakes = [protocols,]
         from openerp_libclient import session as libclient_session
         client_session = libclient_session.Session
+        del RpcException
+        del RpcServerException
+        from openerp_libclient.errors import RpcException, RpcServerException
     except ImportError:
         raise ImportError("openerp client library not found. Cannot use url parameter")
 
@@ -3733,7 +3862,8 @@ try:
             elif cmd == 'keep' or cmd == 'keep-running':
                 try:
                     logger.info("Server is running, script is paused. Press Ctrl+C to continue.")
-                    print "Remember, the 'admin' password is \"%s\" and the super-user \"%s\"" % \
+                    if not opt.remote:
+                        print "Remember, the 'admin' password is \"%s\" and the super-user \"%s\"" % \
                                 (opt.pwd, opt.super_passwd)
                     while server.is_running:
                         time.sleep(60)
@@ -3764,6 +3894,9 @@ try:
             e_fc = str(e.faultCode)
             logger.error('xmlrpc exception: %s', reduce_homedir(e_fc.strip()))
             logger.error('xmlrpc +: %s', reduce_homedir(e.faultString.rstrip()))
+            server.dump_blame(e)
+            ret = False
+        except RpcException, e:
             server.dump_blame(e)
             ret = False
         except Exception, e:
@@ -3806,6 +3939,10 @@ except ClientException, e:
 except xmlrpclib.Fault, e:
     logger.error('xmlrpc exception: %s', reduce_homedir( e.faultCode.strip()))
     logger.error('xmlrpc +: %s', reduce_homedir(e.faultString.rstrip()))
+    server.stop()
+    server.join()
+    sys.exit(1)
+except RpcException, e:
     server.stop()
     server.join()
     sys.exit(1)
