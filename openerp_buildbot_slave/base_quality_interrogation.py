@@ -1161,7 +1161,44 @@ class RemLogHandler(object):
         self.log_sout = logging.getLogger('server.stdout')
     
     def handle(self, rec):
-        # parse TODO
+        parsers = []
+        pkeys = ['*', rec.name ]
+        if '.' in rec.name:
+            pkeys.append( rec.name.split('.', 1)[0]+'.*')
+        for pk in pkeys:
+            parsers.extend(self.parent._parsers.get(pk,[]))
+        
+        pmatches = [] # we will put all matched parsers here.
+        for regex, funct, multiline in parsers:
+            if isinstance(regex, basestring):
+                if regex == rec.msg.rstrip():
+                    pmatches.append((regex, funct, None) )
+            else:  # elif isinstance(regex, re.RegexObject):
+                mm = regex.match(rec.msg.rstrip())
+                if mm:
+                    pmatches.append((regex, funct, mm) )
+
+        # Finished matching here.
+        
+        for regex, funct, mm in pmatches:
+            if callable(funct):
+                funct(rec.name, rec.levelname, mm or rec.msg)
+            elif isinstance(funct, tuple):
+                logger = logging.getLogger('bqi.'+ funct[0])
+                level = funct[1]
+                if mm:
+                    log_args = mm.groups('')
+                else:
+                    log_args = []
+                logger.log(level, funct[2], *log_args)
+            else:
+                if mm:
+                    log_args = mm.groups('')
+                else:
+                    log_args = []
+
+                self.log.info(funct, *log_args)
+        
         tf = time.strftime('%Y-%m-%d %H:%M:%S')
         if rec.level > logging.DEBUG:
             self.log_sout.info('[%s] %s:%s:%s', tf, rec.levelname, rec.name, rec.msg)
@@ -1261,6 +1298,7 @@ class xml_session(object):
         try:
             conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/db')
             sv = conn.server_version()
+            # TODO: parse, remember sv
         except xmlrpclib.Fault, e:
             logger.error("Cannot connect to server: %s", e)
             logger.debug("Cannot connect:", exc_info=True)
