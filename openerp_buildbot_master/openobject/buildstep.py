@@ -33,6 +33,7 @@ import os
 import re
 import logging
 from openerp_libclient import tools
+from openerp_libclient.utils import Pool
 from openerp_libclient.tools import ustr
 from twisted.python import log
 from twisted.internet import defer
@@ -223,10 +224,10 @@ class OpenERPTest(LoggingBuildStep):
             min_port = builder_props.getProperty('min_port',8200)
             max_port = builder_props.getProperty('max_port',8299)
             port_spacing = builder_props.getProperty('port_spacing',4)
-            ports_pool = tools.Pool(iter(range(min_port, max_port, port_spacing)))
+            ports_pool = Pool(iter(range(min_port, max_port, port_spacing)))
 
         if not dbnames_pool:
-            dbnames_pool = tools.Pool(unique_dbnames())
+            dbnames_pool = Pool(unique_dbnames())
 
         if not self.args.get('addonsdir'):
             if builder_props.getProperty('addons_dir'):
