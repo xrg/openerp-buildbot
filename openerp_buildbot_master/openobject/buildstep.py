@@ -1308,7 +1308,7 @@ class BzrCommitStats(LoggingBuildStep):
         
         change = self.build.allChanges()[0]
         self.changeno = change.number
-        self.args['command'] += [ '-r', change.hash]
+        self.args['command'] += [ '-r', change.properties['hash']]
         cmd = StdErrRemoteCommand("OpenObjectShell", self.args)
         self.stderr_log = self.addLog("stderr")
         cmd.useLog(self.stderr_log, True)
