@@ -1275,6 +1275,8 @@ class remote_server_thread(server_thread):
         try:
             handler = RemLogHandler(self)
             trans = getTransportFromDSN(dsn, handler=handler)
+            if not trans:
+                raise NotImplementedError
             thr = threading.Thread(name='remote_log_watcher',
                     target=_loop_get_logs,  args=(trans,))
             # fire and forget
@@ -3814,6 +3816,7 @@ def parse_url_dsn(url):
     # path, params, fragment
 
 parse_url_dsn(uri)
+getTransportFromDSN = lambda *args,**kwargs: None
 
 if opt.url:
     parse_url_dsn(opt.url)
