@@ -834,7 +834,14 @@ class local_server_thread(server_thread):
             self.root_path = os.path.join(self.root_path, 'openerp')
         self.port = port
         # self.addons_path = addons_path
-        self.args = [ 'python%s' %(pyver or ''),] 
+        self.args = [ 'python%s' %(pyver or ''),]
+        if opt.profiled:
+            import imp
+            self.args.append(imp.find_module('cProfile')[1])
+            #self.args.append('-o')
+            #self.args.append('profile.dat')
+            self.args.append('-s')
+            self.args.append('cumulative')
         if do_warnings:
             self.args.append('-Wall')
         if pyargs:
@@ -1109,6 +1116,9 @@ class local_server_thread(server_thread):
             while self.proc.returncode is None:
                 i += 1
                 if i == 0:
+                    pass
+                elif opt.profiled:
+                    # wait for profile indefinitely
                     pass
                 elif i == 2:
                     self.log.warning("Server didn't die, sending second term signal..")
@@ -3421,6 +3431,8 @@ parser.add_option("-D", "--define", dest="defines", action="append",
                     help="Define configuration values for server, (pg84 only)")
 parser.add_option("-P", "--pyarg", dest="pyargs", action="append",
                     help="Pass this argument to python interpreter")
+parser.add_option("--profiled", dest="profiled", action='store_true', default=False,
+                    help="Run the server session through a profiler")
 
 parser.add_option("-W", dest="warnings", default=False,
                     help="Pass this flag to python, so that warnings are considered")
