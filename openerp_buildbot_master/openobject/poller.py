@@ -52,17 +52,6 @@ class OpenObjectChange(Change):
         # self.all_modules = list(set([ x.split('/')[0] for x in files]))
         Change.__init__(self, who, files, comments, **kwargs)
 
-    def allModules(self, repo_expr):
-        """ Return the list of all the modules that must have changed
-        """
-        rx = re.compile(repo_expr)
-        ret = []
-        for fi in self.filesb:
-            m = rx.match(fi['filename'])
-            if m:
-                ret.append(m.group(1))
-        return ret
-
     def asDict(self):
         res = Change.asDict(self)
         res['branch_id'] = self.branch_id

@@ -214,6 +214,17 @@ class OpenERPTest(LoggingBuildStep):
         self.addLogObserver('stdio', BqiObserver())
         self.progressMetrics += ('tests',)
 
+    def _allModules(self, chg, repo_expr):
+        """ Return the list of all the modules that must have changed
+        """
+        rx = re.compile(repo_expr)
+        ret = []
+        for fi in chg.properties.get('filesb',[]):
+            m = rx.match(fi['filename'])
+            if m:
+                ret.append(m.group(1))
+        return ret
+
     def start(self):
         self.logfiles = {}
         global ports_pool, dbnames_pool
@@ -266,7 +277,7 @@ class OpenERPTest(LoggingBuildStep):
                     log.msg("Repo mode is \"%s\"" % self.args['repo_mode'])
                 repo_expr = r'([^/]+)/.+$'
             for chg in self.build.allChanges():
-                more_mods.extend(chg.allModules(repo_expr))
+                more_mods.extend(self._allModules(chg, repo_expr))
                 if not more_mods:
                     log.err("No changed modules located")
             try:
