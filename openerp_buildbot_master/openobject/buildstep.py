@@ -219,7 +219,7 @@ class OpenERPTest(LoggingBuildStep):
         """
         rx = re.compile(repo_expr)
         ret = []
-        for fi in chg.properties.get('filesb',[]):
+        for fi in chg.properties.getProperty('filesb',[]):
             m = rx.match(fi['filename'])
             if m:
                 ret.append(m.group(1))
