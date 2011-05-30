@@ -1306,9 +1306,7 @@ class xml_session(object):
         
     def login(self):
         conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/common')
-        print "trying to login"
         uid = conn.login(self.dbname, self.user, self.passwd)
-        print "login:", uid
         self.uid = uid
         return uid
 
