@@ -1398,7 +1398,7 @@ class client_worker(object):
         """ Return ORM proxy object, like client lib
         """
         self.try_login()
-        return bqi_RPCProxy(self.session, model)
+        return bqi_RPCProxy(self.session, model) # TODO could be RPCProxy, if available
         
     def _execute(self, connector, method, *args):
         raise RuntimeError()
