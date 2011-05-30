@@ -1757,6 +1757,7 @@ class client_worker(object):
         server.clear_context()
         server.state_dict['severity'] = 'error'
         ost_start = self.get_ostimes()
+        ost_self_start = os.times()
         
         if self.series in ('v600', 'srv-lib'):
             # the obj_list is broken in XML-RPC1 for v600
@@ -1826,6 +1827,9 @@ class client_worker(object):
         # Statistics:
         ost = self.get_ostimes(ost_for)
         self.log.info("Got %d views in u%.3f, r%.3f", len(model_res), ost[0], ost[4])
+        ost_end = os.times()
+        self.log.info("Self times: u%.3f, r%.3f",
+            ost_end[0] - ost_self_start[0], ost_end[4] - ost_self_start[4])
         server.clear_context()
         return True
 
