@@ -1517,6 +1517,7 @@ class client_worker(object):
             return ost
         try:
             ost = self.rpc_call('/common','get_os_time', auth_level='root')
+            ost = list(ost)
             if prev is not None:
                 ost = ost + ost
                 if len(prev) > 5:
