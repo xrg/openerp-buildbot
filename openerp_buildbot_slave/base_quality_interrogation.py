@@ -1428,8 +1428,11 @@ class client_worker(object):
             # use the existing session
             session = self.session
         else:
+            tmpdsn = connect_dsn.copy()
+            tmpdsn['user'] = user
+            tmpdsn['passwd'] = passwd
             session = self._session_class(**client_kwargs)
-            session.open(**connect_dsn)
+            session.open(**tmpdsn)
         
         uid = session.login()
         if uid:
@@ -3797,7 +3800,7 @@ connect_dsn =  {'user': options['login'],
 def parse_url_dsn(url):
     import urlparse
     global connect_dsn
-    netloc_re = re.compile( r'(?:(?P<user>[^:@]+?)(?:\:(?P<pass>[^@]*?))?@)?'
+    netloc_re = re.compile( r'(?:(?P<user>[^:@]+?)(?:\:(?P<passwd>[^@]*?))?@)?'
         r'(?P<host>(?:[\w\-\.]+)|(?:\[[0-9a-fA-F:]+\]))'
         r'(?:\:(?P<port>[0-9]{1,5}))?$')
     uparts = urlparse.urlparse(url, allow_fragments=False)
