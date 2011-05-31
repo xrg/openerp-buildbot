@@ -27,6 +27,7 @@ from buildbot.status.web.logs import ChunkConsumer
 
 from buildbot import interfaces
 from buildbot.status import builder
+from buildbot.status import logfile
 from buildbot.status.web.base import IHTMLLog, HtmlResource
 
 textlog_stylesheet = """
@@ -112,7 +113,7 @@ class TextLog(Resource):
                 if type != builder.HEADER:
                     data += entry
             else:
-                data += spanfmt % (builder.ChunkTypes[type],
+                data += spanfmt % (logfile.ChunkTypes[type],
                                    html.escape(entry))
         return data
 
