@@ -35,6 +35,7 @@ import re
 import urllib, time
 from buildbot import version, util
 # from openobject.buildstep import blame_severities
+from twisted.internet import defer
 from openerp_libclient.tools import ustr
 
 ROOT_PATH = '.'
@@ -287,6 +288,7 @@ class BuildsMatrix(StatusResourceBuilder):
         # TODO: perhaps filter?
         return values
 
+    @defer.deferredGenerator
     def content(self, req, cxt):
         """ Mainly the same with parent class, but enumerates test results, too """
         b = self.builder_status
@@ -299,8 +301,18 @@ class BuildsMatrix(StatusResourceBuilder):
         cxt['current'] = [self.builder(x, req) for x in b.getCurrentBuilds()]
 
         cxt['pending'] = []
-        for pb in b.getPendingBuilds():
-            source = pb.getSourceStamp()
+        wfd = defer.waitForDeferred(
+        b.getPendingBuildRequestStatuses())
+        yield wfd
+        statuses = wfd.getResult()
+        for pb in statuses:
+            changes = []
+
+            wfd = defer.waitForDeferred(
+                    pb.getSourceStamp())
+            yield wfd
+            source = wfd.getResult()
+
             changes = []
 
             if source.changes:
@@ -347,7 +359,7 @@ class BuildsMatrix(StatusResourceBuilder):
         cxt['builder_url'] = path_to_builder(req, b)
 
         template = req.site.buildbot_service.templates.get_template(self.tpl_page)
-        return template.render(**cxt)
+        yield template.render(**cxt)
 
 class OpenObjectWebStatus(WebStatus):
     def __init__(self, http_port=None, distrib_port=None, allowForce=False):
