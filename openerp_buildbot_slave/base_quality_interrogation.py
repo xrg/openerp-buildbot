@@ -876,7 +876,8 @@ class local_server_thread(server_thread):
             self.args.append('--httpd-port=%s' % port )
             self.args.append('--no-httpds')
             self.args.append('-Dtests.nonfatal=True')
-            self.args.append('-Ddatabases.allowed=%s' % dbname)
+            if not opt.multi_dbs:
+                self.args.append('-Ddatabases.allowed=%s' % dbname)
             if ftp_port:
                 self.args.append('-Dftp.port=%s' % ftp_port)
             if defines:
@@ -1573,6 +1574,47 @@ class client_worker(object):
             # but overall pass
         server.clear_context()
         self.log.info("Successful create of db: %s", self.dbname)
+        return True
+
+    def set_db(self, args):
+        """ Switch the db that the server operates against
+
+            We merely need to launch a new session with the updated dbname
+        """
+        new_dbname = None
+        new_user = None
+        new_pass = None
+        while args:
+            if args[0] == '-U':
+                new_user = args[1]
+                args = args[2:]
+            elif args[0] == '-W':
+                new_pass = args[1]
+                args = args[2:]
+            elif args[0].startswith('-'):
+                raise ValueError("Invalid argument to set-db: %s" % args[0])
+            else:
+                break
+        if len(args) != 1:
+            raise ValueError("Command set-db must have one argument, the database name")
+
+        new_dbname = args[0]
+
+        try:
+            tmpdsn = connect_dsn.copy()
+            tmpdsn['dbname'] = new_dbname
+            if new_user is not None:
+                tmpdsn['user'] = new_user
+            if new_pass is not None:
+                tmpdsn['passwd'] = new_pass
+            session = self._session_class(**client_kwargs)
+            session.open(**tmpdsn)
+            self.session = session
+            self.dbname = new_dbname
+            self.log.info('Database switched to "%s".', new_dbname)
+        except Exception:
+            self.log.exception('Cannot switch database to "%s":', new_dbname)
+            return False
         return True
 
     def drop_db(self):
@@ -2446,7 +2488,7 @@ class CmdPrompt(object):
     sub_commands = { 'debug': ['on', 'off', 'server on', 'server off', 
                                 'console on', 'console off', 'console silent',
                                 'object on', 'object off',],
-                    'db': ['load', 'list', 'create', 'drop' ],
+                    'db': ['load', 'list', 'create', 'drop', 'set' ],
                     'console': ['width',],
                     'module': _complete_module_cmd,
                     'orm': _complete_orm_cmd,
@@ -2699,12 +2741,15 @@ class CmdPrompt(object):
                 db load
                 db create
                 db drop
-            
-            Note: at create, the demo-data and language settings come from bqi's 
+                db set [-U user] [-W password] <dbname>
+
+            Note: at create, the demo-data and language settings come from bqi's
                   command line
+
+            db set switches the active database
         """
         if not len(args):
-            print "Usage: db {list|load|create|drop}"
+            print "Usage: db {list|load|create|drop|set}"
             return False
         cmd = args[0]
         args = args[1:]
@@ -2720,6 +2765,10 @@ class CmdPrompt(object):
                 self._client.create_db()
             elif cmd == 'drop':
                 self._client.drop_db()
+            elif cmd == 'set':
+                self._client.set_db(args)
+            else:
+                print "Invalid mode: %s" % cmd
         except xmlrpclib.Fault, e:
             print 'xmlrpc exception: %s' % reduce_homedir( e.faultCode.strip())
             print 'xmlrpc +: %s' % reduce_homedir(e.faultString.rstrip())
@@ -3453,6 +3502,8 @@ parser.add_option("-p", "--port", dest="port", help="specify the TCP port", type
 parser.add_option("--net_port", dest="netport",help="specify the TCP port for netrpc")
 parser.add_option("-d", "--database", dest="db_name", help="specify the database name")
 parser.add_option("--login", dest="login", help="specify the User Login")
+parser.add_option("--multi-dbs", dest="multi_dbs", action="store_true", default=False,
+                    help="allow server to operate on multiple databases")
 parser.add_option("--password", dest="pwd", help="specify the User Password")
 parser.add_option("--super-passwd", dest="super_passwd", help="The db admin password")
 parser.add_option("--config", dest="config", help="Pass on this config file to the server")
@@ -3703,7 +3754,7 @@ def parse_cmdargs(args):
         else:
             cmd2 = command
 
-        if cmd2 not in ('start-server','create-db','drop-db',
+        if cmd2 not in ('start-server','create-db','drop-db', 'set-db',
                     'install-module','upgrade-module','check-quality',
                     'install-translation', 'multi', 'fields-view-get',
                     'translation-import', 'translation-export',
@@ -3721,7 +3772,7 @@ def parse_cmdargs(args):
         elif cmd2 in ('install-module', 'upgrade-module', 'check-quality',
                         'translation-import', 'translation-export',
                         'translation-load', 'translation-sync',
-                        'install-translation', 'import', 'login'):
+                        'install-translation', 'import', 'login', 'set-db'):
             # Commands that take args
             cmd_args = []
             while args and args[0] != '--':
@@ -3926,6 +3977,8 @@ try:
                 ret = client.create_db(lang=options['lang'])
             elif cmd == 'drop-db':
                 ret = client.drop_db()
+            elif cmd == 'set-db':
+                ret = client.set_db(args)
             elif cmd == 'start-server':
                 # a simple login will trigger a db load and ensure
                 # that the server's ORM is working
