@@ -866,6 +866,8 @@ class local_server_thread(server_thread):
             self.args.append('--xmlrpc-interface=%s' % http_if)
             self.args.append('--xmlrpc-port=%s' % port )
             self.args.append('--no-xmlrpcs')
+            if opt.no_tests:
+                self.args.append('--test-disable')
             # self.args.append('--no-database-list') No, it cannot work!
             # We need to be able to list db's for the drop-db and create-db actions. :S
             # FIXME: server doesn't support this!
@@ -876,6 +878,8 @@ class local_server_thread(server_thread):
             self.args.append('--httpd-port=%s' % port )
             self.args.append('--no-httpds')
             self.args.append('-Dtests.nonfatal=True')
+            if opt.no_tests:
+                self.args.append('-Dtests.enable=False')
             if not opt.multi_dbs:
                 self.args.append('-Ddatabases.allowed=%s' % dbname)
             if ftp_port:
@@ -3523,6 +3527,9 @@ parser.add_option("--smtp-maildir", dest="smtp_maildir", help="Maildir to use in
 
 parser.add_option("--no-demo", dest="no_demo", action="store_true", default=False,
                     help="Do not install demo data for modules installed")
+
+parser.add_option("--no-tests", dest="no_tests", action="store_true", default=False,
+                    help="Disable the default yaml tests when server loads modules")
 
 parser.add_option("--language", dest="lang", help="Use that language as default for the new db")
 parser.add_option("--translate-in", dest="translate_in",
