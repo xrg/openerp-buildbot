@@ -2283,6 +2283,7 @@ class client_worker(object):
                         (ost[0], ost[1], ost[4]))
 
         server.clear_context()
+        return True
 
     def gen_account_moves(self, howmany):
         """Generate a (large) number of account moves.
