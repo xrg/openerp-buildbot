@@ -2475,13 +2475,13 @@ class CmdPrompt(object):
 
     avail_cmds = { 0: [ 'help', 'debug', 'quit', 'db', 'console',
                         'orm', 'module', 'translation', 'server', 'test',
-                        'import', 'login', 'describe' ],
-                'orm': ['help', 'obj_info', 'describe',
+                        'import', 'login', 'describe', 'comment' ],
+                'orm': ['help', 'obj_info', 'describe', 'comment',
                         'do', 'res_id',
                         'print', 'with',
                         'table',
                         'debug', 'exit',  ],
-                'orm_id': [ 'help', 'do', 'print', 'describe', 'with', 'debug', 'exit', ]
+                'orm_id': [ 'help', 'comment', 'do', 'print', 'describe', 'with', 'debug', 'exit', ]
                 }
     cmd_levelprompts = { 0: 'BQI', 'db': 'BQI DB', 'orm': 'BQI %(cur_orm)s',
                         'orm_id': 'BQI %(cur_orm)s#%(cur_res_id)d', }
@@ -2513,6 +2513,7 @@ class CmdPrompt(object):
                                 ],
                     'test': ['account-moves',],
                     'translation': ['import', 'export', 'load', 'sync' ],
+                    'comment': [],
                     }
 
     help = '''
@@ -2713,6 +2714,13 @@ class CmdPrompt(object):
                 print "      " + cmd + ' '* (26 - len(cmd)) + doc
         print ""
 
+    def _cmd_comment(self, *args):
+        """ Prints a comment on the console and logs
+        
+        Useful for parsing the logs later, for automated procedures
+        """
+        self._logger.info("Comment: %s", ' '.join(args))
+        
     def _cmd_console(self, cmd=None, *args):
         global opt
         if cmd == 'width':
@@ -2731,7 +2739,6 @@ class CmdPrompt(object):
         """Lists the Databases accessible by the running server"""
         print "Available DBs:"
         pass #TODO
-
 
     def _cmd_db(self, *args):
         """List/Connect/Create or Drop a database
@@ -3456,6 +3463,9 @@ Basic Commands:
     translation-sync <lang>     Sync trnslations from database
 
     get-sqlcount                Retrieve and print the SQL counter
+    comment <message...>        Print message as a comment in the logs
+    get-times <message ...>     Print elapsed times, prefixed by message, to
+                                the logs.
 """
 
 parser = optparse.OptionParser(usage)
@@ -3760,7 +3770,8 @@ def parse_cmdargs(args):
                     'translation-import', 'translation-export',
                     'translation-load', 'translation-sync',
                     'get-sqlcount', 'import', 'login',
-                    'keep', 'keep-running', 'inter', 'interactive'):
+                    'keep', 'keep-running', 'inter', 'interactive',
+                    'comment', 'get-times' ):
             parser.error("incorrect command: %s" % command)
             return
         args = args[1:]
@@ -3772,7 +3783,8 @@ def parse_cmdargs(args):
         elif cmd2 in ('install-module', 'upgrade-module', 'check-quality',
                         'translation-import', 'translation-export',
                         'translation-load', 'translation-sync',
-                        'install-translation', 'import', 'login', 'set-db'):
+                        'install-translation', 'import', 'login', 
+                        'set-db', 'comment', 'get-times'):
             # Commands that take args
             cmd_args = []
             while args and args[0] != '--':
@@ -3961,7 +3973,7 @@ try:
 
     server.start_full()
     client = client_worker(uri, options)
-    ost = client.get_ostimes()
+    ost2 = ost = client.get_ostimes()
     logger.info("Server started at: User: %.3f, Sys: %.3f" % (ost[0], ost[1]))
 
     ret = True
@@ -4010,6 +4022,14 @@ try:
                 ret = client.import_data_file(*args)
             elif cmd == 'login':
                 ret = client._login(*args)
+            elif cmd == 'comment':
+                logger.info("Comment: %s", ' '.join(args))
+                ret = True
+            elif cmd == 'get-times':
+                ost2 = client.get_ostimes(ost2)
+                logger.info("%s: User: %.3f, Sys: %.3f, Real: %.3f",  ' '.join(args), 
+                        ost2[0], ost2[1], ost2[4])
+                ret = True
             elif cmd == 'keep' or cmd == 'keep-running':
                 try:
                     logger.info("Server is running, script is paused. Press Ctrl+C to continue.")
