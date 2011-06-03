@@ -1588,6 +1588,7 @@ class client_worker(object):
         new_dbname = None
         new_user = None
         new_pass = None
+        new_demo = None
         while args:
             if args[0] == '-U':
                 new_user = args[1]
@@ -1595,6 +1596,12 @@ class client_worker(object):
             elif args[0] == '-W':
                 new_pass = args[1]
                 args = args[2:]
+            elif args[0] in ('-t', '--demo'):
+                new_demo = True
+                args = args[1:]
+            elif args[0] in ('-T', '--no-demo'):
+                new_demo = False
+                args = args[1:]
             elif args[0].startswith('-'):
                 raise ValueError("Invalid argument to set-db: %s" % args[0])
             else:
@@ -1615,6 +1622,8 @@ class client_worker(object):
             session.open(**tmpdsn)
             self.session = session
             self.dbname = new_dbname
+            if new_demo is not None:
+                self.do_demo = new_demo
             self.log.info('Database switched to "%s".', new_dbname)
         except Exception:
             self.log.exception('Cannot switch database to "%s":', new_dbname)
