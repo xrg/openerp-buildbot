@@ -1450,15 +1450,13 @@ class client_worker(object):
                 self.log.info("Falling back to previous session")
         return uid
 
-    def import_translate(self, translate_in):
-        # TODO !
+    def import_translate(self, translate_in, force_lang=None):
         server.state_dict['module-mode'] = 'translate'
         self.log.debug("Executing module.lang.import %s", translate_in)
-        wiz_id = self.rpc_call('/wizard', 'create', 'module.lang.import')
-        if not wiz_id:
-            raise ServerException("The language import wizard doesn't exist")
-        for trans_in in translate_in:
-            lang,ext = os.path.splitext(trans_in.split('/')[-1])
+
+        feed_fn = None
+
+        def old_style_feed(fname, fdata, lang):
             state = 'init'
             datas = {'form':{}}
             while state!='end':
@@ -1469,15 +1467,58 @@ class client_worker(object):
                     for field in res['fields'].keys():
                         datas['form'][field] = res['fields'][field].get('value', False)
                     state = res['state'][-1][0]
-                    trans_obj = open(trans_in)
                     datas['form'].update({
                         'name': lang,
                         'code': lang,
-                        'data' : base64.encodestring(trans_obj.read())
+                        'data' : base64.encodestring(fdata)
                     })
-                    trans_obj.close()
                 elif res['type']=='action':
                     state = res['state']
+
+        def orm_mem_feed(fname, fdata, lang):
+            wiz_id = wiz_proxy.create({'name': lang, 'code': lang,
+                        'data': base64.encodestring(fdata) })
+            assert wiz_id
+            wiz_proxy.import_lang([wiz_id], {})
+            wiz_proxy.unlink([wiz_id]) # must unlink to clear memory of file data
+
+        #try:
+            #wiz_id = self.rpc_call('/wizard', 'create', 'module.lang.import', notify=False)
+            #if not wiz_id:
+                #self.log.info("The old-style language import wizard doesn't exist")
+            #else:
+                #feed_fn = old_style_feed
+        #except xmlrpclib.Fault, e:
+            #if e.faultCode == 'wizard.module.lang.import':
+                #self.log.info("Old-style language import wizard was not found")
+                #wiz_id = False
+            #else:
+                #raise
+        #except RpcException, e:
+            #if e.args[0] == 'wizard.module.lang.import':
+                #self.log.info("Old-style language import wizard was not found")
+                #wiz_id = False
+            #else:
+                #raise
+
+        if not feed_fn:
+            wiz_proxy = self.orm_proxy('base.language.import')
+            feed_fn = orm_mem_feed
+
+        ost = self.get_ostimes()
+
+        for trans_in in translate_in:
+            lang,ext = os.path.splitext(trans_in.split('/')[-1])
+            if force_lang is not None:
+                lang = force_lang
+            fp = open(trans_in, 'rb')
+            fdatas = fp.read()
+            fp.close()
+            feed_fn(trans_in, fdatas, lang)
+
+        ost = self.get_ostimes(ost)
+        self.log.info("Language file(s) imported at: User: %.3f, Sys: %.3f, Real: %.3f" % \
+                        (ost[0], ost[1], ost[4]))
         return True
 
     def check_quality(self, modules, quality_logs):
@@ -1944,7 +1985,26 @@ class client_worker(object):
         return True
 
     def import_trans(self, *args):
-        raise NotImplementedError # TODO
+        lang = None
+        in_fname = None
+        format = False
+        addon_paths = []
+        while args:
+            if args[0] == '-l':
+                lang = args[1]
+                args = args[2:]
+            elif args[0] == '-f':
+                in_fname = args[1]
+                args = args[2:]
+            elif args[0] == '-F':
+                format = args[1]
+                args = args[2:]
+            else:
+                break
+        fnames = list(args)
+        if in_fname:
+            fnames.insert(0, in_fname)
+        return self.import_translate(fnames, force_lang=lang)
 
     def export_trans(self, *args):
         """Export translations"""
