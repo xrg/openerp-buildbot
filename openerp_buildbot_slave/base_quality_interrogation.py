@@ -2822,12 +2822,13 @@ class CmdPrompt(object):
                 db load
                 db create
                 db drop
-                db set [-U user] [-W password] <dbname>
+                db set [-U user] [-W password] [-t|-T] <dbname>
 
             Note: at create, the demo-data and language settings come from bqi's
                   command line
 
             db set switches the active database
+                   '-t' activates demo data, '-T' deactivates them
         """
         if not len(args):
             print "Usage: db {list|load|create|drop|set}"
