@@ -3664,7 +3664,7 @@ def parse_option_section(conf, items, allow_include=True):
         elif key == 'color_section':
             parse_color_section(config, val)
         elif key == 'commands':
-            args += val.split(' ')
+            args += val.replace('\n', ' -- ').split(' ')
         elif key in dir(copt):
             if isinstance(getattr(copt, key), list) or \
                     (key in ('modules',)):
