@@ -3591,6 +3591,8 @@ parser.add_option("--multi-dbs", dest="multi_dbs", action="store_true", default=
                     help="allow server to operate on multiple databases")
 parser.add_option("--password", dest="pwd", help="specify the User Password")
 parser.add_option("--super-passwd", dest="super_passwd", help="The db admin password")
+parser.add_option("--ask-passwd", dest="ask_passwd", action="store_true", default=False,
+                    help="Ask for passwords with an interactive prompt"),
 parser.add_option("--config", dest="config", help="Pass on this config file to the server")
 parser.add_option("--ftp-port", dest="ftp_port", help="Choose the port to set the ftp server at")
 parser.add_option("--smtp-maildir", dest="smtp_maildir", help="Maildir to use instead of SMTP server, for test mails")
@@ -3717,12 +3719,20 @@ def mkpasswd(nlen):
         ret += rnd.choice(crange)
     return ret
 
-if opt.pwd is None:
+if (not opt.pwd) and opt.ask_passwd:
+    import getpass
+    opt.pwd = getpass.getpass("Enter the password for %s@%s [%s]: " % \
+        (opt.login or 'admin', opt.db_name, opt.pwd and '****' or ''))
+elif opt.pwd is None:
     opt.pwd = 'admin'
 elif opt.pwd and opt.pwd == "@":
     opt.pwd = mkpasswd(8)
 
-if opt.super_passwd is None:
+if (not opt.super_passwd) and opt.ask_passwd:
+    import getpass
+    opt.super_passwd = getpass.getpass("Enter the password for super-user[%s]: " % \
+        (opt.super_passwd and '*****' or ''))
+elif opt.super_passwd is None:
     opt.super_passwd = 'admin'
 elif opt.super_passwd and opt.super_passwd == "@":
     opt.super_passwd = mkpasswd(10)
@@ -4111,7 +4121,7 @@ try:
             elif cmd == 'keep' or cmd == 'keep-running':
                 try:
                     logger.info("Server is running, script is paused. Press Ctrl+C to continue.")
-                    if not opt.remote:
+                    if not (opt.remote or opt.ask_passwd):
                         print "Remember, the 'admin' password is \"%s\" and the super-user \"%s\"" % \
                                 (opt.pwd, opt.super_passwd)
                     while server.is_running:
@@ -4122,7 +4132,8 @@ try:
                     ret = False
             elif cmd == 'inter' or cmd == 'interactive':
                 logger.info("Interactive mode. Enjoy!")
-                print "Remember, the 'admin' password is \"%s\" and the super-user \"%s\"" % \
+                if not (opt.remote or opt.ask_passwd):
+                    print "Remember, the 'admin' password is \"%s\" and the super-user \"%s\"" % \
                             (opt.pwd, opt.super_passwd)
                 cmdp = CmdPrompt(client)
                 try:
