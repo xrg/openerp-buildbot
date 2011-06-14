@@ -147,6 +147,7 @@ class MS_Scanner(service.Service, util.ComparableMixin):
 
     _loop = None
     _lp = None
+    pass_count = 0
 
     def describe(self):
         pass
@@ -172,13 +173,24 @@ class MS_Scanner(service.Service, util.ComparableMixin):
             elif t['target_path'] in ('addons', 'extra_addons'):
                 projects.add('openobject-addons')
             # and nothing else
+
         min_tstamp = datetime.datetime.now() - datetime.timedelta(days=30)
+        old_tstamp = datetime.datetime.now() - datetime.timedelta(days=90)
         
+        get_kwargs = {}
+        if (self.pass_count % 20) == 0:
+            old_mode = True
+            get_kwargs['status'] = ['Experimental', 'Development', 'Mature', 'Merged', 'Abandoned']
+        else:
+            old_mode = False
+            get_kwargs['modified_since'] = min_tstamp
+        self.pass_count += 1
+
         for projname in projects:
             project = self._lp.projects[projname]
             assert project, projname
             log.msg('Scanning branches in %s' % project.name)
-            for br in project.getBranches(modified_since=min_tstamp):
+            for br in project.getBranches(**get_kwargs):
                 if br.private:
                     continue
                 for tmpl in templates:
@@ -188,9 +200,13 @@ class MS_Scanner(service.Service, util.ComparableMixin):
                                             ('builder_id', '=', tmpl['builder_id'][0])])
         
                         if br.lifecycle_status not in ('Experimental', 'Development', 'Mature'):
-                            if old_ids:
+                            log.msg("Branch %s is %s, found it in %r" %(br.bzr_identity, br.lifecycle_status, old_ids))
+                            if old_ids and br.date_last_modified.date() > old_tstamp.date():
                                 log.msg('Deactivating polling for branches %s' % old_ids)
                                 bseries_obj.write(old_ids,{'poll_interval': -1 })
+                            elif old_ids:
+                                log.msg('Fully deactivating branches %s' % old_ids)
+                                bseries_obj.write(old_ids,{'poll_interval': -1, 'is_build': False })
                             break
 
                         if old_ids:
@@ -201,6 +217,9 @@ class MS_Scanner(service.Service, util.ComparableMixin):
                         defaults = { 'is_template': False, 'branch_url': br.bzr_identity,
                                     'name': tmpl['name'] % namedict,
                                    }
+                        if old_mode and br.date_last_modified.date() < min_tstamp.date():
+                            log.msg("No need to register old %s branch %s" % (br.lifecycle_status, br.bzr_identity))
+                            break
                         if br.description:
                             defaults['description'] = br.description,
                         nbranch = bseries_obj.copy(tmpl['id'], defaults)
@@ -209,8 +228,9 @@ class MS_Scanner(service.Service, util.ComparableMixin):
 
     def startService(self):
         service.Service.startService(self)
-        def do_err(*args):
+        def do_err(why):
             log.err("Error while scanning Launchpad")
+            log.err(why)
             # invalidate the LP handler, let it reconnect
             self._lp = None
             
