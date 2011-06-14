@@ -201,10 +201,29 @@ class MS_Scanner(service.Service, util.ComparableMixin):
         
                         if br.lifecycle_status not in ('Experimental', 'Development', 'Mature'):
                             log.msg("Branch %s is %s, found it in %r" %(br.bzr_identity, br.lifecycle_status, old_ids))
-                            if old_ids and br.date_last_modified.date() > old_tstamp.date():
+                            if not old_ids:
+                                break
+                            full_off = (br.date_last_modified.date() <= old_tstamp.date())
+
+                            old_res = bseries_obj.read(old_ids, ['poll_interval', 'is_build'])
+                            for bser in old_res:
+                                if not bser['is_build']:
+                                    # already deactivated
+                                    old_ids.remove(bser['id'])
+                                elif full_off:
+                                    pass
+                                elif bser['poll_interval'] < 0:
+                                    # already stopped polling
+                                    old_ids.remove(bser['id'])
+
+                            if not old_ids:
+                                # list may (probably) be empty by now
+                                break
+
+                            if not full_off:
                                 log.msg('Deactivating polling for branches %s' % old_ids)
                                 bseries_obj.write(old_ids,{'poll_interval': -1 })
-                            elif old_ids:
+                            else:
                                 log.msg('Fully deactivating branches %s' % old_ids)
                                 bseries_obj.write(old_ids,{'poll_interval': -1, 'is_build': False })
                             break
