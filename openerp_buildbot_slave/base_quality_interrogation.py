@@ -56,6 +56,7 @@ except ImportError:
 
 # will be imported later:
 client_session = None
+client_proxy_class = None
 client_kwargs = {}
 
 def to_decode(s):
@@ -1352,7 +1353,7 @@ class xml_session(object):
         self.uri = None #let all further attempts fail
 
 class bqi_RPCProxy(object):
-    def __init__(self, session, resource):
+    def __init__(self, resource, session):
         self.resource = resource
         self.session = session
 
@@ -1390,8 +1391,10 @@ class client_worker(object):
         self.has_os_times = self.series in ('pg84', 'v600', 'srv-lib') #TODO
         if opt.url:
             self._session_class = client_session
+            self._proxy_class = client_proxy_class
         else:
             self._session_class = xml_session
+            self._proxy_class = bqi_RPCProxy
             self._session_kwargs = {}
         
         self.session = self._session_class(**client_kwargs)
@@ -1405,8 +1408,8 @@ class client_worker(object):
         """ Return ORM proxy object, like client lib
         """
         self.try_login()
-        return bqi_RPCProxy(self.session, model) # TODO could be RPCProxy, if available
-        
+        return self._proxy_class(model, session=self.session)
+
     def _execute(self, connector, method, *args):
         raise RuntimeError()
     
@@ -1900,6 +1903,7 @@ class client_worker(object):
                 # want to be low level.
                 fvg = self.rpc_call('/object','execute',
                                 mod['model'], 'fields_view_get', False, 'form', {}, True)
+                #fvg = self.orm_proxy(mod['model']).fields_view_get(False, 'form', {}, True)
                 ost = self.get_ostimes(ost)
                 if not fvg:
                     server.dump_blame(None, {'context': '%s.check' % (module or 'custom'),
@@ -3978,7 +3982,9 @@ if opt.url:
         from openerp_libclient import protocols
         __hush_pyflakes = [protocols,]
         from openerp_libclient import session as libclient_session
+        from openerp_libclient import rpc as libclient_rpc
         client_session = libclient_session.Session
+        client_proxy_class = libclient_rpc.RpcProxy
         client_kwargs = {'notifier': libclient_session.FilterNotifier() }
         client_kwargs['notifier']._filter_fn = reduce_homedir
         del RpcException
