@@ -2844,7 +2844,7 @@ class CmdPrompt(object):
                 #self.dbname = dbname
                 #self.__cmdlevel = 'db'
             elif cmd == 'create':
-                self._client.create_db()
+                self._client.create_db(lang=options['lang'])
             elif cmd == 'drop':
                 self._client.drop_db()
             elif cmd == 'set':
