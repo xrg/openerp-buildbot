@@ -7,7 +7,7 @@ import compiler, sys
 import os
 
 from pyflakes import checker
-from pyflakes.messages import UnusedImport
+from pyflakes.messages import UnusedImport, UndefinedExport, UndefinedLocal, UndefinedName
 
 def check(codeString, filename):
     """
@@ -66,9 +66,15 @@ def check(codeString, filename):
         w.messages.sort(lambda a, b: cmp(a.lineno, b.lineno))
         if filename.endswith('__init__.py'):
             w.messages = filter(lambda x: not isinstance(x, UnusedImport), w.messages)
+        warns = errors = 0
         for warning in w.messages:
             print warning
-        return len(w.messages)
+            if isinstance(warning, (UndefinedExport, UndefinedLocal, UndefinedName)):
+                errors += 1
+            else:
+                warns += 1
+            
+        return warns, errors
 
 
 def checkPath(filename):
@@ -85,7 +91,7 @@ def checkPath(filename):
 
 
 def main():
-    warnings = 0
+    warnings = errors = 0
     args = sys.argv[1:]
     try:
         if args:
@@ -94,14 +100,22 @@ def main():
                     for dirpath, dirnames, filenames in os.walk(arg):
                         for filename in filenames:
                             if filename.endswith('.py'):
-                                warnings += checkPath(os.path.join(dirpath, filename))
+                                wa, er = checkPath(os.path.join(dirpath, filename))
+                                warnings += wa
+                                errors += er
                 else:
-                    warnings += checkPath(arg)
+                    wa, er = checkPath(arg)
+                    warnings += wa
+                    errors += er
         else:
-            warnings += check(sys.stdin.read(), '<stdin>')
+            wa, er = check(sys.stdin.read(), '<stdin>')
+            warnings += wa
+            errors += er
     except SyntaxError:
         raise SystemExit(1)
     
+    if errors > 0:
+        raise SystemExit(1)
     if warnings > 0 :
         raise SystemExit(3)
 
