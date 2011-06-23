@@ -36,6 +36,9 @@ help:
 clean:
 	-rm -rf $(BUILDDIR)/*
 
+apistruct:
+	./gen_apiref.py -o $(PWD)/  -x doc ../
+
 html:
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
 	@echo
