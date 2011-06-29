@@ -21,7 +21,10 @@
 ##############################################################################
 
 
-from buildbot.slave.commands import Command, SlaveShellCommand, ShellCommand, AbandonChain, Bzr
+from buildslave.commands.base import Command
+from buildslave.commands.shell import SlaveShellCommand
+from buildslave.commands.bzr import Bzr
+from buildslave import runprocess
 from twisted.internet import reactor, defer, task
 from twisted.python import log, failure, runtime
 import os
@@ -85,44 +88,21 @@ class test_environment():
 
 class OpenObjectShell(SlaveShellCommand):
 
-    def start(self):
-        args = self.args
-        assert args['workdir'] is not None
-        workdir = os.path.join(self.builder.basedir, args['workdir'])
-        # addonsdir = args.get('addonsdir', False)
-        commandline = args.get('command', [])
-
-        try:
-            openerp_env = test_environment()
-            openERP_environment = openerp_env.get_test_environment(self.builder.basedir)
-        except:
-            openERP_environment = None
-
-        c = ShellCommand(self.builder, commandline,
-                         workdir, environ = openERP_environment ,
-                         logEnviron = False,
-                         timeout = args.get('timeout', None),
-                         sendStdout = args.get('want_stdout', True),
-                         sendStderr = args.get('want_stderr', True),
-                         sendRC = True,
-                         initialStdin = args.get('initial_stdin'),
-                         keepStdinOpen = args.get('keep_stdin_open'),
-                         logfiles = args.get('logfiles',{}),
-                         )
-        self.command = c
-        d = self.command.start()
-        return d
+    def __init__(self, *args, **kwargs):
+        SlaveShellCommand.__init__(self, *args, **kwargs)
+        self.args.setdefault('logEnviron', False)
 
 class OpenObjectBzr(Bzr):
     def doVCUpdate(self):
+        bzr = self.getCommand('bzr')
         if self.revision:
-            command = [self.vcexe, 'pull', self.sourcedata.split('\n')[0],
-                        '-q', '--overwrite',
-                        '-r', str(self.revision)]
+            command = [bzr, 'pull', '-q', '--overwrite',
+                        '-r', str(self.revision),
+                        self.sourcedata.split('\n')[0] ]
         else:
-            command = [self.vcexe, 'update', '-q']
+            command = [bzr, 'update', '-q']
         srcdir = os.path.join(self.builder.basedir, self.srcdir)
-        c = ShellCommand(self.builder, command, srcdir, sendRC=False, timeout=self.timeout)
+        c = runprocess.RunProcess(self.builder, command, srcdir, sendRC=False, timeout=self.timeout, logEnviron=False)
         self.command = c
         d = c.start()
         d.addCallback(self.doVCClean)
@@ -133,9 +113,10 @@ class OpenObjectBzr(Bzr):
         
         This will remove untracked files (eg. *.pyc, junk) from the repo dir.
         """
-        command = [self.vcexe, 'clean-tree', '-q', '--force', '--unknown', '--detritus']
+        bzr = self.getCommand('bzr')
+        command = [bzr, 'clean-tree', '-q', '--force', '--unknown', '--detritus']
         srcdir = os.path.join(self.builder.basedir, self.srcdir)
-        c = ShellCommand(self.builder, command, srcdir, sendRC=False, timeout=self.timeout)
+        c = runprocess.RunProcess(self.builder, command, srcdir, sendRC=False, timeout=self.timeout, logEnviron=False)
         self.command = c
         d = c.start()
         return d
@@ -145,15 +126,31 @@ class OpenObjectBzr(Bzr):
         # so already created.
         d = os.path.join(self.builder.basedir, dirname)
         if not os.path.exists(d):
-            return defer.succeed(0)
+            return defer.succeed(True)
         return Bzr.doClobber(self, dummy, dirname, **kwargs)
 
+    def sourcedataMatches(self):
+        """ we don't care, assume it is the right dir
+        """
+        return True
+
     def sourcedirIsUpdateable(self):
+        if not os.path.isdir(os.path.join(self.builder.basedir,
+                                           self.srcdir, ".bzr")):
+            return False
         if os.path.exists(os.path.join(self.builder.basedir, self.srcdir, ".buildbot-patched")):
             return False
+        if os.path.exists(os.path.join(self.builder.basedir, self.srcdir, ".bzr", 'checkout', 'limbo')):
+            return False
         # contrary to base class, we allow update when self.revision
-        return (not self.sourcedirIsPatched()) and \
-                os.path.isdir(os.path.join(self.builder.basedir,
-                                           self.srcdir, ".bzr"))
+        return not self.sourcedirIsPatched()
+
+    def parseGotRevision(self):
+        # A dirty hack, only for the current OpenERP setup.
+        # If we are called for the optional non-revisioned dirs, don't report
+        # the revision as a property to the master, because it would incorrectly
+        # tag the builds with the wrong branch's rev_num.
+        if self.revision:
+            Bzr.parseGotRevision(self)
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

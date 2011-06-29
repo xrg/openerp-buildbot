@@ -1,0 +1,134 @@
+{%- block doctype -%}
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+{% endblock %}
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    {% block head %}
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta content="index, follow" name="robots"/>
+    {% if metatags %}
+      {{ metatags }}
+    {% endif %}
+    {% if refresh %}
+      <meta http-equiv="refresh" content="{{ refresh|e }}"/>
+    {% endif %}
+    <title>OpenERP Integration Server</title>
+    <link rel="stylesheet" href="{{ stylesheet }}" type="text/css" />
+    <link rel="alternate" type="application/rss+xml" title="RSS" href="{{ path_to_root }}rss">
+
+    <link rel="stylesheet" href="{{ path_to_root }}css/styles.css" type="text/css" />
+    <link type="{{ path_to_root }}image/x-icon" rel="shortcut icon" href="{{ path_to_root }}sfavicon.ico"/>
+    <!-- Open Object Css File Start -->
+    <link type="text/css" href="{{ path_to_root }}css/style.css" rel="stylesheet"/>
+    <link type="text/css" href="{{ path_to_root }}css/listgrid.css" rel="stylesheet"/>
+    <link type="text/css" href="{{ path_to_root }}css/dashboard.css" rel="stylesheet"/>
+    {% endblock %}
+  </head>
+  <body class="interface">
+    {% block header -%}
+            <table width="100%" border="0" cellspacing="0" cellpadding="0">
+            <tr>
+                <td width="202"><a href="http://openobject.com" alt="Open Object - Free Management Solution Logo"/><img src="{{ path_to_root }}images/openobject.jpg" border="0"/></a></td>
+                <td width="335"><div align="right"><img src="{{ path_to_root }}images/picture.jpg" width="242" height="68" /></div></td>
+                <td width="440" align="right" valign="top">
+                    <table id="Table_01" height="35" border="0" cellpadding="0" cellspacing="0">
+                    <tr>
+                        <td class="greycurveleft" width="23px" height="35px">
+                        </td>
+                        <td width="107" class="headerlinkgrey">
+                            <div class="headerlink" align="center"><a href="http://openerp.com"><strong>Open  ERP</strong></a></div>
+                        </td>
+                        <td width="22px" height="35px" class="greyredcurve"></td>
+                        <td width="125" height="35" class="headerlinkgrey">
+                            <div class="headerlink" align="center"><a href="http://ondemand.openerp.com"><strong>On Demand</strong></a></div>
+                        </td>
+                        <td width="20" height="35" class="redcurve">&nbsp;</td>
+                        <td width="139" height="35" class="redline">
+                            <div class="headerlink" align="center"><a href="http://openobject.com"><strong>Community</strong></a></div>
+                        </td>
+                        <td width="16" height="35" ><img src="{{ path_to_root }}images/redcurveright.jpg"/></td>
+                    </tr>
+                    </table>
+                </td>
+            </tr>
+            </table>
+
+            <table width="100%" border="0" cellspacing="0" cellpadding="0" id="menu_header">
+            <tr>
+                <td width="auto" id="menu_header_menu" nowrap="nowrap">
+                    <span style="color: white; align: right">Beta</span>
+                </td>
+                <td nowrap="nowrap" align="left" height="25px"></td>
+            </tr>
+            <tr>
+              <td id="menu_header_menu2" nowrap="nowrap"></td>
+              <td nowrap="nowrap" align="left"></td>
+              </tr>
+            </table>
+    <tr ><td>
+        <!-- TODO: may need to be removed -->
+        <a href="{{ path_to_root or '.' }}">Home</a>
+        <a href="{{ path_to_root }}latestbuilds">Latest builds</a>
+        <a href="{{ path_to_root }}grid">Grid</a>
+        <a href="{{ path_to_root }}tgrid">T-Grid</a>
+        <a href="{{ path_to_root }}console">Console</a>
+        <a href="{{ path_to_root }}builders">Builders</a>
+        <a href="{{ path_to_root }}one_line_per_build">Recent Builds</a>
+        <a href="{{ path_to_root }}buildslaves">Buildslaves</a>
+        <a href="{{ path_to_root }}changes">Changesources</a>
+        - <a href="{{ path_to_root }}about">About</a>
+    </td></tr>
+    {% endblock %}
+
+    {%- block barecontent -%}
+    <hr/>
+
+    <div class="content">
+      {%- block content -%}
+      {%- endblock -%}
+    </div>
+    {%- endblock -%}
+
+    {%- block footer -%} 
+            <table width="100%%" border="0" align="center" cellpadding="0" cellspacing="0">
+                <tr>
+                    <td valign="top" align="right"><img src="{{ path_to_root }}images/fourmis.jpg"/></td>
+                </tr>
+            </table>
+
+            <table border="0" width="100%%" cellpadding="0" cellspacing="0">
+                <tr height="1">
+                    <td width="1004" bgcolor="#D6D6D6"></td>
+                </tr>
+            </table>
+
+            <table border="0" width="100%%" cellpadding="5" cellspacing="0">
+                <tr>
+                    <td bgcolor="#ffffff">
+                        <div class="footertext">
+                            &copy; 2001-TODAY <a href="http://www.openerp.com">OpenERP SA</a>. All rights reserved.<br/>
+                            OpenERP and OpenObject are trademarks of OpenERP SA.<br/>
+                            They both are released under GPL V3.0.
+                        </div>
+                    </td>
+                </tr>
+            </table>
+            </td></tr></table></div>
+    {% endblock -%}
+<script  type="text/javascript">
+
+   var _gaq = _gaq || [];
+   _gaq.push(['_setAccount', 'UA-7333765-1']);
+   _gaq.push(['_setDomainName', '.openerp.com']);
+   _gaq.push(['_trackPageview']);
+
+   (function() {
+     var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+     ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+     var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+   })();
+
+</script>
+  </body>
+</html>

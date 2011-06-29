@@ -28,229 +28,55 @@ from buildbot.changes.changes import Change
 
 from bzrlib.branch import Branch
 import bzrlib
+import re
+import warnings
 
 import bzr_poller
 
-# -----------------
-class OldBzrPoller(service.MultiService, util.ComparableMixin):
-    """This source will poll a Bzr repository for changes and submit them to
-    the change master."""
-    implements(interfaces.IChangeSource)
-
-    compare_attrs = ["location", "pollinterval"]
-
-
-    parent = None # filled in when we're added
-    last_change = None
-    loop = None
-    working = False
-
-    def __init__(self, location, pollinterval=60*60, callback=False, openerp_properties = {}):
-        """
-        @type  location: string
-        @param location: the URL of the branch that this poller should watch.
-                         This is typically an http: or sftp: URL.
-
-        @type  pollinterval: int
-        @param pollinterval: interval in seconds between polls. The default
-                             is 3600 seconds (1 hour). Smaller values
-                             decrease the latency between the time a change
-                             is recorded and the time the buildbot notices
-                             it, but it also increases the system load.
-        """
-        service.MultiService.__init__(self)
-
-        self.location = location
-        self.last_revno = 0
-        self.pollinterval = pollinterval
-        self.overrun_counter = 0
-        self.callback = callback
-        self.branch = Branch.open_containing(self.location)[0]
-        # bzrlib.trace.enable_default_logging()
-        timer = internet.TimerService(pollinterval, self.poll)
-        timer.setServiceParent(self)
-        self.openerp_properties = openerp_properties
-
-    def describe(self):
-        return "BzrPoller watching %s" % self.location
-
-    def poll(self):
-        try:
-            self._poll()
-        except Exception, e:
-            log.err("Cannot poll: %s" % e)
-
-    def _poll(self):
-        log.msg("BzrPoller polling: %s"%(self.location))
-        # this is subclass of bzrlib.branch.Branch
-        current_revision = self.branch.revno()
-        log.msg("Current revision: %s" % current_revision)
-        if not self.last_revno:
-            openerp_host = self.openerp_properties.get('openerp_host', 'localhost')
-            openerp_port = self.openerp_properties.get('openerp_port',8069)
-            openerp_dbname = self.openerp_properties.get('openerp_dbname','buildbot')
-            openerp_userid = self.openerp_properties.get('openerp_userid','admin')
-            openerp_userpwd = self.openerp_properties.get('openerp_userpwd','a')
-
-            openerp = buildbot_xmlrpc(host = openerp_host, port = openerp_port, dbname = openerp_dbname)
-            openerp_uid = openerp.execute('common','login',  openerp.dbname, openerp_userid, openerp_userpwd)
-
-            args = [('url','ilike',self.location),('is_test_branch','=',False),('is_root_branch','=',False)]
-            tested_branch_ids = openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.lp.branch','search', args)
-            tested_branch_id = tested_branch_ids[0]
-
-            tested_branch_data = openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.lp.branch','read',tested_branch_id,['latest_rev_no'])
-
-            self.last_revno = int(tested_branch_data['latest_rev_no'])
-        # NOTE: b.revision_history() does network IO, and is blocking.
-        log.msg("Get revision history..")
-        revisions = self.branch.revision_history()[self.last_revno:] # each is an id string
-        log.msg("Finished revision history")
-        changes = []
-        for r in revisions:
-            rev = self.branch.repository.get_revision(r)
-            revision_id = rev.revision_id
-            # bzrlib.revision.Revision
-            who = rev.committer
-            comments = rev.message
-            when = rev.timestamp
-            # rev.timezone, interesting. Not sure it's used.
-            revision_delta = self.branch.repository.get_revision_delta(r)
-            revision= self.branch.revision_id_to_revno(r) #b.get_rev_id()
-            branch= self.location #b.get_master_branch()
-            c = OpenObjectChange(
-                                   who = rev.committer,
-                                   revision_delta = revision_delta,
-                                   revision_id = revision_id,
-                                   comments = rev.message,
-                                   when = rev.timestamp,
-                                   revision = revision,
-                                   branch = branch
-                                   )
-            changes.append(c)
-        self.last_revno = current_revision
-        if self.callback:
-            self.callback(self.location,changes)
-        for c in changes:
-            self.parent.addChange(c)
-        log.msg("BzrPoller finished polling, %d changes found" % len(changes))
-
-# ------------------
-
-html_tmpl = """
-<p>Changed by : <b>%(who)s</b><br />
-Changed at : <b>%(at)s</b><br />
-%(branch)s
-%(revision_id)s
-Revision No: %(revision)s
-</p>
-
-%(files_added)s
-%(files_modified)s
-%(files_renamed)s
-%(files_removed)s
-
-
-Comments : %(comments)s
-
-<br />
-"""
-from twisted.web import html
 class OpenObjectChange(Change):
-    def __init__(self, who, revision_delta, revision_id, comments, files=[],  isdir=0, links=[],
-                 revision=None, when=None, branch=None):
-        self.files_added = [f[0] for f in revision_delta.added]
-        self.files_modified = [f[0] for f in revision_delta.modified]
-        self.files_renamed = [(f[0],f[1]) for f in revision_delta.renamed]
-        self.files_removed = [f[0] for f in revision_delta.removed]
-        self.ch = revision_delta
-        self.revision_id = revision_id
-        files = self.files_added + self.files_modified + [f[1] for f in self.files_renamed] + self.files_removed
-        self.all_modules = list(set([ x.split('/')[0] for x in files]))
-        Change.__init__(self, who=who, files=files, comments=comments, isdir=isdir, links=links,revision=revision, when=when, branch=branch)
+    def __init__(self, **kwargs):
+        warnings.warn("You are using deprecated OpenObjectChange.", 
+                DeprecationWarning, stacklevel=3)
+        self.branch_id = kwargs.pop('branch_id')
+        self.filesb = kwargs.pop('filesb',[])
+        self.hash = kwargs.pop('hash', None)
+        self.number = kwargs.pop('id', None)
+        self.parent_id = kwargs.pop('parent_id', None)
+        self.parent_revno = kwargs.pop('parent_revno', None)
+        self.authors = kwargs.pop('authors', [])
+        files = kwargs.pop('files', False)
+        if not files:
+            files = [ x['filename'] for x in self.filesb ]
+        who = kwargs.pop('who', '')
+        comments = kwargs.pop('comments', '')
+        # self.all_modules = list(set([ x.split('/')[0] for x in files]))
+        Change.__init__(self, who, files, comments, **kwargs)
 
-    def allModules(self):
-        """ Return the list of all the modules that must have changed
-        """
-        return self.all_modules
-
-    def asHTML(self):
-        files_added = []
-        files_modified = []
-        files_renamed = []
-        files_removed = []
-        files_added_lbl = ''
-        files_modified_lbl = ''
-        files_renamed_lbl = ''
-        files_removed_lbl = ''
-
-        revision_id = ''
-        if self.revision_id:
-            revision_id = "Revision ID: <b>%s</b><br />\n" % self.revision_id
-
-        revision = ''
-        if self.revision:
-            revision = self.revision
+    def asDict(self):
+        res = Change.asDict(self)
+        res['branch_id'] = self.branch_id
+        if self.hash:
+            res['hash'] = self.hash
+        if self.filesb:
+            res['filesb'] = self.filesb
+        res['authors'] = self.authors
+        if (not res.get('revlink',False)) and self.branch and self.revision:
+            if self.branch.startswith('lp:'):
+                res['revlink'] = "http://bazaar.launchpad.net/%s/revision/%s" % \
+                                (self.branch[3:], self.revision)
+        return res
 
 
-        branch = ""
-        branch_link = ''
-        if self.branch:
-            # Decode source url to a web-vcs interface
-            if self.branch.startswith('https://code.launchpad.net/'):
-                branch_link = 'http://bazaar.launchpad.net/%s/revision/%s' % \
-                    (self.branch[27:], str(revision))
-            elif self.branch.startswith('lp:'):
-                branch_link = 'http://bazaar.launchpad.net/%s/revision/%s' % \
-                    (self.branch[3:], str(revision))
-            # elif  some other repo...
-            
-            if branch_link:
-                branch = "Branch : <a href='%s'>%s</a><br/>\n" % (branch_link, self.branch)
-            else:
-                branch = '<!-- no web for %s -->'  % self.branch
-
-        if self.files_added:
-            files_added_lbl = "Added files : \n"
-            for file in self.files_added:
-                file_link = branch_link + file
-                files_added.append("<a href='%s'>%s</a>" % (file_link,file))
-        if self.files_modified:
-            files_modified_lbl = "Modified files : \n"
-            for file in self.files_modified:
-                file_link = branch_link + file
-                files_modified.append("<a href='%s'>%s</a>" % (file_link, file))
-        if self.files_renamed:
-            files_renamed_lbl = "Renamed files : \n"
-            for file in self.files_renamed:
-                old_file_link = branch_link + file[0]
-                file_link = branch_link + file[1]
-                files_renamed.append("<a href='%s'>%s</a> => <a href='%s'>%s</a>" % (old_file_link, file[0], file_link,file[1]))
-        if self.files_removed:
-            files_removed_lbl = "Removed files : \n"
-            for file in self.files_removed:
-                file_link = branch_link + file
-                files_removed.append("<a href='%s'>%s</a>" % (file_link,file))
-
-        kwargs = { 'who'     : html.escape(self.who),
-                   'at'      : self.getTime(),
-                   'files_added'   : files_added_lbl + html.UL(files_added) + '\n',
-                   'files_modified' : files_modified_lbl + html.UL(files_modified) + '\n',
-                   'files_renamed' : files_renamed_lbl + html.UL(files_renamed) + '\n',
-                   'files_removed' : files_removed_lbl + html.UL(files_removed) + '\n',
-                   'revision': revision,
-                   'revision_id': revision_id,
-                   'branch'  : branch,
-                   'comments': html.PRE(self.comments) }
-        return html_tmpl % kwargs
-        
-        
 class BzrPoller(bzr_poller.BzrPoller):
+    
     def __init__(self, url, poll_interval=10*60, blame_merge_author=False,
-                    branch_name=None, category=None, keeper=None):
+                    branch_name=None, branch_id=None, category=None, keeper=None,
+                    proxy_location=None, slave_proxy_url=None):
         bzr_poller.BzrPoller.__init__(self, url=url, poll_interval=poll_interval,
                     blame_merge_author=blame_merge_author,
-                    branch_name=branch_name, category=category)
+                    branch_id=branch_id,
+                    branch_name=branch_name, category=category,
+                    proxy_location=proxy_location, slave_proxy_url=slave_proxy_url)
         self.keeper = keeper
 
 

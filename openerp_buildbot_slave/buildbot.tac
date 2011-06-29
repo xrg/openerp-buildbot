@@ -3,8 +3,8 @@
 import os
 
 from twisted.application import service
-from buildbot.slave.bot import BuildSlave
-from buildbot.slave.registry import registerSlaveCommand
+from buildslave.bot import BuildSlave
+from buildslave.commands.registry import commandRegistry
 
 import command
 
@@ -21,7 +21,8 @@ application = service.Application('buildslave')
 s = BuildSlave(buildmaster_host, port, slavename, passwd, basedir, keepalive, usepty, umask=umask)
 s.setServiceParent(application)
 
-registerSlaveCommand("OpenObjectShell", command.OpenObjectShell, command.command_version)
-registerSlaveCommand("openobjectbzr", command.OpenObjectBzr, command.command_version)
+
+commandRegistry["OpenObjectShell"] = 'command.OpenObjectShell'
+commandRegistry["openobjectbzr"] = 'command.OpenObjectBzr'
 
 

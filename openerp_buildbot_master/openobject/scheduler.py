@@ -24,107 +24,15 @@ from buildbot.scheduler import AnyBranchScheduler,Scheduler
 from sourcestamp import OpenObjectSourceStamp
 # from buildbot import buildset
 from datetime import datetime
-import binascii
 
-
-
-def create_test_log(source, properties):
-    openerp_host = properties.get('openerp_host', 'localhost')
-    openerp_port = properties.get('openerp_port',8069)
-    openerp_dbname = properties.get('openerp_dbname','buildbot')
-    openerp_userid = properties.get('openerp_userid','admin')
-    openerp_userpwd = properties.get('openerp_userpwd','a')
-    change = source.changes and source.changes[0] or False
-    if not change:
-        return False
-    openerp = buildbot_xmlrpc(host = openerp_host, port = openerp_port, dbname = openerp_dbname)
-    openerp_uid = openerp.execute('common','login',  openerp.dbname, openerp_userid, openerp_userpwd)
-    args = [('url','ilike',change.branch),('is_test_branch','=',False),('is_root_branch','=',False)]
-    tested_branch_ids = openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.lp.branch','search',args)
-    tested_branch_id = tested_branch_ids[0]
-    tested_branch_val = openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.lp.branch','read',[tested_branch_id],['latest_rev_no','latest_rev_id'])
-    last_revision_no_stored = tested_branch_val and tested_branch_val[0].get('latest_rev_no', 0) or 0
-    last_revision_id_stored = tested_branch_val and tested_branch_val[0].get('latest_rev_id', '') or ''
-    properties[tested_branch_id] = {'latest_rev_no':last_revision_no_stored,'latest_rev_id':last_revision_id_stored}
-    res = {}
-    res['branch_id'] = tested_branch_id or False
-    res['test_date'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    res['commit_date'] = datetime.fromtimestamp(change.when).strftime('%Y-%m-%d %H:%M:%S')
-    lp_user_id = openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.lp.user','search', [('name','ilike',change.who)])
-    if lp_user_id:
-        lp_user_id = lp_user_id[0]
-    else:
-         lp_email = str(change.revision_id).split('-')[0]
-         res_lp_user = {'name':change.who,'lp_email':lp_email}
-         lp_user_id = openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.lp.user', 'create', res_lp_user)
-    res['commiter_id'] =  lp_user_id
-    res['commit_comment'] = str(change.comments)
-    res['commit_rev_id'] = str(change.revision_id)
-    res['commit_rev_no'] = int(change.revision)
-    res['new_files'] = '\n'.join(change.files_added)
-    res['update_files'] = '\n'.join(change.files_modified)
-    renamed_files = ['%s --> %s'%(f[0], f[1]) for f in change.files_renamed]
-    res['rename_files'] = '\n'.join(renamed_files)
-    res['remove_files'] = '\n'.join(change.files_removed)
-
-    result_id = openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.test', 'create', res)
-    openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'buildbot.lp.branch', 'write',
-                    [tested_branch_id],{'latest_rev_no':change.revision,
-                                        'latest_rev_id':change.revision_id})
-    ## Add patch as attachment
-    if source.patch:
-     for patch in source.patch or []:
-        data_attach = {
-            'name': str(change.revision_id)+'.patch',
-            'datas':binascii.b2a_base64(str(source.patch.get(patch))),
-            'datas_fname': patch,
-            'description': 'Patch attachment',
-            'res_model': 'buildbot.test',
-            'res_id': result_id,
-        }
-        openerp.execute('object', 'execute', openerp.dbname, openerp_uid, openerp_userpwd, 'ir.attachment', 'create', data_attach)
-    return result_id
-
-class OpenObjectBuildset(object): # TODO buildset.BuildSet):
-    def __init__(self, builderNames, source, reason=None, bsid=None,
-                 properties=None, openerp_properties={}):
-        buildset.BuildSet.__init__(self, builderNames=builderNames, source=source, reason=reason, bsid=bsid, properties=properties)
-        self.openerp_properties = openerp_properties
-    def start(self, builders):
-        res = buildset.BuildSet.start(self, builders)
-        for builder in builders:
-             if not hasattr(builder, 'test_ids'):
-                 builder.test_ids = {}
-             builder.openerp_properties = self.openerp_properties
-             openerp_test_id = create_test_log(self.source, self.openerp_properties)
-
-             if self.source.revision not in builder.test_ids:
-                 builder.test_ids[self.source.revision] = openerp_test_id
-        return res
+raise ImportError("Don't use me!")
 
 class OpenObjectScheduler(Scheduler):
-    def __init__(self, name, branch, treeStableTimer, builderNames,
-                 fileIsImportant=None, properties=None, openerp_properties=None):
+    def __init__(self, name, **kwargs):
         self.unimportantChanges = []
-        Scheduler.__init__(self, name=name, branch=branch, treeStableTimer=treeStableTimer, builderNames=builderNames,
-                 fileIsImportant=fileIsImportant, properties=properties)
-        self.openerp_properties = openerp_properties
-
-    def fireTimer(self):
-        # clear out our state
-        self.timer = None
-        self.nextBuildTime = None
-        changes = self.importantChanges + self.unimportantChanges
-        self.importantChanges = []
-        self.unimportantChanges = []
-        # create a BuildSet, submit it to the BuildMaster
-        for change in changes:
-            bs = OpenObjectBuildset(self.builderNames,
-                                   OpenObjectSourceStamp(changes=[change]),
-                                   properties=self.properties,
-                                   openerp_properties=self.openerp_properties)
-            self.submitBuildSet(bs)
-
+        self.keeper = kwargs.pop('keeper', None)
+        Scheduler.__init__(self, name=name, **kwargs)
+        
 
 class OpenObjectAnyBranchScheduler(AnyBranchScheduler):
     schedulerFactory = OpenObjectScheduler

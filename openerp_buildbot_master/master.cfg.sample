@@ -26,8 +26,7 @@ k = Keeper(properties, c)
 
 k.reset()
 
-import os
-
+web.ROOT_PATH =  os.path.abspath('.')
 
 #### unregister the TextLog adapter registered by buildbot
 from twisted.python import components
