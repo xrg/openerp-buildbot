@@ -217,6 +217,13 @@ man_pages = [
      [u'P. Christeas, OpenERP SA.'], 1)
 ]
 
+# Autodoc options
+autodoc_default_flags = ['members', 'undoc-members', 'show-inheritance']
+
+autodoc_member_order = 'groupwise'
+
+# Take both class docstring and __init__ one
+autoclass_content = 'both'
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {'http://docs.python.org/': None}
