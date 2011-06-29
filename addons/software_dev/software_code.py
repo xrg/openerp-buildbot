@@ -3,6 +3,7 @@
 #
 #    OpenERP, Open Source Management Solution
 #    Copyright (C) 2010 OpenERP SA. (http://www.openerp.com)
+#    Copyright (C) 2011 P. Christeas <xrg@hellug.gr>
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU Affero General Public License as
@@ -19,17 +20,19 @@
 #
 ##############################################################################
 
-from tools.translate import _
+# from tools.translate import _
 from osv import fields, osv
+from datetime import datetime
+import time
 
-repo_types = [('git', 'Git'), ('bzr', 'Bazaar'), ('hg', 'Mercurial'), 
+repo_types = [('git', 'Git'), ('bzr', 'Bazaar'), ('hg', 'Mercurial'),
         ('svn', 'Subversion')]
 
 repo_families = [('github', 'Github'), ('lp', 'Launchpad'), ('gitweb', 'Git Web') ]
 
 class software_repohost(osv.osv):
     """ A host can contain repositories
-    
+
         We add it here, since the host may have users or special treatment
     """
     _name = 'software_dev.repohost'
@@ -61,7 +64,7 @@ class software_repo(osv.osv):
         'proxy_location': fields.char('Proxy location', size=1024,
                 help="A local path where this repository is replicated, for caching"),
         'slave_proxy_url': fields.char('Slave proxy url', size=1024,
-                help="The url from which a slave bot can fetch the proxied repository content"),                
+                help="The url from which a slave bot can fetch the proxied repository content"),
         'branch_ids': fields.one2many('software_dev.branch', 'repo_id', 'Branches'),
     }
 
@@ -73,7 +76,7 @@ software_repo()
 class software_branch(osv.osv):
     _name = 'software_dev.branch'
     _description = 'Code branch'
-    
+
     def _get_fetch_url(self, cr, uid, ids, name, args, context=None):
         res = {}
         for b in self.browse(cr, uid, ids, context=context):
@@ -92,7 +95,7 @@ class software_branch(osv.osv):
                 url = b.sub_url
             res[b.id] = url
         return res
-    
+
     def _get_browse_url(self, cr, uid, ids, name, args, context=None):
         res = {}
         for b in self.browse(cr, uid, ids, context=context):
@@ -103,7 +106,7 @@ class software_branch(osv.osv):
             else:
                 res[b.id] = b.sub_url
         return res
-    
+
 
     _columns = {
         'name': fields.char('Branch Name', required=True, size=64),
@@ -112,7 +115,7 @@ class software_branch(osv.osv):
                     help="Seconds interval to look for changes"),
         'repo_id': fields.many2one('software_dev.repo', 'Repository', required=True, select=1),
         'description': fields.text('Description'),
-        'sub_url': fields.char('Branch URL', size=1024, required=True, 
+        'sub_url': fields.char('Branch URL', size=1024, required=True,
                     help="Location of branch, sometimes relative to repository"),
         'fetch_url': fields.function(_get_fetch_url, string="Fetch URL",
                     type="char", method=True, readonly=True, size=1024,
@@ -140,7 +143,7 @@ class software_user(osv.osv):
 
 
     _columns = {
-        'name': fields.function(_get_name, string='Name', method=True, 
+        'name': fields.function(_get_name, string='Name', method=True,
                     type='char', store=False, readonly=True),
         'host_id': fields.many2one('software_dev.repohost', 'Host', required=True,
                     select=1,
@@ -153,12 +156,21 @@ class software_user(osv.osv):
 
     _defaults = {
     }
-    
+
+    def get_user(self, cr, uid, userid, context=None):
+        """Return the id of the user with that name, even create one
+        """
+        ud = self.search(cr, uid, [('userid', '=', userid)], context=context)
+        if ud:
+            return ud[0]
+        else:
+            return self.create(cr, uid, { 'userid': userid }, context=context)
+
     _sql_constraints = [ ('host_user_uniq', 'UNIQUE(host_id, userid)', 'User id must be unique at host'), ]
-   
+
 software_user()
 
-commit_types = [ ('reg', 'Regular'), ('merge', 'Merge'), ('single', 'Standalone'), 
+commit_types = [ ('reg', 'Regular'), ('merge', 'Merge'), ('single', 'Standalone'),
             ]
 
 class software_commit(osv.osv):
@@ -166,8 +178,40 @@ class software_commit(osv.osv):
     """
     _name = 'software_dev.commit'
     _description = 'Code Commit'
+    _function_fields_browse = True
+
+    def _get_name(self, cr, uid, ids, name, args, context=None):
+        res = {}
+        for b in self.browse(cr, uid, ids, context=context):
+            name = ''
+            if b.revno:
+                name += '#%s ' % b.revno
+            elif b.hash:
+                name += '%s ' % b.hash[:8]
+            name += b.subject
+            res[b.id] = name
+        return res
+
+    def name_search(self, cr, uid, name='', args=None, operator='ilike',  context=None, limit=None):
+        if args is None:
+            args = []
+        if operator in ('ilike', 'like'):
+            op2 = '='
+        elif operator in ('not ilike', 'not like'):
+            op2 = '!='
+        else:
+            op2 = operator
+        domain = args + ['|', '|', ('hash', operator, name), ('revno', op2, name),
+                        ('subject', operator, name)]
+        return super(software_commit, self).name_search(cr, uid, None, domain,
+                        operator=operator, limit=limit, context=context)
+
     _columns = {
-        'name': fields.char('Message', required=True, size=2048),
+        'name': fields.function(_get_name, string='Name', size=512,
+                method=True, type='char', readonly=True),
+        'subject': fields.char('Subject', required=True, size=256),
+        'description': fields.text('Description'),
+
         'date': fields.datetime('Date', required=True),
         'branch_id': fields.many2one('software_dev.branch', 'Branch', required=True, select=1),
         'hash': fields.char('Hash', size=1024, select=1,
@@ -178,16 +222,19 @@ class software_commit(osv.osv):
                 help="In some repos, have tag name or description of commit relative to tag"),
         'ctype': fields.selection(commit_types, 'Commit type', required=True),
         'comitter_id': fields.many2one('software_dev.vcs_user', 'Committer', required=True),
-        'author_ids': fields.many2many('software_dev.vcs_user', 
+        'author_ids': fields.many2many('software_dev.vcs_user',
                 'software_dev_commit_authors_rel', 'commit_id', 'author_id', 'Authors',
                 help="Developers who have authored the code"),
         'change_ids': fields.one2many('software_dev.filechange', 'commit_id', 'Changes'),
+        'stat_ids': fields.one2many('software_dev.changestats', 'commit_id', 'Statistics'),
         'parent_id': fields.many2one('software_dev.commit', 'Parent commit'),
-        'contained_commit_ids': fields.many2many('software_dev.commit', 
+        # 'merge_id': fields.many2one('software_dev.commit', 'Commit to merge',
+        #            help='If set, this is the second parent, which is merged with "Parent Commit"'),
+        'contained_commit_ids': fields.many2many('software_dev.commit',
             'software_dev_commit_cont_rel', 'end_commit_id', 'sub_commit_id',
             help="Commits that are contained in this, but not the parent commit"),
     }
-    
+
     _sql_constraints = [ ('hash_uniq', 'UNIQUE(hash)', 'Hash must be unique.'),
                 ('branch_revno_uniq', 'UNIQUE(branch_id, revno)', 'Revision no. must be unique in branch'),
                 ]
@@ -196,9 +243,123 @@ class software_commit(osv.osv):
         'ctype': 'reg',
     }
 
+    def submit_change(self, cr, uid, cdict, context=None):
+        """ Submit full info for a commit, in a dictionary
+        """
+        # TODO
+        assert isinstance(cdict, dict)
+        user_obj = self.pool.get('software_dev.vcs_user')
+        fchange_obj = self.pool.get('software_dev.filechange')
+
+        clines = cdict['comments'].split('\n',1)
+        subj = clines[0]
+        descr = '\n'.join(clines[1:])
+
+
+        cids = self.search(cr, uid, [('branch_id', '=', cdict['branch_id']),
+                        ('hash','=', cdict.get('hash', False))])
+        if cids:
+            # This is the case where buildbot attempts to send us a commit
+            # for a second time
+            assert len(cids) == 1
+            # RFC: shall we update any data to that cid?
+            return cids[0]
+        else: # a new commit
+            new_vals = {
+                'subject': subj,
+                'description': descr,
+                'date': datetime.fromtimestamp(cdict['when']),
+                'branch_id': cdict['branch_id'],
+                'comitter_id': user_obj.get_user(cr, uid, cdict['who'], context=context),
+                'revno': cdict['rev'],
+                'hash': cdict.get('hash', False),
+                'authors': [ user_obj.get_user(cr, uid, usr, context=context)
+                                for usr in cdict.get('authors', []) ],
+                }
+            cid = self.create(cr, uid, new_vals, context=context)
+
+        if cdict.get('filesb'):
+            # try to submit from the detailed files member
+            for cf in cdict['filesb']:
+                fval = { 'commit_id': cid,
+                    'filename': cf['filename'],
+                    'ctype': cf.get('ctype', 'm'),
+                    'lines_add': cf.get('lines_add', 0),
+                    'lines_rem': cf.get('lines_rem', 0),
+                    }
+                fchange_obj.create(cr, uid, fval, context=context)
+
+        else: # use the compatible list, eg. when migrating
+            for cf in cdict['files']:
+                fval = { 'commit_id': cid,
+                    'filename': cf['name'],
+                    }
+                fchange_obj.create(cr, uid, fval, context=context)
+
+        return cid
+
+    def saveCStats(self, cr, uid, id, cstats, context=None):
+        """Save the commit statistics
+        """
+        assert isinstance(id, (int, long))
+        assert isinstance(cstats, dict), "%r" % cstats
+
+        user_obj = self.pool.get('software_dev.vcs_user')
+        cstat_obj = self.pool.get('software_dev.changestats')
+
+        if cstats:
+            sval = { 'commit_id': id,
+                'author_id': user_obj.get_user(cr, uid, cstats['author'], context=context),
+                'commits': cstats.get('commits', 0),
+                'count_files': cstats.get('count_files', 0),
+                'lines_add': cstats.get('lines_add', 0),
+                'lines_rem': cstats.get('lines_rem', 0),
+                }
+            cstat_obj.create(cr, uid, sval, context=context)
+
+        return True
+
+
+    def getChanges(self, cr, uid, ids, context=None):
+        """ Format the commits into a dictionary
+        """
+        # TODO
+        ret = []
+        for cmt in self.browse(cr, uid, ids, context=context):
+            if isinstance(cmt.date, basestring):
+                dt = cmt.date.rsplit('.',1)[0]
+                tdate = time.mktime(time.strptime(dt, '%Y-%m-%d %H:%M:%S'))
+            else:
+                tdate = time.mktime(cmt.date)
+            cdict = {
+                'id': cmt.id,
+                'comments': cmt.name,
+                'when': tdate,
+                'branch_id': cmt.branch_id.id,
+                'branch': cmt.branch_id.branch_url,
+                'who': cmt.comitter_id.userid,
+                'revision': cmt.revno,
+                'hash': cmt.hash,
+                'filesb': [],
+                }
+            if cmt.parent_id:
+                cdict['parent_id'] = cmt.parent_id.id
+                cdict['parent_revno'] = cmt.parent_id.revno
+
+            for cf in cmt.change_ids:
+                cdict['filesb'].append( {
+                        'filename': cf.filename,
+                        'ctype': cf.ctype,
+                        'lines_add': cf.lines_add,
+                        'lines_rem': cf.lines_rem,
+                        })
+
+            ret.append(cdict)
+        return ret
+
 software_commit()
 
-change_types = [ ('a', 'Add'), ('m', 'Modify'), ('d', 'Delete'), 
+change_types = [ ('a', 'Add'), ('m', 'Modify'), ('d', 'Delete'),
                 ('c', 'Copy'), ('r', 'Rename') ]
 
 class software_filechange(osv.osv):
@@ -215,28 +376,56 @@ class software_filechange(osv.osv):
         'lines_rem': fields.integer('Lines removed'),
     }
     _defaults = {
+        'ctype': 'm',
     }
-    
+
     _sql_constraints = [( 'commit_file_uniq', 'UNIQUE(commit_id, filename)', 'Commit cannot contain same file twice'), ]
 
 software_filechange()
+
+class software_changestats(osv.osv):
+    """ Statistics of a change
+    A change may contain more than one stats lines, grouped by author.
+    """
+    _name = 'software_dev.changestats'
+    _description = 'Code File Change'
+    _columns = {
+        'commit_id': fields.many2one('software_dev.commit','Commit',
+                required=True, ondelete='cascade'),
+        'author_id': fields.many2one('software_dev.vcs_user', 'Author', required=True),
+        'commits': fields.integer('Number of commits', required=True),
+        'count_files': fields.integer('Files changed', required=True),
+        'lines_add': fields.integer('Lines added', required=True),
+        'lines_rem': fields.integer('Lines removed', required=True ),
+    }
+    _defaults = {
+        'commits': 0,
+        'count_files': 0,
+        'lines_add': 0,
+        'lines_rem': 0,
+    }
+
+    _sql_constraints = [( 'commit_author_uniq', 'UNIQUE(commit_id, author_id)', 'Commit stats cannot contain same author twice'), ]
+
+software_changestats()
 
 
 class software_component2(osv.osv):
     """ Enhance the software component object with branch/commit fields
     """
     _inherit = "software_dev.component"
-    
+
     _columns = {
         'branch_id': fields.many2one('software_dev.branch', 'Branch', required=True, select=1),
         'commit_id': fields.many2one('software_dev.commit','Commit',),
-        'update_rev': fields.boolean('Update commit', required=True, 
+        'update_rev': fields.boolean('Update commit', required=True,
                 help="Auto update to the latest commit from branch, or else stay at the commit specified."),
     }
-    
+
     _defaults = {
         'update_rev': True,
     }
 
 software_component2()
+
 #eof

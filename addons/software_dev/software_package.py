@@ -3,6 +3,7 @@
 #
 #    OpenERP, Open Source Management Solution
 #    Copyright (C) 2010 OpenERP SA. (http://www.openerp.com)
+#    Copyright (C) 2011 P. Christeas <xrg@hellug.gr>
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU Affero General Public License as
@@ -56,6 +57,20 @@ class software_package(osv.osv):
     }
 
 software_package()
+
+class software_builder(osv.osv):
+    _name = 'software_dev.builder'
+    _description = 'Software Builder'
+    _columns = {
+        'name': fields.char('Name', required=True, size=64),
+        'description': fields.text('Description'),
+    }
+
+    _defaults = {
+    }
+
+software_builder()
+
 
 #eof
 

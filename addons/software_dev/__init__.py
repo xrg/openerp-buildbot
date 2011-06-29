@@ -3,6 +3,7 @@
 #
 #    OpenERP, Open Source Management Solution
 #    Copyright (C) 2010 OpenERP SA. (http://www.openerp.com)
+#    Copyright (C) 2011 P. Christeas <xrg@hellug.gr>
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU Affero General Public License as
@@ -19,10 +20,13 @@
 #
 ##############################################################################
 
+import software_props
 import software_package
 import software_code
 
-import software_tests
 import software_bbot
+import software_builds
+
+import software_results
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

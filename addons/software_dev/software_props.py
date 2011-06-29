@@ -20,32 +20,24 @@
 #
 ##############################################################################
 
+from osv import fields, osv
 
-{
-    'name': 'Software Development and Testing',
-    'version': '0.2',
-    'category': 'Generic Modules/Others',
-    'description': """Integrate the software development procedures, automated
-builds and testing into the ERP.
+class software_dev_property(osv.osv):
+    """ A class for generic properties on buildbot classes
+    """
     
-""",
-    'author': 'OpenERP SA',
-    'website': 'http://www.openerp.com',
-    'depends': ['base','project', 'hr'],
-    'init_xml': [],
-    'update_xml': [
-        'security/software_security.xml',
-        'security/ir.model.access.csv',
-        'software_dev_view.xml',
-        'software_dev_data.xml',
-    ],
-    'demo_xml': [ 'software_dev_demo.xml'],
-    'test': [
-        # 'test/software_dev.yml',
-    ],
-    'installable': True,
-    'active': False,
-    'certificate': None,
-}
+    _name = 'software_dev.property'
+    
+    _columns = {
+        'model_id': fields.many2one('ir.model', 'Model', required=True,
+                        select=1,
+                        domain= [('model', 'like','software_dev.')],
+                        help="The model to have the property"),
+        'resid': fields.integer('Res ID', required=True, select=1),
+        'name': fields.char('Name', size=256, required=True),
+        'value': fields.text('Value', required=True),
+    }
+    
+software_dev_property()
 
-# vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
+#eof

@@ -1,37 +1,10 @@
 <?xml version="1.0"?>
 <openerp>
 	<data>
-		<record id="software_dev_component_latestaddons0" model="software_dev.component">
-			<field model="software_dev.branch" name="branch_id" search="[('name', '=', u'Trunk addons')]"/>
-			<field name="name">Latest addons</field>
-			<field eval="1" name="update_rev"/>
-			<field name="dest_path">addons</field>
-		</record>
-	</data>
-	<data noupdate="1">
-		<record id="software_dev_package_openerp0" model="software_dev.package">
-			<field name="project_id" ref="project.project_project_9"/>
-			<field name="name">OpenERP</field>
-			<field eval="[(6,0,[ref('software_dev_component_latestaddons0')])]" name="component_ids"/>
-		</record>
-	</data>
-	<data>
 		<record id="software_dev_repohost_launchpad0" model="software_dev.repohost">
 			<field name="name">Launchpad</field>
 			<field name="rtype">bzr</field>
 			<field name="host_family">lp</field>
-		</record>
-		<record id="software_dev_repo_openerpaddons0" model="software_dev.repo">
-			<field name="name">OpenERP Addons</field>
-			<field name="rtype">bzr</field>
-			<field name="base_url">openobject-addons</field>
-			<field model="software_dev.repohost" name="host_id" search="[('name', '=', u'Launchpad')]"/>
-		</record>
-		<record id="software_dev_branch_trunkaddons0" model="software_dev.branch">
-			<field model="software_dev.repo" name="repo_id" search="[('name', '=', u'OpenERP Addons')]"/>
-			<field name="sub_url">trunk</field>
-			<field eval="10" name="poll_interval"/>
-			<field name="name">Trunk addons</field>
 		</record>
 		<record id="software_dev_repo_openerpserver0" model="software_dev.repo">
 			<field name="name">OpenERP server</field>
@@ -100,6 +73,21 @@
 	<data>
 		<record id="software_dev_builder_buildbot0" model="software_dev.builder">
 			<field name="name">Buildbot 1</field>
+		</record>
+	</data>
+	<data>
+		<record id="software_dev_component_latestaddons0" model="software_dev.component">
+			<field model="software_dev.branch" name="branch_id" search="[('name', '=', u'Trunk addons')]"/>
+			<field name="name">Latest addons</field>
+			<field eval="1" name="update_rev"/>
+			<field name="dest_path">addons</field>
+		</record>
+	</data>
+	<data noupdate="1">
+		<record id="software_dev_package_openerp0" model="software_dev.package">
+			<field name="project_id" ref="project.project_project_9"/>
+			<field name="name">OpenERP</field>
+			<field eval="[(6,0,[ref('software_dev_component_latestaddons0')])]" name="component_ids"/>
 		</record>
 	</data>
 	<data>
