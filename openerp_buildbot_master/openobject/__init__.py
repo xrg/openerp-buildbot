@@ -20,7 +20,6 @@
 #
 ##############################################################################
 
-import buildstep
 import poller
 import status
 import master_keeper

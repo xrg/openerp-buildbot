@@ -15,11 +15,9 @@ import logging
 from buildbot.buildslave import BuildSlave
 from buildbot.process import factory
 from buildbot.schedulers.filter import ChangeFilter
-from buildbot.schedulers.basic import BaseBasicScheduler, SingleBranchScheduler
+from buildbot.schedulers.basic import SingleBranchScheduler
 from buildbot import manhole
-from openobject.buildstep import OpenObjectBzr, OpenObjectSVN, BzrMerge, BzrRevert, \
-        OpenERPTest, LintTest, BzrStatTest, BzrCommitStats, BzrTagFailure, \
-        ProposeMerge, BzrPerformMerge, BzrCommit, BzrSyncUp, MergeToLP
+from openobject import buildsteps
 from openobject.poller import BzrPoller
 from openobject.status import web, mail, logs
 import twisted.internet.task
@@ -27,9 +25,7 @@ from openerp_libclient import rpc
 import os
 import signal
 
-from twisted.python import log, reflect
-from twisted.python import components
-from buildbot import util
+from twisted.python import log
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -215,20 +211,16 @@ class Keeper(object):
         # Get the tests that have to be performed:
         builders = bbot_obj.get_builders([self.bbot_id])
         
-        dic_steps = { 'OpenERP-Test': OpenERPTest,
-                'OpenObjectBzr': OpenObjectBzr,
-                'BzrRevert': BzrRevert,
-                'BzrStatTest': BzrStatTest,
-                'BzrCommitStats': BzrCommitStats,
-                'LintTest': LintTest,
-                'BzrMerge': BzrMerge,
-                'BzrTagFailure': BzrTagFailure,
-                'ProposeMerge': ProposeMerge,
-                'BzrPerformMerge': BzrPerformMerge,
-                'BzrCommit': BzrCommit,
-                'BzrSyncUp': BzrSyncUp,
-                'MergeToLP': MergeToLP,
-                }
+        dic_steps = {}
+        
+        for bs in buildsteps.exported_buildsteps:
+            if getattr(bs, 'step_name', None):
+                dic_steps[bs.step_name] = bs
+            else:
+                # by default, the class name
+                dic_steps[bs.__name__] = bs
+        
+        print "Available steps:", dic_steps.keys()
 
         for bld in builders:
             fact = factory.BuildFactory()
