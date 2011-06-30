@@ -30,7 +30,7 @@
 			<field name="host_id" ref="software_dev_repohost_launchpad0"/>
 		</record>
 		<record id="software_dev_branch_trunkaddons1" model="software_dev.branch">
-			<field model="software_dev.repo" name="repo_id" search="[('name', '=', u'OpenERP Addons')]"/>
+			<field name="repo_id" ref="software_dev_repo_openerpaddons1"/>
 			<field name="sub_url">trunk</field>
 			<field eval="10" name="poll_interval"/>
 			<field name="name">Trunk addons</field>
@@ -58,21 +58,11 @@
 		</record>
 	</data>
 	<data>
-		<record id="software_dev_branch_trunkaddons2" model="software_dev.branch">
-			<field name="repo_id" ref="software_dev_repo_openerpaddons1"/>
-			<field name="sub_url">trunk</field>
-			<field eval="10" name="poll_interval"/>
-			<field name="name">Trunk addons</field>
-		</record>
+		
 	</data>
 	<data>
 		<record id="software_dev_builder_buildbotroot0" model="software_dev.builder">
 			<field name="name">Buildbot Root</field>
-		</record>
-	</data>
-	<data>
-		<record id="software_dev_builder_buildbot0" model="software_dev.builder">
-			<field name="name">Buildbot 1</field>
 		</record>
 	</data>
 	<data>
@@ -89,26 +79,6 @@
 			<field name="name">OpenERP</field>
 			<field eval="[(6,0,[ref('software_dev_component_latestaddons0')])]" name="component_ids"/>
 		</record>
-	</data>
-	<data>
-		<record id="software_dev_buildseries_testinglatestaddons0" model="software_dev.buildseries">
-			<field name="branch_id" ref="software_dev_branch_trunkaddons2"/>
-			<field eval="0" name="is_distinct"/>
-			<field name="name">Testing latest addons</field>
-			<field eval="10" name="sequence"/>
-			<field name="builder_id" ref="software_dev_builder_buildbot0"/>
-			<field name="package_id" ref="software_dev_package_openerp0"/>
-			<field model="software_dev.test" name="test_id" search="[('name', '=', u'Full OpenERP')]"/>
-		</record>
-	</data>
-	<data>
-		<record id="software_dev_battr_test0" model="software_dev.battr">
-			<field model="software_dev.buildbot" name="bbot_id" search="[('name', '=', u'Buildbot 1')]"/>
-			<field name="name">test1</field>
-			<field name="value">test1 value</field>
-		</record>
-	</data>
-	<data>
 		<record id="software_dev_buildbot_buildbot0" model="software_dev.buildbot">
 			<field name="name">Buildbot 1</field>
 			<field name="tech_code">buildbot</field>
@@ -118,38 +88,30 @@
 			<field name="name">test1</field>
 			<field name="value">test1 value</field>
 		</record>
-	</data>
-	<data>
 		<record id="software_dev_bbslave_localslave0" model="software_dev.bbslave">
 			<field name="bbot_id" ref="software_dev_buildbot_buildbot0"/>
 			<field name="password">secret</field>
 			<field name="name">Local slave</field>
 			<field name="tech_code">buildbot</field>
 		</record>
-	</data>
-	<data>
+
+		<record id="software_dev_buildseries_testinglatestaddons0" model="software_dev.buildseries">
+			<field name="branch_id" ref="software_dev_branch_trunkaddons1"/>
+			<field eval="0" name="is_distinct"/>
+			<field name="name">Testing latest addons</field>
+			<field eval="10" name="sequence"/>
+			<field name="builder_id" ref="software_dev_builder_buildbot0"/>
+			<field name="package_id" ref="software_dev_package_openerp0"/>
+			<field model="software_dev.test" name="test_id" search="[('name', '=', u'Full OpenERP')]"/>
+		</record>
 		<record id="software_dev_test_fullopenerp0" model="software_dev.test">
 			<field name="name">Full OpenERP</field>
 		</record>
-		<record id="software_dev_teststep_pylint0" model="software_dev.teststep">
-			<field model="software_dev.test" name="test_id" search="[('name', '=', u'Full OpenERP')]"/>
-			<field name="name">pylint</field>
-			<field eval="1" name="sequence"/>
-		</record>
-		<record id="software_dev_teststep_openerptest0" model="software_dev.teststep">
-			<field model="software_dev.test" name="test_id" search="[('name', '=', u'Full OpenERP')]"/>
-			<field name="name">OpenERP-Test</field>
-			<field eval="2" name="sequence"/>
-		</record>
-	</data>
-	<data>
 		<record id="software_dev_teststep_pylint1" model="software_dev.teststep">
 			<field name="test_id" ref="software_dev_test_fullopenerp0"/>
 			<field name="name">pylint</field>
 			<field eval="1" name="sequence"/>
 		</record>
-	</data>
-	<data>
 		<record id="software_dev_teststep_openerptest1" model="software_dev.teststep">
 			<field name="test_id" ref="software_dev_test_fullopenerp0"/>
 			<field name="name">OpenERP-Test</field>
