@@ -24,6 +24,7 @@
 from osv import fields, osv
 from properties import propertyMix, bbot_results
 import time
+from tools.func import virtual
 
 class software_group(osv.osv):
     _name = 'software_dev.buildgroup'
@@ -125,8 +126,8 @@ class software_buildseries(propertyMix, osv.osv):
         'branch_id': fields.many2one('software_dev.branch', 'Rolling branch', required=True,
                 help="One branch, that is used to test against different commits.",
                 ),
-        'builder_id': fields.many2one('software_dev.builder', 
-                string='Builder', required=True,
+        'builder_id': fields.many2one('software_dev.buildbot',
+                string='BuildBot', required=True,
                 help="Machine that will build this series"),
         'buildername': fields.function(_get_buildername, string='Builder name',
                 method=True, type='char', readonly=True), # fnct_search?
@@ -140,6 +141,75 @@ class software_buildseries(propertyMix, osv.osv):
         'is_distinct': False,
         'sequence': 10,
     }
+
+    @virtual
+    def get_builders(self, cr, uid, ids, context=None):
+        """ Format list of dicts for builders to send to buildbot
+        """
+        ret = []
+        for bldr in self.browse(cr, uid, ids, context=context):
+            dir_name = ''
+            if bldr.group_id:
+                dir_name += bldr.group_id.name + '_'
+            if bldr.name:
+                dir_name += bldr.name
+            dir_name = dir_name.replace(' ', '_').replace('/','_')
+            #db_name = dir_name.replace('-','_') # FIXME unused
+
+            bret = { 'name': bldr.buildername,
+                    'slavename': bldr.builder_id.slave_ids[0].tech_code,
+                    'builddir': dir_name,
+                    'steps': [],
+                    'branch_url': bldr.branch_id.fetch_url,
+                    'branch_name': bldr.name,
+                    'properties': { 'sequence': bldr.sequence, }
+                    #'tstimer': None, # means one build per change
+                    }
+
+            if bldr.group_id:
+                bret['properties'].update( {'group': bldr.group_id.name,
+                                            'group_seq': bldr.group_id.sequence,
+                                            'group_public': bldr.group_id.public,})
+            # Now, build the steps:
+            
+            # before any explicitly defined steps, prepend the VCS steps
+            # for each of the components
+            for comp in bldr.package_id.component_ids:
+                is_rolling = False
+                use_latest = False
+                if comp.branch_id.id == bldr.branch_id:
+                    is_rolling = True
+                elif comp.update_rev:
+                    use_latest = True
+                rtype = comp.branch_id.repo_id.rtype
+                if rtype == 'bzr':
+                    bret['steps'].append(('OpenObjectBzr', {
+                        'repourl': comp.branch_id.fetch_url, 'mode':'update',
+                        'workdir': comp.dest_path,
+                        'alwaysUseLatest': use_latest,
+                        }) )
+                elif rtype == 'git':
+                    bret['steps'].append(('GitStep', {
+                        'repourl': comp.branch_id.fetch_url, 'mode':'update',
+                        'workdir': comp.dest_path,
+                        'alwaysUseLatest': use_latest,
+                        }) )
+                else:
+                    raise NotImplementedError("Cannot handle %s repo" % rtype)
+            
+
+            # Set a couple of builder-wide properties TODO revise
+            # bret['properties'].update( { 'orm_id': bldr.id, 'repo_mode': bldr.target_path })
+
+            for tstep in bldr.test_id.step_ids:
+                rname = tstep.name
+                rattr = {}
+                for tattr in tstep.attribute_ids:
+                    rattr[tattr['name']] = tattr['value'] #strings only, so far
+                bret['steps'].append((rname, rattr))
+
+            ret.append(bret)
+        return ret
 
 software_buildseries()
 

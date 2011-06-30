@@ -54,15 +54,7 @@ class software_buildbot(osv.osv):
 
         ret = []
         found_branches = []   # ids of branches we have made so far
-
-        builder_ids = []
-        for bbot_id in self.browse(cr, uid, ids, context=ctx):
-            builder_ids.append(bbot_id.builder_id.id)
-
-        builder_ids = list(set(builder_ids))
-
         bseries_obj = self.pool.get('software_dev.buildseries')
-        series_ids = bseries_obj.search(cr, uid, [('builder_id','in',builder_ids)], context=ctx)  # :(
 
         def _fmt_branch(branch_bro, fixed_commit=False):
             """Format the branch info into a dictionary
@@ -80,7 +72,7 @@ class software_buildbot(osv.osv):
 
             return dret
 
-        for bser in bseries_obj.browse(cr, uid, series_ids, context=ctx):
+        for bser in bseries_obj.browse(cr, uid, [('builder_id','in',ids)], context=ctx):
             if bser.branch_id.id not in found_branches:
                 ret.append(_fmt_branch(bser.branch_id))
                 found_branches.append(bser.branch_id.id)
@@ -95,64 +87,23 @@ class software_buildbot(osv.osv):
     def get_builders(self, cr, uid, ids, context=None):
         """ Return a complete dict with the builders for this bot
 
-        Sample:
-           name: name
-           slavename
-           build_dir
-           branch_url
-           tstimer
-           steps [ (name, { props}) ]
+        @return a list of dictionaries, with the keys mentioned below
+        
+        Output keys:
+        
+           name:         builder name
+           properties:   A dictionary of extra values for the builder
+           slavename:    name of slave to attach
+           branch_name:  used in change filter
+           tstimer:      treeStableTimer value, optional
+           
+           steps:        steps to perform, a list: [ (class-name, { props}) ]
         """
         ret = []
         bs_obj = self.pool.get('software_dev.buildseries')
-        bids = bs_obj.search(cr, uid, [('builder_id', 'in', ids), ('is_build','=',True), ('is_template', '=', False)], context=context)
-        for bldr in bs_obj.browse(cr, uid, bids, context=context):
-            dir_name = ''
-            if bldr.group_id:
-                dir_name += bldr.group_id.name + '_'
-            if bldr.name:
-                dir_name += bldr.name
-            dir_name = dir_name.replace(' ', '_').replace('/','_')
-            db_name = dir_name.replace('-','_') # FIXME unused
-
-            bret = { 'name': bldr.buildername,
-                    'slavename': bldr.builder_id.slave_ids[0].tech_code,
-                    'builddir': dir_name,
-                    'steps': [],
-                    'branch_url': bldr.branch_url,
-                    'branch_name': bldr.name,
-                    'properties': { 'sequence': bldr.sequence, }
-                    #'tstimer': None, # means one build per change
-                    }
-
-            if bldr.group_id:
-                bret['properties'].update( {'group': bldr.group_id.name,
-                                            'group_seq': bldr.group_id.sequence,
-                                            'group_public': bldr.group_id.public,})
-            # Now, build the steps:
-            for bdep in bldr.dep_branch_ids:
-                bret['steps'].append( ('OpenObjectBzr', {
-                        'repourl': bdep.branch_url, 'mode':'update',
-                        'workdir': bdep.target_path,
-                        'alwaysUseLatest': True,
-                        }) )
-
-            bret['steps'].append( ('OpenObjectBzr', {
-                        'repourl': bldr.branch_url, 'mode':'update',
-                        'workdir': bldr.target_path,
-                        'alwaysUseLatest': False }) )
-
-            # Set a couple of builder-wide properties
-            bret['properties'].update( { 'orm_id': bldr.id, 'repo_mode': bldr.target_path })
-
-            for tstep in bldr.test_ids:
-                rname = tstep.name
-                rattr = {}
-                for tattr in tstep.attribute_ids:
-                    rattr[tattr['name']] = tattr['value'] #strings only, so far
-                bret['steps'].append((rname, rattr))
-
-            ret.append(bret)
+        for bid in bs_obj.browse(cr, uid, [('builder_id', 'in', ids)], context=context):
+            r = bid.get_builders(context=context)
+            ret += r
         return ret
 
     def get_conf_timestamp(self, cr, uid, ids, context=None):
@@ -168,7 +119,7 @@ class software_buildbot(osv.osv):
         cr.execute(qry, (ids,))
         res = cr.fetchone()
         # TODO: look at atrributes, properties, buildbot data etc.
-        if not res:
+        if not (res and res[0]):
             return False
         return res
 
