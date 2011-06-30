@@ -40,17 +40,21 @@ class ChangeFilter_debug(ChangeFilter):
         return ChangeFilter.filter_change(self, change)
 
 class Keeper(object):
+    """ Keeper is the connector that gets/updates buildbot configuration from openerp
+    """
+    logger = logging.getLogger('master_keeper')
 
     def __init__(self, db_props, bmconfig):
         """
             @param db_props a dict with info how to connect to db
             @param c the BuildmasterConfig dict
         """
-        log.msg("Keeper config")
+        self.logger.info("Initialize")
         self.bmconfig = bmconfig
         self.poll_interval = 560.0 #seconds
         self.in_reset = False
         self.bbot_tstamp = None
+        self.loop = None # define early, so that del() always sees it
         c = bmconfig
         # some necessary definitions in the dict:
         c['projectName'] = "OpenERP-Test"
@@ -68,6 +72,7 @@ class Keeper(object):
         rpc.openSession(**db_props)
         r = rpc.login()
         if not r:
+            self.logger.error("Cannot login to OpenERP")
             raise Exception("Could not login!")
         
         bbot_obj = rpc.RpcProxy('software_dev.buildbot')
@@ -79,15 +84,7 @@ class Keeper(object):
         reactor.suggestThreadPoolSize(30)
 
         self.loop.start(self.poll_interval)
-        self.ms_scan = None
-        os.umask(int('0027',8))
-        try:
-            import lp_poller
-            lp_poller.MS_Service.startInstance()
-            self.ms_scan = lp_poller.MS_Scanner()
-            self.ms_scan.startService()
-        except ImportError:
-            log.err("Could not import the Launchpad scanner, please check your installation!")
+        os.umask(int('0027',8)) # re-enable group read bit
 
     def poll_config(self):
         bbot_obj = rpc.RpcProxy('software_dev.buildbot')
@@ -95,11 +92,11 @@ class Keeper(object):
             new_tstamp = bbot_obj.get_conf_timestamp([self.bbot_id,])
             # print "Got conf timestamp:", self.bbot_tstamp
         except Exception, e:
-            print "Could not get timestamp: %s" % e
+            self.logger.exception("Could not get timestamp: %s", e)
             return
         if new_tstamp != self.bbot_tstamp:
             try:
-                print "Got new timestamp: %s, must reconfig" % new_tstamp
+                self.logger.info("Got new timestamp: %s, must reconfig", new_tstamp)
                 
                 # Zope makes it so difficult to locate the BuildMaster instance,
                 # so...
@@ -107,16 +104,16 @@ class Keeper(object):
                     # Since this will spawn a new Keeper object, we have to stop the
                     # previous one:
                     self.loop.stop()
-                    self.ms_scan.stopService()
+                    self.loop = None
                     os.kill(os.getpid(), signal.SIGHUP)
                 self.bbot_tstamp = new_tstamp
             except Exception:
-                print "Could not reset"
+                self.logger.exception("Could not reset")
 
     def reset(self):
         """ Reload the configuration
         """
-        print "Keeper reset"
+        self.logger.info("Keeper reset")
         if self.in_reset:
             return
         self.in_reset = True
@@ -155,8 +152,8 @@ class Keeper(object):
                         margs = margs.split('|')
                         klass = getattr(manhole, mtype + 'Manhole')
                         c['manhole'] = klass(*margs)
-                    except Exception, e:
-                        print "Cannot configure manhole:", e
+                    except Exception:
+                        self.logger.exception("Cannot configure manhole:")
                 else:
                     c[attr['name']] = attr['value']
 
@@ -165,12 +162,12 @@ class Keeper(object):
         bsids = bbot_slave_obj.search([('bbot_id','=', self.bbot_id)])
         if bsids:
             for slav in bbot_slave_obj.read(bsids,['tech_code', 'password']):
-                print "Adding slave: %s" % slav['tech_code']
+                self.logger.info("Adding slave: %s", slav['tech_code'])
                 c['slaves'].append(BuildSlave(slav['tech_code'], slav['password'], max_builds=2))
         
         # Get the repositories we have to poll and maintain
         polled_brs = bbot_obj.get_polled_branches([self.bbot_id])
-        print "Got %d polled branches" % (len(polled_brs))
+        self.logger.info("Got %d polled branches", len(polled_brs))
         
         for pbr in polled_brs:
             pmode = pbr.get('mode','branch')
@@ -208,9 +205,6 @@ class Keeper(object):
                 else:
                     raise NotImplementedError("No support for %s repos yet" % pbr['rtype'])
 
-        # Get the tests that have to be performed:
-        builders = bbot_obj.get_builders([self.bbot_id])
-        
         dic_steps = {}
         
         for bs in buildsteps.exported_buildsteps:
@@ -220,8 +214,11 @@ class Keeper(object):
                 # by default, the class name
                 dic_steps[bs.__name__] = bs
         
-        print "Available steps:", dic_steps.keys()
+        self.logger.debug("Available steps: %r", dic_steps.keys())
 
+        # Get the tests that have to be performed:
+        builders = bbot_obj.get_builders([self.bbot_id])
+        
         for bld in builders:
             fact = factory.BuildFactory()
             props = bld.get('properties', {})
@@ -239,11 +236,12 @@ class Keeper(object):
                 klass = dic_steps[bstep[0]]
                 if bstep[0] in ('OpenObjectBzr') and kwargs['repourl'] in proxied_bzrs:
                     kwargs['proxy_url'] = proxied_bzrs[kwargs['repourl']]
-                print "Adding step %s(%r)" % (bstep[0], kwargs)
+                self.logger.debug("Adding step %s(%r)", bstep[0], kwargs)
                 if bstep[0] in ('BzrPerformMerge', 'BzrSyncUp'):
                     # Pass all of them to buildstep, so that it can resolve
                     # all the changes it will be receiving.
                     kwargs['proxied_bzrs'] = proxied_bzrs
+                    # FIXME: remove this
                 fact.addStep(klass(**kwargs))
             
             c['builders'].append({
@@ -259,7 +257,7 @@ class Keeper(object):
             cfilt = ChangeFilter(branch=bld['branch_name'])
             # FIXME
             
-            c['schedulers'].append(
+            c['schedulers'].append( # FIXME: make it flexible
                 SingleBranchScheduler(name = "Scheduler %s" % bld['name'],
                                     builderNames = [bld['name'], ],
                                     change_filter=cfilt,
@@ -268,7 +266,7 @@ class Keeper(object):
                                 )
 
         if bbot_data['http_port']:
-            print "We will have a http server at %s" % bbot_data['http_port']
+            self.logger.info("We will have a http server at %s", bbot_data['http_port'])
             c['status'].append(web.OpenObjectWebStatus(http_port=bbot_data['http_port']))
 
         if c_mail.get('mail_smtp_host', False):
@@ -298,13 +296,21 @@ class Keeper(object):
 
     def __del__(self):
         log.msg("Here is where the keeper sleeps..")
-        self.loop.stop()
+        # we do reset some "heavy" members, to ensure dereferencing
+        # objects that might hold circular references to us
+        if self.loop:
+            self.loop.stop()
+            self.loop = None
         try:
             import lp_poller
             lp_poller.MS_Service.stopInstance()
-            self.ms_scan.stopService()
+        except Exception: pass
+        
+        try:
             rpc.session.logout()
         except Exception: pass
+        self.bmconfig = None
+        
 
 from buildbot.db import connector as bbot_connector
 import connector
