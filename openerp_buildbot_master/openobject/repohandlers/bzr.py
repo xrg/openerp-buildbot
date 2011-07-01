@@ -1,4 +1,6 @@
 # Copyright (C) 2008-2009 Canonical
+# Copyright (C) 2010-2011 OpenERP SA
+# Copyright (C) 2011 P. Christeas
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -88,6 +90,7 @@ from twisted.python.failure import Failure
 import twisted.spread.pb
 from twisted.internet import defer, utils
 
+from openobject.repo_iface import RepoFactory
 
 def generate_change(branch,
                     old_revno=None, old_revid=None,
@@ -324,5 +327,43 @@ class BzrPoller(buildbot.changes.base.PollingChangeSource,
             raise EnvironmentError('command failed with exit code %d: %s' % (code, stderr))
         return (stdout, stderr, code)
 
+
+class BzrFactory(RepoFactory):
+    @classmethod
+    def createPoller(cls, poller_dict, conf, tmpconf):
+        pbr = poller_dict # a shorthand
+        if pbr.get('mode','branch') != 'branch':
+            raise ValueError("Cannot handle %r mode" % pbr.get('mode'))
+        
+        fetch_url = pbr['fetch_url']
+        p_interval = int(pbr.get('poll_interval', 600))
+        kwargs = tmpconf.get('poller_kwargs',{}).copy()
+        category = ''
+        if 'group' in pbr:
+            category = pbr['group'].replace('/','_').replace('\\','_') # etc.
+            kwargs['category'] = pbr['group']
+        if 'proxy_location' in kwargs:
+            if not kwargs['proxy_location'].endswith(os.sep):
+                kwargs['proxy_location'] += os.sep
+            if category:
+                kwargs['proxy_location'] += category + '_'
+            kwargs['proxy_location'] += pbr.get('branch_name', 'branch-%d' % pbr['branch_id'])
+
+        if p_interval > 0:
+            conf['change_source'].append(BzrPoller(fetch_url,
+                poll_interval = p_interval,
+                branch_name=pbr.get('branch_name', None),
+                branch_id=pbr['branch_id'],
+                **kwargs))
+            if tmpconf.get('bzr_local_run', False):
+                conf['change_source'][-1].local_run = tmpconf['bzr_local_run']
+        if tmpconf.get('slave_proxy_url') and kwargs.get('proxy_location'): # FIXME
+            tbname = pbr.get('branch_name', 'branch-%d' % pbr['branch_id'])
+            if category:
+                tbname = category + '_' + tbname
+            tbname = tbname.replace(' ','%20').replace('/','%2F')
+            tmpconf['proxied_bzrs'][fetch_url] = tmpconf['slave_proxy_url'] + '/' + tbname
+
+repo_types = { 'bzr': BzrFactory }
 
 #eof

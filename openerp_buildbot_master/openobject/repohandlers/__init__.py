@@ -1,9 +1,8 @@
 # -*- encoding: utf-8 -*-
 ##############################################################################
 #
-#    OpenERP, Open Source Management Solution
-#    Copyright (C) 2004-2009 Tiny SPRL (<http://tiny.be>). All Rights Reserved
-#    $Id$
+#    OpenERP Buildbot
+#    Copyright (C) 2011 P. Christeas <xrg@hellug.gr>
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -20,7 +19,11 @@
 #
 ##############################################################################
 
-import status
-import master_keeper
+#: map symbolic names of repositories, to factory classes
+repo_types = {}
 
-# vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
+from ..dyn_loader import load_submodules
+
+load_submodules(__file__, {'repo_types': repo_types})
+
+#eof

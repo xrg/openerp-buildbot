@@ -17,9 +17,7 @@ from buildbot.process import factory
 from buildbot.schedulers.filter import ChangeFilter
 from buildbot.schedulers.basic import SingleBranchScheduler
 from buildbot import manhole
-from openobject import buildsteps
-from openobject.poller import BzrPoller
-from openobject.status import web, mail, logs
+from .status import web, mail, logs
 import twisted.internet.task
 from openerp_libclient import rpc
 import os
@@ -28,6 +26,9 @@ import signal
 from twisted.python import log
 
 logging.basicConfig(level=logging.DEBUG)
+
+from . import buildsteps
+from . import repohandlers
 
 def str2bool(sstr):
     if sstr and sstr.lower() in ('true', 't', '1', 'on'):
@@ -124,10 +125,11 @@ class Keeper(object):
         c['change_source']=[]
         
         c_mail = {}
-        poller_kwargs = {}
-        proxied_bzrs = {} # map the remote branches to local ones.
         slave_proxy_url = None
         bzr_local_run = None
+        tmpconf = { 'proxied_bzrs': {}, # map the remote branches to local ones.
+            'poller_kwargs': {},
+            }
 
         bbot_obj = rpc.RpcProxy('software_dev.buildbot')
         bbot_data = bbot_obj.read(self.bbot_id)
@@ -135,13 +137,12 @@ class Keeper(object):
             c['buildbotURL'] = bbot_data['http_url']
 
         bbot_attr_obj = rpc.RpcProxy('software_dev.battr')
-        bids = bbot_attr_obj.search([('bbot_id','=', self.bbot_id)])
-        if bids:
-            for attr in bbot_attr_obj.read(bids):
+        if True:
+            for attr in bbot_attr_obj.search_read([('bbot_id','=', self.bbot_id)]):
                 if attr['name'].startswith('mail_'):
                     c_mail[attr['name']] = attr['value']
                 elif attr['name'] == 'proxy_location':
-                    poller_kwargs[attr['name']] = attr['value']
+                    tmpconf['poller_kwargs'][attr['name']] = attr['value']
                 elif attr['name'] == 'slave_proxy_url':
                     slave_proxy_url = attr['value']
                 elif attr['name'] == 'bzr_local_run':
@@ -159,51 +160,20 @@ class Keeper(object):
 
         # Then, try to setup the slaves:
         bbot_slave_obj = rpc.RpcProxy('software_dev.bbslave')
-        bsids = bbot_slave_obj.search([('bbot_id','=', self.bbot_id)])
-        if bsids:
-            for slav in bbot_slave_obj.read(bsids,['tech_code', 'password']):
-                self.logger.info("Adding slave: %s", slav['tech_code'])
-                c['slaves'].append(BuildSlave(slav['tech_code'], slav['password'], max_builds=2))
+        # TODO: max_builds
+        for slav in bbot_slave_obj.search_read([('bbot_id','=', self.bbot_id)], fields=['tech_code', 'password']):
+            self.logger.info("Adding slave: %s", slav['tech_code'])
+            c['slaves'].append(BuildSlave(slav['tech_code'], slav['password'], max_builds=slav.get('max_builds',2)))
         
         # Get the repositories we have to poll and maintain
         polled_brs = bbot_obj.get_polled_branches([self.bbot_id])
         self.logger.info("Got %d polled branches", len(polled_brs))
         
         for pbr in polled_brs:
-            pmode = pbr.get('mode','branch')
-            if pmode == 'branch':
-                # Maintain a branch 
-                if pbr['rtype'] == 'bzr':
-                    fetch_url = pbr['fetch_url']
-                    p_interval = int(pbr.get('poll_interval', 600))
-                    kwargs = poller_kwargs.copy()
-                    category = ''
-                    if 'group' in pbr:
-                        category = pbr['group'].replace('/','_').replace('\\','_') # etc.
-                        kwargs['category'] = pbr['group']
-                    if 'proxy_location' in kwargs:
-                        if not kwargs['proxy_location'].endswith(os.sep):
-                            kwargs['proxy_location'] += os.sep
-                        if category:
-                            kwargs['proxy_location'] += category + '_'
-                        kwargs['proxy_location'] += pbr.get('branch_name', 'branch-%d' % pbr['branch_id'])
-    
-                    if p_interval > 0:
-                        c['change_source'].append(BzrPoller(fetch_url,
-                            poll_interval = p_interval,
-                            branch_name=pbr.get('branch_name', None),
-                            branch_id=pbr['branch_id'], keeper=self,
-                            **kwargs))
-                    if bzr_local_run:
-                        c['change_source'][-1].local_run = bzr_local_run
-                    if slave_proxy_url and kwargs.get('proxy_location'):
-                        tbname = pbr.get('branch_name', 'branch-%d' % pbr['branch_id'])
-                        if category:
-                            tbname = category + '_' + tbname
-                        tbname = tbname.replace(' ','%20').replace('/','%2F')
-                        proxied_bzrs[fetch_url] = slave_proxy_url + '/' + tbname
-                else:
-                    raise NotImplementedError("No support for %s repos yet" % pbr['rtype'])
+            if pbr['rtype'] in repohandlers.repo_types:
+                repohandlers.repo_types[pbr['rtype']].createPoller(pbr, c, tmpconf)
+            else:
+                raise NotImplementedError("No support for %s repos yet" % pbr['rtype'])
 
         dic_steps = {}
         
@@ -234,13 +204,13 @@ class Keeper(object):
 
                 
                 klass = dic_steps[bstep[0]]
-                if bstep[0] in ('OpenObjectBzr') and kwargs['repourl'] in proxied_bzrs:
-                    kwargs['proxy_url'] = proxied_bzrs[kwargs['repourl']]
+                if bstep[0] in ('OpenObjectBzr') and kwargs['repourl'] in tmpconf['proxied_bzrs']:
+                    kwargs['proxy_url'] = tmpconf['proxied_bzrs'][kwargs['repourl']]
                 self.logger.debug("Adding step %s(%r)", bstep[0], kwargs)
                 if bstep[0] in ('BzrPerformMerge', 'BzrSyncUp'):
                     # Pass all of them to buildstep, so that it can resolve
                     # all the changes it will be receiving.
-                    kwargs['proxied_bzrs'] = proxied_bzrs
+                    kwargs['proxied_bzrs'] = tmpconf['proxied_bzrs']
                     # FIXME: remove this
                 fact.addStep(klass(**kwargs))
             

@@ -31,8 +31,6 @@ import bzrlib
 import re
 import warnings
 
-import bzr_poller
-
 class OpenObjectChange(Change):
     def __init__(self, **kwargs):
         warnings.warn("You are using deprecated OpenObjectChange.", 
@@ -65,19 +63,6 @@ class OpenObjectChange(Change):
                 res['revlink'] = "http://bazaar.launchpad.net/%s/revision/%s" % \
                                 (self.branch[3:], self.revision)
         return res
-
-
-class BzrPoller(bzr_poller.BzrPoller):
-    
-    def __init__(self, url, poll_interval=10*60, blame_merge_author=False,
-                    branch_name=None, branch_id=None, category=None, keeper=None,
-                    proxy_location=None, slave_proxy_url=None):
-        bzr_poller.BzrPoller.__init__(self, url=url, poll_interval=poll_interval,
-                    blame_merge_author=blame_merge_author,
-                    branch_id=branch_id,
-                    branch_name=branch_name, category=category,
-                    proxy_location=proxy_location, slave_proxy_url=slave_proxy_url)
-        self.keeper = keeper
 
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
