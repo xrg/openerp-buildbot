@@ -19,51 +19,10 @@
 #
 ##############################################################################
 
-import os, imp, logging
 exported_buildsteps = []
 
-def load_submodules(ourname):
-    """Scan for python files under 'ourname' and load them as submodules
-    
-       All .py files of this directory will be loaded and their 'exported_buildsteps'
-       will be appended to our list.
-    """
-    logger = logging.getLogger('modules')
-    
-    modpath = os.path.dirname(ourname)
-    
-    logger.debug("Scanning modules under %s", modpath)
-    
-    for fname in os.listdir(modpath):
-        # logger.debug("located %s", fname)
-        m = None
-        if fname.startswith('_') or fname.startswith('.'):
-            continue
-        if os.path.isdir(fname):
-            m = fname
-        elif fname.endswith('.py'):
-            m = fname[:-3]
-        elif fname.endswith('.pyc') or fname.endswith('pyo'):
-            m = fname[:-4]
-            
-        if not m:
-            continue
-        
-        try:
-            logger.debug("Trying module '%s'", m)
-            fm = imp.find_module(m, [modpath,])
-            if fm:
-                newmod = imp.load_module(m, *fm)
-                logger.info("Loaded module %s", m)
-                newexps = getattr(newmod, 'exported_buildsteps', None)
-                if newexps:
-                    exported_buildsteps.extend(newexps)
-        except ImportError:
-            logger.exception("Module %s is not loadable", m)
-        finally:
-            if fm and fm[0]:
-                fm[0].close()
+from ..dyn_loader import load_submodules
 
-load_submodules(__file__)
+load_submodules(__file__, {'exported_buildsteps': exported_buildsteps})
 
 #eof
