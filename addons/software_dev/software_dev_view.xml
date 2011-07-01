@@ -688,6 +688,8 @@
                 <newline />
                 <field name="tech_code"/>
                 <field name="password"/>
+                <newline/>
+                <field name="max_builds" />
                 <!-- <field name="property_ids" colspan="4" /> -->
               </form>
           </field>

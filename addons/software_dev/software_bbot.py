@@ -150,10 +150,16 @@ class software_bbot_slave(osv.osv):
         'tech_code': fields.char('Code', size=64, required=True, select=1),
         'password': fields.char('Secret', size=128, required=True,
                     help="The secret code used by the slave to connect to the master"),
+        'max_builds': fields.integer('Max Builds', required=True,
+                    help="Number of maximum builds to run in parallel"),
         #'property_ids': fields.one2many('software_dev.bsattr', 'bslave_id', 'Properties'),
     }
 
     _sql_constraints = [ ('code_uniq', 'UNIQUE(tech_code)', 'The tech code must be unique.'), ]
+    
+    _defaults = {
+        'max_builds': 2,
+    }
 
 software_bbot_slave()
 
