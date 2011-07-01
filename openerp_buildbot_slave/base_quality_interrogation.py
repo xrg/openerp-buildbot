@@ -3226,7 +3226,7 @@ class CmdPrompt(object):
 
             if 'selection' in props:
                 sels = dict(props.pop('selection'))
-                rest.append('selection=(%s)' % (', ').join(sels.keys()))
+                rest.append('selection=(%s)' % (', ').join(map(str, sels.keys())))
                 selection_flds[field] = sels
 
             for attr in ('required', 'readonly', 'select', 'selectable', 'translate', 'view_load'):
