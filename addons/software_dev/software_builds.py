@@ -114,6 +114,71 @@ class software_buildseries(propertyMix, osv.osv):
             comps.append(b.name)
             res[b.id] = '-'.join(comps)
         return res
+        
+    def _search_buildername(self, cr, uid, obj, name, args, context=None):
+        """ Reverse search the buildername
+        """
+        #make sure the API behaves
+        assert name == 'buildername', name
+        assert len(args) == 1, args
+        
+        # We cannot do that directly in SQL, because we need to compose the
+        # name again and check (won't fit today's domain syntax), so we try
+        # to locate the closest set (superset) of the series we want, and
+        # then narrow it down in the second step
+        
+        def _fmt_expr(bname):
+            """ consider the case of a buildername like:
+                
+                    a-b-c-d-e
+                
+                This could be one of:
+                
+                    (group, builder, series) = (False, False, 'a-b-c-d-e')
+                    (group, builder, series) = (False, 'a-b', 'c-d-e')
+                    (group, builder, series) = ('a', 'b', 'c-d-e')
+                    (group, builder, series) = ('a-b', 'c-d', 'e')
+                    
+                So, we can tell just 2 things:
+                
+                    - group, if set, starts with 'a'
+                    - series ends with 'e'
+                    
+                Hopefully, a buildername like 'a-b-c', or better 'b-c' will
+                closely match 'c' and perhaps 'a'
+            """
+            bparts = bname.split('-')
+            
+            domain = []
+            if len(bparts) > 1:
+                domain += ['|', ('group_id', '=', False), 
+                    ('group_id', 'in', [('name', '=like', bparts[0]+'%')])]
+            else:
+                domain += [('group_id', '=', False),]
+            domain += [('name','=like', '%' + bparts[-1])]
+            
+            return domain
+            
+        matches = []
+        if args[0][1] == '=':
+            for res in self.search_read(cr, uid, _fmt_expr(args[0][2]), fields=['buildername'], context=context):
+                if res['buildername'] == args[0][2]:
+                    matches.append(res['id'])
+            
+        elif args[0][1] == 'in':
+            for bname in args[0][2]:
+                for res in self.search_read(cr, uid, _fmt_expr(bname), fields=['buildername'], context=context):
+                    if res['buildername'] == bname:
+                        matches.append(res['id'])
+        else:
+            raise NotImplementedError("no %s operator for buildername" % args[0][1])
+
+        if not matches:
+            return [('id', '=', 0 ),]
+        elif len(matches) == 1:
+            return [('id', '=', matches[0]),]
+        else:
+            return [('id', 'in', tuple(matches)),]
 
     _columns = {
         'name': fields.char('Name', required=True, size=64),
@@ -130,7 +195,7 @@ class software_buildseries(propertyMix, osv.osv):
                 string='BuildBot', required=True,
                 help="Machine that will build this series"),
         'buildername': fields.function(_get_buildername, string='Builder name',
-                method=True, type='char', readonly=True), # fnct_search?
+                method=True, type='char', readonly=True, fnct_search=_search_buildername),
         'sequence': fields.integer('Sequence', required=True),
         # 'attribute_ids': fields.one2many('software_dev.attr.bseries', '' TODO)
         'test_id': fields.many2one('software_dev.test', 'Test', 
@@ -232,6 +297,32 @@ class software_buildset(osv.osv):
         'complete': False,
     }
 
+    def createBuildRequests(self, cr, uid, id, builderNames, context=None):
+        """ Create buildrequests for this buildset (id), for each of builderNames
+
+            This completes the functionality needed by db.buildset.addBuildset()
+            in the master connector.
+
+            @param id a single buildset id, strictly
+            @return a dictionary mapping builderNames to buildrequest ids.
+        """
+
+        assert isinstance(id, (int, long)), id
+        breq_obj = self.pool.get('software_dev.buildrequest')
+        bser_obj = self.pool.get('software_dev.buildseries')
+
+        bset_rec = self.browse(cr, uid, id, context=context)
+        vals = dict(buildsetid=id, complete=False, submitted_at=bset_rec.submitted_at)
+        ret = {}
+        for b in bser_obj.search_read(cr, uid,
+                    [('buildername', 'in', builderNames)],
+                    fields=['buildername']):
+
+            vals['builder_id'] = b['id']
+            ret[b['buildername']] = breq_obj.create(vals)
+
+        return ret
+
 software_buildset()
 
 class software_buildrequest(osv.osv):
@@ -239,6 +330,7 @@ class software_buildrequest(osv.osv):
 
     _columns = {
         'builder_id': fields.many2one('software_dev.buildseries', 'Builder', required=True, select=True),
+        'buildername': fields.related('builder_id', 'buildername', type='char', size=256),
         # every BuildRequest has a BuildSet
         # the sourcestampid and reason live in the BuildSet
         'buildsetid': fields.many2one('software_dev.buildset', 'Build Set', required=True, select=True),
