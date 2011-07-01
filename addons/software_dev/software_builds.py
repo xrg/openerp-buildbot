@@ -201,12 +201,13 @@ class software_buildseries(propertyMix, osv.osv):
             # Set a couple of builder-wide properties TODO revise
             # bret['properties'].update( { 'orm_id': bldr.id, 'repo_mode': bldr.target_path })
 
-            for tstep in bldr.test_id.step_ids:
-                rname = tstep.name
-                rattr = {}
-                for tattr in tstep.attribute_ids:
-                    rattr[tattr['name']] = tattr['value'] #strings only, so far
-                bret['steps'].append((rname, rattr))
+            if bldr.test_id:
+                for tstep in bldr.test_id.step_ids:
+                    rname = tstep.name
+                    rattr = {}
+                    for tattr in tstep.attribute_ids:
+                        rattr[tattr['name']] = tattr['value'] #strings only, so far
+                    bret['steps'].append((rname, rattr))
 
             ret.append(bret)
         return ret
