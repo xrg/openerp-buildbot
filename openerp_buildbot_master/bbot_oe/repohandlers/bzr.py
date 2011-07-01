@@ -90,7 +90,7 @@ from twisted.python.failure import Failure
 import twisted.spread.pb
 from twisted.internet import defer, utils
 
-from openobject.repo_iface import RepoFactory
+from bbot_oe.repo_iface import RepoFactory
 
 def generate_change(branch,
                     old_revno=None, old_revid=None,

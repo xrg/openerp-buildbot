@@ -28,7 +28,6 @@ from buildbot.status.builder import SUCCESS, FAILURE, WARNINGS, EXCEPTION
 
 import os
 import logging
-# from openobject import tools
 from twisted.python import log
 
 
@@ -84,13 +83,13 @@ class MirrorRepoStep(LoggingBuildStep):
         raise NotImplementedError
 
     def _start_command(self, command, pp_klass, path=None):
-        stdio_log.addHeader(" ".join(command) + "\n\n")
+        self.stdio_log.addHeader(" ".join(command) + "\n\n")
         self.step_status.setText(list(self.description))
 
         # TODO add a timeout?
         if path is None:
             path = self.args.get('workdir', None)
-        reactor.spawnProcess(local_pp, command[0], command, path=path)
+        # FIXME reactor.spawnProcess(local_pp, command[0], command, path=path)
         # (the LocalPP object will call processEnded for us)
 
     def processEnded(self, status_object):

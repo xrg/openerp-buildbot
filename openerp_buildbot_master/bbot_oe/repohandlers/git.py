@@ -19,7 +19,7 @@
 #
 ##############################################################################
 
-from openobject.repo_iface import RepoFactory
+from bbot_oe.repo_iface import RepoFactory
 from buildbot.changes.gitpoller import GitPoller
 
 class GitFactory(RepoFactory):

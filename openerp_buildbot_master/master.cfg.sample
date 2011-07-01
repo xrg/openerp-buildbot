@@ -6,20 +6,20 @@ import sys
 import os
 sys.path.append(os.path.abspath(basedir))
 
-import openobject
+import bbot_oe
 
-from openobject.master_keeper import Keeper
-from openobject.status import web, mail, logs
+from bbot_oe.master_keeper import Keeper
+from bbot_oe.status import web, mail, logs
 from buildbot import locks
 from twisted.python import log
 
 properties = {}
-properties['scheme'] = 'http'
-properties['dbname'] = 'refdb'
+properties['proto'] = 'http'
+properties['dbname'] = 'buildbot'
 properties['host'] = 'localhost'
 properties['port'] = 8069
 properties['user'] = 'buildbot'
-properties['passwd'] = 'bbrescue'
+properties['passwd'] = 'secret'
 
 BuildmasterConfig = c = {}
 k = Keeper(properties, c)

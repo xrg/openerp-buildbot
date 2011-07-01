@@ -34,7 +34,6 @@ import pickle
 import re
 import urllib, time
 from buildbot import version, util
-# from openobject.buildstep import blame_severities
 from twisted.internet import defer
 from openerp_libclient.tools import ustr
 
