@@ -28,7 +28,7 @@ from buildbot.status.builder import TestResult
 from buildbot.status.builder import Results as status_Results
 from buildbot.steps.source import Bzr
 from buildbot.steps.master import MasterShellCommand
-from buildbot_oe.lp_poller import MS_Service
+from bbot_oe.lp_poller import MS_Service
 from twisted.python import log
 import re
 #import os
