@@ -70,6 +70,25 @@ class software_repo(osv.osv):
 
     _defaults = {
     }
+    
+    def _get_unique_url(self, cr, uid, ids, context=None):
+        """ Get a unique string representation of the repository
+        """
+        ret = {}
+        for bro in self.browse(cr, uid, ids, context=context):
+            if bro.base_url:
+                s = ''
+                if bro.host_id.base_url:
+                    s = bro.host_id.base_url
+                elif bro.host_id.host_family == 'lp':
+                    s = 'lp:'
+                s += bro.base_url
+                ret[bro.id] = s
+            else:
+                # FIXME!
+                ret[bro.id] = '#%s/%s' % (bro.host_id.id, bro.id)
+        
+        return ret
 
 software_repo()
 
@@ -157,14 +176,14 @@ class software_user(osv.osv):
     _defaults = {
     }
 
-    def get_user(self, cr, uid, userid, context=None):
+    def get_user(self, cr, uid, hostid, userid, context=None):
         """Return the id of the user with that name, even create one
         """
-        ud = self.search(cr, uid, [('userid', '=', userid)], context=context)
+        ud = self.search(cr, uid, [('host_id', '=', hostid),('userid', '=', userid)], context=context)
         if ud:
             return ud[0]
         else:
-            return self.create(cr, uid, { 'userid': userid }, context=context)
+            return self.create(cr, uid, { 'host_id': hostid, 'userid': userid }, context=context)
 
     _sql_constraints = [ ('host_user_uniq', 'UNIQUE(host_id, userid)', 'User id must be unique at host'), ]
 
@@ -253,11 +272,15 @@ class software_commit(osv.osv):
 
         clines = cdict['comments'].split('\n',1)
         subj = clines[0]
-        descr = '\n'.join(clines[1:])
+        descr = '\n'.join(clines[1:]).strip()
 
+        print cdict
+        extra = cdict.pop('extra')
+        branch_id = extra.get('branch_id')
+        assert branch_id # or discover it from repository + branch
 
-        cids = self.search(cr, uid, [('branch_id', '=', cdict['branch_id']),
-                        ('hash','=', cdict.get('hash', False))])
+        cids = self.search(cr, uid, [('branch_id', '=', branch_id),
+                        ('hash','=', extra.get('hash', False))])
         if cids:
             # This is the case where buildbot attempts to send us a commit
             # for a second time
@@ -265,22 +288,24 @@ class software_commit(osv.osv):
             # RFC: shall we update any data to that cid?
             return cids[0]
         else: # a new commit
+            repohost = self.pool.get('software_dev.branch').browse(cr, uid, branch_id, context=context) \
+                    .repo_id.host_id.id
             new_vals = {
                 'subject': subj,
                 'description': descr,
+                'comitter_id': user_obj.get_user(cr, uid, repohost, cdict['author'], context=context),
                 'date': datetime.fromtimestamp(cdict['when']),
-                'branch_id': cdict['branch_id'],
-                'comitter_id': user_obj.get_user(cr, uid, cdict['who'], context=context),
-                'revno': cdict['rev'],
-                'hash': cdict.get('hash', False),
-                'authors': [ user_obj.get_user(cr, uid, usr, context=context)
-                                for usr in cdict.get('authors', []) ],
+                'branch_id': branch_id,
+                'revno': cdict['revision'],
+                'hash': extra.get('hash', False),
+                'authors': [ user_obj.get_user(cr, uid, repohost, usr, context=context)
+                                for usr in extra.get('authors', []) ],
                 }
             cid = self.create(cr, uid, new_vals, context=context)
 
-        if cdict.get('filesb'):
+        if 'filesb' in extra:
             # try to submit from the detailed files member
-            for cf in cdict['filesb']:
+            for cf in extra['filesb']:
                 fval = { 'commit_id': cid,
                     'filename': cf['filename'],
                     'ctype': cf.get('ctype', 'm'),
@@ -289,7 +314,7 @@ class software_commit(osv.osv):
                     }
                 fchange_obj.create(cr, uid, fval, context=context)
 
-        else: # use the compatible list, eg. when migrating
+        elif 'files' in cdict: # use the compatible list, eg. when migrating
             for cf in cdict['files']:
                 fval = { 'commit_id': cid,
                     'filename': cf['name'],
@@ -308,8 +333,9 @@ class software_commit(osv.osv):
         cstat_obj = self.pool.get('software_dev.changestats')
 
         if cstats:
+            repohost = self.browse(cr, uid, id, context=context).branch_id.repo_id.host_id.id
             sval = { 'commit_id': id,
-                'author_id': user_obj.get_user(cr, uid, cstats['author'], context=context),
+                'author_id': user_obj.get_user(cr, uid, repohost, cstats['author'], context=context),
                 'commits': cstats.get('commits', 0),
                 'count_files': cstats.get('count_files', 0),
                 'lines_add': cstats.get('lines_add', 0),
@@ -322,6 +348,30 @@ class software_commit(osv.osv):
 
     def getChanges(self, cr, uid, ids, context=None):
         """ Format the commits into a dictionary
+        
+            Output keys:
+            
+                changeid:   our id
+                author:     main author
+                when:       commit datetime (string)
+                comments:   commit description
+                links:      list of urls for web-browsing the change
+                revlink:    links[0]
+                revision:   revision id or hash (string)
+                branch:     branch the revision belongs to
+                repository: repo the revision belongs to. The
+                    (repository, branch, revision) should be the unique id
+                project:    ?
+                cateogry:   group?
+                extra: other data. Includes 'hash', 'authors', 'branch_id', 'filesb'
+                    Dict of key: (value, source)
+                
+            Extra Properties:
+                
+                filesb:     list of (file, ...)
+                hash:       the repo hash (if different from 'revision')
+                branch_id:  reference to the branch, helps avoid lookups
+                authors:    list of strings
         """
         # TODO
         ret = []
@@ -332,22 +382,34 @@ class software_commit(osv.osv):
             else:
                 tdate = time.mktime(cmt.date)
             cdict = {
-                'id': cmt.id,
-                'comments': cmt.name,
+                'changeid': cmt.id,
+                'author': cmt.comitter_id.userid,
                 'when': tdate,
-                'branch_id': cmt.branch_id.id,
-                'branch': cmt.branch_id.branch_url,
-                'who': cmt.comitter_id.userid,
+                'comments': cmt.subject,
+                'links': [],
+                'revlink': False, # TODO
                 'revision': cmt.revno,
-                'hash': cmt.hash,
-                'filesb': [],
+                'branch': cmt.branch_id.sub_url,
+                'repository': cmt.branch_id.repo_id._get_unique_url(context=context)[cmt.branch_id.repo_id.id],
+                'project': False,
+                'category': False,
+                'extra': {},
                 }
+            
+            if cmt.description:
+                cdict['comments'] += '\n\n' + cmt.description
+            props = cdict['extra']
+            props.update({
+                'branch_id': cmt.branch_id.id,
+                'filesb': [],
+                'hash': cmt.hash
+                })
             if cmt.parent_id:
-                cdict['parent_id'] = cmt.parent_id.id
-                cdict['parent_revno'] = cmt.parent_id.revno
+                props['parent_id'] = cmt.parent_id.id
+                props['parent_revno'] = cmt.parent_id.revno
 
             for cf in cmt.change_ids:
-                cdict['filesb'].append( {
+                props['filesb'].append( {
                         'filename': cf.filename,
                         'ctype': cf.ctype,
                         'lines_add': cf.lines_add,
