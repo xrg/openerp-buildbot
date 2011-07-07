@@ -31,6 +31,32 @@ def time2str(ddate):
     tdate = datetime.fromtimestamp(ddate)
     return tdate.strftime('%Y-%m-%d %H:%M:%S')
 
+def dict_str2time(ddict, fields, allow_none=False):
+    """In a dict, convert (inline) string datetimes to time
+    """
+    assert fields
+    for f in fields:
+        if allow_none and f not in ddict:
+            continue
+        ddict[f] = str2time(ddict[f])
+
+
+def mid0(m2o_res):
+    """ return id only of a many2one result (tuple)
+    """
+    if m2o_res:
+        return m2o_res[0]
+    else:
+        return None
+
+def dict_mid0(ddict, fields, allow_none=False):
+    """ Apply mid0 to fields of dict
+    """
+    for f in fields:
+        if allow_none and f not in ddict:
+            continue
+        ddict[f] = mid0(ddict[f])
+
 class Token: # used for _start_operation/_end_operation
     pass
 
@@ -79,15 +105,8 @@ class OERPbaseComponent(base.DBConnectorComponent):
 
 class OERPChangesConnector(OERPbaseComponent):
     """ Changes connector
-    
-        Note: in 2.5, we let change['repository'] = str(commit.branch_id) . 
-              This MUST change in 3.0.
-
-        In order not to use OpenObjectChange (and thus hack the upstream bbot),
-        we are now mapping our extra attributes (hash, revno, filesb) to properties
-        of the change. But, during db I/O, we are still sending/receiving them as
-        attributes of the change. Thus, we are using the 'Change-int' source mark
-        to tell them apart from other properties.
+        
+        see software_dev.commit.getChanges() for dictionaries used during I/O
     """
     orm_model = 'software_dev.commit'
     
@@ -96,7 +115,6 @@ class OERPChangesConnector(OERPbaseComponent):
         
         def _txn_addChangeToDatabase(change):
             cdict = change.copy()
-            cdict['branch_id'] = int(change.pop('repository'))
             cleanupDict(cdict)
             when_dt = cdict.pop('when_timestamp', None)
             if when_dt:
@@ -105,18 +123,19 @@ class OERPChangesConnector(OERPbaseComponent):
                 cdict['when'] = False
             try:
                 prop_arr = []
+                cdict.setdefault('extra', {})
                 for pname, pvalue in change.pop('properties', {}).items():
-                    if pname in ('hash', 'authors', 'filesb'):
+                    if pname == 'branch_id':
+                        cdict['branch_id'] = pvalue[0]
+                    elif pname in ('hash', 'authors', 'filesb'):
                         # these ones must pop from the properties into cdict, they
                         # are extended attributes of the change
-                        cdict[pname] = pvalue[0]
+                        cdict['extra'][pname] = pvalue[0]
                         if isinstance(cdict[pname], dict):
                             cleanupDict(cdict[pname])
                     else:
                         prop_arr.append((pname, json.dumps(pvalue)))
-                cdict['rev'] = cdict['revision'] # an unfortunate API trick FIXME
-                cdict['who'] = cdict['author']
-                cdict.pop('files', None)
+                cdict.pop('files', None) #if not filesb ?
                 change_id = self._proxy.submit_change(cdict)
                 if prop_arr:
                     self._proxy.setProperties(change_id, prop_arr)
@@ -144,25 +163,14 @@ class OERPChangesConnector(OERPbaseComponent):
             for k in cdict:
                 if cdict[k] is False:
                     cdict[k] = None
-            cdict['repository'] = str(cdict.pop('branch_id'))
+            extra = cdict.pop('extra', {})
             cdict['properties'] = props.get(cdict['id'], {})
-            cdict['changeid'] = cdict['id']
-            cdict['author'] = cdict.pop('who')
-            cdict['files'] = [ f['filename'] for f in cdict['filesb']]
+            cdict['files'] = [ f['filename'] for f in extra.get('filesb',[])]
             cdict['is_dir'] = 0
-            cdict['links'] = []
             cdict['when_timestamp'] = epoch2datetime(cdict['when'])
-            cdict['category'] = None # TODO
-            cdict.setdefault('revlink', None)
-            cdict['project'] = None
             
-            if (not cdict.get('revlink',False)) and cdict['branch'] and cdict['revision']:
-                if cdict['branch'].startswith('lp:'):
-                    cdict['revlink'] = "http://bazaar.launchpad.net/%s/revision/%s" % \
-                                (cdict['branch'][3:], cdict['revision'])
-            for ppop in ('filesb', 'hash', 'revno', 'parent_id', 'parent_revno'):
-                if ppop in cdict:
-                    cdict['properties'][ppop] = (cdict.pop(ppop), 'Change-int')
+            for k, v in extra.items():
+                cdict['properties'][k] = (v, 'Change-int')
 
         if isinstance(changeid, (list, tuple)):
             return res
@@ -216,6 +224,10 @@ class SourceStampsCCOE(OERPbaseComponent):
         """
         def thd():
             assert len(changeids) == 1, changeids
+            # We don't support them:
+            assert not patch_body
+            assert not patch_level
+            assert not patch_subdir
             return changeids[0]
             
         return threads.deferToThread(thd)
@@ -225,9 +237,7 @@ class SourceStampsCCOE(OERPbaseComponent):
         
         if not old_res:
             res = self._proxy.read(ssid, ['revno', 'hash', 'parent_id', 'merge_id', 'branch_id'])
-            for m2o in ('parent_id', 'merge_id', 'branch_id'):
-                if res.get(m2o, False):
-                    res[m2o] = res[m2o][0]
+            dict_mid0(res, 'parent_id', 'merge_id', 'branch_id')
         else:
             res = old_res
         if not res:
@@ -270,35 +280,29 @@ class BuildsetsCCOE(OERPbaseComponent):
     database
     
     see BuildsetsConnectorComponent
-    
-    Since we share the software_dev.commit model for buildsets, we will use
-    the 'submitted_at' field to tell if a commit is a buildset.
-    """
-    orm_model = 'software_dev.commit'
-    _read_fields = ['external_idstring', 'reason', 'submitted_at', 'results' ,
-            'complete', 'complete_at']
 
+    """
+    orm_model = 'software_dev.buildset'
+    
     def _add_buildset(self, ssid, reason, properties, builderNames,
                         external_idstring=None, _reactor=reactor):
         # this creates both the BuildSet and the associated BuildRequests
         now = _reactor.seconds()
         
-        vals = { # sourcestamp:
+        vals = { 'commit_id': ssid, 'complete': False,
                 'submitted_at': time2str(now),
                 }
         if external_idstring:
             vals['external_idstring'] = external_idstring
         if reason:
             vals['reason'] = reason
-        bsid = ssid  # buildset == sourcestamp == change
-        self._proxy.write(bsid, vals)
+        bsid = self._proxy.create(vals)
         
         self._proxy.setProperties(bsid, [ (pn, json.dumps(pv))
                                 for pn, pv in properties.items()]) # FIXME
-        # TODO: respect builderNames
-        brids = []
-        brid = ssid     # buildrequest == sourcestamp
-        brids.append(brid)
+        brids = {}
+        if builderNames:
+            brids = self._proxy.createBuildRequests(bsid, builderNames)
         
         return bsid, brids
 
@@ -368,7 +372,7 @@ class BuildsetsCCOE(OERPbaseComponent):
         print 'completeBuildset'
         return defer.succeed(None)
     
-    def _commit2bset(self, res):
+    def _db2bset(self, res):
         """Transform an orm_model result to a buildset dict
         """
         return { 'bsid': res['id'],
@@ -387,10 +391,8 @@ class BuildsetsCCOE(OERPbaseComponent):
         if no such buildset exists.
         """
         def thd():
-            res = self._proxy.read(bsid, self._read_fields)
-            
-            print 'getBuildset', bsid, bool(res)
-            return self._commit2bset(res)
+            res = self._proxy.read(bsid)
+            return self._db2bset(res)
 
         return threads.deferToThread(thd)
 
@@ -400,11 +402,9 @@ class BuildsetsCCOE(OERPbaseComponent):
             domain = []
             if complete is not None:
                 domain.append(('complete', '=', complete))
-            bsids = self._proxy.search(domain)
-            ress = self._proxy.read(bsids, self._read_fields)
+            ress = self._proxy.search_read(domain, fields=self._read_fields)
             
-            print 'getBuildsets', domain, bsids
-            return [self._commit2bset(res) for res in ress]
+            return map(self._db2bset, ress)
 
         return threads.deferToThread(thd)
 
@@ -416,18 +416,13 @@ class BuildsetsCCOE(OERPbaseComponent):
         def thd():
             props = self.get_props_from_db(buildsetid)
             return props
-        print 'getBuildsetProperties'
         return threads.deferToThread(thd)
 
 class BuildRequestsCCOE(OERPbaseComponent):
-    orm_model = 'software_dev.commit'
-    
-    _read_fields = ['brid', 'buildername', 'priority',
-            'claimed', 'claimed_at', 'complete', 'results',
-            'submitted_at' ]
+    orm_model = 'software_dev.buildrequest'
     qnum = 0
 
-    def _commit2br(self, res):
+    def _db2br(self, res):
         """Transform an orm_model result to a buildrequest dict
         """
         return { 'brid': res['id'],
@@ -437,7 +432,7 @@ class BuildRequestsCCOE(OERPbaseComponent):
                 'claimed': bool(res['claimed_at']),
                 'claimed_at': str2time(res['claimed_at']),
                 'mine': True,
-                'complete': res['complete'], 
+                'complete': res['complete'],
                 'results': res['results'],
                 'submitted_at': str2time(res['submitted_at']) 
                 }
@@ -473,10 +468,9 @@ class BuildRequestsCCOE(OERPbaseComponent):
                 domain.append(('claimed_by_name', '=', master_name))
                 domain.append(('claimed_by_incarnation', '=', master_incarnation))
             
-            res_ids = self._proxy.search(domain) # order?
-            if not res_ids:
-                return []
-            res = self._proxy.read(res_ids, self._read_fields)
+            # TODO order?
+            res = self._proxy.search_read(domain)
+            # FIXME
             return [self._commit2br(r) for r in res if (buildername is None or r['buildername'] == buildername)]
         
         return threads.deferToThread(thd)
@@ -592,40 +586,38 @@ class BuildRequestsCCOE(OERPbaseComponent):
 class BuildsCCOE(OERPbaseComponent):
     """ Builds
     """
-    orm_model = 'software_dev.commit'
+    orm_model = 'software_dev.build'
     
     def getBuild(self, bid):
         def thd():
-            res = self._proxy.read(bid, ['build_number', 'build_start_time', 'build_finish_time' ])
+            res = self._proxy.read(bid, ['buildrequest_id', 'build_number', 'build_start_time', 'build_finish_time' ])
             if not res:
                 return None
-            ret = { 'bid': bid, 'brid': bid, 'number': res['build_number'],
-                    'start_time': str2time(res['build_start_time']),
-                    'finish_time': str2time(res['build_finish_time']),
-                }
-            return ret
+            dict_str2time(res, ['build_start_time', 'build_finish_time'])
+            res['brid'] = mid0(res.pop('buildrequest_id', None))
+            return res
             
         return threads.deferToThread(thd)
 
     def getBuildsForRequest(self, brid):
         def thd():
-            res = self._proxy.read(brid, ['build_number', 'build_start_time', 'build_finish_time' ])
+            res = self._proxy.search_read(brid, [('buildrequest_id', '=', brid)],
+                    fields=['buildrequest_id','build_number', 'build_start_time', 'build_finish_time' ])
             if not res:
                 return None
-            ret = { 'bid': brid, 'brid': brid, 'number': res['build_number'],
-                    'start_time': str2time(res['build_start_time']),
-                    'finish_time': str2time(res['build_finish_time']),
-                }
-            return [ret,]
+            for r in res:
+                dict_str2time(r, ['build_start_time', 'build_finish_time'])
+                r['brid'] = mid0(r.pop('buildrequest_id', None))
+            return res
         
         return threads.deferToThread(thd)
 
     def addBuild(self, brid, number, _reactor=reactor):
         def thd():
             now = _reactor.seconds()
-            self._proxy.write([brid,], { 'build_number': number, 
+            bid = self._proxy.create({ 'buildrequest_id': brid, 'build_number': number,
                     'build_start_time': time2str(now)} )
-            return brid # build.id = buildrequest.id
+            return bid
         return threads.deferToThread(thd)
 
     def finishBuilds(self, bids, _reactor=reactor):
