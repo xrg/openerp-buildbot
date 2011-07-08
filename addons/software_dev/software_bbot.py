@@ -98,6 +98,7 @@ class software_buildbot(osv.osv):
            properties:   A dictionary of extra values for the builder
            slavename:    name of slave to attach
            branch_name:  used in change filter
+           branch_id:    reference to branch whose changes will trigger builds
            tstimer:      treeStableTimer value, optional
            
            steps:        steps to perform, a list: [ (class-name, { props}) ]

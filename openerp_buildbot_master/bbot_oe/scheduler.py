@@ -20,26 +20,24 @@
 #
 ##############################################################################
 
-from buildbot.scheduler import AnyBranchScheduler,Scheduler
-from sourcestamp import OpenObjectSourceStamp
-# from buildbot import buildset
-from datetime import datetime
+from twisted.python import log
+from buildbot.schedulers.filter import ChangeFilter
 
-raise ImportError("Don't use me!")
+class ChangeFilter_OE(ChangeFilter):
+    def __init__(self, branch_id, **kwargs):
+        self.branch_id = branch_id
+        ChangeFilter.__init__(self, **kwargs)
 
-class OpenObjectScheduler(Scheduler):
-    def __init__(self, name, **kwargs):
-        self.unimportantChanges = []
-        self.keeper = kwargs.pop('keeper', None)
-        Scheduler.__init__(self, name=name, **kwargs)
-        
+    def filter_change(self, change):
+        #print "Trying to filter %r with %r" % (change, self)
 
-class OpenObjectAnyBranchScheduler(AnyBranchScheduler):
-    schedulerFactory = OpenObjectScheduler
+        if 'branch_id' in change.properties:
+            if change.properties['branch_id'] != self.branch_id:
+                #print "Branches don't match:", change.properties['branch_id'], self.branch_id
+                return False
+        else:
+            log.msg("strange, change doesn't have 'branch_id' property!")
 
-    def __init__(self, name, branches, treeStableTimer, builderNames,
-                 fileIsImportant=None, properties={}):
-        AnyBranchScheduler.__init__(self, name=name, branches=branches, treeStableTimer=treeStableTimer, builderNames=builderNames,
-                 fileIsImportant=fileIsImportant, properties=properties)
+        return ChangeFilter.filter_change(self, change)
 
-# vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
+# eof

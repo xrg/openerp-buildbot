@@ -231,7 +231,8 @@ class software_buildseries(propertyMix, osv.osv):
                     'builddir': dir_name,
                     'steps': [],
                     'branch_url': bldr.branch_id.fetch_url,
-                    'branch_name': bldr.name,
+                    'branch_name': bldr.name, # FIXME review
+                    'branch_id': bldr.branch_id.id,
                     'properties': { 'sequence': bldr.sequence, },
                     'scheduler': bldr.scheduler,
                     #'tstimer': None, # means one build per change

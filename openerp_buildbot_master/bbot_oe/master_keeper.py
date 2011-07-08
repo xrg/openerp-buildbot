@@ -14,7 +14,7 @@
 import logging
 from buildbot.buildslave import BuildSlave
 from buildbot.process import factory
-from buildbot.schedulers.filter import ChangeFilter
+from scheduler import ChangeFilter_OE
 from buildbot.schedulers import basic, timed, dependent
 from buildbot import manhole
 from .status import web, mail, logs
@@ -34,11 +34,6 @@ def str2bool(sstr):
     if sstr and sstr.lower() in ('true', 't', '1', 'on'):
         return True
     return False
-
-class ChangeFilter_debug(ChangeFilter):
-    def filter_change(self, change):
-        print "Trying to filter %r with %r" % (change, self)
-        return ChangeFilter.filter_change(self, change)
 
 class Keeper(object):
     """ Keeper is the connector that gets/updates buildbot configuration from openerp
@@ -224,7 +219,7 @@ class Keeper(object):
                 'category': props.get('group', None),
             })
 
-            cfilt = ChangeFilter(branch=bld['branch_name'])
+            cfilt = ChangeFilter_OE(branch_id=bld['branch_id'])
             # FIXME
             
             sched = None
