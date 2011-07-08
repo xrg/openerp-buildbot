@@ -479,10 +479,6 @@ class BuildRequestsCCOE(OERPbaseComponent):
     def claimBuildRequests(self, brids, _reactor=reactor, _race_hook=None):
         brids = list(brids)
         def thd():
-            # FIXME: this implementation, so far, is NOT safe against
-            # parallel claims. However, we rely on the fact that we only
-            # run one buildbot, and that buildbot has a sequential reactor,
-            # to protect us against the phenomenon.
             master_name = self.db.master.master_name
             master_incarnation = self.db.master.master_incarnation
             now = _reactor.seconds()
@@ -491,23 +487,10 @@ class BuildRequestsCCOE(OERPbaseComponent):
             #    ('claimed_at', '!=', False), ('claimed_by_name', '=', master_name),
             #    ('claimed_by_incarnation', '=', master_incarnation)]
             
-            domain_todo = [('id', 'in', brids),
-                '|', ('claimed_at', '=', False), # unclaimed
-                  '&', '&', ('claimed_at', '!=', False), ('claimed_by_name', '=', master_name),
-                ('claimed_by_incarnation', '=', master_incarnation) # or mine
-                ]
-            todo_brids = self._proxy.search(domain_todo)
-            if len(todo_brids) != len(brids):
-                print "todo != brids", domain_todo
-                print " : ", todo_brids, brids
+            if not self._proxy.claim(brids, master_name, master_incarnation, time2str(now)):
                 raise AlreadyClaimedError
-            
-            self._proxy.write(brids, {'claimed_at': time2str(now),
-                'claimed_by_name': master_name,
-                'claimed_by_incarnation': master_incarnation })
-            
-            # need a double check! 
-            # (or call the _proxy.claim() method which will ensure integrity)
+            else:
+                return True
 
         return threads.deferToThread(thd)
 

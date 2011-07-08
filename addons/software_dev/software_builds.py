@@ -374,6 +374,36 @@ class software_buildrequest(osv.osv):
         self.write(cr, uid, ids, { 'claimed_at': False, 'complete': False,
                 'claimed_by_name': False })
         return True
+    
+    def claim(self, cr, uid, ids, master_name, master_incarnation,
+            remote_time, context=None):
+        """ Atomically claim buildrequests for build master
+
+            This operation needs to be done db-atomically (pg help us)
+            so that only one master has them at a time.
+
+            @param ids the request ids to be claimed (usually just one)
+            @param master_name name of the master, matches 'claimed_by_name'
+            @param master_incarnation incarnation, matches 'claimed_by_incarnation'
+            @param remote_time string date/time of the build master, let us
+                not use our clock
+
+            @return True or False if already claimed
+        """
+
+        domain_todo = [('id', 'in', ids),
+                '|', ('claimed_at', '=', False), # unclaimed
+                  '&', '&', ('claimed_at', '!=', False), ('claimed_by_name', '=', master_name),
+                ('claimed_by_incarnation', '=', master_incarnation) # or of the master
+                ]
+        todo_brids = self.search(cr, uid, domain_todo, context=context)
+        if len(todo_brids) != len(ids):
+            return False
+
+        self.write(cr, uid, ids, {'claimed_at': remote_time,
+                'claimed_by_name': master_name,
+                'claimed_by_incarnation': master_incarnation }, context=context)
+        return True
 
 software_buildrequest()
 
