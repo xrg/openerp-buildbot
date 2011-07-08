@@ -60,6 +60,7 @@ class software_buildbot(osv.osv):
             """Format the branch info into a dictionary
             """
             dret = {}
+            dret['branch_id'] = branch_bro.id
             dret['rtype'] = branch_bro.repo_id.rtype
             dret['branch_path'] = branch_bro.tech_code or \
                     (branch_bro.sub_url.replace('/','_'))
