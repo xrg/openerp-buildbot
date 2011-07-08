@@ -28,9 +28,9 @@ from buildbot.util import epoch2datetime
 
 class GitPoller_OE(GitPoller):
     """ Enhanced subclass to fit OpenERP backend, record more data
-    
+
     """
-    
+
     def __init__(self, **kwargs):
         branch_id = kwargs.pop('branch_id') # mandatory
         GitPoller.__init__(self, **kwargs)
@@ -38,10 +38,10 @@ class GitPoller_OE(GitPoller):
 
     def _get_commit_files2(self, rev):
         """Get list of commit files and stats (part 1/2)
-          
+
             This retrieves the status/name pairs of files actually modified.
             In a merge commit, it will *only* list conflict-modified files
-            
+
         """
         args = ['log', rev, '--name-status', '--no-walk', r'--format=%n']
         d = utils.getProcessOutput(self.gitbin, args, path=self.workdir, env=dict(PATH=os.environ['PATH']), errortoo=False )
@@ -58,7 +58,7 @@ class GitPoller_OE(GitPoller):
 
     def _get_commit_files3(self, rev):
         """Get list of commit files and diff stats
-        
+
             The second part, list lines added/removed at files
         """
         # git show HEAD --no-walk --numstat --format='%n'
@@ -93,7 +93,7 @@ class GitPoller_OE(GitPoller):
 
         revList.reverse()
         self.changeCount = len(revList)
-            
+
         log.msg('gitpoller: processing %d changes: %s in "%s"'
                 % (self.changeCount, revList, self.workdir) )
 
@@ -117,9 +117,9 @@ class GitPoller_OE(GitPoller):
                 raise failures[0]
 
             props = dict(branch_id=self.branch_id, hash=rev, ) # TODO
-            
+
             timestamp, name, files2, files3, comments = [ r[1] for r in results ]
-            
+
             #process the files
             filesb = []
             for fname, stats in files3.items():
@@ -127,10 +127,10 @@ class GitPoller_OE(GitPoller):
                     stats = (False, False)
                 else:
                     stats = map(int, stats)
-                
+
                 if not fname in files2:
                     # it was cleanly merged
-                    filesb.append(dict(filename=fname, ctype='f', 
+                    filesb.append(dict(filename=fname, ctype='f',
                             merge_add=stats[0], merge_rem=stats[1]))
                 else:
                     status = files2[fname]
@@ -139,7 +139,7 @@ class GitPoller_OE(GitPoller):
                         if letter in status:
                             ctype = letter.lower()
                             break
-                    filesb.append(dict(filename=fname, ctype=ctype, 
+                    filesb.append(dict(filename=fname, ctype=ctype,
                             lines_add=stats[0], lines_rem=stats[1]))
 
             props['filesb'] = filesb
@@ -158,7 +158,7 @@ class GitPoller_OE(GitPoller):
             wfd = defer.waitForDeferred(d)
             yield wfd
             results = wfd.getResult()
-    
+
 class GitFactory(RepoFactory):
     @classmethod
     def createPoller(cls, poller_dict, conf, tmpconf):
