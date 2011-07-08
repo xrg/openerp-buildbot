@@ -24,6 +24,7 @@
 from osv import fields, osv
 from datetime import datetime
 import time
+from properties import propertyMix
 
 repo_types = [('git', 'Git'), ('bzr', 'Bazaar'), ('hg', 'Mercurial'),
         ('svn', 'Subversion')]
@@ -192,7 +193,7 @@ software_user()
 commit_types = [ ('reg', 'Regular'), ('merge', 'Merge'), ('single', 'Standalone'),
             ]
 
-class software_commit(osv.osv):
+class software_commit(propertyMix, osv.osv):
     """ An entry in the VCS
     """
     _name = 'software_dev.commit'
