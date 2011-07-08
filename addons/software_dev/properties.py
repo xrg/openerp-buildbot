@@ -28,6 +28,7 @@ class propertyMix(object):
     """
 
     _auto_properties = []
+    __model_id = None
 
     def getProperties(self, cr, uid, ids, names=None, context=None):
         """ Retrieve the properties for a range of ids.
@@ -56,7 +57,10 @@ class propertyMix(object):
         prop_obj = self.pool.get('software_dev.property')
         imo_obj = self.pool.get('ir.model')
         
-        imid = imo_obj.search(cr, uid, [('model', '=', self._name)])[0]
+        if not self.__model_id:
+            self.__model_id = imo_obj.search(cr, uid, [('model', '=', self._name)])[0]
+        
+        imid = self.__model_id
 
         if clear:
             dom = [('model_id.model', '=', self._name), ('resid', '=', id), ]
