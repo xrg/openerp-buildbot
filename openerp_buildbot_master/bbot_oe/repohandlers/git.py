@@ -78,7 +78,7 @@ class GitPoller_OE(GitPoller):
     @defer.deferredGenerator
     def _process_changes(self, unused_output):
         # get the change list
-        revListArgs = ['log', '%s..%s/%s' % (self.branch, self.remoteName, self.branch), r'--format=%H']
+        revListArgs = ['log', '%s..%s/%s' % (self.localBranch, self.remoteName, self.branch), r'--format=%H']
         self.changeCount = 0
         d = utils.getProcessOutput(self.gitbin, revListArgs, path=self.workdir,
                                    env=dict(PATH=os.environ['PATH']), errortoo=False )
