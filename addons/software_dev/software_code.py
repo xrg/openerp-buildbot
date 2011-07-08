@@ -431,7 +431,8 @@ class software_commit(propertyMix, osv.osv):
 software_commit()
 
 change_types = [ ('a', 'Add'), ('m', 'Modify'), ('d', 'Delete'),
-                ('c', 'Copy'), ('r', 'Rename') ]
+                ('c', 'Copy'), ('r', 'Rename'), ('f', 'Merged'),
+                ('?', 'Unknown') ]
 
 class software_filechange(osv.osv):
     """ Detail of commit: change to a file
