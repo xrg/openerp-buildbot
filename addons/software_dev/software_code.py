@@ -139,7 +139,7 @@ class software_branch(osv.osv):
         'name': fields.char('Branch Name', required=True, size=64),
         'tech_code': fields.char('Tech name', size=128, select=1),
         'poll_interval': fields.integer('Poll interval',
-                    help="Seconds interval to look for changes"),
+                    help="Seconds interval to look for changes", required=True),
         'repo_id': fields.many2one('software_dev.repo', 'Repository', required=True, select=1),
         'description': fields.text('Description'),
         'sub_url': fields.char('Branch URL', size=1024, required=True,
@@ -153,6 +153,7 @@ class software_branch(osv.osv):
     }
 
     _defaults = {
+        'poll_interval': 1800,
     }
 
 software_branch()
