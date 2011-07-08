@@ -66,6 +66,8 @@ class software_repo(osv.osv):
                 help="A local path where this repository is replicated, for caching"),
         'slave_proxy_url': fields.char('Slave proxy url', size=1024,
                 help="The url from which a slave bot can fetch the proxied repository content"),
+        'local_prefix': fields.char('Local prefix', size=64,
+                help="If the local proxy is shared among repos, prefix branch names with this, to avoid conflicts"),
         'branch_ids': fields.one2many('software_dev.branch', 'repo_id', 'Branches'),
     }
 
@@ -283,7 +285,6 @@ class software_commit(propertyMix, osv.osv):
         subj = clines[0]
         descr = '\n'.join(clines[1:]).strip()
 
-        print cdict
         extra = cdict.pop('extra')
         branch_id = extra.get('branch_id')
         assert branch_id # or discover it from repository + branch

@@ -116,6 +116,7 @@
                 <field name="host_id"/>
                 <field name="proxy_location" />
                 <field name="slave_proxy_url" />
+                <field name="local_prefix" />
                 <field name="base_url" colspan="4"/>
                 <field name="branch_ids" colspan="4" />
               </form>
