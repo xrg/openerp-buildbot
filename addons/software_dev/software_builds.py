@@ -94,6 +94,9 @@ class software_tsattr(osv.osv):
 
 software_tsattr()
 
+schedulers = [('basic', 'On change (basic)'), ('periodic', 'Periodic'),
+    ('nightly', 'Date/time based'), ('dependent', 'On other build')]
+
 class software_buildseries(propertyMix, osv.osv):
     """ A series is a setup of package+test scenaria
     
@@ -187,6 +190,7 @@ class software_buildseries(propertyMix, osv.osv):
         'is_distinct': fields.boolean('Distinct builds', required=True,
                 help="If set, this series has random builds, not commits that follow each other"),
         
+        'scheduler': fields.selection(schedulers, 'Scheduler', required=True),
         'package_id': fields.many2one('software_dev.package', 'Package', required=True),
         'branch_id': fields.many2one('software_dev.branch', 'Rolling branch', required=True,
                 help="One branch, that is used to test against different commits.",
@@ -205,6 +209,7 @@ class software_buildseries(propertyMix, osv.osv):
     _defaults = {
         'is_distinct': False,
         'sequence': 10,
+        'scheduler': 'basic',
     }
 
     @virtual
@@ -227,7 +232,8 @@ class software_buildseries(propertyMix, osv.osv):
                     'steps': [],
                     'branch_url': bldr.branch_id.fetch_url,
                     'branch_name': bldr.name,
-                    'properties': { 'sequence': bldr.sequence, }
+                    'properties': { 'sequence': bldr.sequence, },
+                    'scheduler': bldr.scheduler,
                     #'tstimer': None, # means one build per change
                     }
 

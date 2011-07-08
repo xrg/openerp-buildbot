@@ -404,6 +404,7 @@
                 <field name="builder_id" />
                 <field name="test_id" />
                 <field name="is_distinct"/>
+                <field name="scheduler" />
                 <field name="description" colspan="4" />
               </form>
           </field>

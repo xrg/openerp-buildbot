@@ -15,7 +15,7 @@ import logging
 from buildbot.buildslave import BuildSlave
 from buildbot.process import factory
 from buildbot.schedulers.filter import ChangeFilter
-from buildbot.schedulers.basic import SingleBranchScheduler
+from buildbot.schedulers import basic, timed, dependent
 from buildbot import manhole
 from .status import web, mail, logs
 import twisted.internet.task
@@ -227,13 +227,34 @@ class Keeper(object):
             cfilt = ChangeFilter(branch=bld['branch_name'])
             # FIXME
             
-            c['schedulers'].append( # FIXME: make it flexible
-                SingleBranchScheduler(name = "Scheduler %s" % bld['name'],
-                                    builderNames = [bld['name'], ],
-                                    change_filter=cfilt,
+            sched = None
+            sched_kwargs = dict(name = "Scheduler %s" % bld['name'],
+                    builderNames = [bld['name'],],
+                    properties=bld.get('sched_props',{}))
+        
+            if bld['scheduler'] == 'periodic':
+                sched = timed.Periodic( periodicBuildTimer = bld.get('tstimer',None),
+                                    **sched_kwargs)
+            elif bld['scheduler'] == 'nightly':
+                sched = timed.Nightly(branch=bld['branch_name'], change_filter=cfilt,
+                                    minute=bld.get('sched_minute',0), hour=bld.get('sched_hour','*'),
+                                    dayOfMonth=bld.get('sched_dayOfMonth', '*'),
+                                    dayOfWeek=bld.get('sched_dayOfWeek','*'),
+                                    onlyIfChanged=bld.get('sched_ifchanged',False),
+                                    **sched_kwargs)
+
+            elif bld['scheduler'] == 'dependent':
+                sched = None
+                for sch in c['schedulers']:
+                    if sch.name == 'Scheduler %s' % bld.get('sched_upstream', ':('):
+                        sched = dependent.Dependent(upstream=sch, **sched_kwargs)
+                        break
+            else:
+                sched = basic.SingleBranchScheduler(change_filter=cfilt,
                                     treeStableTimer= bld.get('tstimer',None),
-                                    properties={})
-                                )
+                                    **sched_kwargs)
+
+            c['schedulers'].append(sched)
 
         if bbot_data['http_port']:
             self.logger.info("We will have a http server at %s", bbot_data['http_port'])
