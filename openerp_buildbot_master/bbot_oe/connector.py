@@ -123,16 +123,17 @@ class OERPChangesConnector(OERPbaseComponent):
                 cdict['when'] = False
             try:
                 prop_arr = []
-                cdict.setdefault('extra', {})
-                for pname, pvalue in change.pop('properties', {}).items():
+                extra = cdict.setdefault('extra', {})
+                for pname, pvalue in cdict.pop('properties', {}).items():
                     if pname == 'branch_id':
-                        cdict['branch_id'] = pvalue[0]
+                        extra['branch_id'] = pvalue[0]
                     elif pname in ('hash', 'authors', 'filesb'):
                         # these ones must pop from the properties into cdict, they
                         # are extended attributes of the change
-                        cdict['extra'][pname] = pvalue[0]
-                        if isinstance(cdict[pname], dict):
-                            cleanupDict(cdict[pname])
+                        if isinstance(pvalue[0], dict):
+                            cleanupDict(pvalue[0])
+                        extra[pname] = pvalue[0]
+                        
                     else:
                         prop_arr.append((pname, json.dumps(pvalue)))
                 cdict.pop('files', None) #if not filesb ?
@@ -164,7 +165,7 @@ class OERPChangesConnector(OERPbaseComponent):
                 if cdict[k] is False:
                     cdict[k] = None
             extra = cdict.pop('extra', {})
-            cdict['properties'] = props.get(cdict['id'], {})
+            cdict['properties'] = props.get(cdict['changeid'], {})
             cdict['files'] = [ f['filename'] for f in extra.get('filesb',[])]
             cdict['is_dir'] = 0
             cdict['when_timestamp'] = epoch2datetime(cdict['when'])
