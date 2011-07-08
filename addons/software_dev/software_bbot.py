@@ -67,9 +67,11 @@ class software_buildbot(osv.osv):
             dret['fetch_url'] = branch_bro.fetch_url
             dret['poll_interval'] = branch_bro.poll_interval
 
-            if branch_bro.repo_id.proxy_location:
-                dret['mirrored'] = True
-                dret['repo_base'] = branch_bro.repo_id.proxy_location
+            dret['workdir'] = branch_bro.repo_id.proxy_location
+            if branch_bro.repo_id.local_prefix:
+                dret['local_branch'] = branch_bro.repo_id.local_prefix + \
+                    branch_bro.sub_url.replace('/','_')
+                dret['remote_name'] = branch_bro.repo_id.local_prefix.rstrip('-_./+')
 
             return dret
 
