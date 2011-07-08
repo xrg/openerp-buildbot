@@ -167,18 +167,32 @@ class GitFactory(RepoFactory):
             raise ValueError("Cannot handle %s mode yet" % pbr['mode'])
         fetch_url = pbr['fetch_url']
         p_interval = int(pbr.get('poll_interval', 600))
+        # Early bail-out
+        if p_interval <= 0:
+            return
+
         kwargs = {} # tmpconf['poller_kwargs'].copy()
-        category = ''
+
+        kwargs.update (repourl=fetch_url,
+                pollInterval = p_interval,
+                branch=pbr.get('branch_path', 'master'),
+                branch_id=pbr['branch_id'],)
+
+        if 'local_branch' in pbr:
+            kwargs['localBranch'] = pbr['local_branch']
+
+        if 'remote_name' in pbr:
+            kwargs['remoteName'] = pbr['remote_name']
+
+        if 'workdir' in pbr:
+            kwargs['workdir'] = os.path.expanduser(pbr['workdir'])
+
+        category = '' # TODO: revise
         if 'group' in pbr:
             category = pbr['group'].replace('/','_').replace('\\','_') # etc.
             kwargs['category'] = pbr['group']
 
-        if p_interval > 0:
-            conf['change_source'].append(GitPoller_OE(repourl=fetch_url,
-                pollInterval = p_interval,
-                branch=pbr.get('branch_path', 'master'),
-                branch_id=pbr['branch_id'],
-                **kwargs))
+        conf['change_source'].append(GitPoller_OE(**kwargs))
 
 
 repo_types = { 'git': GitFactory }
