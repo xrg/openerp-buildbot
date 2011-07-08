@@ -103,14 +103,17 @@ class software_branch(osv.osv):
             family = b.repo_id.host_id.host_family
             url = None
             if family == 'github':
-                url = "github..."
-                # TODO
+                url = b.repo_id.host_id.base_url or 'git://github.com'
+                url += '/' + b.repo_id.base_url
+            elif family == 'gitweb':
+                url = b.repo_id.host_id.base_url
+                url += '/' + b.repo_id.base_url
             elif family == 'lp':
                 url = b.repo_id.host_id.base_url or 'lp:'
                 if b.sub_url.startswith('~'):
                     url += b.sub_url
                 else:
-                    url += b.repo_id.base_url + '/'+ b.sub_url
+                    url += b.repo_id.base_url + '/'+ b.base_url
             else:
                 url = b.sub_url
             res[b.id] = url
@@ -121,10 +124,14 @@ class software_branch(osv.osv):
         for b in self.browse(cr, uid, ids, context=context):
             family = b.repo_id.host_id.host_family
             if family == 'github':
-                res[b.id] = "github..."
-                # TODO
+                url = b.repo_id.host_id.browse_url or 'https://github.com'
+                url += '/' + b.repo_id.base_url
+            elif family == 'gitweb':
+                url = b.repo_id.host_id.browse_url
+                url += '/?p=' + b.repo_id.base_url
             else:
-                res[b.id] = b.sub_url
+                url = b.sub_url
+            res[b.id] = url
         return res
 
 
