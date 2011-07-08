@@ -36,6 +36,45 @@ class GitPoller_OE(GitPoller):
         GitPoller.__init__(self, **kwargs)
         self.branch_id = branch_id
 
+    def _get_commit_files2(self, rev):
+        """Get list of commit files and stats (part 1/2)
+          
+            This retrieves the status/name pairs of files actually modified.
+            In a merge commit, it will *only* list conflict-modified files
+            
+        """
+        args = ['log', rev, '--name-status', '--no-walk', r'--format=%n']
+        d = utils.getProcessOutput(self.gitbin, args, path=self.workdir, env=dict(PATH=os.environ['PATH']), errortoo=False )
+        def process(git_output):
+            fileDic = {}
+            for x in git_output.split('\n'):
+                if not x:
+                    continue
+                status, fname = x.split('\t',1)
+                fileDic[fname] = status
+            return fileDic
+        d.addCallback(process)
+        return d
+
+    def _get_commit_files3(self, rev):
+        """Get list of commit files and diff stats
+        
+            The second part, list lines added/removed at files
+        """
+        # git show HEAD --no-walk --numstat --format='%n'
+        args = ['log', rev, '--numstat', '--no-walk', r'--format=%n']
+        d = utils.getProcessOutput(self.gitbin, args, path=self.workdir, env=dict(PATH=os.environ['PATH']), errortoo=False )
+        def process(git_output):
+            fileDic = {}
+            for x in git_output.split('\n'):
+                if not x:
+                    continue
+                add, rem, fname = x.split('\t',2)
+                fileDic[fname] = (add, rem)
+            return fileDic
+        d.addCallback(process)
+        return d
+
     @defer.deferredGenerator
     def _process_changes(self, unused_output):
         # get the change list
@@ -62,8 +101,8 @@ class GitPoller_OE(GitPoller):
             dl = defer.DeferredList([
                 self._get_commit_timestamp(rev),
                 self._get_commit_name(rev),
-                self._get_commit_files(rev),
-                #self._get_commit_files2(rev),
+                self._get_commit_files2(rev),
+                self._get_commit_files3(rev),
                 self._get_commit_comments(rev),
             ], consumeErrors=True)
 
@@ -79,11 +118,36 @@ class GitPoller_OE(GitPoller):
 
             props = dict(branch_id=self.branch_id, hash=rev, ) # TODO
             
-            timestamp, name, files, comments = [ r[1] for r in results ]
+            timestamp, name, files2, files3, comments = [ r[1] for r in results ]
+            
+            #process the files
+            filesb = []
+            for fname, stats in files3.items():
+                if stats == ('-', '-'):
+                    stats = (False, False)
+                else:
+                    stats = map(int, stats)
+                
+                if not fname in files2:
+                    # it was cleanly merged
+                    filesb.append(dict(filename=fname, ctype='f', 
+                            merge_add=stats[0], merge_rem=stats[1]))
+                else:
+                    status = files2[fname]
+                    ctype = '?'
+                    for letter in 'MDARC': #ordered by importance
+                        if letter in status:
+                            ctype = letter.lower()
+                            break
+                    filesb.append(dict(filename=fname, ctype=ctype, 
+                            lines_add=stats[0], lines_rem=stats[1]))
+
+            props['filesb'] = filesb
+
             d = self.master.addChange(
                    author=name,
                    revision=rev,
-                   files=files,
+                   files=[],
                    comments=comments,
                    when_timestamp=epoch2datetime(timestamp),
                    branch=self.branch,
