@@ -222,7 +222,7 @@ class SourceStampsCCOE(OERPbaseComponent):
     """
     orm_model = 'software_dev.commit'
     
-    def createSourceStamp(self, branch, revision, repository, project,
+    def addSourceStamp(self, branch, revision, repository, project,
                           patch_body=None, patch_level=0, patch_subdir=None,
                           changeids=[]):
         """
