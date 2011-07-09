@@ -252,8 +252,9 @@ class SourceStampsCCOE(OERPbaseComponent):
         assert isinstance(ssid, (int, long))
         
         if not old_res:
-            res = self._proxy.read(ssid, ['revno', 'hash', 'parent_id', 'merge_id', 'branch_id'])
-            dict_mid0(res, 'parent_id', 'merge_id', 'branch_id')
+            res = self._proxy.read(ssid, ['revno', 'hash', 'parent_id', 'branch_id'])
+            if res:
+                dict_mid0(res, ('parent_id', 'branch_id'))
         else:
             res = old_res
         if not res:
@@ -401,7 +402,7 @@ class BuildsetsCCOE(OERPbaseComponent):
         """Transform an orm_model result to a buildset dict
         """
         return { 'bsid': res['id'],
-                'sourcestampid': res['id'],
+                'sourcestampid': mid0(res['commit_id']),
                 'external_idstring': res['external_idstring'],
                 'complete': bool(res['complete']),
                 'complete_at': str2time(res['complete_at']),
