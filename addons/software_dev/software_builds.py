@@ -286,7 +286,7 @@ class software_buildseries(propertyMix, osv.osv):
 
 software_buildseries()
 
-class software_buildset(osv.osv):
+class software_buildset(propertyMix, osv.osv):
     _name = 'software_dev.buildset'
 
     _columns = {
