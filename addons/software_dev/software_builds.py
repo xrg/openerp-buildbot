@@ -298,6 +298,7 @@ class software_buildset(propertyMix, osv.osv):
         'complete': fields.boolean('Complete', required=True, select=True),
         'complete_at': fields.datetime('Complete At'),
         'results': fields.selection(bbot_results, 'Results'),
+        'name': fields.related('commit_id', 'name', string='Name', type='char', size=256),
     }
 
     _defaults = {
@@ -342,6 +343,7 @@ class software_buildrequest(osv.osv):
         # the sourcestampid and reason live in the BuildSet
         'buildsetid': fields.many2one('software_dev.buildset', 'Build Set', required=True, select=True),
         'priority': fields.integer('Priority', required=True),
+        'name': fields.related('buildsetid', 'name', string='Name', type='char', size=256),
 
         # claimed_at is the time at which a master most recently asserted that
         # it is responsible for running the build: this will be updated
@@ -420,6 +422,8 @@ class software_bbuild(osv.osv):
         'build_finish_time': fields.datetime('Build finish time'),
         'buildername': fields.related('branch_id', 'buildername', type='char', string='Builder name',
                         readonly=True, size=512, store=True, select=True),
+
+        'name': fields.related('buildrequest_id', 'name', string='Name', type='char', size=256),
 
         # FIXME: review if they're needed
         'build_summary': fields.text('Result', help="A summary of the build results"),
