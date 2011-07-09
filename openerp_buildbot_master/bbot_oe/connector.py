@@ -352,7 +352,7 @@ class BuildsetsCCOE(OERPbaseComponent):
 
         @returns: Deferred
         """
-        self.logger.warning('subscribeToBuildset')
+        self._logger.warning('subscribeToBuildset')
         raise NotImplementedError
 
     def unsubscribeFromBuildset(self, schedulerid, buildsetid):
@@ -368,7 +368,7 @@ class BuildsetsCCOE(OERPbaseComponent):
 
         @returns: Deferred
         """
-        self.logger.warning('unsubscribeFromBuildset')
+        self._logger.warning('unsubscribeFromBuildset')
         raise NotImplementedError
 
     def getSubscribedBuildsets(self, schedulerid):
@@ -386,11 +386,11 @@ class BuildsetsCCOE(OERPbaseComponent):
 
         @returns: list as described, via Deferred
         """
-        self.logger.warning('getSubscribedBuildsets')
+        self._logger.warning('getSubscribedBuildsets')
         raise NotImplementedError
         
     def completeBuildset(self, bsid, results, _reactor=reactor):
-        self.logger.debug('completeBuildset')
+        self._logger.debug('completeBuildset')
         def thd():
             now = _reactor.seconds()
             vals = { 'complete': True, 'complete_at': time2str(now),
