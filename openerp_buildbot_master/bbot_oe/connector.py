@@ -381,8 +381,13 @@ class BuildsetsCCOE(OERPbaseComponent):
         raise NotImplementedError
         
     def completeBuildset(self, bsid, results, _reactor=reactor):
-        print 'completeBuildset'
-        return defer.succeed(None)
+        self.logger.debug('completeBuildset')
+        def thd():
+            now = _reactor.seconds()
+            vals = { 'complete': True, 'complete_at': time2str(now),
+                    'results': results }
+            self._proxy.write([bsid,], vals)
+        return threads.deferToThread(thd)
     
     def _db2bset(self, res):
         """Transform an orm_model result to a buildset dict
