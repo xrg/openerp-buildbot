@@ -40,4 +40,41 @@ class software_dev_property(osv.osv):
     
 software_dev_property()
 
+
+class software_dev_state_obj(osv.osv):
+    """ Object states, properties for arbitrary buildbot-side classes
+
+        Unlike software_dev.property, these are attached to remote-side
+        classes, and have multiple name-value pairs
+    """
+
+    _name = 'software_dev.state_obj'
+
+    _columns = {
+        'name': fields.char('Name', size=128, required=True),
+        'class_name': fields.char('Name', size=128, required=True),
+        'val_ids': fields.one2many('software_dev.state_val', 'object_id', 'Values'),
+    }
+
+    _sql_constraints = [ ('name_class_uniq', 'UNIQUE(name, class_name)', 'Objects must be unique'), ]
+
+software_dev_state_obj()
+
+class software_dev_state_obj_val(osv.osv):
+    """ Complementary class to state_obj, holds the name-value pairs
+    """
+    _name = 'software_dev.state_val'
+    _log_access = False
+
+    _columns = {
+        'object_id': fields.many2one('software_dev.state_obj', 'Object',
+                required=True, ondelete='cascade'),
+        'name': fields.char('Name', size=256, required=True),
+        'value': fields.struct('Value'),
+    }
+
+    _sql_constraints = [ ('object_name_uniq', 'UNIQUE(object_id, name)', 'Name must be unique per object'), ]
+
+software_dev_state_obj_val()
+
 #eof

@@ -26,3 +26,5 @@
 "access_bot_bset","software_dev.bot.bset","model_software_dev_buildset","group_softdev_bot",1,1,1,1
 "access_bot_brequest","software_dev.bot.buildrequest","model_software_dev_buildrequest","group_softdev_bot",1,1,1,1
 "access_bot_build","software_dev.bot.build","model_software_dev_build","group_softdev_bot",1,1,1,1
+"access_bot_state_obj","software_dev.bot.state_obj","model_software_dev_state_obj","group_softdev_bot",1,1,1,1
+"access_bot_state_val","software_dev.bot.state_val","model_software_dev_state_val","group_softdev_bot",1,1,1,1
