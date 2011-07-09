@@ -490,7 +490,7 @@ class BuildRequestsCCOE(OERPbaseComponent):
             self._logger.debug('Get buildrequests: %r', domain)
             res = self._proxy.search_read(domain)
             # FIXME
-            return [self._commit2br(r) for r in res if (buildername is None or r['buildername'] == buildername)]
+            return [self._db2br(r) for r in res if (buildername is None or r['buildername'] == buildername)]
         
         return threads.deferToThread(thd)
 
