@@ -327,7 +327,7 @@ class software_buildset(propertyMix, osv.osv):
                     fields=['buildername']):
 
             vals['builder_id'] = b['id']
-            ret[b['buildername']] = breq_obj.create(vals)
+            ret[b['buildername']] = breq_obj.create(cr, uid, vals, context=context)
 
         return ret
 
