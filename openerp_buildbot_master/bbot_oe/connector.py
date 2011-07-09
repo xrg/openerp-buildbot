@@ -6,7 +6,6 @@ from twisted.internet import reactor
 from twisted.application import internet,service
 from buildbot import util
 
-from poller import OpenObjectChange
 from buildbot.status.builder import SUCCESS, WARNINGS, FAILURE, SKIPPED, EXCEPTION, RETRY
 from buildbot.util import json, datetime2epoch, epoch2datetime
 from buildbot.db import base
@@ -16,6 +15,7 @@ from openerp_libclient import rpc
 
 from datetime import datetime
 import time
+import logging
 
 def str2time(ddate):
     if isinstance(ddate, basestring):
@@ -81,6 +81,8 @@ class OERPModel(base.DBConnectorComponent):
 
 class OERPbaseComponent(base.DBConnectorComponent):
     orm_model = None
+    _logger = logging.getLogger('connector')
+    
     def __init__(self, connector):
         base.DBConnectorComponent.__init__(self, connector)
         assert self.orm_model
@@ -116,6 +118,7 @@ class OERPChangesConnector(OERPbaseComponent):
         def _txn_addChangeToDatabase(change):
             cdict = change.copy()
             cleanupDict(cdict)
+            self._logger.debug("Add change to db: %r", change.get('comments'))
             when_dt = cdict.pop('when_timestamp', None)
             if when_dt:
                 cdict['when'] = datetime2epoch(when_dt)
@@ -224,6 +227,7 @@ class SourceStampsCCOE(OERPbaseComponent):
         its sourcestamp ID, via a Deferred.
         """
         def thd():
+            self._logger.debug('createSourceStamp: %s %r', branch, changeids)
             assert len(changeids) == 1, changeids
             # We don't support them:
             assert not patch_body
@@ -242,6 +246,7 @@ class SourceStampsCCOE(OERPbaseComponent):
         else:
             res = old_res
         if not res:
+            self._logger.warning("Cannot read Change for sourcestamp: %d", ssid)
             return None
 
         branch = None # res['branch_url']
@@ -270,6 +275,7 @@ class SourceStampsCCOE(OERPbaseComponent):
                     patch_body=None, patch_level=None, patch_subdir=None,
                     repository=str(res['branch_id']), project=None,
                     changeids=changes)
+        self._logger.debug("returning sourceStamp %d", ssid)
         return ss
 
     def getSourceStamp(self, ssid):
@@ -290,6 +296,7 @@ class BuildsetsCCOE(OERPbaseComponent):
         # this creates both the BuildSet and the associated BuildRequests
         now = _reactor.seconds()
         
+        self._logger.debug("_add_buildset %s %r", ssid, builderNames)
         vals = { 'commit_id': ssid, 'complete': False,
                 'submitted_at': time2str(now),
                 }
@@ -305,6 +312,7 @@ class BuildsetsCCOE(OERPbaseComponent):
         if builderNames:
             brids = self._proxy.createBuildRequests(bsid, builderNames)
         
+        self._logger.debug("added buildset %d, with requests: %r", bsid, brids)
         return bsid, brids
 
     def addBuildset(self, ssid, reason, properties, builderNames,
@@ -332,7 +340,7 @@ class BuildsetsCCOE(OERPbaseComponent):
 
         @returns: Deferred
         """
-        print 'subscribeToBuildset'
+        self.logger.warning('subscribeToBuildset')
         raise NotImplementedError
 
     def unsubscribeFromBuildset(self, schedulerid, buildsetid):
@@ -348,7 +356,7 @@ class BuildsetsCCOE(OERPbaseComponent):
 
         @returns: Deferred
         """
-        print 'unsubscribeFromBuildset'
+        self.logger.warning('unsubscribeFromBuildset')
         raise NotImplementedError
 
     def getSubscribedBuildsets(self, schedulerid):
@@ -366,7 +374,7 @@ class BuildsetsCCOE(OERPbaseComponent):
 
         @returns: list as described, via Deferred
         """
-        print 'getSubscribedBuildsets'
+        self.logger.warning('getSubscribedBuildsets')
         raise NotImplementedError
         
     def completeBuildset(self, bsid, results, _reactor=reactor):
@@ -405,6 +413,7 @@ class BuildsetsCCOE(OERPbaseComponent):
                 domain.append(('complete', '=', complete))
             ress = self._proxy.search_read(domain, fields=self._read_fields)
             
+            self._logger.debug("Get buildsets %r: %r", complete, [ r['id'] for r in ress])
             return map(self._db2bset, ress)
 
         return threads.deferToThread(thd)
@@ -469,7 +478,8 @@ class BuildRequestsCCOE(OERPbaseComponent):
                 domain.append(('claimed_by_name', '=', master_name))
                 domain.append(('claimed_by_incarnation', '=', master_incarnation))
             
-            # TODO order?
+            # RFC order?
+            self._logger.debug('Get buildrequests: %r', domain)
             res = self._proxy.search_read(domain)
             # FIXME
             return [self._commit2br(r) for r in res if (buildername is None or r['buildername'] == buildername)]
