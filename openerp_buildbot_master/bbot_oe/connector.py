@@ -628,6 +628,12 @@ class StateCCOE(OERPbaseComponent):
     taken from state.StateConnectorComponent
     """
 
+    orm_model = 'software_dev.state_obj'
+
+    def __init__(self, connector):
+        OERPbaseComponent.__init__(self, connector)
+        self._vals_proxy = rpc.RpcProxy('software_dev.state_val')
+    
     def getObjectId(self, name, class_name):
         """
         Get the object ID for this combination of a name and a class.  This
@@ -637,7 +643,16 @@ class StateCCOE(OERPbaseComponent):
         @param class_name: object class name
         @returns: the objectid, via a Deferred.
         """
-        raise NotImplementedError
+        def thd():
+            obj_id = self._proxy.search([('name','=', name), ('class_name', '=', class_name)])
+            if obj_id:
+                obj_id = obj_id[0]
+            else:
+                obj_id = self._proxy.create({'name': name, 'class_name': class_name})
+            
+            return obj_id
+        
+        return threads.deferToThread(thd)
 
     class Thunk: pass
     def getState(self, objectid, name, default=Thunk):
@@ -649,9 +664,19 @@ class StateCCOE(OERPbaseComponent):
         @param default: (optional) value to return if C{name} is not present
         @returns: state value via a Deferred
         @raises KeyError: if C{name} is not present and no default is given
-        @raises TypeError: if JSON parsing fails
         """
-        return NotImplementedError
+        def thd():
+            res = self._vals_proxy.search_read([('object_id', '=', objectid), ('name', '=', name)],
+                    limit=1, fields=['value'])
+            if not res:
+                if default is self.Thunk:
+                    raise KeyError("no such state value '%s' for object %d" %
+                                    (name, objectid))
+                return default
+            else:
+                return res[0]['value']
+        
+        return threads.deferToThread(thd)
 
     def setState(self, objectid, name, value):
         """
@@ -660,11 +685,18 @@ class StateCCOE(OERPbaseComponent):
 
         @param objectid: the objectid for which the state should be changed
         @param name: the name of the value to change
-        @param value: the value to set - must be a JSONable object
+        @param value: the value to set
         @param returns: Deferred
-        @raises TypeError: if JSONification fails
         """
-        raise NotImplementedError
+        def thd():
+            old_ids = self._vals_proxy.search([('object_id', '=', objectid), ('name', '=', name)])
+            if old_ids:
+                assert len(old_ids) == 1
+                self._vals_proxy.write(old_ids, {'value': value})
+            else:
+                self._vals_proxy.create({'object_id': objectid, 'name': name, 'value': value})
+        
+        return threads.deferToThread(thd)
 
 class SchedulersCCOE(OERPbaseComponent):
     """
@@ -811,7 +843,7 @@ class OERPConnector(util.ComparableMixin, service.MultiService):
         self.schedulers = SchedulersCCOE(self)
         self.sourcestamps = SourceStampsCCOE(self)
         self.buildsets = BuildsetsCCOE(self)
-        self.state = None # StateCCOE(self)
+        self.state = StateCCOE(self)
         self.buildrequests = BuildRequestsCCOE(self)
         self.builds = BuildsCCOE(self)
 
