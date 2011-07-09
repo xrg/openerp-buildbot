@@ -748,6 +748,159 @@
             action="action_softdev_mergerequest"
             parent="softdev_config" sequence="50"  />
 
+    <!-- Build set  -->
+        <record id="view_softdev_buildset_tree" model="ir.ui.view">
+          <field name="name">Build Sets</field>
+            <field name="model">software_dev.buildset</field>
+            <field name="type">tree</field>
+            <field name="arch" type="xml">
+              <tree colors="gray: not complete;green:results==0;#ff8000:results==1;red:results==2;blue:results==3;#c000c0:results==4" >
+                <field name="commit_id"/>
+                <field name="reason" />
+                <field name="submitted_at" />
+                <field name="complete" />
+                <field name="complete_at" />
+                <field name="results" />
+              </tree>
+          </field>
+        </record>
+
+        <record id="view_softdev_buildset_form" model="ir.ui.view">
+          <field name="name">Build Sets</field>
+            <field name="model">software_dev.buildset</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+              <form>
+                <field name="commit_id" colspan="4"/>
+                <field name="external_idstring" />
+                <field name="reason" />
+                <field name="submitted_at" />
+                <field name="complete" />
+                <field name="complete_at" />
+                <field name="results" />
+              </form>
+          </field>
+        </record>
+
+
+        <record id="action_softdev_buildset" model="ir.actions.act_window">
+          <field name="name">Build Sets</field>
+          <field name="type">ir.actions.act_window</field>
+            <field name="res_model">software_dev.buildset</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+         </record>
+
+        <menuitem id="softdev_buildsets" name="Build Sets"
+            action="action_softdev_buildset"
+            parent="softdev_menu" sequence="20"
+            groups="software_dev.group_softdev_user" />
+
+    <!-- Build Requests -->
+
+        <record id="view_softdev_buildrequest_tree" model="ir.ui.view">
+          <field name="name">Build Requests</field>
+            <field name="model">software_dev.buildrequest</field>
+            <field name="type">tree</field>
+            <field name="arch" type="xml">
+              <tree colors="gray: not complete;green:results==0;#ff8000:results==1;red:results==2;blue:results==3;#c000c0:results==4" >
+                <field name="builder_id" />
+                <field name="buildsetid"/>
+                <field name="claimed_at" />
+                <field name="complete" />
+                <field name="results" />
+              </tree>
+          </field>
+        </record>
+        
+        <record id="view_softdev_buildrequest_form" model="ir.ui.view">
+          <field name="name">Build Requests</field>
+            <field name="model">software_dev.buildrequest</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+              <form>
+                <field name="buildsetid" colspan="4" />
+                <field name="builder_id"/>
+                <newline/>
+                <field name="submitted_at" />
+                <field name="priority" />
+                <newline/>
+                <field name="claimed_at" />
+                <field name="claimed_by_incarnation" />
+                <field name="claimed_by_name" />
+                <newline/>
+                <field name="complete" />
+                <field name="complete_at" />
+                <newline/>
+                <field name="results" />
+                <button string="Schedule Rebuild" 
+                                name="reschedule"
+                                type="object"
+                                help="Mark this buildset as not-built, so that it gets another build"
+                                icon="gtk-go-forward" /> <!-- todo: attrs: disabled when building -->
+              </form>
+          </field>
+        </record>
+
+
+        <record id="action_softdev_buildrequest" model="ir.actions.act_window">
+          <field name="name">Build Requests</field>
+          <field name="type">ir.actions.act_window</field>
+            <field name="res_model">software_dev.buildrequest</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+         </record>
+
+        <menuitem id="softdev_buildrequests" name="Build Requests"
+            action="action_softdev_buildrequest"
+            parent="softdev_menu" sequence="20"
+            groups="software_dev.group_softdev_user" />
+
+    <!-- Build -->
+
+        <record id="view_softdev_build_tree" model="ir.ui.view">
+          <field name="name">Builds</field>
+            <field name="model">software_dev.build</field>
+            <field name="type">tree</field>
+            <field name="arch" type="xml">
+              <tree>
+                <field name="buildrequest_id"/>
+                <field name="build_number" />
+              </tree>
+          </field>
+        </record>
+        
+        <record id="view_softdev_build_form" model="ir.ui.view">
+          <field name="name">Build</field>
+            <field name="model">software_dev.build</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+              <form>
+                <field name="buildrequest_id" colspan="4"/>
+                <field name="buildername" />
+                <field name="build_number" />
+                <newline />
+                <field name="build_start_time" />
+                <field name="build_finish_time" />
+                <field name="build_summary" colspan="4" />
+                <field name="test_results" colspan="4" />
+              </form>
+          </field>
+        </record>
+
+
+        <record id="action_softdev_build" model="ir.actions.act_window">
+          <field name="name">Builds</field>
+          <field name="type">ir.actions.act_window</field>
+            <field name="res_model">software_dev.build</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+         </record>
+
+        <menuitem id="softdev_builds" name="Builds"
+            action="action_softdev_build"
+            parent="softdev_menu" sequence="20"
+            groups="software_dev.group_softdev_user" />
 
 </data>
 </openerp>
