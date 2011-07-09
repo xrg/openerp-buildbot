@@ -420,7 +420,7 @@ class software_bbuild(osv.osv):
         'buildrequest_id': fields.many2one('software_dev.buildrequest', 'Request', required=True, select=1),
         'build_start_time': fields.datetime('Build start time', required=True),
         'build_finish_time': fields.datetime('Build finish time'),
-        'buildername': fields.related('branch_id', 'buildername', type='char', string='Builder name',
+        'buildername': fields.related('buildrequest_id', 'buildername', type='char', string='Builder name',
                         readonly=True, size=512, store=True, select=True),
 
         'name': fields.related('buildrequest_id', 'name', string='Name', type='char', size=256),
