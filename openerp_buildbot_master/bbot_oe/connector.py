@@ -26,7 +26,15 @@ def str2time(ddate):
     else:
         tdate = time.mktime(ddate)
     return tdate
-    
+
+def str2dt(ddate):
+    if not ddate:
+        return None
+    if isinstance(ddate, basestring):
+        dt = ddate.rsplit('.',1)[0]
+        return datetime.strptime(dt, '%Y-%m-%d %H:%M:%S')
+    return None
+
 def time2str(ddate):
     tdate = datetime.fromtimestamp(ddate)
     return tdate.strftime('%Y-%m-%d %H:%M:%S')
@@ -448,11 +456,11 @@ class BuildRequestsCCOE(OERPbaseComponent):
                 'buildername': res['buildername'],
                 'priority': res['priority'],
                 'claimed': bool(res['claimed_at']),
-                'claimed_at': str2time(res['claimed_at']),
+                'claimed_at': str2dt(res['claimed_at']),
                 'mine': True,
                 'complete': res['complete'],
                 'results': res['results'],
-                'submitted_at': str2time(res['submitted_at']) 
+                'submitted_at': str2dt(res['submitted_at']) 
                 }
 
     def getBuildRequest(self, brid):
