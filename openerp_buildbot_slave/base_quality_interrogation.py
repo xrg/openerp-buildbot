@@ -1224,10 +1224,14 @@ class RemLogHandler(object):
 class remote_server_thread(server_thread):
     def __init__(self, **kwargs):
         server_thread.__init__(self)
-        global opt
+        global opt, connect_dsn
         self._must_stop = False
         self.session = None
         self.port = opt.port
+        if opt.url:
+            self.args = [ "Connect to: %s" % opt.url ]
+        else:
+            self.args = [ "Connect to dsn: %r" % connect_dsn ]
         self._init_parsers()
     
     def run(self):
@@ -3551,7 +3555,7 @@ Basic Commands:
 parser = optparse.OptionParser(usage)
 parser.add_option("-R", "--remote", action="store_true", default=False,
                     help="Remote mode. Connect to running OpenERP server, rather than launching one"),
-parser.add_option("-H", "--url", default=False,
+parser.add_option("-H", "--url", default=None,
                     help="URL of remote server to connect to"),
 parser.add_option("-m", "--modules", dest="modules", action="append",
                      help="specify modules to install or check quality")
