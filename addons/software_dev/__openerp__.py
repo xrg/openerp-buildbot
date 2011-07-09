@@ -41,6 +41,7 @@ builds and testing into the ERP.
     ],
     'api_depends': ['engine-pg84', 'exec_dict', 'search-browse',
             'virtual-fns', 'search-read', 'browse-browse',
+            'struct-field',
             ],
     'demo_xml': [ 'software_dev_demo.xml'],
     'test': [
