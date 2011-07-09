@@ -160,6 +160,9 @@ class OERPChangesConnector(OERPbaseComponent):
         if not cids:
             return []
         
+        if not self._proxy.exists(cids):
+            return None
+        
         res = self._proxy.getChanges(cids)
         
         props = self.get_props_from_db(cids)
