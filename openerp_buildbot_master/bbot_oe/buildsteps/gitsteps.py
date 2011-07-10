@@ -22,7 +22,11 @@
 from buildbot.steps import source
 
 class GitStep(source.Git):
-    pass
+    def startVC(self, branch, revision, patch):
+        # Override behaviour of Source.startVC and always use our branch
+        # That's because Sourcestamp/Change will know the 'remote' branch name
+        # while we need to issue a command for the local proxied one.
+        return source.Git.startVC(self, self.branch, revision, patch)
 
 exported_buildsteps = [GitStep, ]
 
