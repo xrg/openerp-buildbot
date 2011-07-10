@@ -18,6 +18,7 @@ from scheduler import ChangeFilter_OE
 from buildbot.schedulers import basic, timed, dependent
 from buildbot import manhole
 from .status import web, mail, logs
+from .step_iface import StepOE
 import twisted.internet.task
 from openerp_libclient import rpc
 import os
@@ -197,16 +198,10 @@ class Keeper(object):
                 if 'keeper' in kwargs:
                     kwargs['keeper'] = self
 
-                
                 klass = dic_steps[bstep[0]]
-                if bstep[0] in ('OpenObjectBzr') and kwargs['repourl'] in tmpconf['proxied_bzrs']:
-                    kwargs['proxy_url'] = tmpconf['proxied_bzrs'][kwargs['repourl']]
                 self.logger.debug("Adding step %s(%r)", bstep[0], kwargs)
-                if bstep[0] in ('BzrPerformMerge', 'BzrSyncUp'):
-                    # Pass all of them to buildstep, so that it can resolve
-                    # all the changes it will be receiving.
-                    kwargs['proxied_bzrs'] = tmpconf['proxied_bzrs']
-                    # FIXME: remove this
+                if issubclass(klass, StepOE ):
+                    kwargs['keeper_conf'] = dict(builder=bld, step_extra=bstep[2:])
                 fact.addStep(klass(**kwargs))
             
             c['builders'].append({
