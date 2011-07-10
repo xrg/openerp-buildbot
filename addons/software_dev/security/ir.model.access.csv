@@ -28,3 +28,4 @@
 "access_bot_build","software_dev.bot.build","model_software_dev_build","group_softdev_bot",1,1,1,1
 "access_bot_state_obj","software_dev.bot.state_obj","model_software_dev_state_obj","group_softdev_bot",1,1,1,1
 "access_bot_state_val","software_dev.bot.state_val","model_software_dev_state_val","group_softdev_bot",1,1,1,1
+"access_bot_comp_part","software_dev.bot.part","model_software_dev_part","group_softdev_bot",1,1,1,1

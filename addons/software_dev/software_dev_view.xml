@@ -57,6 +57,20 @@
                 <field name="commit_id"/>
                 <field name="update_rev"/>
                 <field name="description" colspan="4" />
+                <field name="part_ids" colspan="4">
+                    <tree editable="bottom">
+                        <field name="sequence" />
+                        <field name="name" />
+                        <field name="regex" />
+                        <field name="tech_code" />
+                    </tree>
+                    <form>
+                        <field name="sequence" />
+                        <field name="name" />
+                        <field name="regex" />
+                        <field name="tech_code" />
+                    </form>
+                </field>
               </form>
           </field>
         </record>
