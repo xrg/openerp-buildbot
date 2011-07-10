@@ -195,6 +195,9 @@ class software_buildseries(propertyMix, osv.osv):
         'branch_id': fields.many2one('software_dev.branch', 'Rolling branch', required=True,
                 help="One branch, that is used to test against different commits.",
                 ),
+        'branch_component': fields.char("Rolling component", size=64,
+                help="If specified, explicitly choose that component to be replaced by "
+                    "Rolling branch, when repositories won't match"),
         'builder_id': fields.many2one('software_dev.buildbot',
                 string='BuildBot', required=True,
                 help="Machine that will build this series"),
@@ -230,6 +233,8 @@ class software_buildseries(propertyMix, osv.osv):
                     'slavename': bldr.builder_id.slave_ids[0].tech_code,
                     'builddir': dir_name,
                     'steps': [],
+                    'components': {},
+                    'component_parts': [],
                     'branch_url': bldr.branch_id.fetch_url,
                     'branch_name': bldr.name, # FIXME review
                     'branch_id': bldr.branch_id.id,
@@ -243,32 +248,56 @@ class software_buildseries(propertyMix, osv.osv):
                                             'group_seq': bldr.group_id.sequence,
                                             'group_public': bldr.group_id.public,})
             # Now, build the steps:
-            
+
             # before any explicitly defined steps, prepend the VCS steps
             # for each of the components
             for comp in bldr.package_id.component_ids:
                 is_rolling = False
                 use_latest = False
-                if comp.branch_id.id == bldr.branch_id:
-                    is_rolling = True
+                if bldr.branch_component:
+                    if bldr.branch_component == comp.tech_code:
+                        is_rolling = True
+                else: # match by repository
+                    if comp.branch_id.repo_id.id == bldr.branch_id.repo_id.id:
+                        is_rolling = True
+
+                branch_bro = comp.branch_id
+                if is_rolling:
+                    branch_bro = bldr.branch_id
                 elif comp.update_rev:
                     use_latest = True
-                rtype = comp.branch_id.repo_id.rtype
+
+                comp_name = comp.tech_code or comp.name
+                bret['components'][comp_name] = {
+                        'dest_path': comp.dest_path,
+                        'is_rolling': is_rolling,
+                    }
+
+                for part in comp.part_ids:
+                    bret['component_parts'].append((comp_name, part.regex, part.tech_code or part.name))
+
+                if comp.dest_path and comp.tech_code:
+                    bret['component_parts'].append((comp.tech_code, comp.dest_path+'/', comp.tech_code))
+
+                rtype = branch_bro.repo_id.rtype
+
+                fetch_url, fetch_branch = branch_bro.get_local_url(context=context)[branch_bro.id]
                 if rtype == 'bzr':
                     bret['steps'].append(('OpenObjectBzr', {
-                        'repourl': comp.branch_id.fetch_url, 'mode':'update',
+                        'repourl': fetch_url , 'mode':'update',
                         'workdir': comp.dest_path,
                         'alwaysUseLatest': use_latest,
                         }) )
                 elif rtype == 'git':
                     bret['steps'].append(('GitStep', {
-                        'repourl': comp.branch_id.fetch_url, 'mode':'update',
+                        'repourl': fetch_url, 'mode':'update',
+                        'branch': fetch_branch,
                         'workdir': comp.dest_path,
                         'alwaysUseLatest': use_latest,
                         }) )
                 else:
                     raise NotImplementedError("Cannot handle %s repo" % rtype)
-            
+
 
             # Set a couple of builder-wide properties TODO revise
             # bret['properties'].update( { 'orm_id': bldr.id, 'repo_mode': bldr.target_path })

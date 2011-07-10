@@ -158,6 +158,19 @@ class software_branch(osv.osv):
         'poll_interval': 1800,
     }
 
+    def get_local_url(self, cr, uid, ids, context=None):
+        """ URL for buildslaves, possibly from local proxy
+        
+            @return (url, branch_name) to fit git needs
+        """
+        res = {}
+        for b in self.browse(cr, uid, ids, context=context):
+            if not b.repo_id.slave_proxy_url:
+                res[b.id] = (b.fetch_url, b.sub_url)
+            else:
+                res[b.id] = (b.repo_id.slave_proxy_url, (b.repo_id.local_prefix or '') + b.sub_url)
+        return res
+
 software_branch()
 
 class software_user(osv.osv):
