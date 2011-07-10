@@ -285,7 +285,7 @@ class SourceStampsCCOE(OERPbaseComponent):
 
         ss = dict(ssid=ssid, branch=branch, revision=revision,
                     patch_body=None, patch_level=None, patch_subdir=None,
-                    repository=str(res['branch_id']), project=None,
+                    repository=None, project=None,
                     changeids=changes)
         self._logger.debug("returning sourceStamp %d", ssid)
         return ss
@@ -553,7 +553,7 @@ class BuildRequestsCCOE(OERPbaseComponent):
             brids2 = self._proxy.search(domain)
             if len(brids) != len(brids2):
                 raise NotClaimedError
-            self._proxy.write(brids2, {'complete': True, 'results': results,
+            self._proxy.write(brids2, {'complete': True, 'results': results or False,
                         'complete_at': time2str(now) })
             
         return threads.deferToThread(thd)
