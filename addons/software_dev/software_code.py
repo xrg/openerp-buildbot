@@ -228,7 +228,7 @@ class software_commit(propertyMix, osv.osv):
         for b in self.browse(cr, uid, ids, context=context):
             name = ''
             if b.revno:
-                name += '#%s ' % b.revno
+                name += '#%s ' % (b.revno[:8])
             elif b.hash:
                 name += '%s ' % b.hash[:8]
             name += b.subject
@@ -311,19 +311,22 @@ class software_commit(propertyMix, osv.osv):
             # RFC: shall we update any data to that cid?
             return cids[0]
         else: # a new commit
-            repohost = self.pool.get('software_dev.branch').browse(cr, uid, branch_id, context=context) \
-                    .repo_id.host_id.id
+            repo_bro = self.pool.get('software_dev.branch').browse(cr, uid, branch_id, context=context).repo_id
+            repohost =  repo_bro.repo_id.host_id.id
             new_vals = {
                 'subject': subj,
                 'description': descr,
                 'comitter_id': user_obj.get_user(cr, uid, repohost, cdict['author'], context=context),
                 'date': datetime.fromtimestamp(cdict['when']),
                 'branch_id': branch_id,
-                'revno': cdict['revision'],
                 'hash': extra.get('hash', False),
                 'authors': [ user_obj.get_user(cr, uid, repohost, usr, context=context)
                                 for usr in extra.get('authors', []) ],
                 }
+            if repo_bro.rtype != 'git':
+                new_vals['revno'] = cdict['revision']
+            else:
+                assert cdict['revision'] == extra.get('hash', False)
             cid = self.create(cr, uid, new_vals, context=context)
 
         if 'filesb' in extra:
@@ -411,7 +414,7 @@ class software_commit(propertyMix, osv.osv):
                 'comments': cmt.subject,
                 'links': [],
                 'revlink': False, # TODO
-                'revision': cmt.revno,
+                'revision': (cmt.branch_id.repo_id.rtype != 'git' and cmt.revno) or False,
                 'branch': cmt.branch_id.sub_url,
                 'repository': cmt.branch_id.repo_id._get_unique_url(context=context)[cmt.branch_id.repo_id.id],
                 'project': False,
@@ -425,7 +428,7 @@ class software_commit(propertyMix, osv.osv):
             props.update({
                 'branch_id': cmt.branch_id.id,
                 'filesb': [],
-                'hash': cmt.hash
+                'hash': cmt.hash,
                 })
             if cmt.parent_id:
                 props['parent_id'] = cmt.parent_id.id
