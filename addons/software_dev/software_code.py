@@ -115,7 +115,7 @@ class software_branch(osv.osv):
                 if b.sub_url.startswith('~'):
                     url += b.sub_url
                 else:
-                    url += b.repo_id.base_url + '/'+ b.base_url
+                    url += b.repo_id.base_url + '/'+ b.sub_url
             else:
                 url = b.sub_url
             res[b.id] = url
