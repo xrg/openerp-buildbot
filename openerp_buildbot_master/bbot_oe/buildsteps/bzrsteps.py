@@ -352,8 +352,7 @@ class BzrRevert(LoggingBuildStep):
         self.summaries = {}
 
     def start(self):
-        builder_props = self.build.getProperties()
-        self.args['workdir'] = builder_props.render(self.args.get('workdir', ''))
+        self.args['workdir'] = self.build.render(self.args.get('workdir', ''))
         self.args['command']=["bzr","revert", '-q', '--no-backup']
         cmd = LoggedRemoteCommand("OpenObjectShell",self.args)
         self.startCommand(cmd)
@@ -426,8 +425,7 @@ class BzrStatTest(LoggingBuildStep):
 
     def start(self):
         self.args['command']=["../../../bzr-diffstat.sh",]
-        builder_props = self.build.getProperties()
-        self.args['workdir'] = builder_props.render(self.args.get('workdir', ''))
+        self.args['workdir'] = self.build.render(self.args.get('workdir', ''))
  
         cmd = StdErrRemoteCommand("OpenObjectShell", self.args)
         self.stderr_log = self.addLog("stderr")
@@ -480,8 +478,7 @@ class BzrCommitStats(LoggingBuildStep):
     def start(self):
         self.args['command']=["bzr","stats", "--output-format=csv", "--quiet",
                     "--rows=author,commits,files,lineplus,lineminus"]
-        builder_props = self.build.getProperties()
-        self.args['workdir'] = builder_props.render(self.args.get('workdir', ''))
+        self.args['workdir'] = self.build.render(self.args.get('workdir', ''))
         
         change = self.build.allChanges()[0]
         self.changeno = change.number
@@ -604,8 +601,7 @@ class ProposeMerge(LoggingBuildStep):
         return True
 
     def start(self):
-        builder_props = self.build.getProperties()
-        self.args['workdir'] = builder_props.render(self.args.get('workdir', ''))
+        self.args['workdir'] = self.build.render(self.args.get('workdir', ''))
         change = self.build.allChanges()[-1]
         self.changeno = change.number
         if self.args['watch_lp']:
@@ -671,8 +667,7 @@ class MergeToLP(ProposeMerge):
         return True
 
     def start(self):
-        builder_props = self.build.getProperties()
-        self.args['workdir'] = builder_props.render(self.args.get('workdir', ''))
+        self.args['workdir'] = self.build.render(self.args.get('workdir', ''))
         changes = self.build.allChanges()
         
         if self.build.result not in self.status_mappings:
@@ -738,8 +733,7 @@ class BzrPerformMerge(BzrMerge):
             return False
 
     def start(self):
-        builder_props = self.build.getProperties()
-        self.args['workdir'] = builder_props.render(self.args.get('workdir', ''))
+        self.args['workdir'] = self.build.render(self.args.get('workdir', ''))
         # We have to compute the source URL for the merge branch
         s = self.build.getSourceStamp()
 
@@ -809,8 +803,7 @@ class BzrCommit(LoggingBuildStep):
     def start(self):
         self.args['command']=["bzr","commit", "--local"] # not -q, we need to read the revno
         
-        builder_props = self.build.getProperties()
-        self.args['workdir'] = builder_props.render(self.args.get('workdir', ''))
+        self.args['workdir'] = self.build.render(self.args.get('workdir', ''))
 
         s = self.build.getSourceStamp()
         self.args['command'] += ['-m', str(s.changes[-1].comments)]

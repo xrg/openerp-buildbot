@@ -209,33 +209,32 @@ class OpenERPTest(LoggingBuildStep):
     def start(self):
         self.logfiles = {}
         global ports_pool, dbnames_pool
-        builder_props = self.build.getProperties()
         if not ports_pool:
             # Effectively, the range of these ports will limit the number of
             # simultaneous databases that can be tested
-            min_port = builder_props.getProperty('min_port',8200)
-            max_port = builder_props.getProperty('max_port',8299)
-            port_spacing = builder_props.getProperty('port_spacing',4)
+            min_port = self.build.getProperty('min_port',8200)
+            max_port = self.build.getProperty('max_port',8299)
+            port_spacing = self.build.getProperty('port_spacing',4)
             ports_pool = Pool(iter(range(min_port, max_port, port_spacing)))
 
         if not dbnames_pool:
             dbnames_pool = Pool(unique_dbnames())
 
         if not self.args.get('addonsdir'):
-            if builder_props.getProperty('addons_dir'):
-                self.args['addonsdir'] = builder_props['addons_dir']
+            if self.build.getProperty('addons_dir'):
+                self.args['addonsdir'] = self.build.getProperty('addons_dir')
             else:
                 self.args['addonsdir'] = '../addons/'
         if not self.args.get('port'):
             self.args['port'] = self.get_free_port()
         if self.args.get('ftp_port') is None: # False will skip the arg
             self.args['ftp_port'] = self.get_free_port()
-        self.args['dbname'] = builder_props.render(self.args.get('dbname', False))
+        self.args['dbname'] = self.build.render(self.args.get('dbname', False))
         assert self.args['dbname'], "I can't go on without a dbname!"
         if not self.args.get('workdir'):
             self.args['workdir'] = 'server'
         
-        self.args['repo_mode'] = builder_props.render(self.args.get('repo_mode', ''))
+        self.args['repo_mode'] = self.build.render(self.args.get('repo_mode', ''))
 
         # try to find all modules that have changed:
         mods_changed = []
