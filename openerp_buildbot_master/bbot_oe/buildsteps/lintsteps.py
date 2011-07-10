@@ -22,11 +22,11 @@
 
 from buildbot.process.buildstep import LoggingBuildStep
 from buildbot.status.builder import SUCCESS, FAILURE, WARNINGS #, EXCEPTION, SKIPPED
-from buildbot.process.properties import WithProperties
 import re
 from bzrsteps import StdErrRemoteCommand
 from buildbot.status.builder import TestResult
 from openerp_libclient.tools import ustr
+from bbot_oe.step_iface import StepOE
 
 try:
     import cStringIO
@@ -35,7 +35,7 @@ except ImportError:
     from StringIO import StringIO
 
 
-class LintTest(LoggingBuildStep):
+class LintTest(StepOE, LoggingBuildStep):
     """Step to perform lint-check on changed files
     """
     name = 'Lint test'
@@ -71,13 +71,17 @@ class LintTest(LoggingBuildStep):
             return self.describe(True, fail=True)
 
 
-    def __init__(self, workdir=WithProperties('%(repo_mode)s'), 
-                    repo_mode=WithProperties('%(repo_mode)s'),
-                    strict=False, **kwargs):
-
+    def __init__(self, workdir=None, strict=False, keeper_conf=None, part_subs=None, **kwargs):
         LoggingBuildStep.__init__(self, **kwargs)
-        self.addFactoryArguments(workdir=workdir, repo_mode=repo_mode, strict=strict)
-        self.args = {'workdir': workdir, 'repo_mode': repo_mode, 'stict': strict }
+        StepOE.__init__(self, workdir=workdir, keeper_conf=keeper_conf, **kwargs)
+        if keeper_conf:
+            if not part_subs:
+                part_subs = keeper_conf['builder'].get('component_parts',[])
+        
+        #note: we are NOT keeping the keeper_conf, because we don't want to keep
+        # its memory referenced
+        self.addFactoryArguments(workdir=workdir or self.workdir, strict=strict, part_subs=part_subs)
+        self.args = {'workdir': workdir or self.workdir, 'strict': strict, 'part_subs': part_subs}
         # Compute defaults for descriptions:
         description = ["Performing lint check"]
         self.description = description
@@ -89,11 +93,9 @@ class LintTest(LoggingBuildStep):
             self.haltOnFailure = True
 
     def start(self):
-        self.args['command']=["../../../file-lint.sh",]
+        self.args['command']=["file-lint.sh",]
         self.args['command'] += [ str(x) for x in self.build.allFiles()]
-        builder_props = self.build.getProperties()
-        self.args['workdir'] = builder_props.render(self.args.get('workdir', ''))
-        self.args['repo_mode'] = builder_props.render(self.args.get('repo_mode', ''))
+        self.args['workdir'] = self.workdir
         self.args['env'] = { 'SSH_AGENT_PID': None, 'SSH_AUTH_SOCK': None, 
                             'SSH_CLIENT': None, 'SSH_CONNECTION': None,
                             'SSH_TTY': None }
@@ -106,14 +108,12 @@ class LintTest(LoggingBuildStep):
         """ Try to read the file-lint.sh output and parse results
         """
         severity = SUCCESS
-        if self.args['repo_mode'] == 'server':
-            repo_expr = r'(?:bin|openerp)/addons/([^/]+)/.+$'
-        else:
-            repo_expr = r'([^/]+)/.+$'
+        repo_reges = []
+        for comp, rege_str, subst in self.args['part_subs']:
+            repo_reges.append((re.compile(rege_str), subst))
 
         t_results= {}
         
-        repo_re = re.compile(repo_expr)
         for line in StringIO(log.getText()).readlines():
             for rem, sev in self.known_res:
                 m = rem.match(line)
@@ -122,9 +122,11 @@ class LintTest(LoggingBuildStep):
                 fname = m.group(1)
                 if sev > severity:
                     severity = sev
-                mf = repo_re.match(fname)
-                if mf:
-                    module = (mf.group(1), 'lint')
+                for rege, subst in repo_reges:
+                    mf = rege.match(fname)
+                    if mf:
+                        module = (mf.expand(subst), 'lint')
+                        break
                 else:
                     module = ('lint', 'rest')
                 
@@ -159,7 +161,7 @@ class LintTest(LoggingBuildStep):
         self.build.builder.db.saveTResults(build_id, self.name,
                                             self.build_result, t_results.values())
 
-        if severity >= FAILURE:
+        if severity >= FAILURE: # TODO: remove
             try:
                 orm_id = self.getProperty('orm_id') or '?'
             except KeyError:
