@@ -312,7 +312,7 @@ class software_commit(propertyMix, osv.osv):
             return cids[0]
         else: # a new commit
             repo_bro = self.pool.get('software_dev.branch').browse(cr, uid, branch_id, context=context).repo_id
-            repohost =  repo_bro.repo_id.host_id.id
+            repohost =  repo_bro.host_id.id
             new_vals = {
                 'subject': subj,
                 'description': descr,
