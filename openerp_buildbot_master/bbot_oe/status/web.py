@@ -67,6 +67,17 @@ def last_change(ss, short=False):
     else:
         return ''
 
+def revision_id(ss):
+    if ss.revision:
+        return str(ss.revision)
+    elif ss.changes:
+        ch = ss.changes[0]
+        if ch.revision:
+            return str(ch.revision)
+        elif 'hash' in ch.properties:
+            return ch.properties['hash'][:12]
+    return '-'
+
 class BugGraph(HtmlResource):
 
     title = "Bug Graph"
@@ -198,9 +209,8 @@ class LatestBuilds(HtmlResource):
                             commiter += "%s" % html.escape(reduce_eml(who))
                     else:
                         commiter += "No Commiter Found !"
-                    if ss.revision:
-                        revision = ss.revision
-                    label = '%s-%s: %s' % (str(revision), commiter, ''.join(build.text))
+                    revision = revision_id(ss)
+                    label = '%s-%s: %s' % (revision, commiter, ''.join(build.text))
                 except Exception:
                     label = None
                 if not label:
