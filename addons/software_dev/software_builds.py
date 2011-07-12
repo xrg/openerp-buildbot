@@ -95,7 +95,8 @@ class software_tsattr(osv.osv):
 software_tsattr()
 
 schedulers = [('basic', 'On change (basic)'), ('periodic', 'Periodic'),
-    ('nightly', 'Date/time based'), ('dependent', 'On other build')]
+    ('nightly', 'Date/time based'), ('dependent', 'On other build'),
+    ('none', 'None (manual only)')]
 
 class software_buildseries(propertyMix, osv.osv):
     """ A series is a setup of package+test scenaria

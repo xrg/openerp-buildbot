@@ -239,12 +239,18 @@ class Keeper(object):
                     if sch.name == 'Scheduler %s' % bld.get('sched_upstream', ':('):
                         sched = dependent.Dependent(upstream=sch, **sched_kwargs)
                         break
+                else:
+                    self.logger.warning("Could not find %s scheduler for dependent %s",
+                        bld.get('sched_upstream', ':('), bld['name'])
+            elif bld['scheduler'] == 'none':
+                sched = None
             else:
                 sched = basic.SingleBranchScheduler(change_filter=cfilt,
                                     treeStableTimer= bld.get('tstimer',None),
                                     **sched_kwargs)
 
-            c['schedulers'].append(sched)
+            if sched:
+                c['schedulers'].append(sched)
 
         if bbot_data['http_port']:
             self.logger.info("We will have a http server at %s", bbot_data['http_port'])
