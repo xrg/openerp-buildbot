@@ -3,7 +3,7 @@
 #
 #    OpenERP, Open Source Management Solution
 #    Copyright (C) 2004-2009 Tiny SPRL (<http://tiny.be>). All Rights Reserved
-#    $Id$
+#    Copyright (C) 2011 P. Christeas <xrg@linux.gr>
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -46,9 +46,11 @@ class OpenObjectMailNotifier(MailNotifier):
         self.projectURL=projectURL
         self.html_body = html_body
   
-    def buildMessage(self, name, build, results):
+    def buildMessage(self, name, builds, results):
         """Send an email about the result. Don't attach the patch as
         MailNotifier.buildMessage do."""
+        assert len(builds) == 1
+        build = builds[0]
         ss = build.getSourceStamp()
         waterfall_url = self.projectURL
         build_url = "%sbuilders/%s/builds/%s" % ( self.projectURL,
@@ -115,7 +117,7 @@ class OpenObjectMailNotifier(MailNotifier):
                 
             m = self.createEmail({'body': body, 'type': mtype},
                     builderName=build.builder.name, title=self.projectName, 
-                    results=results, build=build)
+                    results=results, builds=builds)
 
             m['To'] = ", ".join(to_recipients)
             if cc_recipients:
