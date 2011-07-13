@@ -3048,8 +3048,8 @@ class CmdPrompt(object):
             print 'xmlrpc exception: %s' % reduce_homedir( e.faultCode.strip())
             print 'xmlrpc +: %s' % reduce_homedir(e.faultString.rstrip())
             return
-        except RpcException:
-            print "Failed module %s:" % cmd
+        except RpcException, e:
+            print "Failed module %s:" % cmd, e.args[-1]
             return
         except Exception, e:
             print "Failed module %s:" % cmd, e
