@@ -2558,7 +2558,8 @@ class CmdPrompt(object):
 
     avail_cmds = { 0: [ 'help', 'debug', 'quit', 'db', 'console',
                         'orm', 'module', 'translation', 'server', 'test',
-                        'import', 'login', 'describe', 'comment' ],
+                        'import', 'login', 'describe', 'comment',
+                        'subscription', ],
                 'orm': ['help', 'obj_info', 'describe', 'comment',
                         'do', 'res_id',
                         'print', 'with',
@@ -2597,6 +2598,7 @@ class CmdPrompt(object):
                     'test': ['account-moves',],
                     'translation': ['import', 'export', 'load', 'sync' ],
                     'comment': [],
+                    'subscription': ['wait', 'async_wait', 'publish'],
                     }
 
     help = '''
@@ -3519,6 +3521,39 @@ class CmdPrompt(object):
         """
         
         self._client._login(login, passwd)
+
+    def _cmd_subscription(self, cmd, *args):
+        """ Wait for a subscription event
+
+        See: 'subscription' service at 'koo' module
+
+        Usage:
+            subscription {wait|async_wait} expression
+            subscription publish expression
+
+        Details:
+            Waits for the server to fire the "expression" notification
+        """
+
+        def _wait_fn(expression):
+            self._logger.info('Waiting for "%s" to be triggered by the server', expression)
+            try:
+                self._client.rpc_call('/subscription', 'wait', expression, auth_level='db')
+                self._logger.info("Subscription triggered: %s", expression)
+            except Exception:
+                self._logger.warning("Problem while waiting:", exc_info=True)
+
+        if cmd == 'wait':
+            _wait_fn(' '.join(args))
+        elif cmd == 'async_wait':
+            t = threading.Thread(target=_wait_fn, args=(' '.join(args),))
+            t.daemon = True
+            t.start()
+        elif cmd == 'publish':
+            self._client.rpc_call('/subscription', 'publish', ' '.join(args), auth_level='db')
+        else:
+            print "Unknown sub-command:", cmd
+            return
 
 usage = """%prog command [options]
 
