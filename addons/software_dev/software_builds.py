@@ -22,6 +22,7 @@
 
 # from tools.translate import _
 from osv import fields, osv
+import netsvc
 from properties import propertyMix, bbot_results
 import time
 from tools.func import virtual
@@ -363,6 +364,12 @@ class software_buildset(propertyMix, osv.osv):
 
 software_buildset()
 
+def copy_false(*args, **kw):
+    return False
+
+def copy_none(*args, **kw):
+    return None
+
 class software_buildrequest(osv.osv):
     _name = 'software_dev.buildrequest'
 
@@ -378,7 +385,7 @@ class software_buildrequest(osv.osv):
         # claimed_at is the time at which a master most recently asserted that
         # it is responsible for running the build: this will be updated
         # periodically to maintain the claim
-        'claimed_at': fields.datetime('Claimed at', select=True),
+        'claimed_at': fields.datetime('Claimed at', select=True, copy_data=copy_none),
 
         # claimed_by indicates which buildmaster has claimed this request. The
         # 'name' contains hostname/basedir, and will be the same for subsequent
@@ -386,15 +393,15 @@ class software_buildrequest(osv.osv):
         # and will be different for subsequent runs. This allows each buildmaster
         # to distinguish their current claims, their old claims, and the claims
         # of other buildmasters, to treat them each appropriately.
-        'claimed_by_name': fields.char('Claimed by name',size=256, select=True),
-        'claimed_by_incarnation': fields.char('Incarnation',size=256),
+        'claimed_by_name': fields.char('Claimed by name',size=256, select=True, copy_data=copy_none),
+        'claimed_by_incarnation': fields.char('Incarnation',size=256, copy_data=copy_none),
 
-        'complete': fields.boolean('Complete', required=True), # index?
+        'complete': fields.boolean('Complete', required=True, copy_data=copy_false), # index?
 
         # results is only valid when complete==1
         'submitted_at': fields.datetime('Submitted at', required=True),
-        'complete_at': fields.datetime('Complete At'),
-        'results': fields.selection(bbot_results, 'Results'),
+        'complete_at': fields.datetime('Complete At', copy_data=copy_none),
+        'results': fields.selection(bbot_results, 'Results', copy_data=copy_none),
     }
 
     _defaults = {
@@ -402,10 +409,12 @@ class software_buildrequest(osv.osv):
     }
 
     def reschedule(self, cr, uid, ids, context=None):
-        """Reset completion status, so that this buildset gets rebuilt
+        """Duplicate this build request, into one that will be rescheduled
         """
-        self.write(cr, uid, ids, { 'claimed_at': False, 'complete': False,
-                'claimed_by_name': False })
+        bset_obj = self.pool.get('software_dev.buildset')
+        for bro in self.browse(cr, uid, ids, context=context):
+            self.copy(cr, uid, bro.id, context=context)
+        netsvc.ExportService.getService('subscription').publish(cr.dbname, '%s:notify' % self._name)
         return True
     
     def claim(self, cr, uid, ids, master_name, master_incarnation,
