@@ -1,46 +1,29 @@
 # -*- encoding: utf-8 -*-
 
 from buildbot import master
+__hush_pyflakes = [master]
 
 import sys
 import os
 sys.path.append(os.path.abspath(basedir))
 
-import bbot_oe
+from bbot_oe import master_keeper
 
-from bbot_oe.master_keeper import Keeper
-from bbot_oe.status import web, mail, logs
-from buildbot import locks
-from twisted.python import log
+dsn = {
+    'proto': 'http',
+    'dbname': 'buildbot',
+    'host': 'localhost',
+    'port': 8069,
+    'user': 'buildbot',
+    'passwd': 'secret',
+    }
 
-properties = {}
-properties['proto'] = 'http'
-properties['dbname'] = 'buildbot'
-properties['host'] = 'localhost'
-properties['port'] = 8069
-properties['user'] = 'buildbot'
-properties['passwd'] = 'secret'
+cfg = {
+    'projectName': "Buildbot-XRG",
+    'buildbotURL': "http://pefnos3.homelinux.org/"
+    }
 
-BuildmasterConfig = c = {}
-k = Keeper(properties, c)
-
-k.reset()
-
-web.ROOT_PATH =  os.path.abspath('.')
-
-#### unregister the TextLog adapter registered by buildbot
-from twisted.python import components
-from zope.interface import interface, declarations
-from buildbot.interfaces import IStatusLog
-from buildbot.status.web.base import IHTMLLog
-from buildbot.status.builder import HTMLLogFile
-
-globalRegistry = components.getRegistry()
-origInterface = declarations.implementedBy(IStatusLog)
-
-globalRegistry.unregister(declarations.implementedBy(HTMLLogFile), IHTMLLog,'')
-
-#### register a new TextLog adapter
-components.registerAdapter(logs.TextLog, IStatusLog, IHTMLLog)
+BuildmasterConfig = master_keeper.getKeeper(dsn, cfg)
+BuildmasterConfig.reset()
 
 #eof

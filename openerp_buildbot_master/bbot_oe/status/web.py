@@ -371,6 +371,7 @@ class BuildsMatrix(StatusResourceBuilder):
         yield template.render(**cxt)
 
 class OpenObjectWebStatus(WebStatus):
+    compare_attrs = ["http_port", "distrib_port",]
     def __init__(self, http_port=None, distrib_port=None, allowForce=False):
         WebStatus.__init__(self, http_port=http_port, distrib_port=distrib_port, 
                 allowForce=allowForce, provide_feeds=['rss', 'atom'])

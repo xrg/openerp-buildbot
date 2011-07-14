@@ -11,6 +11,7 @@
     on the fly, without any reload or so.
 """
 
+from twisted.python import log
 import logging
 from buildbot.buildslave import BuildSlave
 from buildbot.process import factory
@@ -19,12 +20,9 @@ from buildbot.schedulers import basic, timed, dependent
 from buildbot import manhole
 from .status import web, mail, logs
 from .step_iface import StepOE
-import twisted.internet.task
 from openerp_libclient import rpc
 import os
 import signal
-
-from twisted.python import log
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -38,24 +36,26 @@ def str2bool(sstr):
 
 class Keeper(object):
     """ Keeper is the connector that gets/updates buildbot configuration from openerp
+    
+        It exposes some /dict/ functionality, so that it can dynamically replace
+        the BuildMasterConfig of 'master.cfg'
     """
     logger = logging.getLogger('master_keeper')
+    __keeper = None
+    __keeper_identity = None
 
-    def __init__(self, db_props, bmconfig):
+    def __init__(self, dsn, cfg):
         """
-            @param db_props a dict with info how to connect to db
-            @param c the BuildmasterConfig dict
+            @param dsn a dict with info how to connect to db
+            @param cfg some config values from master.cfg
         """
         self.logger.info("Initialize")
-        self.bmconfig = bmconfig
-        self.poll_interval = 560.0 #seconds
+        self._cfg_dict = {}
         self.in_reset = False
         self.bbot_tstamp = None
-        self.loop = None # define early, so that del() always sees it
-        c = bmconfig
+        c = self._cfg_dict
+        c.update(cfg)
         # some necessary definitions in the dict:
-        c['projectName'] = "OpenERP-Test"
-        c['buildbotURL'] = "http://test.openobject.com/"
         c['db_url'] = 'openerp://' # it prevents the db_schema from going SQL
         c['slavePortnum'] = 'tcp:8999:interface=127.0.0.1'
 
@@ -66,22 +66,45 @@ class Keeper(object):
         c['change_source']=[]
         c['status'] = []
         
-        rpc.openSession(**db_props)
+        rpc.openSession(**dsn)
         r = rpc.login()
         if not r:
             self.logger.error("Cannot login to OpenERP")
             raise Exception("Could not login!")
         
+        self.bbot_code = dsn.pop('code','buildbot')
         bbot_obj = rpc.RpcProxy('software_dev.buildbot')
-        bbot_id = bbot_obj.search([('tech_code','=',db_props.get('code','buildbot'))])
-        assert bbot_id, "No buildbot for %r exists!" % db_props.get('code','buildbot')
+        bbot_id = bbot_obj.search([('tech_code','=',self.bbot_code)])
+        assert bbot_id, "No buildbot for %r exists!" % self.bbot_code
         self.bbot_id = bbot_id[0]
-        self.loop = twisted.internet.task.LoopingCall(self.poll_config)
-        from twisted.internet import reactor
-        reactor.suggestThreadPoolSize(30)
 
-        self.loop.start(self.poll_interval)
         os.umask(int('0027',8)) # re-enable group read bit
+
+    @classmethod
+    def _getKeeper(cls, dsn, cfg):
+        if (cls.__keeper_identity == (dsn, cfg)):
+            pass
+        else:
+            del cls.__keeper
+            # TODO disconnect?
+            cls.__keeper = cls(dsn, cfg)
+            cls.__keeper_identity = (dsn, cfg)
+        return cls.__keeper
+
+    def get(self, name, default=None):
+        return self._cfg_dict.get(name, default)
+
+    def __getitem__(self, name):
+        return self._cfg_dict[name]
+
+    def keys(self):
+        return self._cfg_dict.keys()
+
+    def has_key(self, name):
+        return name in self._cfg_dict
+
+    def __contains__(self, name):
+        return name in self._cfg_dict
 
     def poll_config(self):
         bbot_obj = rpc.RpcProxy('software_dev.buildbot')
@@ -114,11 +137,12 @@ class Keeper(object):
         if self.in_reset:
             return
         self.in_reset = True
-        c = self.bmconfig
+        c = self._cfg_dict
         c['slaves'] = []
         c['schedulers'] = []
         c['builders'] = []
         c['change_source']=[]
+        c['status'] = []
         
         c_mail = {}
         slave_proxy_url = None
@@ -285,23 +309,33 @@ class Keeper(object):
         log.msg("Here is where the keeper sleeps..")
         # we do reset some "heavy" members, to ensure dereferencing
         # objects that might hold circular references to us
-        if self.loop:
-            self.loop.stop()
-            self.loop = None
-        try:
-            import lp_poller
-            lp_poller.MS_Service.stopInstance()
-        except Exception: pass
-        
         try:
             rpc.session.logout()
         except Exception: pass
-        self.bmconfig = None
         
+        self._cfg_dict = {}
+
+
+getKeeper = Keeper._getKeeper
 
 from buildbot.db import connector as bbot_connector
 import connector
 
 bbot_connector.db_connector = connector.OERPConnector
+
+#### unregister the TextLog adapter registered by buildbot
+from twisted.python import components
+from zope.interface import declarations
+from buildbot.interfaces import IStatusLog
+from buildbot.status.web.base import IHTMLLog
+from buildbot.status.builder import HTMLLogFile
+
+globalRegistry = components.getRegistry()
+origInterface = declarations.implementedBy(IStatusLog)
+
+globalRegistry.unregister(declarations.implementedBy(HTMLLogFile), IHTMLLog,'')
+
+#### register a new TextLog adapter
+components.registerAdapter(logs.TextLog, IStatusLog, IHTMLLog)
 
 #eof

@@ -83,6 +83,10 @@ class MasterPoller(service.MultiService):
         self._tasks.append(t)
         t.start()
         
+        t = subscriptions.SubscriptionThread('software_dev.buildbot:all-reconfig')
+        t.setCallback(self._triggerAllReconfig)
+        self._tasks.append(t)
+        t.start()
         return
 
     def _waitAndRestart(self, result, delay=10.0):
@@ -98,6 +102,16 @@ class MasterPoller(service.MultiService):
                 return defer.suceed(True)
         d = master.pollDatabaseBuildRequests()
         return d
+    
+    def _triggerAllReconfig(self):
+        master = self.getMaster()
+        if not master:
+            self._waitAndRestart(None)
+            return
         
+        if not self.running:
+                return defer.suceed(True)
+        d = master.loadTheConfigFile()
+        return d
 
 #eof
