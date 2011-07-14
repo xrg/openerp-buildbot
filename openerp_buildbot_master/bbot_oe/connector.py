@@ -453,7 +453,7 @@ class BuildRequestsCCOE(OERPbaseComponent):
         """Transform an orm_model result to a buildrequest dict
         """
         return { 'brid': res['id'],
-                'buildsetid': res['id'],
+                'buildsetid': mid0(res['buildsetid']),
                 'buildername': res['buildername'],
                 'priority': res['priority'],
                 'claimed': bool(res['claimed_at']),
