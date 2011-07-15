@@ -23,6 +23,7 @@
 # from tools.translate import _
 from osv import fields, osv
 from properties import propertyMix
+import netsvc
 
 class software_buildbot(osv.osv):
     _name = 'software_dev.buildbot'
@@ -126,6 +127,14 @@ class software_buildbot(osv.osv):
         if not (res and res[0]):
             return False
         return res
+
+    def trigger_reconfig(self, cr, uid, ids, kind='all', context=None):
+        """Trigger reconfiguration of buildbots
+        """
+
+        # So far, we issue an all-buildbots, all-kind reconfig
+        netsvc.ExportService.getService('subscription').publish(cr.dbname, '%s:all-reconfig' % self._name)
+        return True
 
 software_buildbot()
 
