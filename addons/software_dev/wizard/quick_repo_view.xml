@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+<data>
+
+    <record id="view_add_repo" model="ir.ui.view">
+	    <field name="name">Quick Add Repository</field>
+	    <field name="model">software_dev.wizard.quick_add_repo</field>
+	    <field name="type">form</field>
+	    <field name="arch" type="xml">
+		<form string="Quick Add">
+	
+		    <separator colspan="4" string="Create a Package and single Component"/>
+			
+			<field name="package_name"/>
+			<field name="package_tech_name"/>
+			<newline/>
+			
+			<field name="group_id" widget="selection"/>
+			
+		    <group string="Repository" colspan="4" col="6">
+			<field name="repohost" widget="selection"/>
+			<field name="base_url" />
+			<newline/>
+			<field name="proxy_location" />
+			<field name="slave_proxy_url" />
+			<field name="local_prefix" />
+			
+		    </group>
+		    <group string="Branch" colspan="4" col="6">
+			<field name="sub_url" />
+			<field name="branch_name" />
+			<field name="tech_code" />
+			
+		    </group>
+		    <group string="Build Series" colspan="4" col="6">
+			<field name="builder_id" />
+			<field name="test_id" />
+			<field name="scheduler" />
+		    </group>
+		    <separator colspan="4"/>
+		    <group col="2" colspan="4">
+			<button icon="gtk-cancel" special="cancel" string="Close"/>
+			<button name="create_records" string="Add"  type="object"  icon="gtk-print"/>
+		    </group>
+		    </form>
+	    </field>
+    	</record>
+
+    <act_window id="action_quick_add_repo"
+	name="Quick Add"
+	res_model="software_dev.wizard.quick_add_repo"
+	    view_mode="form" target="new" view_type="form" />
+
+    <menuitem id="menu_quick_add_repo" name="Quick Add Repo"
+	action="action_quick_add_repo"
+	parent="softdev_config" sequence="20"
+	groups="project.group_project_manager" />
+
+<!--	key2="client_print_multi"
+	src_model="software_dev.repo"-->
+
+</data>
+</openerp>
