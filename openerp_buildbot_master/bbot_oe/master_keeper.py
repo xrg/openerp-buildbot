@@ -151,6 +151,9 @@ class Keeper(object):
             'poller_kwargs': {},
             }
 
+        reload(buildsteps)
+        reload(repohandlers)
+        
         bbot_obj = rpc.RpcProxy('software_dev.buildbot')
         bbot_data = bbot_obj.read(self.bbot_id)
         if bbot_data['http_url']:
