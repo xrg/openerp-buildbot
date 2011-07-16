@@ -3,3 +3,4 @@
 /twistd.log*
 /twistd.pid
 /master.cfg
+/basedir

@@ -5,7 +5,8 @@ __hush_pyflakes = [master]
 
 import sys
 import os
-sys.path.append(os.path.abspath(basedir))
+our_dir = os.path.normpath(os.path.dirname(__file__))
+sys.path.append(os.path.abspath(our_dir))
 
 from bbot_oe import master_keeper
 
