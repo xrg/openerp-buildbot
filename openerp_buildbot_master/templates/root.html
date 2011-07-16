@@ -6,7 +6,7 @@
     <table width="100%">
 	<tr style="vertical-align:top">
 	    <td style="border-bottom: 1px solid #999;width=100%">
-		<span style="font-weight: bold;font-size: 20px;">Automated Tests</span>
+		<span style="font-weight: bold;font-size: 20px;">Automated Builds</span>
 	    </td>
 	</tr>
 	<tr height="2px">
@@ -15,7 +15,7 @@
 	<tr><td>
 		<table class="grid" width="100%" id="latest_builds">
 		    <tr class="header" style="vertical-align:center font-size: 18px;">
-			<td class="grid-cell" align="center">Branches / Builds</td>
+			<td class="grid-cell" align="center">Builders / Builds</td>
 			<td class="grid-cell" align="center" >Build: Last</td>
 			{% for col in range(num_cols-1) %}
 			<td class="grid-cell" align="center" >Build: {{ -1 - col }}</td>
@@ -46,10 +46,10 @@
 	<tr><td>
 	    {% for bgroup in builders_grouped %}
 	    {% if bgroup.public %}
-		<h2>Branches of {{ bgroup.group_name }}</h2>
+		<h2>{{ bgroup.group_name }}</h2>
 		<table class="grid" width="100%" id="latest_builds">
 		    <tr class="header" style="vertical-align:center font-size: 18px;">
-			<td class="grid-cell" align="center">Branches / Builds</td>
+			<td class="grid-cell" align="center">Builders / Builds</td>
 			<td class="grid-cell" align="center" >Build: Last</td>
 			{% for col in range(num_cols-1) %}
 			<td class="grid-cell" align="center" >Build: {{ -1 - col }}</td>
