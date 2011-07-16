@@ -19,18 +19,29 @@
 #
 ##############################################################################
 
+from buildbot.process.buildstep import LoggingBuildStep, LoggedRemoteCommand
+from buildbot.status.builder import SUCCESS, FAILURE, WARNINGS #, EXCEPTION, SKIPPED
+from buildbot.status.builder import TestResult
+from openerp_libclient.tools import ustr
+import re
 
 """ BuildStep interface classes
 
 """
 
+try:
+    import cStringIO
+    StringIO = cStringIO.StringIO
+except ImportError:
+    from StringIO import StringIO
+
 class StepOE:
     """Mix-in class for BuildbotOE-aware Steps
-    
+
         By mixing this class in a Buildstep, master-keeper will know that it
         needs to supply the `keeper_conf` dict automatically to the keyword
         arguments of the step.
-        
+
         TODO doc for keeper_conf
     """
     def __init__(self, **kwargs):
@@ -57,5 +68,130 @@ class StepOE:
         if not self.workdir:
             self.workdir = workdir
 
+class StdErrRemoteCommand(LoggedRemoteCommand):
+    """Variation of LoggedRemoteCommand that separates stderr
+    """
+
+    def addStderr(self, data):
+        self.logs['stderr'].addStderr(data)
+
+
+class LoggedOEmixin(StepOE):
+    """mix-in that handles regex-parsed logs (w. component parts)
+
+        known_strs is a list of 2-3 item tuples of the form:
+
+            (regex_str, severity, field_dict)
+    """
+    known_strs = [] #: please define them in subclasses!
+    _test_name = None
+
+    def __init__(self, **kwargs):
+        assert isinstance(self, LoggingBuildStep)
+        StepOE.__init__(self, **kwargs)
+        self.part_subs = kwargs.get('part_subs')
+        if kwargs.get('keeper_conf'):
+            if not self.part_subs:
+                self.part_subs = kwargs['keeper_conf']['builder'].get('component_parts',[])
+
+        #note: we are NOT keeping the keeper_conf, because we don't want to keep
+        # its memory referenced
+        self.addFactoryArguments(part_subs=self.part_subs)
+        self.build_result = SUCCESS
+        self.last_msgs = [self.name]
+
+        self.known_res = []
+        for kns in self.known_strs:
+            rec = re.compile(kns[0])
+            sev = kns[1]
+            if len(kns) > 2:
+                fdict = kns[2]
+            else:
+                fdict = {}
+            self.known_res.append((rec, sev, fdict))
+        if not self._test_name:
+            self._test_name = self.name.lower().replace(' ', '_')
+
+    def createSummary(self, log):
+        """ Try to read the file-lint.sh output and parse results
+        """
+        severity = SUCCESS
+        repo_reges = []
+        for comp, rege_str, subst in self.part_subs:
+            repo_reges.append((re.compile(rege_str), subst))
+
+        t_results= {}
+        last_msgs = []
+
+        for line in StringIO(log.getText()).readlines():
+            for rem, sev, fdict in self.known_res:
+                m = rem.match(line)
+                if not m:
+                    continue
+                fname = m.groupdict().get('fname',fdict.get('fname',''))
+                msg = ustr(m.groupdict().get('msg',False) \
+                    or fdict.get('msg', False) \
+                    or line.strip())
+                if sev > severity:
+                    severity = sev
+                    last_msgs = [msg,] # and discard lower msgs
+                elif sev == severity:
+                    last_msgs.append(msg)
+
+                if 'module' in m.groupdict():
+                    module = (self._test_name, m.group('module'))
+                else:
+                    for rege, subst in repo_reges:
+                        mf = rege.match(fname)
+                        if mf:
+                            module = (mf.expand(subst), self._test_name)
+                            break
+                    else:
+                        module = (self._test_name, fdict.get('module', 'rest'))
+
+                if module not in t_results:
+                    t_results[module] = TestResult(name=module,
+                                        results=SUCCESS,
+                                        text='', logs={'stdout': u''})
+                if t_results[module].results < sev:
+                    t_results[module].results = sev
+
+                if fdict.get('short', False):
+                    tline = msg
+                else:
+                    if line.endswith('\r\n'):
+                        line = line[:-2] + '\n'
+
+                    tline = ustr(line)
+
+                if not tline.endswith('\n'):
+                    tline += '\n'
+                if sev > SUCCESS:
+                    t_results[module].text += ustr(tline)
+
+                if fdict.get('stdout', True):
+                    t_results[module].logs['stdout'] += ustr(line)
+
+                break # don't attempt more matching of the same line
+
+        # use t_results
+        for tr in t_results.values():
+            if self.build_result < tr.results:
+                self.build_result = tr.results
+            # and, after it's clean..
+            self.build.build_status.addTestResult(tr)
+
+        self.build_result = severity
+
+        if last_msgs:
+            self.last_msgs = [self.name,] + last_msgs
+
+        build_id = self.build.build_status.number
+        # self.descriptionDone = self.descriptionDone[:]
+        self.build.builder.db.builds.saveTResults(build_id, self.name,
+                                            self.build_result, t_results.values())
+
+    def getText2(self, cmd, results):
+        return self.last_msgs
 
 #eof

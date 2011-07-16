@@ -25,10 +25,11 @@
 
 from buildbot.steps.shell import ShellCommand
 from buildbot.process.buildstep import RemoteShellCommand
-from bbot_oe.step_iface import StepOE
+from bbot_oe.step_iface import LoggedOEmixin
+from buildbot.status.builder import SUCCESS, FAILURE, WARNINGS #, EXCEPTION, SKIPPED
 
 
-class RpmBuild2(StepOE, ShellCommand):
+class RpmBuild2(LoggedOEmixin, ShellCommand):
     """ Build an RPM from a .spec file inside the repository
     
         This step is adapted to "git-build" procedure, as supported
@@ -45,8 +46,12 @@ class RpmBuild2(StepOE, ShellCommand):
     flunkOnFailure = 1
     description = ["RPMBUILD"]
     descriptionDone = ["RPMBUILD"]
+    known_strs = [
+                    (r'error:(?:.*\:)?(?P<msg>.+)$', FAILURE ),
+                 ]
 
-    def __init__(self, workdir=None, buildmode='ba', specfile=None, keeper_conf=None, **kwargs):
+    def __init__(self, workdir=None, buildmode='ba', specfile=None,
+                part_subs=None, keeper_conf=None, **kwargs):
         """
         @type specfile: str
         @param specfile: the name of the spec file for the rpmbuild
@@ -60,18 +65,16 @@ class RpmBuild2(StepOE, ShellCommand):
         """
         # TODO extra arguments
         ShellCommand.__init__(self, workdir=workdir, **kwargs)
-        StepOE.__init__(self, workdir=workdir, keeper_conf=keeper_conf, **kwargs)
+        LoggedOEmixin.__init__(self, workdir=workdir, part_subs=part_subs, keeper_conf=keeper_conf, **kwargs)
         if keeper_conf and not specfile:
-            print "Trying to get spec file from components"
             for comp, rege_str, subst in keeper_conf['builder'].get('component_parts',[]):
                 if subst == 'spec':
                     specfile = rege_str
-                    print "Got SpecFile:", specfile
                     break
         self.remote_kwargs['workdir'] = self.workdir
-        self.addFactoryArguments(specfile=specfile, workdir=self.workdir, buildmode=buildmode)
         self.specfile = specfile
         self.buildmode = buildmode
+        self.addFactoryArguments(specfile=specfile, workdir=self.workdir, buildmode=buildmode)
 
     def start(self):
         """
@@ -92,7 +95,7 @@ class RpmBuild2(StepOE, ShellCommand):
         self.checkForOldSlaveAndLogfiles()
         self.startCommand(cmd)
 
-    def createSummary(self, log):
+    def createSummary_depr(self, log): # TODO REMOVE!
         """
         Create nice summary logs.
 

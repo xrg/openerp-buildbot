@@ -22,23 +22,14 @@
 
 from buildbot.process.buildstep import LoggingBuildStep
 from buildbot.status.builder import SUCCESS, FAILURE, WARNINGS #, EXCEPTION, SKIPPED
-import re
-from bzrsteps import StdErrRemoteCommand
-from buildbot.status.builder import TestResult
-from openerp_libclient.tools import ustr
-from bbot_oe.step_iface import StepOE
-
-try:
-    import cStringIO
-    StringIO = cStringIO.StringIO
-except ImportError:
-    from StringIO import StringIO
+from bbot_oe.step_iface import LoggedOEmixin, StdErrRemoteCommand
 
 
-class LintTest(StepOE, LoggingBuildStep):
+class LintTest(LoggedOEmixin, LoggingBuildStep):
     """Step to perform lint-check on changed files
     """
     name = 'Lint test'
+    _test_name = 'lint'
     flunkOnFailure = False
     warnOnFailure = True
 
@@ -73,22 +64,12 @@ class LintTest(StepOE, LoggingBuildStep):
 
     def __init__(self, workdir=None, strict=False, keeper_conf=None, part_subs=None, **kwargs):
         LoggingBuildStep.__init__(self, **kwargs)
-        StepOE.__init__(self, workdir=workdir, keeper_conf=keeper_conf, **kwargs)
-        if keeper_conf:
-            if not part_subs:
-                part_subs = keeper_conf['builder'].get('component_parts',[])
-        
-        #note: we are NOT keeping the keeper_conf, because we don't want to keep
-        # its memory referenced
-        self.addFactoryArguments(workdir=workdir or self.workdir, strict=strict, part_subs=part_subs)
-        self.args = {'workdir': workdir or self.workdir, 'strict': strict, 'part_subs': part_subs}
+        LoggedOEmixin.__init__(self, workdir=workdir, keeper_conf=keeper_conf, part_subs=part_subs, **kwargs)
+        self.addFactoryArguments(workdir=workdir or self.workdir, strict=strict)
+        self.args = {'workdir': workdir or self.workdir, 'strict': strict}
         # Compute defaults for descriptions:
         description = ["Performing lint check"]
         self.description = description
-        self.known_res = []
-        self.build_result = SUCCESS
-        for kns in self.known_strs:
-            self.known_res.append((re.compile(kns[0]), kns[1]))
         if self.args.get('strict', False):
             self.haltOnFailure = True
 
@@ -103,71 +84,6 @@ class LintTest(StepOE, LoggingBuildStep):
         self.stderr_log = self.addLog("stderr")
         cmd.useLog(self.stderr_log, True)
         self.startCommand(cmd)
-
-    def createSummary(self, log):
-        """ Try to read the file-lint.sh output and parse results
-        """
-        severity = SUCCESS
-        repo_reges = []
-        for comp, rege_str, subst in self.args['part_subs']:
-            repo_reges.append((re.compile(rege_str), subst))
-
-        t_results= {}
-        
-        for line in StringIO(log.getText()).readlines():
-            for rem, sev in self.known_res:
-                m = rem.match(line)
-                if not m:
-                    continue
-                fname = m.group(1)
-                if sev > severity:
-                    severity = sev
-                for rege, subst in repo_reges:
-                    mf = rege.match(fname)
-                    if mf:
-                        module = (mf.expand(subst), 'lint')
-                        break
-                else:
-                    module = ('lint', 'rest')
-                
-                if module not in t_results:
-                    t_results[module] = TestResult(name=module,
-                                        results=SUCCESS,
-                                        text='', logs={'stdout': u''})
-                if t_results[module].results < sev:
-                    t_results[module].results = sev
-                if line.endswith('\r\n'):
-                    line = line[:-2] + '\n'
-                elif not line.endswith('\n'):
-                    line += '\n'
-                if sev > SUCCESS:
-                    t_results[module].text += ustr(line)
-                else:
-                    t_results[module].logs['stdout'] += ustr(line)
-                
-                break # don't attempt more matching of the same line
-
-        # use t_results
-        for tr in t_results.values():
-            if self.build_result < tr.results:
-                self.build_result = tr.results
-            # and, after it's clean..
-            self.build.build_status.addTestResult(tr)
-
-        self.build_result = severity
-
-        build_id = self.build.requests[0].id # FIXME when builds have their class
-        # self.descriptionDone = self.descriptionDone[:]
-        self.build.builder.db.saveTResults(build_id, self.name,
-                                            self.build_result, t_results.values())
-
-        if severity >= FAILURE: # TODO: remove
-            try:
-                orm_id = self.getProperty('orm_id') or '?'
-            except KeyError:
-                orm_id = '?'
-            self.setProperty('failure_tag', 'openerp-buildfail-%s-%s' % \
-                                (orm_id, build_id) )
 
     def evaluateCommand(self, cmd):
         res = SUCCESS

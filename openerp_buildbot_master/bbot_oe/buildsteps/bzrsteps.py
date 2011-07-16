@@ -35,20 +35,13 @@ import re
 #from openerp_libclient import tools
 from openerp_libclient.tools import ustr
 #from twisted.internet import defer
+from bbot_oe.step_iface import StdErrRemoteCommand
 
 try:
     import cStringIO
     StringIO = cStringIO.StringIO
 except ImportError:
     from StringIO import StringIO
-
-
-class StdErrRemoteCommand(LoggedRemoteCommand):
-    """Variation of LoggedRemoteCommand that separates stderr
-    """
-
-    def addStderr(self, data):
-        self.logs['stderr'].addStderr(data)
 
 class OpenObjectBzr(Bzr):
     flunkOnFailure = False
