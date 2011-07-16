@@ -243,9 +243,11 @@ class Keeper(object):
             
             sched = None
             sched_kwargs = dict(name = "Scheduler %s" % bld['name'],
-                    builderNames = [bld['name'],],
+                    builderNames = [str(bld['name']),],
                     properties=bld.get('sched_props',{}))
         
+             # TODO perhaps have single schedulers for multiple builders
+             # that share a common source
             if bld['scheduler'] == 'periodic':
                 sched = timed.Periodic( periodicBuildTimer = bld.get('tstimer',None),
                                     **sched_kwargs)
@@ -283,7 +285,7 @@ class Keeper(object):
         if c_mail.get('mail_smtp_host', False):
             mail_kwargs= {
                 'projectURL': c['buildbotURL'],
-                'extraRecipients'   : c_mail.get('mail_notify_cc', 'hmo@tinyerp.com').split(','),
+                'extraRecipients'   : str(c_mail.get('mail_notify_cc', '')).split(','),
                 'html_body': str2bool(c_mail.get('mail_want_html','false')), # True value will send mail in HTML
                 'smtpUser':  c_mail.get('mail_smtp_username',''),
                 'smtpPassword':  c_mail.get('mail_smtp_passwd',''),
@@ -292,7 +294,7 @@ class Keeper(object):
                 'fromaddr':  c_mail.get('mail_sender_email', '<noreply@openerp.com>'),
                 'reply_to':  c_mail.get('mail_reply_to', 'support@tinyerp.com'),
                 'relayhost': c_mail.get('mail_smtp_host'),
-                'useTls':       str2bool(c_mail.get('mail_email_tls','t')),
+                'useTls':    str2bool(c_mail.get('mail_email_tls','t')),
                 'mode':      c_mail.get('mail_notify_mode', 'failing'),
                                                 # 'all':sends mail when step is either success/failure or had problem.
                                                 # 'problem':sends mail when step had problem.
