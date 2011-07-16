@@ -638,6 +638,23 @@ class BuildsCCOE(OERPbaseComponent):
         
         return threads.deferToThread(thd)
 
+    def saveTResults(self, build_id, name, build_result, t_results):
+        # bld_obj = rpc.RpcProxy('software_dev.commit')
+        
+        def thd():
+            tsum_obj = rpc.RpcProxy('software_dev.test_result')
+            
+            for seq, tr in enumerate(t_results):
+                vals = { 'build_id': build_id,
+                    'name': name,
+                    'substep': '.'.join(tr.name), # it is a tuple in TestResult
+                    'state': res_state.get(tr.results,'unknown'),
+                    'sequence': seq,
+                    'blame_log': tr.text, }
+                    
+                tsum_obj.create(vals)
+            return
+        return threads.deferToThread(thd)
 
 class StateCCOE(OERPbaseComponent):
     """
@@ -889,21 +906,6 @@ class OERPConnector(util.ComparableMixin, service.MultiService):
         self.master.botmaster.maybeStartBuildsForAllBuilders()
         return d
 
-    def saveTResults(self, build_id, name, build_result, t_results):
-        # bld_obj = rpc.RpcProxy('software_dev.commit')
-        tsum_obj = rpc.RpcProxy('software_dev.test_result')
-        
-        for seq, tr in enumerate(t_results):
-            vals = { 'build_id': build_id,
-                'name': name,
-                'substep': '.'.join(tr.name), # it is a tuple in TestResult
-                'state': res_state.get(tr.results,'unknown'),
-                'sequence': seq,
-                'blame_log': tr.text, }
-                
-            tsum_obj.create(vals)
-         
-        return
 
     # TODO must go to results obj.
     def saveStatResults(self, changes, file_stats):
