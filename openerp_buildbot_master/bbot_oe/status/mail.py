@@ -115,6 +115,8 @@ class OpenObjectMailNotifier(MailNotifier):
             else:
                 body = self.get_TEXT_mail(name,build,build_url,waterfall_url,failed_step, failed_tests, status_text, test_reasoning, change)
                 
+            if isinstance(body, str): # not unicode
+                body = body.decode('utf-8')
             m = self.createEmail({'body': body, 'type': mtype},
                     builderName=build.builder.name, title=self.projectName, 
                     results=results, builds=builds)
