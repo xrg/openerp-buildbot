@@ -171,7 +171,7 @@ class GitFactory(RepoFactory):
         if p_interval <= 0:
             return
 
-        kwargs = {} # tmpconf['poller_kwargs'].copy()
+        kwargs = {'bare': True} # tmpconf['poller_kwargs'].copy()
 
         kwargs.update (repourl=fetch_url,
                 pollInterval = p_interval,
