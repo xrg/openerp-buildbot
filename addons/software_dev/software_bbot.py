@@ -165,6 +165,10 @@ class software_bbot_slave(osv.osv):
                     help="The secret code used by the slave to connect to the master"),
         'max_builds': fields.integer('Max Builds', required=True,
                     help="Number of maximum builds to run in parallel"),
+        'dedicated': fields.boolean('Dedicated', required=True,
+                    help="If set, this slave will only receive builds whose series " \
+                        "explicitly list it. Otherwise, it could claim builds from " \
+                        "any series")
         #'property_ids': fields.one2many('software_dev.bsattr', 'bslave_id', 'Properties'),
     }
 
@@ -172,6 +176,7 @@ class software_bbot_slave(osv.osv):
     
     _defaults = {
         'max_builds': 2,
+        'dedicated': False,
     }
 
 software_bbot_slave()

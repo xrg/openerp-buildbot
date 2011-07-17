@@ -203,6 +203,12 @@ class software_buildseries(propertyMix, osv.osv):
         'builder_id': fields.many2one('software_dev.buildbot',
                 string='BuildBot', required=True,
                 help="Machine that will build this series"),
+        'slave_ids': fields.many2many("software_dev.bbslave",
+                    'software_dev_builseries_bbslave_rel', 'buildseries_id', 'bbslave_id',
+                    string="Build Slaves",
+                    help="If specified, build only on those buildslaves. Otherwise, " \
+                        "build on any of the BuildBot's available (and non-dedicated) slaves.",
+                    domain = "[('bbot_id', '=', builder_id)]"),
         'buildername': fields.function(_get_buildername, string='Builder name',
                 method=True, type='char', readonly=True, fnct_search=_search_buildername),
         'sequence': fields.integer('Sequence', required=True),
@@ -232,7 +238,7 @@ class software_buildseries(propertyMix, osv.osv):
             #db_name = dir_name.replace('-','_') # FIXME unused
 
             bret = { 'name': bldr.buildername,
-                    'slavename': bldr.builder_id.slave_ids[0].tech_code,
+                    'slavenames': None,
                     'builddir': dir_name,
                     'steps': [],
                     'components': {},
@@ -244,6 +250,13 @@ class software_buildseries(propertyMix, osv.osv):
                     'scheduler': bldr.scheduler,
                     #'tstimer': None, # means one build per change
                     }
+
+            if bldr.slave_ids:
+                bret['slavenames'] = [ sl.tech_code for sl in bldr.slave_ids ]
+            else:
+                bret['slavenames'] = [ sl.tech_code \
+                        for sl in bldr.builder_id.slave_ids \
+                        if not sl.dedicated]
 
             if bldr.group_id:
                 bret['properties'].update( {'group': bldr.group_id.name,
