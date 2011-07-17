@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+<data>
+
+    <record id="view_commit2build" model="ir.ui.view">
+	    <field name="name">Manual Build Request</field>
+	    <field name="model">software_dev.wizard.commit2build</field>
+	    <field name="type">form</field>
+	    <field name="arch" type="xml">
+		<form string="Request build">
+		    <field name="commit_id" colspan="4" />
+		    <field name="builder_id" />
+		    <newline />
+		    <field name="reason" colspan="4"/>
+		    <separator colspan="4"/>
+		    <group col="2" colspan="4">
+			<button icon="gtk-cancel" special="cancel" string="Close"/>
+			<button name="request_commit" string="Request" type="object" icon="gtk-ok"/>
+		    </group>
+		    </form>
+	    </field>
+    	</record>
+
+    <act_window id="action_commit2build"
+	name="Manual Build Request"
+	res_model="software_dev.wizard.commit2build"
+	view_mode="form" target="new" view_type="form"
+	key2="client_action_multi"
+	context="{'default_commit_id': active_id}"
+	src_model="software_dev.commit" />
+
+</data>
+</openerp>
