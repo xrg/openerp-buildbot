@@ -22,6 +22,14 @@
 from buildbot.steps import source
 
 class GitStep(source.Git):
+    def computeSourceRevision(self, changes):
+        if not changes:
+            return None
+        rev = changes[-1].revision
+        if (not rev) and 'hash' in changes[-1].properties:
+            rev = changes[-1].properties['hash']
+        return rev
+
     def startVC(self, branch, revision, patch):
         # Override behaviour of Source.startVC and always use our branch
         # That's because Sourcestamp/Change will know the 'remote' branch name
