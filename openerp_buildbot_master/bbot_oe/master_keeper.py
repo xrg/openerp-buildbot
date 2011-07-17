@@ -233,7 +233,7 @@ class Keeper(object):
             
             c['builders'].append({
                 'name' : bld['name'],
-                'slavename' : bld['slavename'],
+                'slavenames' : bld['slavenames'],
                 'builddir': bld['builddir'],
                 'factory': fact,
                 'properties': props,
