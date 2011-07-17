@@ -33,8 +33,8 @@ class software_test_result(osv.osv):
                 'name': fields.char('Name of Step', size=128, help="Name of the Test step"),
                 'sequence': fields.integer('Sequence', required=True),
                 # TODO 'teststep_id':
-                'build_id': fields.many2one('software_dev.commit', 'Build', ondelete='cascade',
-                        select=1,
+                'build_id': fields.many2one('software_dev.build', 'Build', ondelete='cascade',
+                        select=True,
                         help="Build on which the result was taken"),
                 'blame_log': fields.text("Summary", help="Quick blame info of thing(s) that failed"),
                 'substep': fields.char('Substep', size=256, help="Detailed substep"),
