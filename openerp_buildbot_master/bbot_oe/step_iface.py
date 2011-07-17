@@ -109,8 +109,6 @@ class LoggedOEmixin(StepOE):
             else:
                 fdict = {}
             self.known_res.append((rec, sev, fdict))
-        if not self._test_name:
-            self._test_name = self.name.lower().replace(' ', '_')
 
     def createSummary(self, log):
         """ Try to read the file-lint.sh output and parse results
@@ -122,39 +120,58 @@ class LoggedOEmixin(StepOE):
 
         t_results= {}
         last_msgs = []
+        last_module = None
+        clean_name = self.name.lower().replace(' ', '_')
+        test_name = 'rest'
 
         for line in StringIO(log.getText()).readlines():
             for rem, sev, fdict in self.known_res:
                 m = rem.match(line)
                 if not m:
                     continue
-                fname = m.groupdict().get('fname',fdict.get('fname',''))
-                msg = ustr(m.groupdict().get('msg',False) \
+                mgd = m.groupdict()
+                fname = mgd.get('fname',fdict.get('fname',''))
+                msg = ustr(mgd.get('msg',False) \
                     or fdict.get('msg', False) \
                     or line.strip())
-                if sev > severity:
-                    severity = sev
-                    last_msgs = [msg,] # and discard lower msgs
-                elif sev == severity:
-                    last_msgs.append(msg)
 
-                if 'module' in m.groupdict():
-                    module = (self._test_name, m.group('module'))
+                module = None
+                if 'module' in mgd:
+                    module = m.group('module')
                 else:
                     for rege, subst in repo_reges:
                         mf = rege.match(fname)
                         if mf:
-                            module = (mf.expand(subst), self._test_name)
+                            module = mf.expand(subst)
                             break
+                
+                if not module:
+                    module = fdict.get('module', last_module or clean_name)
+                else:
+                    if fdict.get('module_persist', False):
+                        last_module = module
                     else:
-                        module = (self._test_name, fdict.get('module', 'rest'))
+                        last_module = None
 
+                # test name, detail after the module
+                if 'test_name' in mgd:
+                    test_name = mgd['test_name']
+                elif 'test_name' in fdict:
+                    test_name = fdict['test_name']
+                
+                module = (module, test_name)
                 if module not in t_results:
                     t_results[module] = TestResult(name=module,
                                         results=SUCCESS,
                                         text='', logs={'stdout': u''})
                 if t_results[module].results < sev:
                     t_results[module].results = sev
+
+                if sev > severity:
+                    severity = sev
+                    last_msgs = [msg,] # and discard lower msgs
+                elif sev == severity:
+                    last_msgs.append(msg)
 
                 if fdict.get('short', False):
                     tline = msg
@@ -186,9 +203,7 @@ class LoggedOEmixin(StepOE):
         if last_msgs:
             self.last_msgs = [self.name,] + last_msgs
 
-        build_id = self.build.build_status.number
-        # self.descriptionDone = self.descriptionDone[:]
-        self.build.builder.db.builds.saveTResults(build_id, self.name,
+        self.build.builder.db.builds.saveTResults(self.build, self.name,
                                             self.build_result, t_results.values())
 
     def getText2(self, cmd, results):
