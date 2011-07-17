@@ -611,7 +611,7 @@ class BuildsCCOE(OERPbaseComponent):
 
     def getBuildsForRequest(self, brid):
         def thd():
-            res = self._proxy.search_read(brid, [('buildrequest_id', '=', brid)],
+            res = self._proxy.search_read([('buildrequest_id', '=', brid)],
                     fields=['buildrequest_id','build_number', 'build_start_time', 'build_finish_time' ])
             if not res:
                 return None
@@ -638,11 +638,23 @@ class BuildsCCOE(OERPbaseComponent):
         
         return threads.deferToThread(thd)
 
-    def saveTResults(self, build_id, name, build_result, t_results):
+    def saveTResults(self, build, name, build_result, t_results):
         # bld_obj = rpc.RpcProxy('software_dev.commit')
         
+        breq_id = build.requests[0].id
+        build_number = build.build_status.number
+
         def thd():
             tsum_obj = rpc.RpcProxy('software_dev.test_result')
+            
+            res = self._proxy.search([('buildrequest_id', '=', breq_id),
+                    ('build_number', '=', build_number)],
+                    limit=1)
+            if not res:
+                raise ValueError("No build for req %d, number %s can be found" % \
+                        (breq_id, build_number))
+            else:
+                build_id = res[0]
             
             for seq, tr in enumerate(t_results):
                 vals = { 'build_id': build_id,
