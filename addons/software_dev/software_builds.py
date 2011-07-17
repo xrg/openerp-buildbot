@@ -95,6 +95,17 @@ class software_tsattr(osv.osv):
 
 software_tsattr()
 
+class software_dev_bbslave2(osv.osv):
+    _inherit = 'software_dev.bbslave'
+    _columns = {
+        'test_ids': fields.many2many('software_dev.test',
+                'software_dev_bbslave_test_rel', 'bbslave_id', 'test_id',
+                string='Allowed tests',
+                help="If specified, this slave will only claim builds for those tests"),
+        }
+
+software_dev_bbslave2()
+
 schedulers = [('basic', 'On change (basic)'), ('periodic', 'Periodic'),
     ('nightly', 'Date/time based'), ('dependent', 'On other build'),
     ('none', 'None (manual only)')]
@@ -256,7 +267,9 @@ class software_buildseries(propertyMix, osv.osv):
             else:
                 bret['slavenames'] = [ sl.tech_code \
                         for sl in bldr.builder_id.slave_ids \
-                        if not sl.dedicated]
+                        if not sl.dedicated and ( (not sl.test_ids) \
+                                or (bldr.test_id.id in [ t.id for t in sl.test_ids]))
+                            ]
 
             if bldr.group_id:
                 bret['properties'].update( {'group': bldr.group_id.name,

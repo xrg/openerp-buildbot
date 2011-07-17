@@ -716,6 +716,8 @@
                 <field name="password"/>
                 <newline/>
                 <field name="max_builds" />
+                <newline />
+                <field name="test_ids" colspan="4"/>
                 <!-- <field name="property_ids" colspan="4" /> -->
               </form>
           </field>
