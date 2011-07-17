@@ -411,15 +411,24 @@
             <field name="arch" type="xml">
               <form>
                 <field name="name"/>
-                <field name="sequence" />
+                <newline/>
                 <field name="group_id" />
-                <field name="package_id"/>
-                <field name="branch_id" />
-                <field name="builder_id" />
-                <field name="test_id" />
-                <field name="is_distinct"/>
-                <field name="scheduler" />
-                <field name="description" colspan="4" />
+                <field name="sequence" />
+                <newline/>
+                <group string="Source" colspan="2" col="2">
+                    <field name="package_id"/>
+                    <field name="branch_id" />
+                    <field name="scheduler" />
+                    <field name="is_distinct"/>
+                </group>
+                <group string="Build" colspan="2" col="2">
+                    <field name="builder_id" />
+                    <field name="test_id" />
+                    <field name="slave_ids" colspan="2"/>
+                </group>
+                <group string="Description" colspan="4" >
+                    <field name="description" colspan="4" nolabel="1" />
+                </group>
               </form>
           </field>
         </record>
@@ -701,6 +710,7 @@
               <form>
                 <field name="name"/>
                 <field name="bbot_id" />
+                <field name="dedicated" />
                 <newline />
                 <field name="tech_code"/>
                 <field name="password"/>
