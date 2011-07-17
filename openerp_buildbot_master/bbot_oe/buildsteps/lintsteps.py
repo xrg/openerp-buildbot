@@ -29,7 +29,6 @@ class LintTest(LoggedOEmixin, LoggingBuildStep):
     """Step to perform lint-check on changed files
     """
     name = 'Lint test'
-    _test_name = 'lint'
     flunkOnFailure = False
     warnOnFailure = True
 
