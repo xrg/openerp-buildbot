@@ -46,8 +46,15 @@ class RpmBuild2(LoggedOEmixin, ShellCommand):
     flunkOnFailure = 1
     description = ["RPMBUILD"]
     descriptionDone = ["RPMBUILD"]
-    known_strs = [
+    known_strs = [  (r'Provides:  *(?P<msg>.+)$', SUCCESS, {'test_name': 'provides'}),
+                    (r'Requires\(rpmlib\): *(?P<msg>.+)$', SUCCESS, {'test_name': 'requires'}),
+                    (r'Requires: *(?P<msg>.+)$', SUCCESS, {'test_name': 'requires'}),
+                    (r'Checking for unpackaged', SUCCESS,{'test_name': 'post_check'}),
+                    (r'Wrote: *(?P<msg>.+)$', SUCCESS, {'test_name': 'out_rpms'}),
+                    (r'Executing\(%(?P<test_name>[^\)]+)', SUCCESS),
+                    (r'RPM build errors: *(?P<msg>.+)$', FAILURE),
                     (r'error:(?:.*\:)?(?P<msg>.+)$', FAILURE ),
+                    (r'.*', SUCCESS), # this will copy the rest of lines into modules like prep, build, clean..
                  ]
 
     def __init__(self, workdir=None, buildmode='ba', specfile=None,
@@ -94,30 +101,6 @@ class RpmBuild2(LoggedOEmixin, ShellCommand):
         self.setupEnvironment(cmd)
         self.checkForOldSlaveAndLogfiles()
         self.startCommand(cmd)
-
-    def createSummary_depr(self, log): # TODO REMOVE!
-        """
-        Create nice summary logs.
-
-        @param log: The log to create summary off of.
-        """
-        rpm_prefixes = ['Provides:', 'Requires(rpmlib):', 'Requires:',
-                        'Checking for unpackaged', 'Wrote:',
-                        'Executing(%', '+ ']
-        rpm_err_pfx = ['   ', 'RPM build errors:', 'error: ']
-
-        rpmcmdlog = []
-        rpmerrors = []
-
-        for line in log.readlines():
-            for pfx in rpm_prefixes:
-                if pfx in line:
-                    rpmcmdlog.append(line)
-            for err in rpm_err_pfx:
-                if err in line:
-                    rpmerrors.append(line)
-        self.addCompleteLog('RPM Command Log', "".join(rpmcmdlog))
-        self.addCompleteLog('RPM Errors', "".join(rpmerrors))
 
 exported_buildsteps = [RpmBuild2, ]
 #eof
