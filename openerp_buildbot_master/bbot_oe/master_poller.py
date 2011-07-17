@@ -87,6 +87,11 @@ class MasterPoller(service.MultiService):
         t.setCallback(self._triggerAllReconfig)
         self._tasks.append(t)
         t.start()
+        
+        t = subscriptions.SubscriptionThread('software_dev.buildbot:trigger-all-poll')
+        t.setCallback(self._pollAllSources)
+        self._tasks.append(t)
+        t.start()
         return
 
     def _waitAndRestart(self, result, delay=10.0):
@@ -113,5 +118,36 @@ class MasterPoller(service.MultiService):
                 return defer.suceed(True)
         d = master.loadTheConfigFile()
         return d
+
+    def _pollAllSources(self, res=None):
+        master = self.getMaster()
+        if not master:
+            self._waitAndRestart(None)
+            return
+        if not self.running:
+            return defer.suceed(True)
+
+        try:
+            # The twisted.internet.task.LoopingCall holds the function and args
+            # of the poll. It is not thread safe, we need to prevent parallel
+            # running of the calls.
+            # Its 'call' attribute is filled while waiting, cleared while
+            # running the function.
+
+            deds = []
+            for csource in master.change_svc:
+                if not csource._loop:
+                    continue
+                cl = csource._loop
+                if not (cl.running and cl.call):
+                    continue
+
+                d = defer.maybeDeferred(cl.f, *cl.a, **cl.kw)
+                d.addCallback(lambda result: cl._reschedule())
+
+            d = defer.gatherResults(deds)
+            return d
+        except Exception, e:
+            log.err('Cannot trigger polls: %s' % e)
 
 #eof
