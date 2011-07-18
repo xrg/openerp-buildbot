@@ -20,41 +20,22 @@
 ##############################################################################
 
 from bbot_oe.repo_iface import RepoFactory
-from buildbot.changes.gitpoller import GitPoller
-from twisted.internet import defer, utils
+from buildbot.changes.gitmultipoller import GitMultiPoller
+from twisted.internet import utils
 from twisted.python import log
 import os
 from buildbot.util import epoch2datetime
 
-class GitPoller_OE(GitPoller):
+class GitPoller_OE(GitMultiPoller):
     """ Enhanced subclass to fit OpenERP backend, record more data
 
     """
-
-    def __init__(self, **kwargs):
+    log_arguments = ['--first-parent', '--name-status']
+    def __init__(self, branch, localBranch=None, **kwargs):
         branch_id = kwargs.pop('branch_id') # mandatory
-        GitPoller.__init__(self, **kwargs)
+        bspecs = [(branch, localBranch or branch, {'branch_id': branch_id}),]
+        GitMultiPoller.__init__(self, branchSpecs=bspecs, **kwargs)
         self.branch_id = branch_id
-
-    def _get_commit_files2(self, rev):
-        """Get list of commit files and stats (part 1/2)
-
-            This retrieves the status/name pairs of files actually modified.
-            In a merge commit, it will *only* list conflict-modified files
-
-        """
-        args = ['log', rev, '--name-status', '--no-walk', r'--format=%n']
-        d = utils.getProcessOutput(self.gitbin, args, path=self.workdir, env=dict(PATH=os.environ['PATH']), errortoo=False )
-        def process(git_output):
-            fileDic = {}
-            for x in git_output.split('\n'):
-                if not x:
-                    continue
-                status, fname = x.split('\t',1)
-                fileDic[fname] = status
-            return fileDic
-        d.addCallback(process)
-        return d
 
     def _get_commit_files3(self, rev):
         """Get list of commit files and diff stats
@@ -75,50 +56,23 @@ class GitPoller_OE(GitPoller):
         d.addCallback(process)
         return d
 
-    @defer.deferredGenerator
-    def _process_changes(self, unused_output):
-        # get the change list
-        revListArgs = ['log', '--first-parent', '%s..%s/%s' % (self.localBranch, self.remoteName, self.branch), r'--format=%H']
-        self.changeCount = 0
-        d = utils.getProcessOutput(self.gitbin, revListArgs, path=self.workdir,
-                                   env=dict(PATH=os.environ['PATH']), errortoo=False )
-        wfd = defer.waitForDeferred(d)
-        yield wfd
-        results = wfd.getResult()
-
-        # process oldest change first
-        revList = results.split()
-        if not revList:
-            return
-
-        revList.reverse()
-        self.changeCount = len(revList)
-
-        log.msg('gitpoller: processing %d changes: %s in "%s"'
-                % (self.changeCount, revList, self.workdir) )
-
-        for rev in revList:
-            dl = defer.DeferredList([
-                self._get_commit_timestamp(rev),
-                self._get_commit_name(rev),
-                self._get_commit_files2(rev),
-                self._get_commit_files3(rev),
-                self._get_commit_comments(rev),
-            ], consumeErrors=True)
-
-            wfd = defer.waitForDeferred(dl)
-            yield wfd
-            results = wfd.getResult()
-
-            # check for failures
-            failures = [ r[1] for r in results if not r[0] ]
-            if failures:
-                # just fail on the first error; they're probably all related!
-                raise failures[0]
-
-            props = dict(branch_id=self.branch_id, hash=rev, ) # TODO
-
-            timestamp, name, files2, files3, comments = [ r[1] for r in results ]
+    def _doAddChange(self, branch, revDict, props=None):
+        """ do last steps and add the change
+        
+            unlike the parent function, we need to defer one more task,
+            of getting the commitstats of each commit (separately)
+        """
+        assert isinstance(props, dict)
+        
+        def _final_add(files3):
+            
+            # files 2: (name, status), parse from plain string list
+            files2 = {}
+            for x in revDict.pop('files'):
+                if not x:
+                    continue
+                status, fname = x.split('\t',1)
+                files2[fname] = status
 
             #process the files
             filesb = []
@@ -142,22 +96,26 @@ class GitPoller_OE(GitPoller):
                     filesb.append(dict(filename=fname, ctype=ctype,
                             lines_add=stats[0], lines_rem=stats[1]))
 
-            props['filesb'] = filesb
+            properties = dict(branch_id=props['branch_id'], hash=revDict['hash'],
+                    filesb=filesb ) # TODO: parent_ids, committer, notes etc.
 
+            comments = revDict['subject'] + '\n\n' + revDict['body']
             d = self.master.addChange(
-                   author=name,
-                   revision=rev,
-                   files=[],
-                   comments=comments,
-                   when_timestamp=epoch2datetime(timestamp),
-                   branch=self.branch,
-                   category=self.category,
-                   project=self.project,
-                   repository=self.repourl,
-                   properties=props)
-            wfd = defer.waitForDeferred(d)
-            yield wfd
-            results = wfd.getResult()
+                    author=revDict['name'],
+                    revision=revDict['hash'],
+                    files=[],
+                    comments=comments,
+                    when_timestamp=epoch2datetime(float(revDict['timestamp'])),
+                    branch=branch,
+                    category=self.category,
+                    project=self.project,
+                    repository=self.repourl,
+                    properties=properties)
+            return d
+
+        d = self._get_commit_files3(revDict['hash'])
+        d.addCallback(_final_add)
+        return d
 
 class GitFactory(RepoFactory):
     @classmethod
