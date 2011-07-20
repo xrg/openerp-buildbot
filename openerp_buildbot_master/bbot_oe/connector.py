@@ -138,7 +138,8 @@ class OERPChangesConnector(OERPbaseComponent):
                 for pname, pvalue in cdict.pop('properties', {}).items():
                     if pname == 'branch_id':
                         extra['branch_id'] = pvalue[0]
-                    elif pname in ('hash', 'authors', 'filesb'):
+                    elif pname in ('hash', 'authors', 'filesb', 'parent_hashes',
+                            'author_name', 'committer_name', 'committer_email', 'notes'):
                         # these ones must pop from the properties into cdict, they
                         # are extended attributes of the change
                         if isinstance(pvalue[0], dict):
@@ -189,6 +190,10 @@ class OERPChangesConnector(OERPbaseComponent):
 
         if isinstance(changeid, (list, tuple)):
             return res
+        elif not res:
+            log.msg("No data for change %r, incomplete commit?" % changeid)
+            # should happen on incomplete ones, but why did we query for one?
+            return None
         else:
             return res[0]
 
