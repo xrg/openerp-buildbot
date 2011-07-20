@@ -36,6 +36,10 @@ class GitPoller_OE(GitMultiPoller):
         bspecs = [(branch, localBranch or branch, {'branch_id': branch_id}),]
         GitMultiPoller.__init__(self, branchSpecs=bspecs, **kwargs)
         self.branch_id = branch_id
+        self.log_fields.update(author_name='%an', author_timestamp='%at',
+                parent_hashes='%P',committer_name='%cn', committer_email='%cE'
+                # commit notes? Or isn't there a way to fetch them from remote anyway?
+                )
 
     def _get_commit_files3(self, rev):
         """Get list of commit files and diff stats
@@ -97,7 +101,17 @@ class GitPoller_OE(GitMultiPoller):
                             lines_add=stats[0], lines_rem=stats[1]))
 
             properties = dict(branch_id=props['branch_id'], hash=revDict['hash'],
-                    filesb=filesb ) # TODO: parent_ids, committer, notes etc.
+                    filesb=filesb, author_name=revDict.get('author_name', False))
+            if 'parent_hashes' in revDict:
+                properties['parent_hashes'] = map(str.strip, revDict['parent_hashes'].split())
+
+            if revDict.get('committer_email') and revDict['committer_email'] != revDict['name']:
+                # the openerp-server side will swap the fields, then
+                properties['committer_email'] = revDict['committer_email']
+                properties['committer_name'] = revDict.get('committer_name')
+
+            if revDict.get('notes'):
+                properties['notes'] = revDict['notes'] # any formatting?
 
             comments = revDict['subject'] + '\n\n' + revDict['body']
             d = self.master.addChange(
