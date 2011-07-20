@@ -505,7 +505,7 @@ class software_filechange(osv.osv):
     _name = 'software_dev.filechange'
     _description = 'Code File Change'
     _columns = {
-        'commit_id': fields.many2one('software_dev.commit','Commit', required=True),
+        'commit_id': fields.many2one('software_dev.commit','Commit', required=True, ondelete="cascade"),
         'filename': fields.char('File Name', required=True, size=1024, select=1),
         'ctype': fields.selection(change_types, 'Change type', required=True,
                 help="The type of change that occured to the file"),
