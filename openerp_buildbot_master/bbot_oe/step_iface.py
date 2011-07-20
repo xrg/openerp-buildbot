@@ -144,7 +144,11 @@ class LoggedOEmixin(StepOE):
                         if mf:
                             module = mf.expand(subst)
                             break
-                
+                    else:
+                        if fname and fdict.get('module_from_fname', False):
+                            # Try to get the cleanest part of the filename, as module name
+                            module = fname.split('.',1)[0].replace('/','_').replace(' ','_').strip()
+
                 if not module:
                     module = fdict.get('module', last_module or clean_name)
                 else:
