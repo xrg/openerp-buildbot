@@ -306,7 +306,7 @@ class software_commit(propertyMix, osv.osv):
         branch_id = extra.get('branch_id')
         assert branch_id # or discover it from repository + branch
 
-        # FIXME ;)
+        cr.execute('LOCK TABLE "%s" IN SHARE ROW EXCLUSIVE MODE;' % self._table, debug=self._debug)
         cmts = self.search_read(cr, uid, [('hash','=', extra.get('hash', False))],
                         fields=['ctype', 'branch_id', 'hash'])
         if cmts:
