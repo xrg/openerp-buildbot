@@ -20,7 +20,7 @@
 #
 ##############################################################################
 
-# from tools.translate import _
+from tools.translate import _
 from osv import fields, osv
 from datetime import datetime
 import time
@@ -214,7 +214,7 @@ class software_user(osv.osv):
 software_user()
 
 commit_types = [ ('reg', 'Regular'), ('merge', 'Merge'), ('single', 'Standalone'),
-            ]
+            ('incomplete', 'Incomplete')]
 
 class software_commit(propertyMix, osv.osv):
     """ An entry in the VCS
@@ -231,7 +231,7 @@ class software_commit(propertyMix, osv.osv):
                 name += '#%s ' % (b.revno[:8])
             elif b.hash:
                 name += '%s ' % b.hash[:8]
-            name += b.subject
+            name += b.subject or _('Incomplete')
             res[b.id] = name
         return res
 
@@ -252,11 +252,11 @@ class software_commit(propertyMix, osv.osv):
     _columns = {
         'name': fields.function(_get_name, string='Name', size=512,
                 method=True, type='char', readonly=True),
-        'subject': fields.char('Subject', required=True, size=256),
+        'subject': fields.char('Subject', size=256),
         'description': fields.text('Description'),
 
-        'date': fields.datetime('Date', required=True),
-        'branch_id': fields.many2one('software_dev.branch', 'Branch', required=True, select=1),
+        'date': fields.datetime('Date',),
+        'branch_id': fields.many2one('software_dev.branch', 'Branch', select=1),
         'hash': fields.char('Hash', size=1024, select=1,
                 help="In repos that support it, a unique hash of the commit"),
         'revno': fields.char('Revision', size=128, select=1,
@@ -264,7 +264,7 @@ class software_commit(propertyMix, osv.osv):
         'tag_descr': fields.char('Tag name', size=256,
                 help="In some repos, have tag name or description of commit relative to tag"),
         'ctype': fields.selection(commit_types, 'Commit type', required=True),
-        'comitter_id': fields.many2one('software_dev.vcs_user', 'Committer', required=True),
+        'comitter_id': fields.many2one('software_dev.vcs_user', 'Committer'),
         'author_ids': fields.many2many('software_dev.vcs_user',
                 'software_dev_commit_authors_rel', 'commit_id', 'author_id', 'Authors',
                 help="Developers who have authored the code"),
@@ -275,7 +275,9 @@ class software_commit(propertyMix, osv.osv):
         #            help='If set, this is the second parent, which is merged with "Parent Commit"'),
         'contained_commit_ids': fields.many2many('software_dev.commit',
             'software_dev_commit_cont_rel', 'end_commit_id', 'sub_commit_id',
-            help="Commits that are contained in this, but not the parent commit"),
+            string="Contained commits",
+            help="Commits that are contained in this, but not the parent commit. " \
+                "Secondary parent(s) in a merge commit."),
     }
 
     _sql_constraints = [ ('hash_uniq', 'UNIQUE(hash)', 'Hash must be unique.'),
@@ -288,11 +290,13 @@ class software_commit(propertyMix, osv.osv):
 
     def submit_change(self, cr, uid, cdict, context=None):
         """ Submit full info for a commit, in a dictionary
+        
+        Incomplete commits are /not/ allowed through this function, yet
         """
-        # TODO
         assert isinstance(cdict, dict)
         user_obj = self.pool.get('software_dev.vcs_user')
         fchange_obj = self.pool.get('software_dev.filechange')
+        cid = None
 
         clines = cdict['comments'].split('\n',1)
         subj = clines[0]
@@ -302,15 +306,29 @@ class software_commit(propertyMix, osv.osv):
         branch_id = extra.get('branch_id')
         assert branch_id # or discover it from repository + branch
 
-        cids = self.search(cr, uid, [('branch_id', '=', branch_id),
-                        ('hash','=', extra.get('hash', False))])
-        if cids:
+        # FIXME ;)
+        cmts = self.search_read(cr, uid, [('hash','=', extra.get('hash', False))],
+                        fields=['ctype', 'branch_id', 'hash'])
+        if cmts:
             # This is the case where buildbot attempts to send us a commit
             # for a second time
-            assert len(cids) == 1
-            # RFC: shall we update any data to that cid?
-            return cids[0]
-        else: # a new commit
+            assert len(cmts) == 1
+            for cmt in cmts:
+                assert cmt['hash']
+                if cmt['ctype'] == 'incomplete':
+                    cid = cmt['id']
+                    # and let code below fill the incomplete commit
+                else:
+                    if self._debug:
+                        osv.orm._logger.debug('%s: submit_change() returning existing commit %s',
+                                self._name, cmt['id'])
+                    return cmt['id']
+
+        if True:
+            # Prepare data fields
+            if self._debug:
+                osv.orm._logger.debug('%s: cdict: %r', self._name, cdict)
+                osv.orm._logger.debug('%s: extra: %r', self._name, extra)
             repo_bro = self.pool.get('software_dev.branch').browse(cr, uid, branch_id, context=context).repo_id
             repohost =  repo_bro.host_id.id
             new_vals = {
@@ -320,6 +338,7 @@ class software_commit(propertyMix, osv.osv):
                 'date': datetime.fromtimestamp(cdict['when']),
                 'branch_id': branch_id,
                 'hash': extra.get('hash', False),
+                'ctype': 'single',
                 'authors': [ user_obj.get_user(cr, uid, repohost, usr, context=context)
                                 for usr in extra.get('authors', []) ],
                 }
@@ -327,6 +346,32 @@ class software_commit(propertyMix, osv.osv):
                 new_vals['revno'] = cdict['revision']
             else:
                 assert cdict['revision'] == extra.get('hash', False)
+            if ('parent_hashes' in extra) and extra['parent_hashes']:
+                parent_cmts = self.search_read(cr, uid, [('hash', 'in', extra['parent_hashes'])],
+                                fields=['hash'], context=context)
+                
+                parent_hash2id = dict.fromkeys(extra['parent_hashes'])
+                if parent_cmts:
+                    for pc in parent_cmts:
+                        assert pc['hash'] in parent_hash2id
+                        parent_hash2id[pc['hash']] = pc['id']
+                    
+                for khash in parent_hash2id:
+                    if parent_hash2id[khash] is not None:
+                        # note, this may change during this iteration, too
+                        continue
+                    parent_hash2id[khash] = self.create(cr, uid, \
+                        { 'hash': khash, 'ctype': 'incomplete'}, context=context)
+                
+                new_vals['parent_id'] = parent_hash2id[extra['parent_hashes'][0]]
+                new_vals['ctype'] = 'reg'
+                if len(extra['parent_hashes']) > 1:
+                    new_vals['contained_commit_ids'] = [(6, 0, \
+                                [ parent_hash2id[khash] for khash in extra['parent_hashes'][1:]])]
+                    new_vals['ctype'] = 'merge'
+        if cid:
+            self.write(cr, uid, [cid,], new_vals, context=context)
+        else: # a new commit
             cid = self.create(cr, uid, new_vals, context=context)
 
         if 'filesb' in extra:
@@ -402,6 +447,9 @@ class software_commit(propertyMix, osv.osv):
         # TODO
         ret = []
         for cmt in self.browse(cr, uid, ids, context=context):
+            if cmt.ctype == 'incomplete':
+                osv.orm._logger.debug('%s: skipping incomplete commit %d', self._name, cmt.id)
+                continue
             if isinstance(cmt.date, basestring):
                 dt = cmt.date.rsplit('.',1)[0]
                 tdate = time.mktime(time.strptime(dt, '%Y-%m-%d %H:%M:%S'))

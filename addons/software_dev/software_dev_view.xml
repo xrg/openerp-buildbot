@@ -233,14 +233,14 @@
             <field name="type">form</field>
             <field name="arch" type="xml">
               <form>
-                <field name="branch_id"/>
-                <field name="date"/>
+                <field name="branch_id" attrs="{'required':[('ctype','!=','incomplete')]}"/>
+                <field name="date" attrs="{'required':[('ctype','!=','incomplete')]}"/>
                 <field name="name" colspan="4"/>
 
                 <notebook colspan="4">
                     <page string="Commit">
-                        <field name="subject" colspan="4" />
-                        <field name="comitter_id"/>
+                        <field name="subject" colspan="4" attrs="{'required':[('ctype','!=','incomplete')]}"/>
+                        <field name="comitter_id" attrs="{'required':[('ctype','!=','incomplete')]}"/>
                         <field name="description" colspan="4" />
                     </page>
                     <page string="Commit details">
@@ -285,7 +285,8 @@
             <field name="model">software_dev.commit</field>
             <field name="type">tree</field>
             <field name="arch" type="xml">
-              <tree colors="gray: not complete;green:results==0;#ff8000:results==1;red:results==2;blue:results==3;#c000c0:results==4" >
+                <tree >
+                    <!-- colors="gray: not complete;green:results==0;#ff8000:results==1;red:results==2;blue:results==3;#c000c0:results==4" > -->
                 <field name="branch_id"/>
                 <field name="revno" />
                 <field name="date"/>
