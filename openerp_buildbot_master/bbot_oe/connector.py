@@ -472,7 +472,7 @@ class BuildRequestsCCOE(OERPbaseComponent):
     def getBuildRequest(self, brid):
         def thd():
             res = self._proxy.read(brid)
-            return self._commit2br(res)
+            return self._db2br(res)
 
         return threads.deferToThread(thd)
 
