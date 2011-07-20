@@ -46,13 +46,20 @@ class RpmBuild2(LoggedOEmixin, ShellCommand):
     flunkOnFailure = 1
     description = ["RPMBUILD"]
     descriptionDone = ["RPMBUILD"]
-    known_strs = [  (r'Provides:  *(?P<msg>.+)$', SUCCESS, {'test_name': 'provides'}),
-                    (r'Requires\(rpmlib\): *(?P<msg>.+)$', SUCCESS, {'test_name': 'requires'}),
+    known_strs = [  (r'Processing files: *(?P<fname>.+?) *$', SUCCESS,
+                                {'module_persist': True, 'module_from_fname': True} ),
+                    (r'Provides:  *(?P<msg>.+)$', SUCCESS, {'test_name': 'provides'}),
+                    (r'Requires\([\w]+\): *(?P<msg>.+)$', SUCCESS, {'test_name': 'requires'}),
                     (r'Requires: *(?P<msg>.+)$', SUCCESS, {'test_name': 'requires'}),
+                    (r'Obsoletes: *(?P<msg>.+)$', SUCCESS, {'test_name': 'obsoletes'}),
+                    (r'Conflicts: *(?P<msg>.+)$', SUCCESS, {'test_name': 'conflicts'}),
                     (r'Checking for unpackaged', SUCCESS,{'test_name': 'post_check'}),
                     (r'Wrote: *(?P<msg>.+)$', SUCCESS, {'test_name': 'out_rpms'}),
                     (r'Executing\(%(?P<test_name>[^\)]+)', SUCCESS),
                     (r'RPM build errors: *(?P<msg>.+)$', FAILURE),
+                    (r'Finding +Provides:', SUCCESS, {'test_name': 'rest'}),
+                    (r'Finding +Requires:', SUCCESS, {'test_name': 'rest'}),
+                    (r'warning: (?P<msg>.+)$', WARNINGS),
                     (r'error:(?:.*\:)?(?P<msg>.+)$', FAILURE ),
                     (r'.*', SUCCESS), # this will copy the rest of lines into modules like prep, build, clean..
                  ]
