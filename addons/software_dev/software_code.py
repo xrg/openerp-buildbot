@@ -553,8 +553,10 @@ class software_commit(propertyMix, osv.osv):
                 'author_id': user_obj.get_user(cr, uid, repohost, cstats['author'], context=context),
                 'commits': cstats.get('commits', 0),
                 'count_files': cstats.get('count_files', 0),
-                'lines_add': cstats.get('lines_add', 0),
-                'lines_rem': cstats.get('lines_rem', 0),
+                'lines_add': cstats.get('lines_add', False),
+                'lines_rem': cstats.get('lines_rem', False),
+                'merge_add': cstats.get('merge_add', False),
+                'merge_rem': cstats.get('merge_rem', False),
                 }
             cstat_obj.create(cr, uid, sval, context=context)
 
@@ -640,6 +642,8 @@ class software_commit(propertyMix, osv.osv):
                         'ctype': cf.ctype,
                         'lines_add': cf.lines_add,
                         'lines_rem': cf.lines_rem,
+                        'merge_add': cf.merge_add,
+                        'merge_rem': cf.merge_rem,
                         })
 
             ret.append(cdict)
@@ -663,7 +667,10 @@ class software_filechange(osv.osv):
                 help="The type of change that occured to the file"),
         'lines_add': fields.integer('Lines added'),
         'lines_rem': fields.integer('Lines removed'),
+        'merge_add': fields.integer('Lines merged in'),
+        'merge_rem': fields.integer('Lines merged out'),
     }
+
     _defaults = {
         'ctype': 'm',
     }

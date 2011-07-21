@@ -304,6 +304,8 @@
                                 <field name="ctype" />
                                 <field name="lines_add" />
                                 <field name="lines_rem" />
+                                <field name="merge_add" />
+                                <field name="merge_rem" />
                             </tree>
                         </field>
                     </page>
@@ -315,6 +317,8 @@
                                 <field name="count_files" />
                                 <field name="lines_add" />
                                 <field name="lines_rem" />
+                                <field name="merge_add" />
+                                <field name="merge_rem" />
                             </tree>
                         </field>
                     </page>
@@ -369,6 +373,8 @@
                 <field name="ctype" />
                 <field name="lines_add" />
                 <field name="lines_rem" />
+                <field name="merge_add" />
+                <field name="merge_rem" />
               </form>
           </field>
         </record>
