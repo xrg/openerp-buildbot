@@ -171,6 +171,27 @@ class software_branch(osv.osv):
                 res[b.id] = (b.repo_id.slave_proxy_url, (b.repo_id.local_prefix or '') + b.sub_url)
         return res
 
+    def _fmt_branch(self, branch_bro, fixed_commit=False):
+        """Format the branch info into a dictionary
+        
+           Only meant to be used internally
+        """
+        dret = {}
+        dret['branch_id'] = branch_bro.id
+        dret['rtype'] = branch_bro.repo_id.rtype
+        dret['branch_path'] = branch_bro.tech_code or \
+                (branch_bro.sub_url.replace('/','_'))
+        dret['fetch_url'] = branch_bro.fetch_url
+        dret['poll_interval'] = branch_bro.poll_interval
+
+        dret['workdir'] = branch_bro.repo_id.proxy_location
+        if branch_bro.repo_id.local_prefix:
+            dret['local_branch'] = branch_bro.repo_id.local_prefix + \
+                branch_bro.sub_url.replace('/','_')
+            dret['remote_name'] = branch_bro.repo_id.local_prefix.rstrip('-_./+')
+
+        return dret
+
 software_branch()
 
 class software_user(osv.osv):

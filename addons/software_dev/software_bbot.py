@@ -56,34 +56,16 @@ class software_buildbot(osv.osv):
         ret = []
         found_branches = []   # ids of branches we have made so far
         bseries_obj = self.pool.get('software_dev.buildseries')
-
-        def _fmt_branch(branch_bro, fixed_commit=False):
-            """Format the branch info into a dictionary
-            """
-            dret = {}
-            dret['branch_id'] = branch_bro.id
-            dret['rtype'] = branch_bro.repo_id.rtype
-            dret['branch_path'] = branch_bro.tech_code or \
-                    (branch_bro.sub_url.replace('/','_'))
-            dret['fetch_url'] = branch_bro.fetch_url
-            dret['poll_interval'] = branch_bro.poll_interval
-
-            dret['workdir'] = branch_bro.repo_id.proxy_location
-            if branch_bro.repo_id.local_prefix:
-                dret['local_branch'] = branch_bro.repo_id.local_prefix + \
-                    branch_bro.sub_url.replace('/','_')
-                dret['remote_name'] = branch_bro.repo_id.local_prefix.rstrip('-_./+')
-
-            return dret
+        branch_obj = self.pool.get('software_dev.branch')
 
         for bser in bseries_obj.browse(cr, uid, [('builder_id','in',ids)], context=ctx):
             if bser.branch_id.id not in found_branches:
-                ret.append(_fmt_branch(bser.branch_id))
+                ret.append(branch_obj._fmt_branch(bser.branch_id))
                 found_branches.append(bser.branch_id.id)
 
             for comp in bser.package_id.component_ids:
                 if comp.update_rev and comp.branch_id.id not in found_branches:
-                    ret.append(_fmt_branch(comp.branch_id, fixed_commit = comp.commit_id))
+                    ret.append(branch_obj._fmt_branch(comp.branch_id, fixed_commit=comp.commit_id))
                     found_branches.append(comp.branch_id.id)
 
         return ret
