@@ -439,16 +439,31 @@ class software_commit(propertyMix, osv.osv):
                 osv.orm._logger.debug('%s: extra: %r', self._name, extra)
             repo_bro = self.pool.get('software_dev.branch').browse(cr, uid, branch_id, context=context).repo_id
             repohost =  repo_bro.host_id.id
+            commiter_id = None
+            authors = []
+            if 'committer_email' in extra:
+                # we have both committer and author
+                comitter_id = user_obj.get_user(cr, uid, repohost, 
+                    cdict['committer_email'], temp_name=extra.get('committer_name', False), context=context)
+                authors.append(user_obj.get_user(cr, uid, repohost, 
+                    cdict['author'], temp_name=extra.get('author_name', False), context=context))
+            else:
+                # the committer is the author
+                comitter_id = user_obj.get_user(cr, uid, repohost, 
+                    cdict['author'], temp_name=extra.get('author_name', False), context=context)
+            if 'authors' in extra:
+                authors += [ user_obj.get_user(cr, uid, repohost, usr, context=context)
+                            for usr in extra.get('authors', []) ]
+
             new_vals = {
                 'subject': subj,
                 'description': descr,
-                'comitter_id': user_obj.get_user(cr, uid, repohost, cdict['author'], context=context),
+                'comitter_id': comitter_id,
                 'date': datetime.fromtimestamp(cdict['when']),
                 'branch_id': branch_id,
                 'hash': extra.get('hash', False),
                 'ctype': 'single',
-                'authors': [ user_obj.get_user(cr, uid, repohost, usr, context=context)
-                                for usr in extra.get('authors', []) ],
+                'author_ids': [(6,0, authors)],
                 }
             if repo_bro.rtype != 'git':
                 new_vals['revno'] = cdict['revision']
@@ -550,7 +565,8 @@ class software_commit(propertyMix, osv.osv):
                 filesb:     list of (file, ...)
                 hash:       the repo hash (if different from 'revision')
                 branch_id:  reference to the branch, helps avoid lookups
-                authors:    list of strings
+                authors:    list of strings (deprecated)
+                committer:  Name of committer
         """
         # TODO
         ret = []
@@ -563,9 +579,10 @@ class software_commit(propertyMix, osv.osv):
                 tdate = time.mktime(time.strptime(dt, '%Y-%m-%d %H:%M:%S'))
             else:
                 tdate = time.mktime(cmt.date)
+                
             cdict = {
                 'changeid': cmt.id,
-                'author': cmt.comitter_id.userid,
+                'author': False,
                 'when': tdate,
                 'comments': cmt.subject,
                 'links': [],
@@ -577,7 +594,13 @@ class software_commit(propertyMix, osv.osv):
                 'category': False,
                 'extra': {},
                 }
-            
+
+            if cmt.author_ids:
+                cdict['author'] = cmt.author_ids[0].name
+                cdict['extra']['committer'] = cmt.comitter_id.name
+            else:
+                cdict['author'] = cmt.comitter_id.name
+
             if cmt.description:
                 cdict['comments'] += '\n\n' + cmt.description
             props = cdict['extra']
