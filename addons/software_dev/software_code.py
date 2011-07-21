@@ -181,7 +181,12 @@ class software_user(osv.osv):
     def _get_name(self, cr, uid, ids, name, args, context=None):
         res = {}
         for b in self.browse(cr, uid, ids, context=context):
-            res[b.id] = (b.employee_id and b.employee_id.name) or b.userid
+            if b.employee_id:
+                res[b.id] = b.employee_id.name
+            elif b.partner_address_id:
+                res[b.id] = b.partner_address_id.name
+            else:
+                res[b.id] = b.userid
         return res
 
 
@@ -193,23 +198,126 @@ class software_user(osv.osv):
                     help="The host, aka. service where this user logs in"),
         'userid': fields.char('User identity', size=1024, required=True, select=1,
                     help="The unique identifier of the user in this host. " \
-                        "Sometimes the email or login of the user in the host." ),
-        'employee_id': fields.many2one('hr.employee', 'Employee'),
+                        "Sometimes the email or login of the user in the host."),
+        'employee_id': fields.many2one('hr.employee', 'Employee',
+                    help="If the developer is an employee, connect to his record."),
+        'partner_address_id': fields.many2one('res.partner.address', 'Partner Address',
+                    help="For other developers, connect to known partners, "
+                        "through an address record."),
+        'temp_name': fields.char('Explicit Name', size=256,
+                    help="Stores the name temporarily, until an employee or partner "
+                        "is connected to this user"),
     }
-
     _defaults = {
     }
 
-    def get_user(self, cr, uid, hostid, userid, context=None):
+    def get_user(self, cr, uid, hostid, userid, temp_name=None, context=None):
         """Return the id of the user with that name, even create one
         """
         ud = self.search(cr, uid, [('host_id', '=', hostid),('userid', '=', userid)], context=context)
         if ud:
             return ud[0]
         else:
-            return self.create(cr, uid, { 'host_id': hostid, 'userid': userid }, context=context)
+            return self.create(cr, uid, { 'host_id': hostid, 'userid': userid,
+                    'temp_name': temp_name or False }, context=context)
 
-    _sql_constraints = [ ('host_user_uniq', 'UNIQUE(host_id, userid)', 'User id must be unique at host'), ]
+    _sql_constraints = [ ('host_user_uniq', 'UNIQUE(host_id, userid)', 'User id must be unique at host'), 
+            ('use_one_name', 'CHECK((employee_id IS NULL) OR (partner_address_id IS NULL))', 
+                'You can only define either Employee or Partner for a user'),
+        ]
+
+    def connect_users(self, cr, uid, ids=None, auto_partners=False, context=None):
+        """ Lookup and connect (map) VCS users to HR employees or partners
+        """
+        if ids is None or ids is False: # note we allow '[]'
+            ids = [ ('employee_id', '=', False), ('partner_address_id', '=', False)]
+
+        warnings = []
+        ready_users = []
+        for bro in self.browse(cr, uid, ids, context=context):
+            user_rec = {}
+            if bro.host_id.rtype in ('git', 'bzr', 'hg'):
+                if '<' in bro.userid or '>' in bro.userid:
+                    warnings += _("User id \"%s\" is full email, please split into name and email") % bro.userid
+                    continue
+                user_rec['lookup_email'] = bro.userid
+            if bro.temp_name:
+                user_rec['name'] = bro.temp_name
+            if user_rec:
+                user_rec['id'] = bro.id
+                user_rec['userid'] = bro.userid
+                ready_users.append(user_rec)
+
+        emails = {}
+        for ru in ready_users:
+            if 'lookup_email' in ru:
+                emails[ru['lookup_email']] = None
+        # first try, look them up on employees
+        for hru in self.pool.get('hr.employee').\
+                search_read(cr, uid, [('work_email', 'in', emails.keys())], \
+                    fields=['work_email'], context=context):
+            emails[hru['work_email']] = ('employee_id', hru['id'])
+
+        # second try, lookup the rest in res.partner.address
+        rest_emails = [ email for email, res in emails.items() if not res]
+        if rest_emails:
+            for rau in self.pool.get('res.partner.address').\
+                    search_read(cr, uid, [('email', 'in', rest_emails)],
+                                fields=['email'], context=context):
+                emails[rau['email']] = ('address_id', rau['id'])
+
+        # update them in ready_users
+        for ru in ready_users:
+            if not ru['lookup_email']:
+                continue
+            res = emails.get(ru['lookup_email'])
+            if not res:
+                continue
+            ru[res[0]] = res[1]
+            if len(res) > 2:
+                ru[res[2]] = res[3]
+
+        # now, an extra step: For those who have a partner_id, lookup if
+        # that partner is connected to an employee
+        for ru in ready_users:
+            if ('employee_id' not in ru) and ru.get('address_id'):
+                res = self.pool.get('hr.employee').search(cr,uid,
+                        ['|', ('address_id', '=', ru['address_id']), 
+                            ('address_home_id', '=', ru['address_id'])],
+                        limit=1, context=context)
+                if res:
+                    ru['employee_id'] = res[0]
+
+        # so, we should have all data in ready_users
+        for ru in ready_users:
+            if ru.get('employee_id'):
+                self.write(cr, uid, [ru['id'],], {'employee_id': ru['employee_id'],
+                        'partner_address_id': False, 'temp_name': False}, context=context)
+            elif ru.get('address_id'):
+                self.write(cr, uid, [ru['id'],], {'partner_address_id': ru['address_id'], 
+                        'temp_name': False}, context=context)
+            elif auto_partners:
+                address_id = None
+                if 'lookup_email' in ru:
+                    if emails.get(ru['lookup_email']):
+                        res = emails[ru['lookup_email']]
+                        assert res[0] == 'address_id', "Where did %r happen?" % res
+                        address_id = res[1]
+                if not address_id:
+                    # create a new address record
+                    name = ru.get('name', False) or ru['userid'].split('@',1)[0]
+                    address_id = self.pool.get('res.partner.address').\
+                            create(cr,uid, {'name': name, 'type': 'contact',
+                                    'email': ru.get('lookup_email', False)}, context=context)
+                    # note that this may bork with 'base_contact' module
+                if address_id:
+                    self.write(cr, uid, [ru['id'],], {'partner_address_id': address_id,
+                            'temp_name': False}, context=context)
+
+        if warnings:
+            return {'warning': '\n'.join(warnings)}
+
+        return {}
 
 software_user()
 
