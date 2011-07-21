@@ -34,7 +34,7 @@ class GitPoller_OE(GitMultiPoller):
     def __init__(self, branch, localBranch=None, **kwargs):
         branch_id = kwargs.pop('branch_id') # mandatory
         bspecs = [(branch, localBranch or branch, {'branch_id': branch_id}),]
-        GitMultiPoller.__init__(self, branchSpecs=bspecs, **kwargs)
+        GitMultiPoller.__init__(self, branchSpecs=bspecs, allHistory=True, **kwargs)
         self.branch_id = branch_id
         self.log_fields.update(author_name='%an', author_timestamp='%at',
                 parent_hashes='%P',committer_name='%cn', committer_email='%cE'
@@ -60,7 +60,7 @@ class GitPoller_OE(GitMultiPoller):
         d.addCallback(process)
         return d
 
-    def _doAddChange(self, branch, revDict, props=None):
+    def _doAddChange(self, branch, revDict, historic=False, props=None):
         """ do last steps and add the change
         
             unlike the parent function, we need to defer one more task,
@@ -124,7 +124,8 @@ class GitPoller_OE(GitMultiPoller):
                     category=self.category,
                     project=self.project,
                     repository=self.repourl,
-                    properties=properties)
+                    properties=properties,
+                    skip_build=historic)
             return d
 
         d = self._get_commit_files3(revDict['hash'])
