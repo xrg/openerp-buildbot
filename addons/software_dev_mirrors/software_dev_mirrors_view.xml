@@ -1,0 +1,88 @@
+<?xml version="1.0"?>
+<openerp>
+    <data>
+
+        <menuitem id="softdev_mirrors" name="Mirroring"
+            parent="software_dev.softdev_menu" sequence="30" groups="project.group_project_manager" />
+        <menuitem id="softdev_config_mirrors" name="Mirroring"
+            parent="software_dev.softdev_config" sequence="20" groups="project.group_project_manager" />
+
+        <record id="view_softdev_branchcol_form" model="ir.ui.view">
+          <field name="name">Branch Collections</field>
+            <field name="model">software_dev.mirrors.branch_collection</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+              <form>
+                <field name="name"/>
+                <field name="branch_ids" colspan="4" readonly="1"/>
+                <label string="Please add branches from their form view" colspan="4" />
+              </form>
+          </field>
+        </record>
+
+        <record id="view_softdev_branchcol_tree" model="ir.ui.view">
+          <field name="name">Branch Collections</field>
+            <field name="model">software_dev.mirrors.branch_collection</field>
+            <field name="type">tree</field>
+            <field name="arch" type="xml">
+              <tree>
+                <field name="name"/>
+              </tree>
+          </field>
+        </record>
+
+        <record id="action_softdev_branchcol" model="ir.actions.act_window">
+          <field name="name">Branch Collections</field>
+          <field name="type">ir.actions.act_window</field>
+            <field name="res_model">software_dev.mirrors.branch_collection</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+         </record>
+
+        <menuitem id="softdev_branchcols" name="Branch Collections"
+            action="action_softdev_branchcol"
+            parent="softdev_config_mirrors" sequence="10"
+            groups="project.group_project_manager" />
+
+
+    <!-- Commit Maps -->
+        <record id="view_softdev_cmap_form" model="ir.ui.view">
+          <field name="name">Commit Maps</field>
+            <field name="model">software_dev.mirrors.commitmap</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+              <form>
+                <field name="mark"/>
+                <field name="collection_id" />
+                <field name="commit_ids" colspan="4" />
+              </form>
+          </field>
+        </record>
+
+        <record id="view_softdev_cmap_tree" model="ir.ui.view">
+          <field name="name">Commit Maps</field>
+            <field name="model">software_dev.mirrors.commitmap</field>
+            <field name="type">tree</field>
+            <field name="arch" type="xml">
+              <tree>
+                <field name="mark"/>
+                <field name="collection_id" />
+              </tree>
+          </field>
+        </record>
+
+        <record id="action_softdev_cmap" model="ir.actions.act_window">
+          <field name="name">Commit Maps</field>
+          <field name="type">ir.actions.act_window</field>
+            <field name="res_model">software_dev.mirrors.commitmap</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+         </record>
+
+        <menuitem id="softdev_commitmaps" name="Commit Maps"
+            action="action_softdev_cmap"
+            parent="softdev_mirrors" sequence="10"
+            groups="project.group_project_manager" />
+
+
+</data> </openerp>

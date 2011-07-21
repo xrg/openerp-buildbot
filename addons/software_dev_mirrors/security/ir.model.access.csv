@@ -1,0 +1,3 @@
+"id","name","model_id:id","group_id:id","perm_read","perm_write","perm_create","perm_unlink"
+"access_branch_mirrors","software_dev.mirrors.branch_collection","model_software_dev_mirrors_branch_collection","software_dev.group_softdev_bot",1,0,0,0
+"access_commit_map","software_dev.mirrors.commitmap","model_software_dev_mirrors_commitmap","software_dev.group_softdev_bot",1,1,1,0
