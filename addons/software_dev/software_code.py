@@ -635,6 +635,8 @@ class software_commit(propertyMix, osv.osv):
             if cmt.parent_id:
                 props['parent_id'] = cmt.parent_id.id
                 props['parent_revno'] = cmt.parent_id.revno
+                
+            # TODO: other parents
 
             for cf in cmt.change_ids:
                 props['filesb'].append( {
