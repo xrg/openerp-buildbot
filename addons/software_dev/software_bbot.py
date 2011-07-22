@@ -57,16 +57,63 @@ class software_buildbot(osv.osv):
         found_branches = []   # ids of branches we have made so far
         bseries_obj = self.pool.get('software_dev.buildseries')
         branch_obj = self.pool.get('software_dev.branch')
+        commit_obj = self.pool.get('software_dev.commit')
+
+        def append_ret(new_branch, branch_id):
+            group_fields = ('repo_id', 'rtype', 'workdir', 'fetch_url', 'remote_name')
+            found_branches.append(branch_id)
+            if new_branch['rtype'] == 'git' and 'repo_id' in new_branch:
+                for old in ret:
+                    if old.get('rtype') == 'git' \
+                            and old.get('repo_id') == new_branch['repo_id']:
+                        if old.get('fetch_url') != new_branch.get('fetch_url'):
+                            continue
+                        assert old.get('workdir') == new_branch['workdir']
+                        assert old.get('remote_name') == new_branch.get('remote_name')
+                        if old.get('mode', 'branch') != 'multibranch':
+                            old_branch = old.copy()
+                            for fld in group_fields:
+                                old_branch.pop(fld, None)
+                            for fld in ('local_branch', 'branch_id', 'branch_path'):
+                                old.pop(fld, None)
+                            old['mode'] = 'multibranch'
+                            old['branch_specs'] = [ old_branch,]
+                        
+                        for fld in group_fields:
+                            new_branch.pop(fld, None)
+                        poll_intvl = new_branch.pop('poll_interval', None)
+                        if poll_intvl and poll_intvl < old.get('poll_interval', 3600):
+                            old['poll_interval'] = poll_intvl
+                        old['branch_specs'].append(new_branch)
+                        return
+            
+            ret.append(new_branch)
 
         for bser in bseries_obj.browse(cr, uid, [('builder_id','in',ids)], context=ctx):
             if bser.branch_id.id not in found_branches:
-                ret.append(branch_obj._fmt_branch(bser.branch_id))
-                found_branches.append(bser.branch_id.id)
+                append_ret(branch_obj._fmt_branch(bser.branch_id), bser.branch_id.id)
 
             for comp in bser.package_id.component_ids:
                 if comp.update_rev and comp.branch_id.id not in found_branches:
-                    ret.append(branch_obj._fmt_branch(comp.branch_id, fixed_commit=comp.commit_id))
-                    found_branches.append(comp.branch_id.id)
+                    append_ret(branch_obj._fmt_branch(comp.branch_id, fixed_commit=comp.commit_id), \
+                                comp.branch_id.id)
+
+
+        for r in ret:
+            # For each branch, if there are no commits, enable the 'allHistory'
+            # mode which will fetch all previous commits.
+            if r.get('mode') == 'multibranch':
+                for bs in r['branch_specs']:
+                    count_commits = commit_obj.search(cr, uid,
+                            [('branch_id', '=', bs['branch_id'])], count=True)
+                    if not count_commits:
+                        r['allHistory'] = True
+                        break
+            else:
+                count_commits = commit_obj.search(cr, uid,
+                            [('branch_id', '=', r['branch_id'])], count=True)
+                if not count_commits:
+                    r['allHistory'] = True
 
         return ret
 

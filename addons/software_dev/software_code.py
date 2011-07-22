@@ -178,6 +178,7 @@ class software_branch(osv.osv):
         """
         dret = {}
         dret['branch_id'] = branch_bro.id
+        dret['repo_id'] = branch_bro.repo_id.id
         dret['rtype'] = branch_bro.repo_id.rtype
         dret['branch_path'] = branch_bro.tech_code or \
                 (branch_bro.sub_url.replace('/','_'))
