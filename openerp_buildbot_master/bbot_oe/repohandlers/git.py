@@ -31,10 +31,10 @@ class GitPoller_OE(GitMultiPoller):
 
     """
     log_arguments = ['--first-parent', '--name-status']
-    def __init__(self, branch, localBranch=None, **kwargs):
+    def __init__(self, branch, localBranch=None, allHistory=False, **kwargs):
         branch_id = kwargs.pop('branch_id') # mandatory
         bspecs = [(branch, localBranch or branch, {'branch_id': branch_id}),]
-        GitMultiPoller.__init__(self, branchSpecs=bspecs, allHistory=True, **kwargs)
+        GitMultiPoller.__init__(self, branchSpecs=bspecs, allHistory=allHistory, **kwargs)
         self.branch_id = branch_id
         self.log_fields.update(author_name='%an', author_timestamp='%at',
                 parent_hashes='%P',committer_name='%cn', committer_email='%cE'
@@ -132,12 +132,23 @@ class GitPoller_OE(GitMultiPoller):
         d.addCallback(_final_add)
         return d
 
+class GitMultiPoller_OE(GitPoller_OE):
+    """ Enhanced subclass to fit OpenERP backend, record more data
+
+    """
+    def __init__(self, localBranch=None, allHistory=False, **kwargs):
+        GitMultiPoller.__init__(self, allHistory=allHistory, **kwargs)
+        # note: we *skip* GitPoller_OE.__init__ !
+        self.branch_id = None
+        self.log_fields.update(author_name='%an', author_timestamp='%at',
+                parent_hashes='%P',committer_name='%cn', committer_email='%cE'
+                # commit notes? Or isn't there a way to fetch them from remote anyway?
+                )
+
 class GitFactory(RepoFactory):
     @classmethod
     def createPoller(cls, poller_dict, conf, tmpconf):
         pbr = poller_dict
-        if pbr.get('mode', 'branch') != 'branch':
-            raise ValueError("Cannot handle %s mode yet" % pbr['mode'])
         fetch_url = pbr['fetch_url']
         p_interval = int(pbr.get('poll_interval', 600))
         # Early bail-out
@@ -146,26 +157,47 @@ class GitFactory(RepoFactory):
 
         kwargs = {'bare': True} # tmpconf['poller_kwargs'].copy()
 
-        kwargs.update (repourl=fetch_url,
-                pollInterval = p_interval,
-                branch=pbr.get('branch_path', 'master'),
-                branch_id=pbr['branch_id'],)
-
-        if 'local_branch' in pbr:
-            kwargs['localBranch'] = pbr['local_branch']
-
         if 'remote_name' in pbr:
             kwargs['remoteName'] = pbr['remote_name']
 
         if 'workdir' in pbr:
             kwargs['workdir'] = os.path.expanduser(pbr['workdir'])
 
+        pbr_mode = pbr.get('mode', 'branch')
+
+        kwargs.update (repourl=fetch_url,
+                pollInterval = p_interval)
+                
+        if 'allHistory' in pbr:
+            kwargs['allHistory'] = pbr['allHistory']
+
         category = '' # TODO: revise
         if 'group' in pbr:
             category = pbr['group'].replace('/','_').replace('\\','_') # etc.
             kwargs['category'] = pbr['group']
 
-        conf['change_source'].append(GitPoller_OE(**kwargs))
+        def _create_singlebranch():
+            kwargs.update( branch=pbr.get('branch_path', 'master'),
+                            branch_id=pbr['branch_id'])
+            if 'local_branch' in pbr:
+                kwargs['localBranch'] = pbr['local_branch']
 
+            conf['change_source'].append(GitPoller_OE(**kwargs))
+
+        def _create_multibranch():
+            kwargs['branchSpecs'] = []
+            for bs in pbr['branch_specs']:
+                branch = bs.get('branch_path', 'master')
+                t = ( branch, bs.get('local_branch', branch), { 'branch_id': bs['branch_id']})
+                kwargs['branchSpecs'].append(t)
+
+            conf['change_source'].append(GitMultiPoller_OE(**kwargs))
+
+        if  pbr_mode == 'branch':
+            return _create_singlebranch()
+        elif pbr_mode == 'multibranch':
+            return _create_multibranch()
+        else:
+            raise ValueError("Cannot handle %s mode yet" % pbr['mode'])
 
 repo_types = { 'git': GitFactory }
