@@ -29,8 +29,29 @@ from twisted.application import service
 from buildbot.master import BuildMaster
 from twisted.internet import defer, reactor
 from twisted.python import log
-from openerp_libclient import rpc, subscriptions
+from openerp_libclient import agent_commands
 
+from functools import wraps
+
+def call_with_master(func):
+    """ Decorator to find and add 'master' argument to a function, consume deferreds
+    """
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        master = self.getMaster()
+        if not master:
+            self._waitAndRestart(None)
+            raise agent_commands.CommandFailureException('Error!', 'Buildbot master is not active')
+        
+        if not self.running:
+            raise agent_commands.CommandFailureException('Error!', 'Buildbot poller is not active')
+        
+        res = func(self, master, *args, **kwargs)
+        if isinstance(res, defer.Deferred):
+            return None
+        else:
+            return res
+    return wrapper
 
 class MasterPoller(service.MultiService):
     """ Poll the OpenERP database, reconfig and deliver async notifications
@@ -38,26 +59,18 @@ class MasterPoller(service.MultiService):
     def __init__(self):
         service.MultiService.__init__(self)
         self.setName('master_poller')
-        self._tasks = []
-        self._hazError = False
+        self._command_thread = None
         
     def startService(self):
         service.MultiService.startService(self)
-        log.msg("Started")
-        return reactor.callLater(10.0, self.restartPolling)
+        log.msg("Started MasterPoller")
+        return reactor.callLater(7.0, self.restartPolling)
     
     def stopService(self):
         service.MultiService.stopService(self)
-        self._stopTasks()
-
-    def _stopTasks(self):
-        for t in self._tasks:
-            try:
-                t.stop()
-            except Exception:
-                pass
-        
-        self._tasks = []
+        if self._command_thread:
+            self._command_thread.stop()
+            self._command_thread = None
 
     def getMaster(self):
         """ Discover the BotMaster instance
@@ -72,61 +85,38 @@ class MasterPoller(service.MultiService):
         return master
 
     def restartPolling(self, result=None):
-        self._stopTasks()
+        if self._command_thread:
+            self._command_thread.stop()
+            self._command_thread = None
         if not self.running:
             return
-        if not self.getMaster():
+        master = self.getMaster()
+        if not master:
             return
-        
-        t = subscriptions.SubscriptionThread('software_dev.buildrequest:notify')
-        t.setCallback(self._triggerMasterRequests)
-        self._tasks.append(t)
-        t.start()
-        
-        t = subscriptions.SubscriptionThread('software_dev.buildbot:all-reconfig')
-        t.setCallback(self._triggerAllReconfig)
-        self._tasks.append(t)
-        t.start()
-        
-        t = subscriptions.SubscriptionThread('software_dev.buildbot:trigger-all-poll')
-        t.setCallback(self._pollAllSources)
-        self._tasks.append(t)
-        t.start()
+
+        address = "software_dev.buildbot:%s" % master.properties['bbot_id']
+        self._command_thread = agent_commands.CommandsThread(self, address,
+                    agent_name=master.master_name, agent_incarnation=master.master_incarnation)
+
+        self._command_thread.start()
+        log.msg('Restart MasterPoller command thread')
         return
 
     def _waitAndRestart(self, result, delay=10.0):
         return reactor.callLater(delay, self.restartPolling)
 
-    def _triggerMasterRequests(self):
-        master = self.getMaster()
-        if not master:
-            self._waitAndRestart(None)
-            return
-        
-        if not self.running:
-                return defer.suceed(True)
+    @call_with_master
+    def triggerMasterRequests(self, master):
         d = master.pollDatabaseBuildRequests()
         return d
     
-    def _triggerAllReconfig(self):
-        master = self.getMaster()
-        if not master:
-            self._waitAndRestart(None)
-            return
-        
-        if not self.running:
-                return defer.suceed(True)
+    @call_with_master
+    def triggerAllReconfig(self, master):
         d = master.loadTheConfigFile()
         return d
 
-    def _pollAllSources(self, res=None):
-        master = self.getMaster()
-        if not master:
-            self._waitAndRestart(None)
-            return
-        if not self.running:
-            return defer.suceed(True)
-
+    @call_with_master
+    def pollAllSources(self, master, res=None):
         try:
             # The twisted.internet.task.LoopingCall holds the function and args
             # of the poll. It is not thread safe, we need to prevent parallel
