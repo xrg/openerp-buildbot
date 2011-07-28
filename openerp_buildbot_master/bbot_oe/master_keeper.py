@@ -143,10 +143,9 @@ class Keeper(object):
         c['builders'] = []
         c['change_source']=[]
         c['status'] = []
+        c['properties'] = { 'bbot_id': self.bbot_id }
         
         c_mail = {}
-        slave_proxy_url = None
-        bzr_local_run = None
         tmpconf = { 'proxied_bzrs': {}, # map the remote branches to local ones.
             'poller_kwargs': {},
             }
@@ -165,11 +164,11 @@ class Keeper(object):
                 if attr['name'].startswith('mail_'):
                     c_mail[attr['name']] = attr['value']
                 elif attr['name'] == 'proxy_location':
-                    tmpconf['poller_kwargs'][attr['name']] = attr['value']
+                    self.logger.warning("Deprecated option:%s", attr['name'])
                 elif attr['name'] == 'slave_proxy_url':
-                    slave_proxy_url = attr['value']
+                    self.logger.warning("Deprecated option:%s", attr['name'])
                 elif attr['name'] == 'bzr_local_run':
-                    bzr_local_run = True
+                    self.logger.warning("Deprecated option:%s", attr['name'])
                 elif attr['name'] == 'manhole':
                     try:
                         mtype, margs = attr['value'].split('|', 1)
