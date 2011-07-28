@@ -31,7 +31,7 @@ builds and testing into the ERP.
 """,
     'author': 'OpenERP SA',
     'website': 'http://www.openerp.com',
-    'depends': ['base','project', 'hr', 'koo'],
+    'depends': ['base', 'base_commands', 'project', 'hr', 'koo'],
     'init_xml': [],
     'update_xml': [
         'security/software_security.xml',

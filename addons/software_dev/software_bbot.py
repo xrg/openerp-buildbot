@@ -23,7 +23,7 @@
 # from tools.translate import _
 from osv import fields, osv
 from properties import propertyMix
-import netsvc
+from tools.date_eval import date_eval
 
 class software_buildbot(osv.osv):
     _name = 'software_dev.buildbot'
@@ -162,8 +162,35 @@ class software_buildbot(osv.osv):
         """
 
         # So far, we issue an all-buildbots, all-kind reconfig
-        netsvc.ExportService.getService('subscription').publish(cr.dbname, '%s:all-reconfig' % self._name)
+        bc_obj = self.pool.get('base.command.address')
+        for i in ids:
+            proxy = bc_obj.get_proxy(cr, uid, '%s:%d' % (self._name, i),
+                                    expires=date_eval('now +10sec'),
+                                    context=context)
+            proxy.triggerAllReconfig()
         return True
+    
+    def create(self, cr, uid, vals, context=None):
+        res_id = super(software_buildbot, self).create(cr,uid,vals=vals, context=context)
+        try:
+            # We're pretty sure the name is unique, because our id is unique
+            self.pool.get('base.command.address').create(cr, uid, 
+                    {'name': '%s:%s' % (self._name, res_id)}, context=context)
+        except Exception:
+            osv.orm._logger.warning("%s: Could not create address for buildbot #%d", self._name, res_id, exc_info=True)
+        return res_id
+
+    def unlink(self, cr, uid, ids, context=None):
+        try:
+            names = [ '%s:%s' % (self._name, id) for id in ids]
+            addr_obj = self.pool.get('base.command.address')
+            if names:
+                addr_ids = addr_obj.search(cr, uid, [('name', 'in', names)], context=context)
+                if addr_ids:
+                    addr_obj.unlink(cr, uid, addr_ids, context=context)
+        except Exception:
+            osv.orm._logger.warning("%s: Could not unlink address for buildbots %r", self._name, ids, exc_info=True)
+        return super(software_buildbot, self).unlink(cr, uid, ids, context=context)
 
 software_buildbot()
 

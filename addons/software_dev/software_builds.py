@@ -26,6 +26,7 @@ import netsvc
 from properties import propertyMix, bbot_results
 import time
 from tools.func import virtual
+from tools.date_eval import date_eval
 
 class software_group(osv.osv):
     _name = 'software_dev.buildgroup'
@@ -438,8 +439,19 @@ class software_buildrequest(osv.osv):
         """Duplicate this build request, into one that will be rescheduled
         """
         bset_obj = self.pool.get('software_dev.buildset')
+        bc_obj = self.pool.get('base.command.address')
+        
         for bro in self.browse(cr, uid, ids, context=context):
             self.copy(cr, uid, bro.id, context=context)
+            
+            try:
+                proxy = bc_obj.get_proxy(cr, uid, 
+                                        'software_dev.buildbot:%d' % bro.builder_id.builder_id.id,
+                                        expires=date_eval('now +10min'),
+                                        context=context)
+                proxy.triggerMasterRequests()
+            except Exception:
+                osv.orm._logger.warning('Couldn\'t send command', exc_info=True)
         netsvc.ExportService.getService('subscription').publish(cr.dbname, '%s:notify' % self._name)
         return True
     
