@@ -466,7 +466,7 @@ class software_commit(propertyMix, osv.osv):
             if 'committer_email' in extra:
                 # we have both committer and author
                 comitter_id = user_obj.get_user(cr, uid, repohost, 
-                    cdict['committer_email'], temp_name=extra.get('committer_name', False), context=context)
+                    extra['committer_email'], temp_name=extra.get('committer_name', False), context=context)
                 authors.append(user_obj.get_user(cr, uid, repohost, 
                     cdict['author'], temp_name=extra.get('author_name', False), context=context))
             else:
