@@ -93,6 +93,41 @@ class software_repo(osv.osv):
         
         return ret
 
+    def get_rest_branch(self, cr, uid, ids, context=None):
+        """ Get the branch which will hold "rest of" commits
+
+            For some repositories, there can be commits that don't seem
+            to belong to any of the known/polled branches. An example is
+            with git repos and parent (incomplete, sometimes) commits
+            of the ones that belong to our branch.
+
+            A generic "rest" branch is the best way to keep the commit
+            associated to the right repo. It will be an 'imported', never
+            polled one and with a name that won't conflict with any
+            possible existing branches.
+
+            The name, so far, is '::rest' to make it distinct from any
+            real ones.
+        """
+        if isinstance(ids, (int,long)):
+            rid = ids
+        elif isinstance(ids, list):
+            assert len(ids) == 1, "Can only accept one id, not %r" % ids
+            rid = ids[0]
+        else:
+            raise TypeError("ids must be int/list, not %s" % type(ids))
+        branch_obj = self.pool.get('software_dev.branch')
+
+        sids = branch_obj.search(cr, uid, [('repo_id', '=', rid),
+                        ('sub_url', '=', '::rest')],
+                        context=context)
+        if sids:
+            return sids[0]
+        else:
+            return branch_obj.create(cr, uid, {'repo_id': rid,
+                    'name': '::rest', 'sub_url': '::rest', 'is_imported': True,
+                    'poll_interval': -1}, context=context)
+
 software_repo()
 
 class software_branch(osv.osv):
@@ -386,7 +421,7 @@ class software_commit(propertyMix, osv.osv):
         'description': fields.text('Description'),
 
         'date': fields.datetime('Date',),
-        'branch_id': fields.many2one('software_dev.branch', 'Branch', select=1),
+        'branch_id': fields.many2one('software_dev.branch', 'Branch', select=1, required=True),
         'hash': fields.char('Hash', size=1024, select=1,
                 help="In repos that support it, a unique hash of the commit"),
         'revno': fields.char('Revision', size=128, select=1,
@@ -434,6 +469,15 @@ class software_commit(propertyMix, osv.osv):
 
         extra = cdict.pop('extra')
         branch_id = extra.get('branch_id')
+        branch_rest_id = None
+        repo_bro = None
+        if not branch_id:
+            repo_id = extra.get('repo_id')
+            if not repo_id:
+                raise ValueError("No branch_id nor repo_id specified for commit")
+            repo_bro = self.pool.get('software_dev.repo').browse(cr, uid, repo_id, context=context)
+            branch_id = repo_bro.get_rest_branch(context=context)
+            branch_rest_id = branch_id
         assert branch_id # or discover it from repository + branch
 
         cr.execute('LOCK TABLE "%s" IN SHARE ROW EXCLUSIVE MODE;' % self._table, debug=self._debug)
@@ -448,6 +492,7 @@ class software_commit(propertyMix, osv.osv):
                 if cmt['ctype'] == 'incomplete':
                     cid = cmt['id']
                     # and let code below fill the incomplete commit
+                # TODO: what if it belongs to the 'rest' branch and we need to update?
                 else:
                     if self._debug:
                         osv.orm._logger.debug('%s: submit_change() returning existing commit %s',
@@ -459,7 +504,8 @@ class software_commit(propertyMix, osv.osv):
             if self._debug:
                 osv.orm._logger.debug('%s: cdict: %r', self._name, cdict)
                 osv.orm._logger.debug('%s: extra: %r', self._name, extra)
-            repo_bro = self.pool.get('software_dev.branch').browse(cr, uid, branch_id, context=context).repo_id
+            if not repo_bro:
+                repo_bro = self.pool.get('software_dev.branch').browse(cr, uid, branch_id, context=context).repo_id
             repohost =  repo_bro.host_id.id
             commiter_id = None
             authors = []
@@ -500,13 +546,16 @@ class software_commit(propertyMix, osv.osv):
                     for pc in parent_cmts:
                         assert pc['hash'] in parent_hash2id
                         parent_hash2id[pc['hash']] = pc['id']
-                    
+                
                 for khash in parent_hash2id:
                     if parent_hash2id[khash] is not None:
                         # note, this may change during this iteration, too
                         continue
+                    if not branch_rest_id:
+                        branch_rest_id = repo_bro.get_rest_branch(context=context)
                     parent_hash2id[khash] = self.create(cr, uid, \
-                        { 'hash': khash, 'ctype': 'incomplete'}, context=context)
+                        { 'hash': khash, 'ctype': 'incomplete', 'branch_id': branch_rest_id},
+                        context=context)
                 
                 new_vals['parent_id'] = parent_hash2id[extra['parent_hashes'][0]]
                 new_vals['ctype'] = 'reg'
