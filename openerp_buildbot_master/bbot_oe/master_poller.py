@@ -124,6 +124,7 @@ class MasterPoller(service.MultiService):
             # Its 'call' attribute is filled while waiting, cleared while
             # running the function.
 
+            # TODO: specify per change source, narrow down
             deds = []
             for csource in master.change_svc:
                 if not csource._loop:
@@ -139,5 +140,36 @@ class MasterPoller(service.MultiService):
             return d
         except Exception, e:
             log.err('Cannot trigger polls: %s' % e)
+
+    @call_with_master
+    def rescan_commits(self, master, repourl, commits, branch_id, branch='other', standalone=True):
+        """ Request a Poller to retrieve a set of arbitrary commits
+
+            @param repourl the key to select the right poller
+            @param commits a list of commit hashes
+            @param branch_id the id of the branch to register found commits against
+                Usually the "::rest" branch of that repository
+            @param branch the branch name, as given to parent Change() class
+            @param standalone do the hashes only, not their history
+        """
+
+        try:
+            # The twisted.internet.task.LoopingCall holds the function and args
+            # of the poll. It is not thread safe, we need to prevent parallel
+            # running of the calls.
+            # Its 'call' attribute is filled while waiting, cleared while
+            # running the function.
+
+            for csource in master.change_svc:
+                if csource.repourl != repourl:
+                    continue
+
+                # assume the poller does have the function
+                d = csource.rescan_commits(branch=branch,
+                        commSpecs=[(c, {'branch_id': branch_id}) for c in commits],
+                        standalone=standalone)
+                return d # break the loop
+        except Exception, e:
+            log.err('Cannot rescan commits: %s' % e)
 
 #eof

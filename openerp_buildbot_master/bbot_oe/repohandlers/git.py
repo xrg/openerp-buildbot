@@ -21,7 +21,7 @@
 
 from bbot_oe.repo_iface import RepoFactory
 from buildbot.changes.gitmultipoller import GitMultiPoller
-from twisted.internet import utils
+from twisted.internet import utils, defer
 from twisted.python import log
 import os
 from buildbot.util import epoch2datetime
@@ -131,6 +131,77 @@ class GitPoller_OE(GitMultiPoller):
         d = self._get_commit_files3(revDict['hash'])
         d.addCallback(_final_add)
         return d
+
+    @defer.deferredGenerator
+    def rescan_commits(self, branch, commSpecs, standalone=True):
+        """ Rescan and register arbitrary commits from commSpecs
+
+            @param branch the branch name, to satisfy buildbot's Change()
+            @param commSpecs a list of 2-item tuples:
+                (commit, props)
+            @param standalone causes the algorithm to only list the
+                specific commits. Otherwise, lists the full history of
+                each commit since the known branches
+        """
+        log.msg("Processing %d commits" % len(commSpecs))
+        if self.format_str is None:
+            self.format_str = self._prepare_format_str()
+            # would we ever need to change that dynamically?
+
+        currentBranches = None
+        if not standalone:
+            currentBranches = [ '%s/%s' % (self.remoteName, branch) \
+                                for branch, localBranch, p in self.branchSpecs ]
+            # print "allHistory, already know:", currentBranches
+
+        for commit, props in commSpecs:
+            revListArgs = ['log',] + self.log_arguments + \
+                    [ '--format=' + self.format_str,]
+            if standalone:
+                revListArgs.append('--no-walk')
+                revListArgs.append(commit)
+            else: # not standalone
+                # so, we need to scan the full history of that commit
+                # We need a starting point, so we'll use the merge base of all other
+                # branches to this
+                if currentBranches:
+                    if commit in currentBranches:
+                        continue
+                    d = utils.getProcessOutput(self.gitbin,
+                                    ['merge-base', '--octopus', commit ] + currentBranches, path=self.workdir,
+                                    env=dict(PATH=os.environ['PATH']), errortoo=False )
+                    wfd = defer.waitForDeferred(d)
+                    yield wfd
+                    results = wfd.getResult()
+                    assert results, "No merge-base result"
+                    merge_base = results.strip()
+                    if merge_base.startswith(commit):
+                        revListArgs.append(commit)
+                    else:
+                        revListArgs.append('%s..%s' % (merge_base, commit))
+                        currentBranches.append(merge_base)
+                else:
+                    # no other branch existed before this, so scan till the dawn of time
+                    revListArgs.append(commit)
+                currentBranches.append(commit) # mark its contents as known
+
+            # hope it's not too much output ...
+            log.msg("gitpoller: revListArgs: %s" % ' '.join(revListArgs))
+            d = utils.getProcessOutput(self.gitbin, revListArgs, path=self.workdir,
+                                    env=dict(PATH=os.environ['PATH']), errortoo=False )
+            wfd = defer.waitForDeferred(d)
+            yield wfd
+            results = wfd.getResult()
+
+            dl = self._parse_log_results(results, branch, localBranch='other', props=props, historic_mode=True)
+            if dl is None:
+                continue
+
+            assert isinstance(dl, defer.Deferred), type(dl)
+            wfd = defer.waitForDeferred(dl)
+            yield wfd
+            wfd.getResult()
+        # end for
 
 class GitMultiPoller_OE(GitPoller_OE):
     """ Enhanced subclass to fit OpenERP backend, record more data
