@@ -4,7 +4,7 @@
 "access_bot_builder","software_dev.bot.builder","model_software_dev_builder","group_softdev_bot",1,0,0,0
 "access_bot_repohost","software_dev.bot.repohost","model_software_dev_repohost","group_softdev_bot",1,0,0,0
 "access_bot_repo","software_dev.bot.repo","model_software_dev_repo","group_softdev_bot",1,0,0,0
-"access_bot_branch","software_dev.bot.branch","model_software_dev_branch","group_softdev_bot",1,0,0,0
+"access_bot_branch","software_dev.bot.branch","model_software_dev_branch","group_softdev_bot",1,0,1,0
 "access_bot_commit","software_dev.bot.commit","model_software_dev_commit","group_softdev_bot",1,1,1,0
 "access_bot_filechange","software_dev.bot.filechange","model_software_dev_filechange","group_softdev_bot",1,1,1,0
 "access_bot_slave","software_dev.bot.bbslave","model_software_dev_bbslave","group_softdev_bot",1,0,0,0
