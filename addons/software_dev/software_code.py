@@ -149,6 +149,9 @@ class software_branch(osv.osv):
                 url = b.repo_id.host_id.base_url or 'lp:'
                 if b.sub_url.startswith('~'):
                     url += b.sub_url
+                elif '@' in b.sub_url:
+                    luser, lurl = b.sub_url.split('@', 1)
+                    url += '~%s/%s/%s'% (luser, b.repo_id.base_url, lurl)
                 else:
                     url += b.repo_id.base_url + '/'+ b.sub_url
             else:
@@ -166,6 +169,17 @@ class software_branch(osv.osv):
             elif family == 'gitweb':
                 url = b.repo_id.host_id.browse_url
                 url += '/?p=' + b.repo_id.base_url
+            elif family == 'lp':
+                url = b.repo_id.host_id.browse_url or 'http://bazaar.launchpad.net'
+                if not url.endswith('/'):
+                    url += '/'
+                if b.sub_url.startswith('~'):
+                    url += b.sub_url
+                elif '@' in b.sub_url:
+                    luser, lurl = b.sub_url.split('@', 1)
+                    url += '~%s/%s/%s'% (luser, b.repo_id.base_url, lurl)
+                else:
+                    url += b.repo_id.base_url + '/'+ b.sub_url
             else:
                 url = b.sub_url
             res[b.id] = url
@@ -216,14 +230,14 @@ class software_branch(osv.osv):
         dret['repo_id'] = branch_bro.repo_id.id
         dret['rtype'] = branch_bro.repo_id.rtype
         dret['branch_path'] = branch_bro.tech_code or \
-                (branch_bro.sub_url.replace('/','_'))
+                (branch_bro.sub_url.replace('/','_').replace('~','').replace('@','_'))
         dret['fetch_url'] = branch_bro.fetch_url
         dret['poll_interval'] = branch_bro.poll_interval
 
         dret['workdir'] = branch_bro.repo_id.proxy_location
         if branch_bro.repo_id.local_prefix:
             dret['local_branch'] = branch_bro.repo_id.local_prefix + \
-                branch_bro.sub_url.replace('/','_')
+                branch_bro.sub_url.replace('/','_').replace('~','').replace('@','_')
             dret['remote_name'] = branch_bro.repo_id.local_prefix.rstrip('-_./+')
 
         return dret
