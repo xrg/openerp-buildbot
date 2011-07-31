@@ -92,10 +92,11 @@ from twisted.internet import defer, utils
 
 from bbot_oe.repo_iface import RepoFactory
 
-def generate_change(branch,
+def generate_change(branch, branch_id,
                     old_revno=None, old_revid=None,
                     new_revno=None, new_revid=None,
                     blame_merge_author=False,
+                    branch_nick=None,
                     last_revision=None):
     """Return a dict of information about a change to the branch.
 
@@ -130,15 +131,21 @@ def generate_change(branch,
     repository = branch.repository
     new_rev = repository.get_revision(new_revid)
     gaas = []
+    if branch_nick is not None:
+        # stop at branch boundaries, don't let the history explode back
+        if new_rev.properties.get('branch-nick') != branch_nick:
+            twisted.python.log.msg('Stopping at cross-branch border: "%s"->"%s"' % \
+                (branch_nick, new_rev.properties.get('branch_nick')))
+            return None
     if blame_merge_author:
         # this is a pqm commit or something like it
         gaas = repository.get_revision(
             new_rev.parent_ids[-1]).get_apparent_authors()
     else:
         gaas = new_rev.get_apparent_authors()
-    
-    props = {}
-    change['who'] = gaas[0]
+
+    props = {'branch_id': branch_id}
+    change['author'] = gaas[0]
     props['authors'] = gaas[1:]
     # maybe useful to know:
     # name, email = bzrtools.config.parse_username(change['who'])
@@ -146,6 +153,7 @@ def generate_change(branch,
     change['comments'] = new_rev.message
     change['revision'] = new_revno
     props['hash'] = new_revid
+    props['parent_hashes'] = new_rev.parent_ids[:]
     files = change['files'] = []
     filesb = props['filesb'] = []
     changes = repository.revision_tree(new_revid).changes_from(
@@ -161,7 +169,7 @@ def generate_change(branch,
                 continue
             tmp_kfiles.add(path)
             files.append(path)
-            filesb.append({'filename': path, 'ctype': ctype, 
+            filesb.append({'filename': path, 'ctype': ctype,
                         'lines_add':0, 'lines_rem':0 })
     for info in changes.renamed:
         oldpath, newpath, id, kind, text_modified, meta_modified = info
@@ -179,135 +187,166 @@ def generate_change(branch,
 class BzrPoller(buildbot.changes.base.PollingChangeSource,
                 buildbot.util.ComparableMixin):
 
-    compare_attrs = ['url']
+    compare_attrs = ['fetch_url', 'pollInterval', 'branch_id', 'workdir', 'local_branch']
     updateLock = defer.DeferredLock() # class-wide
 
-    def __init__(self, url, poll_interval=10*60, blame_merge_author=False,
-                    branch_name=None, branch_id=None, category=None,
-                    proxy_location=None, slave_proxy_url=None):
-        # poll_interval is in seconds, so default poll_interval is 10
-        # minutes.
-        self.url = url
-        self.poll_interval = poll_interval
+    def __init__(self, fetch_url, poll_interval=10*60, blame_merge_author=False,
+                    branch_path=None, branch_id=None, category=None,
+                    workdir=None, local_branch=None, last_revision=None,
+                    allHistory=False):
+        """
+            @param fetch_url the remote url to fetch the branch from
+            @param branch_path ?? (used as the branch name in Change())
+            @param workdir if specified, the local proxy of the branch to poll
+            @param local_branch the name of the branch within workdir
+            @param poll_interval is in seconds, so default poll_interval is 10
+                minutes.
+            @param last_revision the last known revision from previous
+                incarnations of the poller, so that this time it only scans
+                from there onwards
+        """
+        # buildbot.changes.base.PollingChangeSource.__init__(self)
+        self.fetch_url = fetch_url
+        self.pollInterval = poll_interval
         self.blame_merge_author = blame_merge_author
-        self.branch_name = branch_name
+        self.branch_path = branch_path
         self.branch_id = branch_id
         self.category = category
-        self.proxy_location = os.path.expanduser(proxy_location)
-        self.slave_proxy_url = slave_proxy_url
+        if workdir:
+            self.repo_dir = os.path.expanduser(workdir)
+        else:
+            self.repo_dir = None
         self.initLock = defer.DeferredLock()
         self.lastPoll = time.time()
-        self.last_revision = None
-        self.local_run = False # would skip pulling from LP, for testing
+        self.local_branch = local_branch
+        if (not last_revision) and allHistory:
+            twisted.python.log.msg("Historic mode for branch: %s" % fetch_url)
+            self.last_revision = 0
+            self.historic_mode = True
+        else:
+            self.historic_mode = False
+            self.last_revision = last_revision
+
+        self.branch_dir = None # to be filled after init
 
     def _get_url(self):
         # bzr+ssh://bazaar.launchpad.net/~launchpad-pqm/launchpad/devel/
         # works, lp:~launchpad-pqm/launchpad/devel/ doesn't without help.
-        if self.url.startswith('lp:'):
-           #url = 'bzr+ssh://bazaar.launchpad.net/' + url[3:]
-           return 'https://code.launchpad.net/' + self.url[3:]
-        elif self.url.startswith('/'):
-            return 'file://' + self.url
+        if self.fetch_url.startswith('lp:'):
+           return 'https://code.launchpad.net/' + self.fetch_url[3:]
+        elif self.fetch_url.startswith('/'):
+            return 'file://' + self.fetch_url
 
     def startService(self):
-        twisted.python.log.msg("BzrPoller(%s) starting" % self.url)
+        twisted.python.log.msg("BzrPoller(%s) starting" % self.fetch_url)
         d = self.initRepository()
         buildbot.changes.base.PollingChangeSource.startService(self)
+        return d
 
     @deferredLocked('initLock')
     def initRepository(self):
-        
+
+        def _init_repo(_):
+            """ Initializes the local proxy repository
+            """
+            os.mkdir(self.repo_dir)
+            d = utils.getProcessOutputAndValue('bzr',
+                    ['init-repo', '--no-trees', '.'], path=self.repo_dir)
+            d.addCallback(self._convert_nonzero_to_failure)
+            d.addErrback(self._stop_on_failure)
+            return d
+
         def checkout_branch(_):
             """ Checkout the remote (LP) branch into the local proxy_location
             """
             d = utils.getProcessOutputAndValue('bzr',
                     ['branch', '-q', '--bind', '--no-tree',
-                        self._get_url(), self.proxy_location])
+                        self._get_url(), self.branch_dir])
             d.addCallback(self._convert_nonzero_to_failure)
             d.addErrback(self._stop_on_failure)
             self.lastPoll = time.time()
             return d
 
-        def get_last_revision(_):
-            self.last_revision = None
-            last_cid = self.master.db.changes._getLatestChangeNumberNow(branch=self.branch_id) # TODO defer
-            while last_cid:
-                change = self.master.db.changes._get_change_num(last_cid)
-                assert change['repository'] == str(self.branch_id), "%r != %r" % (change['repository'], self.branch_id)
-                if not change['revision']:
-                    # This must have been a failed merge "commit", go up
-                    last_cid = change['properties'].get('parent_id', (False, False))[0]
-                    continue
-                self.last_revision = int(change['revision'])
-                # We *assume* here that the last change registered with the
-                # branch is a head earlier than our current revision.
-                # But, it might happen that the repo is diverged and that change
-                # is no longer in the history...
-                break
-
         def _updateLock_release(x):
             self.updateLock.release()
             return x
+
         d = defer.succeed(None)
-        if self.proxy_location:
-            if not os.path.isdir(self.proxy_location):
+
+        if self.repo_dir:
+            self.branch_dir = self.repo_dir
+            if not self.branch_dir.endswith('/'):
+                self.branch_dir += '/'
+            self.branch_dir += self.local_branch or self.branch_path
+
+            if not os.path.isdir(self.branch_dir):
                 d = self.updateLock.acquire()
+                if not os.path.isdir(self.repo_dir):
+                    d.addCallback(_init_repo)
                 d.addCallback(checkout_branch)
                 d.addBoth(_updateLock_release)
-        d.addCallback(get_last_revision)
         return d
 
     def describe(self):
-        return "BzrPoller watching %s" % self.url
+        return "BzrPoller watching %s" % self.fetch_url
 
     @deferredLocked('initLock')
     def poll(self):
         d = defer.succeed(None)
-        if self.proxy_location and not self.local_run:
+        if self.branch_dir:
             d.addCallback(self._update_branch)
         d.addCallback(self._get_changes)
         return d
 
     @deferredLocked('updateLock')
     def _update_branch(self, _):
-        twisted.python.log.msg("Updating branch from %s to %s" % (self.url, self.proxy_location))
-        d = utils.getProcessOutputAndValue('bzr', ['pull', '-q', ], path=self.proxy_location)
+        twisted.python.log.msg("Updating branch from %s to %s" % \
+                                (self.fetch_url, self.branch_dir))
+        d = utils.getProcessOutputAndValue('bzr', ['pull', '-q', ], path=self.branch_dir)
         d.addCallback(self._convert_nonzero_to_failure)
         self.lastPoll = time.time()
         return d
 
     @defer.deferredGenerator
     def _get_changes(self, _):
-        branch = bzrlib.branch.Branch.open_containing(self.proxy_location or self._get_url())[0]
-        branch_name = self.branch_name
+        branch = bzrlib.branch.Branch.open_containing(self.branch_dir or self._get_url())[0]
         changes = []
-        change = generate_change(branch,
+        change = generate_change(branch, self.branch_id,
                     blame_merge_author=self.blame_merge_author,
                     last_revision=self.last_revision)
         if change:
-            change['branch'] = self.url
-            change['repository'] = str(self.branch_id)
+            change['branch'] = self.fetch_url
             change['category'] = self.category
             changes.append(change)
             if self.last_revision is not None:
+                if self.historic_mode:
+                    branch_nick = branch.repository.get_revision(branch.last_revision()).\
+                                properties.get('branch-nick',None)
+                else:
+                    branch_nick = None
                 while self.last_revision + 1 < change['revision']:
-                    change = generate_change(
-                        branch, new_revno=change['revision']-1,
-                        blame_merge_author=self.blame_merge_author)
-                    change['branch'] = self.url
-                    change['repository'] = str(self.branch_id)
+                    change = generate_change( branch, self.branch_id,
+                        new_revno=change['revision']-1,
+                        blame_merge_author=self.blame_merge_author,
+                        branch_nick=branch_nick)
+                    if not change:
+                        break
+                    change['branch'] = self.fetch_url
                     change.setdefault('category', self.category)
                     changes.append(change)
         if changes:
             self.last_revision = changes[0]['revision']
             twisted.python.log.msg("We have %d changes" % len(changes))
             changes.reverse()
-        
+
             for change in changes:
+                if self.historic_mode:
+                    change['skip_build'] = True
                 wfd = defer.waitForDeferred(self.master.addChange(**change))
                 yield wfd
                 wfd.getResult()
- 
+        self.historic_mode = False
+
     def _stop_on_failure(self, f):
         "utility method to stop the service when a failure occurs"
         d = defer.maybeDeferred(lambda : self.running and self.stopService())
@@ -334,35 +373,20 @@ class BzrFactory(RepoFactory):
         pbr = poller_dict # a shorthand
         if pbr.get('mode','branch') != 'branch':
             raise ValueError("Cannot handle %r mode" % pbr.get('mode'))
-        
-        fetch_url = pbr['fetch_url']
-        p_interval = int(pbr.get('poll_interval', 600))
-        kwargs = tmpconf.get('poller_kwargs',{}).copy()
-        category = ''
-        if 'group' in pbr:
-            category = pbr['group'].replace('/','_').replace('\\','_') # etc.
-            kwargs['category'] = pbr['group']
-        if 'proxy_location' in kwargs:
-            if not kwargs['proxy_location'].endswith(os.sep):
-                kwargs['proxy_location'] += os.sep
-            if category:
-                kwargs['proxy_location'] += category + '_'
-            kwargs['proxy_location'] += pbr.get('branch_name', 'branch-%d' % pbr['branch_id'])
 
-        if p_interval > 0:
-            conf['change_source'].append(BzrPoller(fetch_url,
-                poll_interval = p_interval,
-                branch_name=pbr.get('branch_name', None),
-                branch_id=pbr['branch_id'],
-                **kwargs))
-            if tmpconf.get('bzr_local_run', False):
-                conf['change_source'][-1].local_run = tmpconf['bzr_local_run']
-        if tmpconf.get('slave_proxy_url') and kwargs.get('proxy_location'): # FIXME
-            tbname = pbr.get('branch_name', 'branch-%d' % pbr['branch_id'])
-            if category:
-                tbname = category + '_' + tbname
-            tbname = tbname.replace(' ','%20').replace('/','%2F')
-            tmpconf['proxied_bzrs'][fetch_url] = tmpconf['slave_proxy_url'] + '/' + tbname
+        kwargs = {}
+        # category = ''
+        if 'group' in pbr:
+            # category = pbr['group'].replace('/','_').replace('\\','_') # etc.
+            kwargs['category'] = pbr['group']
+
+        for kk in ('branch_id', 'branch_path', 'workdir', 'local_branch',
+                'fetch_url', 'poll_interval', 'last_revision', 'allHistory'):
+            if kk in pbr:
+                kwargs[kk] = pbr[kk]
+
+        if pbr.get('poll_interval', -1) > 0:
+            conf['change_source'].append(BzrPoller( **kwargs))
 
 repo_types = { 'bzr': BzrFactory }
 
