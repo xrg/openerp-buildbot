@@ -240,6 +240,13 @@ class software_branch(osv.osv):
                 branch_bro.sub_url.replace('/','_').replace('~','').replace('@','_')
             dret['remote_name'] = branch_bro.repo_id.local_prefix.rstrip('-_./+')
 
+        if branch_bro.repo_id.rtype == 'bzr':
+            # Fetch last revision
+            commit_obj = self.pool.get('software_dev.commit')
+            cids = commit_obj.search_read(branch_bro._cr, branch_bro._uid, [('branch_id', '=', branch_bro.id)],
+                    order='id desc', limit=1, fields=['revno'], context=branch_bro._context)
+            if cids:
+                dret['last_revision'] = int(cids[0]['revno'])
         return dret
 
 software_branch()
