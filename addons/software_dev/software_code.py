@@ -269,7 +269,7 @@ class software_user(osv.osv):
 
 
     _columns = {
-        'name': fields.function(_get_name, string='Name', method=True,
+        'name': fields.function(_get_name, string='Name', method=True, size=256,
                     type='char', store=False, readonly=True),
         'host_id': fields.many2one('software_dev.repohost', 'Host', required=True,
                     select=1,
