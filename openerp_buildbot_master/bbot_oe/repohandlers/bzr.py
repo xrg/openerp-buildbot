@@ -61,14 +61,13 @@ blame_merge_author: normally, the user that commits the revision is the user
 Contact Information
 -------------------
 
-Maintainer/author: gary.poster@canonical.com
+Original author: gary.poster@canonical.com
+Hacker: xrg@hellug.gr
 """
 
-#import urllib
-#import urlparse
-#import StringIO
 import os
 import time
+import re
 
 import buildbot.util
 import buildbot.changes.base
@@ -91,6 +90,25 @@ import twisted.spread.pb
 from twisted.internet import defer, utils
 
 from bbot_oe.repo_iface import RepoFactory
+
+mege = re.compile(r'([^\(]+) *(\(.*\))? *(\< ?(.*?) ?\>)?$')
+
+# maybe useful to know:
+# name, email = bzrtools.config.parse_username(change['who'])
+
+def split_email(an):
+    """ Split an email expression to name, mail
+    """
+    ma = mege.match(an.strip())
+    
+    if ma:
+        an = ma.group(1).strip()
+        if ma.group(2):
+            an += ' ' + ma.group(2)
+        aemail = ma.group(4)
+        return (an, aemail)
+    else:
+        return ('', aemail)
 
 def generate_change(branch, branch_id,
                     old_revno=None, old_revid=None,
@@ -145,10 +163,10 @@ def generate_change(branch, branch_id,
         gaas = new_rev.get_apparent_authors()
 
     props = {'branch_id': branch_id}
-    change['author'] = gaas[0]
+    props['author_name'], change['author'] = split_email(gaas[0])
+    if new_rev.committer and new_rev.committer != gaas[0]:
+        props['committer_name'], props['committer_email'] = split_email(new_rev.committer)
     props['authors'] = gaas[1:]
-    # maybe useful to know:
-    # name, email = bzrtools.config.parse_username(change['who'])
     change['when_timestamp'] = epoch2datetime(new_rev.timestamp)
     change['comments'] = new_rev.message
     change['revision'] = new_revno
