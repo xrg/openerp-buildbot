@@ -91,7 +91,7 @@ from twisted.internet import defer, utils
 
 from bbot_oe.repo_iface import RepoFactory
 
-mege = re.compile(r'([^\(]+) *(\(.*\))? *(\< ?(.*?) ?\>)?$')
+mege = re.compile(r'([^\(]+) *(\(.*\))? *(\< ?(.*?) ?\>)$')
 
 # maybe useful to know:
 # name, email = bzrtools.config.parse_username(change['who'])
