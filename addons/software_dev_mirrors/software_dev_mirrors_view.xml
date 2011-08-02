@@ -44,6 +44,41 @@
             parent="softdev_config_mirrors" sequence="10"
             groups="project.group_project_manager" />
 
+        <record id="view_softdev_branch_inherit_form" model="ir.ui.view">
+            <field name="inherit_id" ref="software_dev.view_softdev_branch_form"/>
+            <field name="model">software_dev.branch</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+                <field name="browse_url" position="after">
+                    <newline />
+                    <field name="branch_collection_id"/>
+                    <field name="is_imported" />
+                </field>
+          </field>
+        </record>
+
+
+        <record id="view_softdev_commit_inherit_form" model="ir.ui.view">
+            <field name="inherit_id" ref="software_dev.view_softdev_commit_form"/>
+            <field name="model">software_dev.commit</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+                <field name="tag_descr" position="after">
+                    <field name="commitmap_id"/>
+                </field>
+          </field>
+        </record>
+
+        <record id="view_softdev_commit_inherit_tree" model="ir.ui.view">
+            <field name="inherit_id" ref="software_dev.view_softdev_commit_tree"/>
+            <field name="model">software_dev.commit</field>
+            <field name="type">tree</field>
+            <field name="arch" type="xml">
+                <field name="hash" position="after">
+                    <field name="commitmap_id"/>
+                </field>
+          </field>
+        </record>
 
     <!-- Commit Maps -->
         <record id="view_softdev_cmap_form" model="ir.ui.view">
