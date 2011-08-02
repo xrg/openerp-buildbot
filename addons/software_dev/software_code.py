@@ -766,6 +766,8 @@ class software_changestats(osv.osv):
         'count_files': fields.integer('Files changed', required=True),
         'lines_add': fields.integer('Lines added', required=True),
         'lines_rem': fields.integer('Lines removed', required=True ),
+        'merge_add': fields.integer('Lines merged in'),
+        'merge_rem': fields.integer('Lines merged out'),
     }
     _defaults = {
         'commits': 0,
