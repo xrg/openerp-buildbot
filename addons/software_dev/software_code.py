@@ -407,7 +407,7 @@ class software_commit(propertyMix, osv.osv):
     """
     _name = 'software_dev.commit'
     _description = 'Code Commit'
-    _function_fields_browse = True
+    _function_field_browse = True
 
     def _get_name(self, cr, uid, ids, name, args, context=None):
         res = {}
