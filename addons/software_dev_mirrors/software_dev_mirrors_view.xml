@@ -14,6 +14,7 @@
             <field name="arch" type="xml">
               <form>
                 <field name="name"/>
+                <field name="buildbot_id" />
                 <field name="branch_ids" colspan="4" readonly="1"/>
                 <label string="Please add branches from their form view" colspan="4" />
               </form>
@@ -27,6 +28,7 @@
             <field name="arch" type="xml">
               <tree>
                 <field name="name"/>
+                <field name="buildbot_id" />
               </tree>
           </field>
         </record>

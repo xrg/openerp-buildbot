@@ -28,6 +28,8 @@ class softdev_branch_collection(osv.osv):
 
     _columns = {
         'name': fields.char('Name', size=128, required=True, select=True),
+        'buildbot_id': fields.many2one('software_dev.buildbot', 'Buildbot', required=True, select=True,
+                            help="Buildbot master which will perform the mirroring operations"),
         'branch_ids': fields.one2many('software_dev.branch', 'branch_collection_id',
                 string='Branches',
                 help="All branches that participate in the sync. Their mapping "
@@ -78,6 +80,23 @@ class software_dev_branch(osv.osv):
         return res
 
 software_dev_branch()
+
+class software_dev_buildbot(osv.osv):
+    _inherit = 'software_dev.buildbot'
+
+    def _iter_polled_branches(self, cr, uid, ids, context=None):
+
+        for ib in super(software_dev_buildbot, self).\
+                _iter_polled_branches(cr, uid, ids, context=context):
+            yield ib
+
+        bcol_obj = self.pool.get('software_dev.mirrors.branch_collection')
+
+        for bcol in bcol_obj.browse(cr, uid, [('buildbot_id', 'in', ids)], context=context):
+            for ib in bcol.branch_ids:
+                yield ib
+
+software_dev_buildbot()
 
 class softdev_commit_mapping(osv.osv):
     _name = "software_dev.mirrors.commitmap"
