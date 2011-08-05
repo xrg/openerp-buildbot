@@ -108,7 +108,7 @@ def split_email(an):
         aemail = ma.group(4)
         return (an, aemail)
     else:
-        return ('', aemail)
+        return ('', an)
 
 def generate_change(branch, branch_id,
                     old_revno=None, old_revid=None,
