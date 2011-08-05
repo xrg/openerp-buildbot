@@ -57,6 +57,37 @@ software_repohost()
 class software_repo(osv.osv):
     _name = 'software_dev.repo'
     _description = 'Repository'
+    
+    def _get_repo_url(self, cr, uid, ids, name, args, context=None):
+        """ Get a URL for accessing the repo (maybe pseydo)
+        
+            For git repositories, this is the real fetch URL. For bzr ones
+            this /may/ be the repository (collection) one.
+        """
+        res = {}
+        for b in self.browse(cr, uid, ids, context=context):
+            family = b.host_id.host_family
+            url = None
+            if family == 'github':
+                url = b.host_id.base_url or 'git://github.com'
+                url += '/' + b.base_url
+            elif family == 'gitweb':
+                url = b.host_id.base_url
+                url += '/' + b.base_url
+            elif family == 'lp':
+                url = b.host_id.base_url or 'lp:'
+                if not (url.endswith(':') or url.endswith('/')):
+                    url += '/'
+                url += b.base_url
+            elif b.rtype in ('git', 'bzr'):
+                url = b.host_id.base_url
+                url += '/' + b.base_url
+            else:
+                # FIXME!
+                url = '#%s/%s' % (b.host_id.id, b.id)
+            res[b.id] = url
+        return res
+
     _columns = {
         'name': fields.char('Name', required=True, size=64),
         'host_id': fields.many2one('software_dev.repohost', 'Host', required=True),
@@ -69,29 +100,13 @@ class software_repo(osv.osv):
         'local_prefix': fields.char('Local prefix', size=64,
                 help="If the local proxy is shared among repos, prefix branch names with this, to avoid conflicts"),
         'branch_ids': fields.one2many('software_dev.branch', 'repo_id', 'Branches'),
+        'repo_url': fields.function(_get_repo_url, string="Repo URL",
+                    type="char", method=True, readonly=True, size=1024,
+                    help="URL of the repository"),
     }
 
     _defaults = {
     }
-    
-    def _get_unique_url(self, cr, uid, ids, context=None):
-        """ Get a unique string representation of the repository
-        """
-        ret = {}
-        for bro in self.browse(cr, uid, ids, context=context):
-            if bro.base_url:
-                s = ''
-                if bro.host_id.base_url:
-                    s = bro.host_id.base_url
-                elif bro.host_id.host_family == 'lp':
-                    s = 'lp:'
-                s += bro.base_url
-                ret[bro.id] = s
-            else:
-                # FIXME!
-                ret[bro.id] = '#%s/%s' % (bro.host_id.id, bro.id)
-        
-        return ret
 
     def get_rest_branch(self, cr, uid, ids, context=None):
         """ Get the branch which will hold "rest of" commits
@@ -139,13 +154,7 @@ class software_branch(osv.osv):
         for b in self.browse(cr, uid, ids, context=context):
             family = b.repo_id.host_id.host_family
             url = None
-            if family == 'github':
-                url = b.repo_id.host_id.base_url or 'git://github.com'
-                url += '/' + b.repo_id.base_url
-            elif family == 'gitweb':
-                url = b.repo_id.host_id.base_url
-                url += '/' + b.repo_id.base_url
-            elif family == 'lp':
+            if family == 'lp':
                 url = b.repo_id.host_id.base_url or 'lp:'
                 if b.sub_url.startswith('~'):
                     url += b.sub_url
@@ -154,8 +163,11 @@ class software_branch(osv.osv):
                     url += '~%s/%s/%s'% (luser, b.repo_id.base_url, lurl)
                 else:
                     url += b.repo_id.base_url + '/'+ b.sub_url
+            elif b.repo_id.rtype == 'git':
+                url = b.repo_id.repo_url
             else:
-                url = b.sub_url
+                url = b.repo_id.repo_url
+                url += '/' + b.sub_url
             res[b.id] = url
         return res
 
@@ -528,7 +540,7 @@ class software_commit(propertyMix, osv.osv):
             if not repo_bro:
                 repo_bro = self.pool.get('software_dev.branch').browse(cr, uid, branch_id, context=context).repo_id
             repohost =  repo_bro.host_id.id
-            commiter_id = None
+            comitter_id = None
             authors = []
             if 'committer_email' in extra:
                 # we have both committer and author
@@ -683,7 +695,7 @@ class software_commit(propertyMix, osv.osv):
                 'revlink': False, # TODO
                 'revision': (cmt.branch_id.repo_id.rtype != 'git' and cmt.revno) or False,
                 'branch': cmt.branch_id.sub_url,
-                'repository': cmt.branch_id.repo_id._get_unique_url(context=context)[cmt.branch_id.repo_id.id],
+                'repository': cmt.branch_id.repo_id.repo_url,
                 'project': False,
                 'category': False,
                 'extra': {},
