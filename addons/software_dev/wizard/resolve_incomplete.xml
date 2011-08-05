@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+<data>
+
+    <record id="view_resolve_incomplete" model="ir.ui.view">
+	    <field name="name">Resolve Incomplete</field>
+	    <field name="model">software_dev.wizard.resolve_incomplete</field>
+	    <field name="type">form</field>
+	    <field name="arch" type="xml">
+		<form string="Resolve Incomplete Commits">
+		    <field name="buildbot_id" colspan="4" />
+		    <field name="repo_ids" colspan="4" />
+		    <separator colspan="4"/>
+		    <group col="2" colspan="4">
+			<button icon="gtk-cancel" special="cancel" string="Close"/>
+			<button name="resolve" string="Resolve" type="object" icon="gtk-ok"/>
+		    </group>
+		    </form>
+	    </field>
+    	</record>
+
+    <act_window id="action_resolve_incomplete"
+	name="Resolve Incomplete"
+	res_model="software_dev.wizard.resolve_incomplete"
+	view_mode="form" target="new" view_type="form"
+	key2="client_action_multi"
+	context="{'default_repo_id': active_id}"
+	src_model="software_dev.repo" />
+
+</data>
+</openerp>

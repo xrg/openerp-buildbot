@@ -21,3 +21,4 @@
 
 import quick_repo
 import commit2build
+import resolve_incomplete
