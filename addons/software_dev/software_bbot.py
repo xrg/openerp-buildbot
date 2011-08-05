@@ -42,6 +42,23 @@ class software_buildbot(osv.osv):
 
     _sql_constraints = [ ('code_uniq', 'UNIQUE(tech_code)', 'The tech code must be unique.'), ]
 
+    def _iter_polled_branches(self, cr, uid, ids, context=None):
+        """ Iterate over the branches that should be polled
+        
+            *yield* each one (maybe duplicates) branch that has to have a
+            changesource in the corresponding buildbot (narrowed by `ids`)
+            
+            @return branch browse objects, by yielding
+        """
+        bseries_obj = self.pool.get('software_dev.buildseries')
+        
+        for bser in bseries_obj.browse(cr, uid, [('builder_id','in',ids)], context=context):
+            yield bser.branch_id
+
+            for comp in bser.package_id.component_ids:
+                if comp.update_rev:
+                    yield comp.branch_id
+
     def get_polled_branches(self, cr, uid, ids, context=None):
         """Helper for the buildbot, list all the repos+branches it needs to poll.
 
@@ -51,11 +68,8 @@ class software_buildbot(osv.osv):
         @return A list of dicts, with branch (or repo) information
         """
 
-        ctx = context or {}
-
         ret = []
         found_branches = []   # ids of branches we have made so far
-        bseries_obj = self.pool.get('software_dev.buildseries')
         branch_obj = self.pool.get('software_dev.branch')
         commit_obj = self.pool.get('software_dev.commit')
 
@@ -89,15 +103,9 @@ class software_buildbot(osv.osv):
             
             ret.append(new_branch)
 
-        for bser in bseries_obj.browse(cr, uid, [('builder_id','in',ids)], context=ctx):
-            if bser.branch_id.id not in found_branches:
-                append_ret(branch_obj._fmt_branch(bser.branch_id), bser.branch_id.id)
-
-            for comp in bser.package_id.component_ids:
-                if comp.update_rev and comp.branch_id.id not in found_branches:
-                    append_ret(branch_obj._fmt_branch(comp.branch_id, fixed_commit=comp.commit_id), \
-                                comp.branch_id.id)
-
+        for branch_id in self._iter_polled_branches(cr, uid, ids, context=context):
+            if branch_id.id not in found_branches:
+                append_ret(branch_obj._fmt_branch(branch_id), branch_id.id)
 
         for r in ret:
             # For each branch, if there are no commits, enable the 'allHistory'
