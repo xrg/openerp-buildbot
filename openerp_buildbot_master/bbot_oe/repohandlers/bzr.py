@@ -205,15 +205,15 @@ def generate_change(branch, branch_id,
 class BzrPoller(buildbot.changes.base.PollingChangeSource,
                 buildbot.util.ComparableMixin):
 
-    compare_attrs = ['fetch_url', 'pollInterval', 'branch_id', 'workdir', 'local_branch']
+    compare_attrs = ['repourl', 'pollInterval', 'branch_id', 'workdir', 'local_branch']
     updateLock = defer.DeferredLock() # class-wide
 
-    def __init__(self, fetch_url, poll_interval=10*60, blame_merge_author=False,
+    def __init__(self, repourl, poll_interval=10*60, blame_merge_author=False,
                     branch_path=None, branch_id=None, category=None,
                     workdir=None, local_branch=None, last_revision=None,
                     allHistory=False):
         """
-            @param fetch_url the remote url to fetch the branch from
+            @param repourl the remote url to fetch the branch from
             @param branch_path ?? (used as the branch name in Change())
             @param workdir if specified, the local proxy of the branch to poll
             @param local_branch the name of the branch within workdir
@@ -224,7 +224,7 @@ class BzrPoller(buildbot.changes.base.PollingChangeSource,
                 from there onwards
         """
         # buildbot.changes.base.PollingChangeSource.__init__(self)
-        self.fetch_url = fetch_url
+        self.repourl = repourl
         self.pollInterval = poll_interval
         self.blame_merge_author = blame_merge_author
         self.branch_path = branch_path
@@ -238,7 +238,7 @@ class BzrPoller(buildbot.changes.base.PollingChangeSource,
         self.lastPoll = time.time()
         self.local_branch = local_branch
         if (not last_revision) and allHistory:
-            twisted.python.log.msg("Historic mode for branch: %s" % fetch_url)
+            twisted.python.log.msg("Historic mode for branch: %s" % repourl)
             self.last_revision = 0
             self.historic_mode = True
         else:
@@ -250,13 +250,13 @@ class BzrPoller(buildbot.changes.base.PollingChangeSource,
     def _get_url(self):
         # bzr+ssh://bazaar.launchpad.net/~launchpad-pqm/launchpad/devel/
         # works, lp:~launchpad-pqm/launchpad/devel/ doesn't without help.
-        if self.fetch_url.startswith('lp:'):
-           return 'https://code.launchpad.net/' + self.fetch_url[3:]
-        elif self.fetch_url.startswith('/'):
-            return 'file://' + self.fetch_url
+        if self.repourl.startswith('lp:'):
+           return 'https://code.launchpad.net/' + self.repourl[3:]
+        elif self.repourl.startswith('/'):
+            return 'file://' + self.repourl
 
     def startService(self):
-        twisted.python.log.msg("BzrPoller(%s) starting" % self.fetch_url)
+        twisted.python.log.msg("BzrPoller(%s) starting" % self.repourl)
         d = self.initRepository()
         buildbot.changes.base.PollingChangeSource.startService(self)
         return d
@@ -306,7 +306,7 @@ class BzrPoller(buildbot.changes.base.PollingChangeSource,
         return d
 
     def describe(self):
-        return "BzrPoller watching %s" % self.fetch_url
+        return "BzrPoller watching %s" % self.repourl
 
     @deferredLocked('initLock')
     def poll(self):
@@ -319,7 +319,7 @@ class BzrPoller(buildbot.changes.base.PollingChangeSource,
     @deferredLocked('updateLock')
     def _update_branch(self, _):
         twisted.python.log.msg("Updating branch from %s to %s" % \
-                                (self.fetch_url, self.branch_dir))
+                                (self.repourl, self.branch_dir))
         d = utils.getProcessOutputAndValue('bzr', ['pull', '-q', ], path=self.branch_dir)
         d.addCallback(self._convert_nonzero_to_failure)
         self.lastPoll = time.time()
@@ -333,7 +333,7 @@ class BzrPoller(buildbot.changes.base.PollingChangeSource,
                     blame_merge_author=self.blame_merge_author,
                     last_revision=self.last_revision)
         if change:
-            change['branch'] = self.fetch_url
+            change['branch'] = self.repourl
             change['category'] = self.category
             changes.append(change)
             if self.last_revision is not None:
@@ -349,7 +349,7 @@ class BzrPoller(buildbot.changes.base.PollingChangeSource,
                         branch_nick=branch_nick)
                     if not change:
                         break
-                    change['branch'] = self.fetch_url
+                    change['branch'] = self.repourl
                     change.setdefault('category', self.category)
                     changes.append(change)
         if changes:
@@ -392,14 +392,14 @@ class BzrFactory(RepoFactory):
         if pbr.get('mode','branch') != 'branch':
             raise ValueError("Cannot handle %r mode" % pbr.get('mode'))
 
-        kwargs = {}
+        kwargs = {'repourl': pbr['fetch_url']}
         # category = ''
         if 'group' in pbr:
             # category = pbr['group'].replace('/','_').replace('\\','_') # etc.
             kwargs['category'] = pbr['group']
 
         for kk in ('branch_id', 'branch_path', 'workdir', 'local_branch',
-                'fetch_url', 'poll_interval', 'last_revision', 'allHistory'):
+                'poll_interval', 'last_revision', 'allHistory'):
             if kk in pbr:
                 kwargs[kk] = pbr[kk]
 
