@@ -10,6 +10,7 @@
 		<form string="Resolve Incomplete Commits">
 		    <field name="buildbot_id" colspan="4" />
 		    <field name="repo_ids" colspan="4" />
+		    <field name="limit" />
 		    <separator colspan="4"/>
 		    <group col="2" colspan="4">
 			<button icon="gtk-cancel" special="cancel" string="Close"/>

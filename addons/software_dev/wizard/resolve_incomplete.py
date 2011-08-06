@@ -37,6 +37,8 @@ class resolve_incomplete(osv.osv_memory):
         'buildbot_id': fields.many2one('software_dev.buildbot',
                 string='BuildBot', required=True,
                 help="Buildbot to use for resolving commits"),
+        'limit': fields.integer('Limit',
+                help='If set, only resolve up to that many commits'),
         }
 
     def __get_default_repo_id(self, cr, uid, context=None):
@@ -57,17 +59,26 @@ class resolve_incomplete(osv.osv_memory):
         commit_obj = self.pool.get('software_dev.commit')
         bc_obj = self.pool.get('base.command.address')
         
+        count_processed = 0
+        limit = False
+        
         for rinc in self.browse(cr, uid, ids, context=context):
             for rid in rinc.repo_ids:
                 # usually they would be only in the '::rest' branch, but we search
                 # all of them, nevertheless
                 branch_ids = [b.id for b in rid.branch_ids]
                 
+                if rinc.limit:
+                    limit = rinc.limit - count_processed
+                    if limit <= 0:
+                        break
+
                 commit_res = commit_obj.search_read(cr, uid, [('branch_id', 'in', branch_ids),
-                        ('ctype','=','incomplete')], fields=['hash'], context=context)
+                        ('ctype','=','incomplete')], fields=['hash'], limit=limit, context=context)
                 if not commit_res:
                     continue
                 
+                count_processed += len(commit_res)
                 commits = [ c['hash'] for c in commit_res ]
                 
                 proxy = bc_obj.get_proxy(cr, uid,
