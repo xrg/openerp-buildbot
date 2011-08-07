@@ -158,6 +158,8 @@ class GitPoller_OE(GitMultiPoller):
             revListArgs = ['log',] + self.log_arguments + \
                     [ '--format=' + self.format_str,]
             if standalone:
+                if '--first-parent' in revListArgs:
+                    revListArgs.remove('--first-parent')
                 revListArgs.append('--no-walk')
                 revListArgs.append(commit)
             else: # not standalone
@@ -189,9 +191,21 @@ class GitPoller_OE(GitMultiPoller):
             log.msg("gitpoller: revListArgs: %s" % ' '.join(revListArgs))
             d = utils.getProcessOutput(self.gitbin, revListArgs, path=self.workdir,
                                     env=dict(PATH=os.environ['PATH']), errortoo=False )
+
+            def errb(res):
+                log.err("Cannot scan commit %s: %s" %(commit, res))
+                return None
+
+            d.addErrback(errb)
+
             wfd = defer.waitForDeferred(d)
             yield wfd
             results = wfd.getResult()
+
+            if not results:
+                log.msg("No info for commit %s" % commit)
+                # TODO mark the issue
+                continue
 
             dl = self._parse_log_results(results, branch, localBranch='other', props=props, historic_mode=True)
             if dl is None:
@@ -220,7 +234,6 @@ class GitFactory(RepoFactory):
     @classmethod
     def createPoller(cls, poller_dict, conf, tmpconf):
         pbr = poller_dict
-        fetch_url = pbr['fetch_url']
         p_interval = int(pbr.get('poll_interval', 600))
         # Early bail-out
         if p_interval <= 0:
@@ -236,9 +249,9 @@ class GitFactory(RepoFactory):
 
         pbr_mode = pbr.get('mode', 'branch')
 
-        kwargs.update (repourl=fetch_url,
+        kwargs.update (repourl=pbr['repourl'],
                 pollInterval = p_interval)
-                
+
         if 'allHistory' in pbr:
             kwargs['allHistory'] = pbr['allHistory']
 
