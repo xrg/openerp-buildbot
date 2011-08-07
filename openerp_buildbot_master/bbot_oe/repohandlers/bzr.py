@@ -75,6 +75,7 @@ import buildbot.changes.changes
 from buildbot.util import deferredLocked, epoch2datetime
 
 import bzrlib.branch
+import bzrlib.repository
 import bzrlib.errors
 import bzrlib.trace
 import twisted.cred.credentials
@@ -133,7 +134,7 @@ def generate_change(branch, branch_id,
     identified as the "who", not the person who committed the branch itself.
     This is typically used for PQM.
     """
-    change = {} # files, who, comments, revision; NOT branch (= branch.nick)
+
     if new_revno is None:
         new_revno = branch.revno()
     if last_revision and (new_revno == last_revision):
@@ -147,6 +148,27 @@ def generate_change(branch, branch_id,
     if old_revid is None:
         old_revid = branch.get_rev_id(old_revno)
     repository = branch.repository
+
+    return _generate_change2(repository=repository, new_revid=new_revid,
+            old_revid=old_revid, branch_id=branch_id, new_revno=new_revno,
+            blame_merge_author=blame_merge_author, branch_nick=branch_nick)
+
+def generate_change_revid(repository, new_revid, branch_id, new_revno=None):
+    try:
+        return _generate_change2(repository, new_revid=new_revid, old_revid=None,
+                    branch_id=branch_id, new_revno=new_revno)
+    except bzrlib.errors.NoSuchRevision, e:
+        twisted.python.log.err('Unknown bzr revision: %s' % e)
+        return None
+
+def _generate_change2(repository, new_revid, old_revid,
+                    branch_id, new_revno=False,
+                    blame_merge_author=False,
+                    branch_nick=None ):
+    """ Inner workings of generate_change(), relative to repository
+    """
+    change = {} # files, who, comments, revision; NOT branch (= branch.nick)
+
     new_rev = repository.get_revision(new_revid)
     gaas = []
     if branch_nick is not None:
@@ -174,6 +196,8 @@ def generate_change(branch, branch_id,
     props['parent_hashes'] = new_rev.parent_ids[:]
     files = change['files'] = []
     filesb = props['filesb'] = []
+    if (not old_revid) and (new_rev.parent_ids):
+        old_revid = new_rev.parent_ids[0]
     changes = repository.revision_tree(new_revid).changes_from(
         repository.revision_tree(old_revid))
     tmp_kfiles = set()
@@ -211,7 +235,7 @@ class BzrPoller(buildbot.changes.base.PollingChangeSource,
     def __init__(self, fetch_url, poll_interval=10*60, blame_merge_author=False,
                     branch_path=None, branch_id=None, category=None,
                     workdir=None, local_branch=None, last_revision=None,
-                    allHistory=False):
+                    allHistory=False, repourl=None):
         """
             @param fetch_url the remote url to fetch the branch from
             @param branch_path ?? (used as the branch name in Change())
@@ -222,6 +246,7 @@ class BzrPoller(buildbot.changes.base.PollingChangeSource,
             @param last_revision the last known revision from previous
                 incarnations of the poller, so that this time it only scans
                 from there onwards
+            @param repourl the URL to access the repository, if one
         """
         # buildbot.changes.base.PollingChangeSource.__init__(self)
         self.fetch_url = fetch_url
@@ -237,6 +262,7 @@ class BzrPoller(buildbot.changes.base.PollingChangeSource,
         self.initLock = defer.DeferredLock()
         self.lastPoll = time.time()
         self.local_branch = local_branch
+        self.repourl = repourl
         if (not last_revision) and allHistory:
             twisted.python.log.msg("Historic mode for branch: %s" % fetch_url)
             self.last_revision = 0
@@ -384,6 +410,50 @@ class BzrPoller(buildbot.changes.base.PollingChangeSource,
             raise EnvironmentError('command failed with exit code %d: %s' % (code, stderr))
         return (stdout, stderr, code)
 
+    @defer.inlineCallbacks
+    def rescan_commits(self, branch, commSpecs, standalone=True):
+        """ Rescan and register arbitrary commits from commSpecs
+
+            @param branch the branch name, to satisfy buildbot's Change()
+            @param commSpecs a list of 2-item tuples:
+                (commit, props)
+            @param standalone causes the algorithm to only list the
+                specific commits. Otherwise, lists the full history of
+                each commit since the known branches
+
+            see also same function in gitpoller
+        """
+        twisted.python.log.msg("Rescanning %d commits" % len(commSpecs))
+        assert standalone, "Not prepared to do history traversal yet"
+
+
+        repourl = self.repo_dir or self.repourl
+
+        if not repourl:
+            raise ValueError("rescan_commits() must not be called w/o repourl")
+
+        if repourl.startswith('lp:'):
+           repourl = 'https://launchpad.net/' + repourl[3:]
+        elif repourl.startswith('/'):
+            repourl = 'file://' + repourl
+
+        repository = bzrlib.repository.Repository.open(repourl)
+        changes = []
+
+        for commit, props in commSpecs:
+            change = generate_change_revid(repository, commit, branch_id=props['branch_id'])
+            if not change:
+                continue
+
+            change['branch'] = branch
+            change['category'] = self.category
+            changes.append(change)
+
+        twisted.python.log.msg("We have %d changes" % len(changes))
+
+        for change in changes:
+            change['skip_build'] = True
+            yield self.master.addChange(**change)
 
 class BzrFactory(RepoFactory):
     @classmethod
@@ -399,7 +469,8 @@ class BzrFactory(RepoFactory):
             kwargs['category'] = pbr['group']
 
         for kk in ('branch_id', 'branch_path', 'workdir', 'local_branch',
-                'fetch_url', 'poll_interval', 'last_revision', 'allHistory'):
+                'fetch_url', 'poll_interval', 'last_revision', 'allHistory',
+                'repourl'):
             if kk in pbr:
                 kwargs[kk] = pbr[kk]
 
