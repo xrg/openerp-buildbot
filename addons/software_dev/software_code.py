@@ -243,6 +243,7 @@ class software_branch(osv.osv):
         dret['rtype'] = branch_bro.repo_id.rtype
         dret['branch_path'] = branch_bro.tech_code or \
                 (branch_bro.sub_url.replace('/','_').replace('~','').replace('@','_'))
+        dret['repourl'] = branch_bro.repo_id.repo_url
         dret['fetch_url'] = branch_bro.fetch_url
         dret['poll_interval'] = branch_bro.poll_interval
 
