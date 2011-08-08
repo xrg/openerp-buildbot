@@ -402,6 +402,7 @@ class software_buildrequest(osv.osv):
 
     _columns = {
         'builder_id': fields.many2one('software_dev.buildseries', 'Builder', required=True, select=True),
+        'buildbot_id': fields.related('builder_id', 'buildbot_id', type='many2one', obj='software_dev.buildbot'),
         'buildername': fields.related('builder_id', 'buildername', type='char', size=256),
         # every BuildRequest has a BuildSet
         # the sourcestampid and reason live in the BuildSet
@@ -446,7 +447,7 @@ class software_buildrequest(osv.osv):
             
             try:
                 proxy = bc_obj.get_proxy(cr, uid, 
-                                        'software_dev.buildbot:%d' % bro.builder_id.builder_id.id,
+                                        'software_dev.buildbot:%d' % bro.buildbot_id.id,
                                         expires=date_eval('now +10min'),
                                         context=context)
                 proxy.triggerMasterRequests()
