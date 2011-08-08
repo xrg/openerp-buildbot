@@ -20,7 +20,8 @@
 ##############################################################################
 
 from osv import osv, fields
-import netsvc
+from tools.date_eval import date_eval
+
 
 class commit2build(osv.osv_memory):
     """Manually request a build for a specific commit
@@ -51,6 +52,7 @@ class commit2build(osv.osv_memory):
         breq_obj = self.pool.get('software_dev.buildrequest')
         ret_ids = []
         val_now = fields.datetime.now()
+        buildbot_ids = set()
         for bro in self.browse(cr, uid, ids, context=context):
             # step 1: create buildset
 
@@ -71,11 +73,20 @@ class commit2build(osv.osv_memory):
                     },
                     context=context)
             ret_ids.append(bset_id)
+            buildbot_ids.add(bro.builder_id.builder_id.id)
+
 
         try:
-            netsvc.ExportService.getService('subscription').publish(cr.dbname,
-                    'software_dev.buildrequest:notify')
-        except Exception:
+            bc_obj = self.pool.get('base.command.address')
+            for bbid in buildbot_ids:
+                proxy = bc_obj.get_proxy(cr, uid,
+                        'software_dev.buildbot:%d' % (bbid),
+                        expires=date_eval('now +1hour'),
+                        context=context)
+                proxy.triggerMasterRequests()
+                # TODO: perhaps narrow to the request we've sent
+        except Exception, e:
+            print "exception", e
             pass
         return {'type': 'ir.actions.act_window_close'}
 
