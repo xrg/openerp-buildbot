@@ -24,6 +24,18 @@ from osv import fields, osv
 from datetime import datetime
 
 class softdev_branch_collection(osv.osv):
+    """ A branch collection defines the mirroring of one repo to another
+
+        It should contain all branches of each repo to be exported, plus
+        any number of "is_imported" branches of mirroring repos.
+
+        As the branch collection is the container of unique marks, such
+        a collection must only be used for equivalent repositories,
+        for example "openobject-addons" in bzr, "addons" in git.
+
+        The existence of "is_imported" branches is only necessary when one
+        of the repos is /only/ used to import (has no exported branches).
+    """
     _name = 'software_dev.mirrors.branch_collection'
 
     _columns = {
