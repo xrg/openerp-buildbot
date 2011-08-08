@@ -73,6 +73,7 @@ class ExportGitMarks(_GitMarksProcessor, BuildStep):
         if (not self.overwrite) and os.path.isfile(self.marks_fname):
             self.step_status.setText(["No need to export git marks"])
             self.finished(SUCCESS)
+            return
         d = threads.deferToThread(self._do_export)
         self.step_status.setText(["export git marks", self.marks_fname])
         return d
@@ -89,7 +90,7 @@ class ExportGitMarks(_GitMarksProcessor, BuildStep):
             self.finished(SUCCESS)
         except Exception, e:
             self.description = 'Failed to export marks'
-            self.step_status.setText(['failed export', str(e)])
+            self.step_status.setText(['failed export' + str(e)])
             self.finished(FAILURE)
 
 class _ImportMarksMixin:
@@ -101,17 +102,23 @@ class _ImportMarksMixin:
             print "No result from feed_marks()"
             return
 
-        self.step_status.setText("Marks imported: %s processed / %s skipped" % (res.get('processed', 0), res.get('skipped', 0)))
+        stext = ["Marks imported:",
+                "%s processed / %s skipped" % \
+                        (res.get('processed', 0), res.get('skipped', 0))
+                ]
+
         if res.get('errors'):
-            self.step_status.setText("Some errors reported: %s" % ', '.join(res['errors'].keys()))
-            print "Errors:"
-            # TODO!
+            stext.append("Some errors reported: %s" % ', '.join(res['errors'].keys()))
+
+            slog = ["Errors:" ]
             for e, r in res['errors'].items():
-                print "%s: %r" % (e, r)
-            print
+                slog.append("%s: %r" % (e, r))
+            self.addCompleteLog('errors', '\n'.join(slog))
             self.finished(WARNINGS)
         else:
             self.finished(SUCCESS)
+
+        self.step_status.setText(stext)
 
 class ImportGitMarks(_GitMarksProcessor, _ImportMarksMixin, BuildStep):
     """ Load fastexport marks from repo dir into database. Git format
@@ -144,7 +151,7 @@ class ImportGitMarks(_GitMarksProcessor, _ImportMarksMixin, BuildStep):
 
         except Exception, e:
             self.description = 'Failed to import marks'
-            self.step_status.setText(['failed export', str(e)])
+            self.step_status.setText(['failed import' + str(e)])
             self.finished(FAILURE)
 
 class FastExportGit(_GitMarksProcessor, MasterShellCommand):
@@ -166,7 +173,7 @@ class FastExportGit(_GitMarksProcessor, MasterShellCommand):
         MasterShellCommand.start(self)
 
 class FastImportGit(_GitMarksProcessor, MasterShellCommand):
-    
+
     def __init__(self, fi_file=None, **kwargs):
         _GitMarksProcessor.__init__(self, **kwargs)
         kwargs.pop('command', None)
@@ -209,6 +216,7 @@ class ExportBzrMarks(_BzrMarksProcessor, BuildStep):
         if (not self.overwrite) and os.path.isfile(self.marks_fname):
             self.step_status.setText(["No need to export bzr marks"])
             self.finished(SUCCESS)
+            return
         d = threads.deferToThread(self._do_export)
         self.step_status.setText(["export bzr marks", self.marks_fname])
         return d
@@ -222,7 +230,7 @@ class ExportBzrMarks(_BzrMarksProcessor, BuildStep):
             self.finished(SUCCESS)
         except Exception, e:
             self.description = 'Failed to export marks'
-            self.step_status.setText(['failed export', str(e)])
+            self.step_status.setText(['failed export' + str(e)])
             self.finished(FAILURE)
 
 class ImportBzrMarks(_BzrMarksProcessor, _ImportMarksMixin, BuildStep):
@@ -258,11 +266,11 @@ class ImportBzrMarks(_BzrMarksProcessor, _ImportMarksMixin, BuildStep):
 
         except Exception, e:
             self.description = 'Failed to import marks'
-            self.step_status.setText(['failed export', str(e)])
+            self.step_status.setText(['failed import:' + str(e)])
             self.finished(FAILURE)
 
 class FastExportBzr(_BzrMarksProcessor, MasterShellCommand):
-    
+
     def __init__(self, branch_name=None, local_branch=None, fi_file=None, **kwargs):
         _BzrMarksProcessor.__init__(self, **kwargs)
         kwargs.pop('command', None)
@@ -277,14 +285,14 @@ class FastExportBzr(_BzrMarksProcessor, MasterShellCommand):
     def start(self):
         self._set_fname()
         fi_file = os.path.join(self.step_status.build.builder.basedir, self.fi_file)
-        self.command = [ 'bzr', 'fast-export', 
+        self.command = [ 'bzr', 'fast-export',
                 '--import-marks='+ self.marks_fname, '--export-marks='+ self.marks_fname,
                 '--single-author', '-b', self.branch_name, '--no-tags',
                 self.local_branch or self.branch_name,  fi_file ]
         MasterShellCommand.start(self)
 
 class FastImportBzr(_BzrMarksProcessor, MasterShellCommand):
-    
+
     def __init__(self, fi_file=None, **kwargs):
         _BzrMarksProcessor.__init__(self, **kwargs)
         kwargs.pop('command', None)
@@ -297,7 +305,7 @@ class FastImportBzr(_BzrMarksProcessor, MasterShellCommand):
     def start(self):
         self._set_fname()
         fi_file = os.path.join(self.step_status.build.builder.basedir, self.fi_file)
-        self.command = [ 'bzr','fast-import', 
+        self.command = [ 'bzr','fast-import',
                 '--import-marks='+ self.marks_fname, '--export-marks='+ self.marks_fname,
                 fi_file ]
         MasterShellCommand.start(self)
