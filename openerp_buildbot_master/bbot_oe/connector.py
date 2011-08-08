@@ -254,6 +254,11 @@ class SourceStampsCCOE(OERPbaseComponent):
         return threads.deferToThread(thd)
 
     def _getSStampNumberedNow(self, ssid, old_res=None):
+        if not ssid:
+            return dict(ssid=None, branch=None, revision=None,
+                    patch_body=None, patch_level=None, patch_subdir=None,
+                    repository=None, project=None,
+                    changeids=[])
         assert isinstance(ssid, (int, long))
         
         if not old_res:
