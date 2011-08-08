@@ -90,7 +90,8 @@ class softdev_branch_collection(osv.osv):
                     stepname = 'ExportBzrMarks'
                 else:
                     continue
-                bret['steps'].append((stepname, {'repo_id': rp.id, 'repo_dir': rp.proxy_location}))
+                sname = 'Download marks for %s' % rp.name
+                bret['steps'].append((stepname, { 'name': sname, 'repo_id': rp.id, 'repo_dir': rp.proxy_location}))
                 repos_done.add(rp.id)
 
             # Step B: for every exported branch, fast-export it to a bundle file
@@ -107,6 +108,7 @@ class softdev_branch_collection(osv.osv):
                 else:
                     continue
 
+                sname = 'Export %s branch %s' % (rp.rtype, bbra.name)
                 branch_name = bbra.tech_code or \
                                 (bbra.sub_url.replace('/','_').replace('~','').replace('@','_'))
                 fi_file = 'import-%s.fi' % branch_name
@@ -114,7 +116,7 @@ class softdev_branch_collection(osv.osv):
                 if rp.local_prefix:
                     local_branch = rp.local_prefix + \
                                 bbra.sub_url.replace('/','_').replace('~','').replace('@','_')
-                bret['steps'].append((stepname, { 'repo_id': rp.id,
+                bret['steps'].append((stepname, { 'name': sname, 'repo_id': rp.id,
                             'repo_dir': rp.proxy_location,
                             'branch_name': branch_name,
                             'local_branch': local_branch,
@@ -134,7 +136,9 @@ class softdev_branch_collection(osv.osv):
                     else:
                         continue
 
-                    bret['steps'].append((stepname, { 'repo_id': rp.id,
+                    sname = 'Import in %s' % rp.name
+                    bret['steps'].append((stepname, { 'name': sname,
+                            'repo_id': rp.id,
                             'repo_dir': rp.proxy_location,
                             'fi_file': fi_file, }))
                     repos_done.add(rp.id)
@@ -152,7 +156,8 @@ class softdev_branch_collection(osv.osv):
                     stepname = 'ImportBzrMarks'
                 else:
                     continue
-                bret['steps'].append((stepname, {'repo_id': rp.id, 'repo_dir': rp.proxy_location}))
+                sname = 'Upload marks for %s' % rp.name
+                bret['steps'].append((stepname, {'name': sname, 'repo_id': rp.id, 'repo_dir': rp.proxy_location}))
                 repos_done.add(rp.id)
 
             ret.append(bret)
