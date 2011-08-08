@@ -48,12 +48,115 @@ class softdev_branch_collection(osv.osv):
         ret_id = None
         for br in repo_bro.branch_ids:
             if br.branch_collection_id:
-                if ret_id:
+                if ret_id and br.branch_collection_id.id != ret_id:
                     raise osv.orm.except_orm(_('Data error'), _('Multiple branch collections are mapped to repo %d') % repo_id)
                 ret_id = br.branch_collection_id.id
             # and keep the loop
 
         return ret_id
+
+    def get_builders(self, cr, uid, ids, context=None):
+        """ Format list of dicts for builders to send to buildbot
+        """
+        ret = []
+        for bcol in self.browse(cr, uid, ids, context=context):
+            dir_name = 'Mirror-' + bcol.name
+            dir_name = dir_name.replace(' ', '_').replace('/','_')
+            #db_name = dir_name.replace('-','_') # FIXME unused
+
+            bret = { 'name': 'Mirror-' + bcol.name,
+                    'builddir': dir_name,
+                    'steps': [],
+                    'properties': { 'group': 'Mirroring' }, # 'sequence': bldr.sequence, },
+                    'scheduler': 'none', # bldr.scheduler, *0*
+                    # 'tstimer': None, # means one build per change
+                    }
+
+            bret['slavenames'] = [ sl.tech_code \
+                    for sl in bcol.buildbot_id.slave_ids \
+                    if not (sl.dedicated or sl.test_ids) ]
+
+            # Steps for export-import
+            # Step A: for every repository, update the marks file if needed
+            repos_done = set()
+            for bbra in bcol.branch_ids:
+                if bbra.repo_id.id in repos_done:
+                    continue
+
+                rp = bbra.repo_id
+                if rp.rtype == 'git':
+                    stepname = 'ExportGitMarks'
+                elif rp.rtype == 'bzr':
+                    stepname = 'ExportBzrMarks'
+                else:
+                    continue
+                bret['steps'].append((stepname, {'repo_id': rp.id, 'repo_dir': rp.proxy_location}))
+                repos_done.add(rp.id)
+
+            # Step B: for every exported branch, fast-export it to a bundle file
+            for bbra in bcol.branch_ids:
+                repos_done = set([bbra.repo_id.id,])
+                if bbra.is_imported:
+                    continue
+
+                rp = bbra.repo_id
+                if rp.rtype == 'git':
+                    stepname = 'FastExportGit'
+                elif rp.rtype == 'bzr':
+                    stepname = 'FastExportBzr'
+                else:
+                    continue
+
+                branch_name = bbra.tech_code or \
+                                (bbra.sub_url.replace('/','_').replace('~','').replace('@','_'))
+                fi_file = 'import-%s.fi' % branch_name
+                local_branch = False
+                if rp.local_prefix:
+                    local_branch = rp.local_prefix + \
+                                bbra.sub_url.replace('/','_').replace('~','').replace('@','_')
+                bret['steps'].append((stepname, { 'repo_id': rp.id,
+                            'repo_dir': rp.proxy_location,
+                            'branch_name': branch_name,
+                            'local_branch': local_branch,
+                            'fi_file': fi_file,
+                            }))
+
+                # Step C.n for every remaining repo, fast-import that branch
+                for tbra in bcol.branch_ids:
+                    rp = tbra.repo_id
+                    if rp.id in repos_done:
+                        continue
+
+                    if rp.rtype == 'git':
+                        stepname = 'FastImportGit'
+                    elif rp.rtype == 'bzr':
+                        stepname = 'FastImportBzr'
+                    else:
+                        continue
+
+                    bret['steps'].append((stepname, { 'repo_id': rp.id,
+                            'repo_dir': rp.proxy_location,
+                            'fi_file': fi_file, }))
+                    repos_done.add(rp.id)
+
+            # Step D: for every repository, read the marks file and update db
+            repos_done = set()
+            for bbra in bcol.branch_ids:
+                if bbra.repo_id.id in repos_done:
+                    continue
+
+                rp = bbra.repo_id
+                if rp.rtype == 'git':
+                    stepname = 'ImportGitMarks'
+                elif rp.rtype == 'bzr':
+                    stepname = 'ImportBzrMarks'
+                else:
+                    continue
+                bret['steps'].append((stepname, {'repo_id': rp.id, 'repo_dir': rp.proxy_location}))
+                repos_done.add(rp.id)
+
+            ret.append(bret)
+        return ret
 
 softdev_branch_collection()
 
@@ -96,6 +199,14 @@ class software_dev_buildbot(osv.osv):
             for ib in bcol.branch_ids:
                 yield ib
 
+    def get_builders(self, cr, uid, ids, context=None):
+        ret = super(software_dev_buildbot, self).get_builders(cr, uid, ids, context=context)
+        bs_obj = self.pool.get('software_dev.mirrors.branch_collection')
+        for bid in bs_obj.browse(cr, uid, [('buildbot_id', 'in', ids)], context=context):
+            r = bid.get_builders(context=context)
+            ret += r
+        return ret
+
 software_dev_buildbot()
 
 class softdev_commit_mapping(osv.osv):
@@ -118,7 +229,7 @@ class softdev_commit_mapping(osv.osv):
         """ Upload a set of marks for a given repo
 
             @param repo_id a repository these marks come from
-            @param a map of mark:hash entries (ageinst the repository)
+            @param a map of mark:hash entries (against the repository)
         """
 
         commit_obj = self.pool.get('software_dev.commit')
@@ -194,10 +305,26 @@ class softdev_commit_mapping(osv.osv):
 
     def get_marks(self, cr, uid, repo_id, context=None):
         """ Retrieve the marks mapping for a repository
+            @return a dict of mark:hash entries
 
-            TODO
+            @note This call may return a large set of resutls. It would be
+            a little dangerous not to export them all in one go.
         """
-        pass
+        col_id = self.pool.get('software_dev.mirrors.branch_collection').\
+                    get_id_for_repo(cr, uid, repo_id, context=context)
+        if not col_id:
+            raise osv.orm.except_orm(_('Setup Error'),
+                _('There is no branch collection for any branch of repository %d') % repo_id)
+
+        res_marks = {}
+        for mbro in self.browse(cr, uid, [('collection_id', '=', col_id)], context=context):
+            for cmt in mbro.commit_ids:
+                if cmt.branch_id.repo_id.id == repo_id:
+                    res_marks[mbro.mark] = cmt.hash
+                    break # shouldn't have more commits per mark
+
+        return res_marks
+
 softdev_commit_mapping()
 
 class software_dev_commit(osv.osv):
@@ -211,5 +338,52 @@ class software_dev_commit(osv.osv):
         }
 
 software_dev_commit()
+
+class software_dev_buildset(osv.osv):
+    _inherit = "software_dev.buildset"
+
+    _columns = {
+        'commit_id': fields.inherit(required=False),
+        }
+
+    #def createBuildRequests(self, cr, uid, id, builderNames, context=None):
+    # TODO
+
+software_dev_buildset()
+
+class software_dev_buildrequest(osv.osv):
+    _inherit = "software_dev.buildrequest"
+
+    def _get_buildername(self, cr, uid, ids, name, args, context=None):
+        """ Get the string representation of the builder, from either buildseries or branch_collection
+        """
+        res = {}
+        for b in self.browse(cr, uid, ids, context=context):
+            if b.builder_id:
+                res[b.id] = b.builder_id.buildername
+            elif b.mirrorbuilder_id:
+                res[b.id] = 'Mirror-%s' % b.mirrorbuilder_id.name
+        return res
+
+    def _get_buildbot(self, cr, uid, ids, name, args, context=None):
+        """ Get the string representation of the builder, from either buildseries or branch_collection
+        """
+        res = {}
+        for b in self.browse(cr, uid, ids, context=context):
+            if b.builder_id:
+                res[b.id] = b.builder_id.builder_id.id
+            elif b.mirrorbuilder_id:
+                res[b.id] = b.mirrorbuilder_id.buildbot_id.id
+        return res
+
+    _columns = {
+        'builder_id': fields.inherit(required=False),
+        'mirrorbuilder_id': fields.many2one('software_dev.mirrors.branch_collection', 'Collection Builder',
+                help="This can be specified instead of the Builder, for buildsets of mirroring"),
+        'buildername': fields.function(_get_buildername, method=True, type='char', size=256, readonly=True), # convert from related to function
+        'buildbot_id': fields.function(_get_buildbot, method=True, type='many2one', obj='software_dev.buildbot', readonly=True),
+    }
+
+software_dev_buildrequest()
 
 #eof

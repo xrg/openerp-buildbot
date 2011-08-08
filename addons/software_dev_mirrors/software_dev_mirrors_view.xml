@@ -122,4 +122,26 @@
             groups="project.group_project_manager" />
 
 
+        <record id="view_softdev_buildrequest_inherit_tree" model="ir.ui.view">
+            <field name="inherit_id" ref="software_dev.view_softdev_buildrequest_tree"/>
+            <field name="model">software_dev.buildrequest</field>
+            <field name="type">tree</field>
+            <field name="arch" type="xml">
+                <field name="buildsetid" position="after">
+                    <field name="mirrorbuilder_id"/>
+                </field>
+          </field>
+        </record>
+
+        <record id="view_softdev_buildrequest_inherit_form" model="ir.ui.view">
+            <field name="inherit_id" ref="software_dev.view_softdev_buildrequest_form"/>
+            <field name="model">software_dev.buildrequest</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+                <field name="builder_id" position="after">
+                    <field name="mirrorbuilder_id"/>
+                </field>
+          </field>
+        </record>
+
 </data> </openerp>
