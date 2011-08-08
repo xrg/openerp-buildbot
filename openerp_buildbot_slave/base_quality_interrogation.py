@@ -71,6 +71,22 @@ def to_decode(s):
             except UnicodeError:
                 return s
 
+def ustr(value):
+    if isinstance(value, unicode):
+        return value
+
+    if not isinstance(value, basestring):
+        try:
+            return unicode(value)
+        except Exception:
+            raise UnicodeError('unable to convert %r' % (value,))
+
+    try:
+        return unicode(value, 'utf-8')
+    except Exception:
+        pass
+    raise UnicodeError('unable to convert %r' % (value,))
+
 def pretty_repr(val):
     if json is not None:
         res = json.dumps(val, skipkeys=True, ensure_ascii=True, indent=4)
@@ -3232,7 +3248,7 @@ class CmdPrompt(object):
 
             if 'selection' in props:
                 sels = dict(props.pop('selection'))
-                rest.append('selection=(%s)' % (', ').join(map(str, sels.keys())))
+                rest.append('selection=(%s)' % (', ').join(map(ustr, sels.keys())))
                 selection_flds[field] = sels
 
             for attr in ('required', 'readonly', 'select', 'selectable', 'translate', 'view_load'):
