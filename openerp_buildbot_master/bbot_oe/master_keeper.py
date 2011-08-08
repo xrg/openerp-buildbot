@@ -232,7 +232,7 @@ class Keeper(object):
             
             c['builders'].append({
                 'name' : bld['name'],
-                'slavenames' : bld['slavenames'],
+                'slavenames' : bld.get('slavenames', []),
                 'builddir': bld['builddir'],
                 'factory': fact,
                 'properties': props,
@@ -240,7 +240,9 @@ class Keeper(object):
                 'category': props.get('group', None),
             })
 
-            cfilt = ChangeFilter_OE(branch_id=bld['branch_id'])
+            cfilt = None
+            if bld.get('branch_id'):
+                cfilt = ChangeFilter_OE(branch_id=bld['branch_id'])
             # FIXME
             
             sched = None
