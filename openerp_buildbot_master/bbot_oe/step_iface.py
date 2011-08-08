@@ -50,7 +50,7 @@ class StepOE:
             self.workdir = kwargs['workdir']
         elif kwargs.get('keeper_conf'):
             self.workdir = None
-            components = kwargs['keeper_conf']['builder'].get('components',[])
+            components = kwargs['keeper_conf']['builder'].get('components',{})
             for comp in components.values():
                 if comp['is_rolling']:
                     if comp.get('dest_path'):
