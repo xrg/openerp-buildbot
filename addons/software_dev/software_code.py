@@ -329,7 +329,7 @@ class software_user(osv.osv):
             user_rec = {}
             if bro.host_id.rtype in ('git', 'bzr', 'hg'):
                 if '<' in bro.userid or '>' in bro.userid:
-                    warnings += _("User id \"%s\" is full email, please split into name and email") % bro.userid
+                    warnings.append( _("User id \"%s\" is full email, please split into name and email") % bro.userid)
                     continue
                 user_rec['lookup_email'] = bro.userid
             if bro.temp_name:
