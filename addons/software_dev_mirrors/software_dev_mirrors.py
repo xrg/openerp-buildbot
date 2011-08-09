@@ -350,6 +350,7 @@ class software_dev_commit(osv.osv):
     _columns = {
         'commitmap_id': fields.many2one('software_dev.mirrors.commitmap',
                 string="Mark",
+                search=True,
                 help="When this commit is exported/imported from other repos, link "
                     "to the other commits"),
         }
