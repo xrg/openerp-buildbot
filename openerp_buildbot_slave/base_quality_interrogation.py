@@ -3094,7 +3094,7 @@ class CmdPrompt(object):
             print "Wrong ORM model!"
             return
         except RpcException, e:
-            print "%s: %s" % e.args
+            print "%s" % e
             return
         if res_id:
             try:
