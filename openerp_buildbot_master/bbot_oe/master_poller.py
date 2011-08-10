@@ -30,6 +30,7 @@ from buildbot.master import BuildMaster
 from twisted.internet import defer, reactor
 from twisted.python import log
 from openerp_libclient import agent_commands
+from twisted.internet.threads import blockingCallFromThread
 
 from functools import wraps
 
@@ -46,11 +47,8 @@ def call_with_master(func):
         if not self.running:
             raise agent_commands.CommandFailureException('Error!', 'Buildbot poller is not active')
         
-        res = func(self, master, *args, **kwargs)
-        if isinstance(res, defer.Deferred):
-            return None
-        else:
-            return res
+        res = blockingCallFromThread(reactor, func, self, master, *args, **kwargs)
+        return res
     return wrapper
 
 class MasterPoller(service.MultiService):
