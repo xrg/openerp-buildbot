@@ -31,3 +31,5 @@
 "access_bot_comp_part","software_dev.bot.part","model_software_dev_part","group_softdev_bot",1,1,1,1
 "access_bot_cmd_address","software_dev.bot.cmd_address","base_commands.model_base_command_address","group_softdev_bot",1,1,0,0
 "access_bot_cmd_command","software_dev.bot.cmd_command","base_commands.model_base_command_command","group_softdev_bot",1,1,1,1
+"access_bot_hr_employee","hr_employee for bots","hr.model_hr_employee","group_softdev_bot",1,0,0,0
+"access_bot_partner_address","partner address for bots","base.model_res_partner_address","group_softdev_bot",1,0,0,0
