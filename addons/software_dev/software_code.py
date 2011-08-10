@@ -594,8 +594,8 @@ class software_commit(propertyMix, osv.osv):
                 new_vals['parent_id'] = parent_hash2id[extra['parent_hashes'][0]]
                 new_vals['ctype'] = 'reg'
                 if len(extra['parent_hashes']) > 1:
-                    new_vals['contained_commit_ids'] = [(6, 0, \
-                                [ parent_hash2id[khash] for khash in extra['parent_hashes'][1:]])]
+                    extra_ids = set([ parent_hash2id[khash] for khash in extra['parent_hashes'][1:]])
+                    new_vals['contained_commit_ids'] = [(6, 0, list(extra_ids) )]
                     new_vals['ctype'] = 'merge'
         if cid:
             self.write(cr, uid, [cid,], new_vals, context=context)
