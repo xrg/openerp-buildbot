@@ -188,7 +188,7 @@ class GitPoller_OE(GitMultiPoller):
                 currentBranches.append(commit) # mark its contents as known
 
             # hope it's not too much output ...
-            log.msg("gitpoller: revListArgs: %s" % ' '.join(revListArgs))
+            # log.msg("gitpoller: revListArgs: %s" % ' '.join(revListArgs))
             d = utils.getProcessOutput(self.gitbin, revListArgs, path=self.workdir,
                                     env=dict(PATH=os.environ['PATH']), errortoo=False )
 
