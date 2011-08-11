@@ -144,4 +144,15 @@
           </field>
         </record>
 
+        <record id="view_softdev_bbslave_inherit_form" model="ir.ui.view">
+            <field name="inherit_id" ref="software_dev.view_softdev_bbslave_form"/>
+            <field name="model">software_dev.bbslave</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+                <field name="dedicated" position="after">
+                    <field name="do_mirroring"/>
+                </field>
+          </field>
+        </record>
+
 </data> </openerp>

@@ -86,7 +86,7 @@ class softdev_branch_collection(osv.osv):
 
             bret['slavenames'] = [ sl.tech_code \
                     for sl in bcol.buildbot_id.slave_ids \
-                    if not (sl.dedicated or sl.test_ids) ]
+                    if sl.do_mirroring or not (sl.dedicated or sl.test_ids) ]
 
             # Steps for export-import
             # Step A: for every repository, update the marks file if needed
@@ -403,5 +403,17 @@ class software_dev_buildrequest(osv.osv):
     }
 
 software_dev_buildrequest()
+
+class software_dev_bbslave(osv.osv):
+    _inherit = "software_dev.bbslave"
+    _columns = {
+        'do_mirroring': fields.boolean('Do mirroring'),
+        }
+
+    _defaults = {
+        'do_mirroring': True,
+    }
+
+software_dev_bbslave()
 
 #eof
