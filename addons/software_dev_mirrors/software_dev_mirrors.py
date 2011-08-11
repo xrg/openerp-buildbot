@@ -334,11 +334,14 @@ class softdev_commit_mapping(osv.osv):
                 _('There is no branch collection for any branch of repository %d') % repo_id)
 
         res_marks = {}
-        for mbro in self.browse(cr, uid, [('collection_id', '=', col_id)], context=context):
-            for cmt in mbro.commit_ids:
-                if cmt.branch_id.repo_id.id == repo_id:
-                    res_marks[mbro.mark] = cmt.hash
-                    break # shouldn't have more commits per mark
+        commit_obj = self.pool.get('software_dev.commit')
+        for cres in commit_obj.search_read(cr, uid,
+                    [   ('commitmap_id','in', [('collection_id', '=', col_id)]),
+                        ('branch_id', 'in', [('repo_id', '=', repo_id)])
+                    ],
+                    fields=['hash', 'commitmap_id'],
+                    context=context):
+            res_marks[cres['commitmap_id'][1]] = cres['hash']
 
         return res_marks
 
