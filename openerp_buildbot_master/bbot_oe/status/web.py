@@ -208,7 +208,7 @@ class LatestBuilds(HtmlResource):
                         for who in build.getResponsibleUsers():
                             commiter += "%s" % html.escape(reduce_eml(who))
                     else:
-                        commiter += "No Commiter Found !"
+                        commiter += "-"
                     revision = revision_id(ss)
                     label = '%s-%s: %s' % (revision, commiter, ''.join(build.text))
                 except Exception:
