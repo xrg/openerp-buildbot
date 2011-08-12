@@ -214,6 +214,8 @@ class software_dev_buildbot(osv.osv):
 
         for bcol in bcol_obj.browse(cr, uid, [('buildbot_id', 'in', ids)], context=context):
             for ib in bcol.branch_ids:
+                if ib.is_imported:
+                    continue
                 yield ib
 
     def get_builders(self, cr, uid, ids, context=None):

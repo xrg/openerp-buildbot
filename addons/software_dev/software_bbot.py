@@ -96,6 +96,9 @@ class software_buildbot(osv.osv):
                         for fld in group_fields:
                             new_branch.pop(fld, None)
                         poll_intvl = new_branch.pop('poll_interval', None)
+                        if (poll_intvl is not None) and poll_intvl < 0:
+                            # skip this branch!
+                            return
                         if poll_intvl and poll_intvl < old.get('poll_interval', 3600):
                             old['poll_interval'] = poll_intvl
                         old['branch_specs'].append(new_branch)
