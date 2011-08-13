@@ -1,5 +1,6 @@
 # -*- encoding: utf-8 -*-
 
+from datetime import datetime
 from twisted.python import log
 from twisted.internet import defer, threads
 from twisted.internet import reactor
@@ -12,8 +13,8 @@ from buildbot.db import base
 from buildbot.db.buildrequests import NotClaimedError, AlreadyClaimedError
 
 from openerp_libclient import rpc
+from openerp_libclient import errors as rpc_errors
 
-from datetime import datetime
 import time
 import logging
 
@@ -244,12 +245,12 @@ class SourceStampsCCOE(OERPbaseComponent):
         """
         def thd():
             self._logger.debug('createSourceStamp: %s %r', branch, changeids)
-            assert len(changeids) == 1, changeids
+            assert len(changeids) >= 1, "No changeids!"
             # We don't support them:
             assert not patch_body
             assert not patch_level
             assert not patch_subdir
-            return changeids[0]
+            return changeids[-1]
             
         return threads.deferToThread(thd)
 
@@ -288,6 +289,7 @@ class SourceStampsCCOE(OERPbaseComponent):
 
         changes = None
         
+        # TODO create one change per component
         changeid = ssid
         changes = set([changeid,])
         if res.get('merge_id', False):
@@ -803,13 +805,18 @@ class SchedulersCCOE(OERPbaseComponent):
         """Record a collection of classifications in the scheduler_changes table.
         @var classifications is a dictionary mapping CHANGEID to IMPORTANT
         (boolean).  Returns a Deferred."""
-        
+
         def thd():
             scha_obj = rpc.RpcProxy('software_dev.sched_change')
             for number, important in classifications.items():
-                scha_obj.create({'commit_id': number, 'sched_id': schedulerid, 
-                        'important': bool(important) } )
-        
+                try:
+                    scha_obj.create({'commit_id': number, 'sched_id': schedulerid,
+                            'important': bool(important) } )
+                except rpc_errors.RpcServerException, e:
+                    # this change may already exist
+                    self._logger.error("Could not classify change %d into scheduler %d: %s",
+                                number, schedulerid, e)
+
         return threads.deferToThread(thd)
 
     def flushChangeClassifications(self, schedulerid, less_than=None):

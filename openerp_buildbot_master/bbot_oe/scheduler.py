@@ -40,4 +40,19 @@ class ChangeFilter_OE(ChangeFilter):
 
         return ChangeFilter.filter_change(self, change)
 
+class ChangeFilter2_OE(ChangeFilter):
+    def __init__(self, branch_ids, **kwargs):
+        self.branch_ids = branch_ids
+        ChangeFilter.__init__(self, **kwargs)
+
+    def filter_change(self, change):
+
+        if 'branch_id' in change.properties:
+            if change.properties['branch_id'] not in self.branch_ids:
+                return False
+        else:
+            log.msg("strange, change doesn't have 'branch_id' property!")
+
+        return ChangeFilter.filter_change(self, change)
+
 # eof

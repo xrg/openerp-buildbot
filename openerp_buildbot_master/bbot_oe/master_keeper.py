@@ -15,7 +15,7 @@ from twisted.python import log
 import logging
 from buildbot.buildslave import BuildSlave
 from buildbot.process import factory
-from scheduler import ChangeFilter_OE
+from scheduler import ChangeFilter_OE, ChangeFilter2_OE
 from buildbot.schedulers import basic, timed, dependent
 from buildbot import manhole
 from .status import web, mail, logs
@@ -243,6 +243,9 @@ class Keeper(object):
             cfilt = None
             if bld.get('branch_id'):
                 cfilt = ChangeFilter_OE(branch_id=bld['branch_id'])
+            elif bld.get('branch_ids'):
+                cfilt = ChangeFilter2_OE(branch_ids=bld['branch_ids'])
+            
             # FIXME
             
             sched = None
