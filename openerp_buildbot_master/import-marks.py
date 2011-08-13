@@ -51,6 +51,8 @@ parser.add_option("--quiet", dest="quiet", action='store_true', default=False,
 # parser.add_option("-t", "--type", dest="marks_type", help="Type of marks file, bzr or git")
 parser.add_option("-R", "--repo-id", dest="repo_id", type="int", help="Id of repository")
 
+parser.add_option('--force', action="store_true", default=False,
+                    help="Force import when bzr even bad marks exist")
 (opt, args) = parser.parse_args()
 
 def die(msg, *args):
@@ -153,11 +155,15 @@ for fname in args:
             for m in rev_ids:
                 if not m.startswith(':'):
                     if (':'+m) in rev_ids:
-                        print "Invalid mark %s" % m
+                        logger.debug("Invalid mark %s", m)
                         bad_marks.append(m)
                     else:
                         rev_ids[':'+m] = rev_ids.pop(m)
-            if bad_marks:
+            if bad_marks and opt.force:
+                logger.warning("Skipping %d bad marks", len(bad_marks))
+                for m in set(bad_marks):
+                    rev_ids.pop(m)
+            elif bad_marks:
                 raise Exception("Bad marks found")
         else:
             raise Exception("Unknown repository type: %s" % rtype)
