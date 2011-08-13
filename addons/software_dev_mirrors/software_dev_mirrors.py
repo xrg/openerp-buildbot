@@ -22,6 +22,7 @@
 from tools.translate import _
 from osv import fields, osv
 from datetime import datetime
+from software_dev.software_builds import schedulers
 
 class softdev_branch_collection(osv.osv):
     """ A branch collection defines the mirroring of one repo to another
@@ -42,11 +43,21 @@ class softdev_branch_collection(osv.osv):
         'name': fields.char('Name', size=128, required=True, select=True),
         'buildbot_id': fields.many2one('software_dev.buildbot', 'Buildbot', required=True, select=True,
                             help="Buildbot master which will perform the mirroring operations"),
+        'scheduler': fields.selection(schedulers, 'Scheduler', required=True),
+        'tstimer': fields.integer('Scheduler period', required=True,
+                            help="In basic/periodic schedulers, time between builds"),
+        # TODO params for other schedulers
+        
         'branch_ids': fields.one2many('software_dev.branch', 'branch_collection_id',
                 string='Branches',
                 help="All branches that participate in the sync. Their mapping "
                     "will also be based on each branch'es tech_code."),
         }
+
+    _defaults = {
+        'tstimer': 2000, # poller default + time to process
+        'scheduler': 'none',
+    }
 
     def get_id_for_repo(self, cr, uid, repo_id, context=None):
         """ Return the branch_collection id that corresponds to some repo
@@ -80,13 +91,16 @@ class softdev_branch_collection(osv.osv):
                     'builddir': dir_name,
                     'steps': [],
                     'properties': { 'group': 'Mirroring' }, # 'sequence': bldr.sequence, },
-                    'scheduler': 'none', # bldr.scheduler, *0*
-                    # 'tstimer': None, # means one build per change
+                    'scheduler': bcol.scheduler,
+                    'tstimer': bcol.tstimer,
                     }
 
             bret['slavenames'] = [ sl.tech_code \
                     for sl in bcol.buildbot_id.slave_ids \
                     if sl.do_mirroring or not (sl.dedicated or sl.test_ids) ]
+
+            if bcol.scheduler != 'none':
+                bret['branch_ids'] = [b.id for b in bcol.branch_ids if not b.is_imported]
 
             # Steps for export-import
             # Step A: for every repository, update the marks file if needed
@@ -172,6 +186,8 @@ class softdev_branch_collection(osv.osv):
                 bret['steps'].append((stepname, {'name': sname, 'repo_id': rp.id, 'repo_dir': rp.proxy_location}))
                 repos_done.add(rp.id)
 
+            # Step E: push some data upstream, if needed
+            # TODO
             ret.append(bret)
         return ret
 
@@ -369,8 +385,37 @@ class software_dev_buildset(osv.osv):
         'commit_id': fields.inherit(required=False),
         }
 
-    #def createBuildRequests(self, cr, uid, id, builderNames, context=None):
-    # TODO
+    def createBuildRequests(self, cr, uid, id, builderNames, context=None):
+        """ Override parent to use mirror builders instead of buildseries
+        """
+        
+        assert isinstance(id, (int, long)), id
+        breq_obj = self.pool.get('software_dev.buildrequest')
+        bcol_obj = self.pool.get('software_dev.mirrors.branch_collection')
+
+        bnames = builderNames[:]
+        bcol_names = []
+        # Find possible mirror builders
+        for bn in builderNames:
+            if bn.startswith('Mirror-'):
+                bcol_names.append(bn[7:])
+
+        ret = {}
+        if bcol_names:
+            bset_rec = self.browse(cr, uid, id, context=context)
+            vals = dict(buildsetid=id, complete=False, submitted_at=bset_rec.submitted_at)
+            for bc in bcol_obj.search_read(cr, uid, [('name', 'in', bcol_names)],
+                            fields=['name'], context=context):
+                buildername = 'Mirror-%s' % bc['name']
+                bnames.remove(buildername)
+                vals['mirrorbuilder_id'] = bc['id']
+                ret[buildername] = breq_obj.create(cr, uid, vals, context=context)
+
+        if bnames: # any other names left
+            ret.update(super(software_dev_buildset, self).\
+                        createBuildRequests(cr, uid, id, builderNames=bnames, context=context))
+
+        return ret
 
 software_dev_buildset()
 
