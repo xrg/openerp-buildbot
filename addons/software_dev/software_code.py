@@ -516,7 +516,7 @@ class software_commit(propertyMix, osv.osv):
 
         cr.execute('LOCK TABLE "%s" IN SHARE ROW EXCLUSIVE MODE;' % self._table, debug=self._debug)
         cmts = self.search_read(cr, uid, [('hash','=', extra.get('hash', False))],
-                        fields=['ctype', 'branch_id', 'hash'])
+                        fields=['ctype', 'branch_id', 'hash'], context=context)
         if cmts:
             # This is the case where buildbot attempts to send us a commit
             # for a second time
@@ -527,6 +527,20 @@ class software_commit(propertyMix, osv.osv):
                     cid = cmt['id']
                     # and let code below fill the incomplete commit
                 # TODO: what if it belongs to the 'rest' branch and we need to update?
+                elif branch_id and cmt['branch_id'][0] != branch_id:
+                    # we need the boolean result, no need to read()
+                    brs = self.pool.get('software_dev.branch').search(cr, uid,
+                                [('id','=', cmt['branch_id'][0]), ('sub_url', '=','::rest')],
+                                context=context)
+                    if brs:
+                        # old was '::rest', new isn't. Update
+                        self.write(cr, uid, cmt['id'], {'branch_id': branch_id}, context=context)
+                    elif self._debug:
+                        osv.orm._logger.debug('%s: submit_change() ' \
+                                'not updating branch of commit %s, ' \
+                                'because old #%d,%s branch is not the "rest" one',
+                                self._name, cmt['id'], cmt['branch_id'][0], cmt['branch_id'][1])
+                    return cmt['id']
                 else:
                     if self._debug:
                         osv.orm._logger.debug('%s: submit_change() returning existing commit %s',
