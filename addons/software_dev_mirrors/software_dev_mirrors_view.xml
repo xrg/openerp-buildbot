@@ -111,6 +111,18 @@
           </field>
         </record>
 
+	<record id="view_softdev_cmap_search" model="ir.ui.view">
+          <field name="name">Commit Maps</field>
+            <field name="model">software_dev.mirrors.commitmap</field>
+            <field name="type">search</field>
+            <field name="arch" type="xml">
+              <search>
+                <field name="mark"/>
+                <field name="collection_id" />
+              </search>
+          </field>
+        </record>
+
         <record id="action_softdev_cmap" model="ir.actions.act_window">
           <field name="name">Commit Maps</field>
           <field name="type">ir.actions.act_window</field>
