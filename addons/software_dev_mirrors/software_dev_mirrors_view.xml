@@ -5,7 +5,7 @@
         <menuitem id="softdev_mirrors" name="Mirroring"
             parent="software_dev.softdev_menu" sequence="30" groups="project.group_project_manager" />
         <menuitem id="softdev_config_mirrors" name="Mirroring"
-            parent="software_dev.softdev_config" sequence="20" groups="project.group_project_manager" />
+            parent="software_dev.softdev_config" sequence="100" groups="project.group_project_manager" />
 
         <record id="view_softdev_branchcol_form" model="ir.ui.view">
           <field name="name">Branch Collections</field>

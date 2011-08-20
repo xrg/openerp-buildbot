@@ -6,7 +6,7 @@
         icon="terp-tools" groups="project.group_project_manager"
         sequence="10" parent="base.menu_main_pm" />
     <menuitem id="softdev_config" name="Configuration"
-        parent="softdev_menu" sequence="30" groups="project.group_project_manager" />
+        parent="softdev_menu" sequence="100" groups="project.group_project_manager" />
 
     <menuitem id="softdev_main_repos" name="Repositories Configuration"
         parent="softdev_config" sequence="30"
