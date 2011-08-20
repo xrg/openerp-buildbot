@@ -36,6 +36,7 @@ Development module
     'update_xml': [
         'security/ir.model.access.csv',
         'software_dev_mirrors_view.xml',
+        'wizard/verify_marks.xml',
     ],
     'api_depends': ['engine-pg84',
             ],

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+<data>
+
+    <record id="view_verify_marks" model="ir.ui.view">
+	    <field name="name">Verify Marks</field>
+	    <field name="model">software_dev.mirrors.wizard.verify_marks</field>
+	    <field name="type">form</field>
+	    <field name="arch" type="xml">
+		<form string="Verify Marks">
+		    <field name="collection_id" colspan="4" />
+		    <field name="limit" />
+		    <separator colspan="4"/>
+		    <group col="2" colspan="4">
+			<button icon="gtk-cancel" special="cancel" string="Close"/>
+			<button name="verify_marks" string="Verify" type="object" icon="gtk-ok"/>
+		    </group>
+		    </form>
+	    </field>
+    	</record>
+
+    <act_window id="action_verify_marks"
+	name="Verify Marks"
+	res_model="software_dev.mirrors.wizard.verify_marks"
+	view_mode="form" target="new" view_type="form"
+	key2="client_action_multi"
+	context="{'default_collection_id': active_id}"
+	src_model="software_dev.mirrors.branch_collection" />
+
+</data>
+</openerp>
