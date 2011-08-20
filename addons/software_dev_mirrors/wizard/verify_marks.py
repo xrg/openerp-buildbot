@@ -57,9 +57,10 @@ class verify_marks(osv.osv_memory):
 
                 repos_done = []
                 for cmt in cmmap.commit_ids:
-                    if remain is not None and remain <= 0:
-                        break
-                    remain -= 1
+                    if remain is not None:
+                        if remain <= 0:
+                            break
+                        remain -= 1
                     if cmt.ctype == 'incomplete':
                         continue
                     cmt_repo = cmt.branch_id.repo_id.id
