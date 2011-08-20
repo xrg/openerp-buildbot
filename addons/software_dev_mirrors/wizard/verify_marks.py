@@ -41,7 +41,10 @@ class verify_marks(osv.osv_memory):
         """ The actual algorithm. Scan all the marks of some collection.
         """
         cmtmap_obj = self.pool.get('software_dev.mirrors.commitmap')
+        commit_obj = self.pool.get('software_dev.commit')
         bad_marks = []
+        unlink_marks = []
+        write_commits = []
         for sbro in self.browse(cr, uid, ids, context=context):
             repos = set([ b.repo_id.id for b in sbro.collection_id.branch_ids])
             remain = sbro.limit or None
@@ -50,6 +53,21 @@ class verify_marks(osv.osv_memory):
                 cdict = None
                 if remain is not None and remain <= 0:
                     break
+
+                if len(cmmap.commit_ids) == 0:
+                    unlink_marks.append(cmmap.id)
+                    continue
+                if len(cmmap.commit_ids) == 1 and len(repos) > 1:
+                    if not cmmap.mark.startswith(':'):
+                        # a special fix case: if the mark is not prepended by colon
+                        # and we can find the one prepended, update the commit
+                        new_cmmaps = cmtmap_obj.search(cr, uid, \
+                                [('collection_id', '=', sbro.collection_id.id),
+                                ('mark', '=', ':' + cmmap.mark)], context=context)
+                        if new_cmmaps:
+                            write_commits.append( (cmmap.commit_ids[0].id, {'mark': new_cmmaps[0]}))
+                            unlink_marks.append(cmmap.id)
+                            continue
 
                 if len(cmmap.commit_ids) < len(repos):
                     bad_marks.append(cmmap.id)
@@ -90,6 +108,11 @@ class verify_marks(osv.osv_memory):
                     #end for
                 # end for
 
+        if write_commits:
+            for cid, vals in write_commits:
+                commit_obj.write(cr, uid, [cid], vals, context=context)
+        if unlink_marks:
+            cmtmap_obj.unlink(cr, uid, unlink_marks, context=context)
         if bad_marks:
             #mod_obj = self.pool.get('ir.model.data')
             if context is None:
