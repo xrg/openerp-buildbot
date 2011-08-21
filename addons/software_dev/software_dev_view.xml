@@ -12,6 +12,14 @@
         parent="softdev_config" sequence="30"
         groups="project.group_project_manager" />
 
+    <menuitem id="softdev_config_packages" name="Packages Configuration"
+        parent="softdev_config" sequence="30"
+        groups="project.group_project_manager" />
+
+    <menuitem id="softdev_config_builds" name="Builds Configuration"
+        parent="softdev_config" sequence="30"
+        groups="project.group_project_manager" />
+
     </data>
     <data>
 
@@ -40,7 +48,7 @@
 
         <menuitem id="softdev_packages" name="Packages"
             action="action_softdev_pkg"
-            parent="softdev_config" sequence="10"
+            parent="softdev_config_packages" sequence="10"
             groups="project.group_project_manager" />
 
     <!-- components -->
@@ -85,7 +93,7 @@
 
         <menuitem id="softdev_components" name="Components"
             action="action_softdev_comp"
-            parent="softdev_config" sequence="20"
+            parent="softdev_config_packages" sequence="20"
             groups="project.group_project_manager" />
 
     <!-- repo hosts -->
@@ -425,7 +433,7 @@
 
         <menuitem id="softdev_buildbgroup" name="Build Groups"
             action="action_softdev_bgrp"
-            parent="softdev_config" sequence="70"
+            parent="softdev_config_builds" sequence="10"
             groups="project.group_project_manager" />
 
     <!-- Builders -->
@@ -451,7 +459,7 @@
 
         <menuitem id="softdev_builder" name="Builders"
             action="action_softdev_builder"
-            parent="softdev_config" sequence="70"
+            parent="softdev_config_builds" sequence="20"
             groups="project.group_project_manager" />
 
     <!-- Build series -->
@@ -531,7 +539,7 @@
 
         <menuitem id="softdev_buildseries" name="Build Series"
             action="action_softdev_bseries"
-            parent="softdev_config" sequence="80"
+            parent="softdev_config_builds" sequence="30"
             groups="project.group_project_manager" />
 
 
@@ -593,7 +601,7 @@
 
         <menuitem id="softdev_tests" name="Software Tests"
             action="action_softdev_test"
-            parent="softdev_config" sequence="30"
+            parent="softdev_config_builds" sequence="40"
             groups="project.group_project_manager" />
 
     <!-- Test Steps -->
@@ -749,7 +757,7 @@
 
         <menuitem id="softdev_buildbots" name="Build bots"
             action="action_softdev_buildbots"
-            parent="softdev_config" sequence="90"
+            parent="softdev_config_builds" sequence="21"
             groups="project.group_project_manager" />
 
     <!-- Build Slaves -->
@@ -784,7 +792,7 @@
 
         <menuitem id="softdev_bbslaves" name="Build Slaves"
             action="action_softdev_bbslaves"
-            parent="softdev_config" sequence="100"
+            parent="softdev_config_builds" sequence="25"
             groups="project.group_project_manager" />
 
 
