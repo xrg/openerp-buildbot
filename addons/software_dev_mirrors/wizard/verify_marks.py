@@ -65,11 +65,28 @@ class verify_marks(osv.osv_memory):
                                 [('collection_id', '=', sbro.collection_id.id),
                                 ('mark', '=', ':' + cmmap.mark)], context=context)
                         if new_cmmaps:
-                            write_commits.append( (cmmap.commit_ids[0].id, {'mark': new_cmmaps[0]}))
+                            write_commits.append( (cmmap.commit_ids[0].id, {'commitmap_id': new_cmmaps[0]}))
                             unlink_marks.append(cmmap.id)
                             continue
 
                 if len(cmmap.commit_ids) < len(repos):
+                    # this commit doesn't exist in all repos
+                    # Try to locate the missing commits
+                    if len(cmmap.commit_ids) >= 1:
+                        srepos = repos.copy()
+                        for cmt in cmmap.commit_ids:
+                            srepos.remove(cmt.branch_id.repo_id.id)
+                        commit0 = cmmap.commit_ids[0]
+                        new_commits = commit_obj.search(cr, uid,\
+                                    [('date','=', commit0.date), ('subject', '=', commit0.subject),
+                                    ('comitter_id', 'in', [('userid', '=', commit0.comitter_id.userid)]),
+                                    ('branch_id', 'in', [('repo_id', 'in', list(srepos))]),
+                                    ('commitmap_id','=', False)],
+                                    context=context)
+                        del commit0
+                        if new_commits:
+                            for n in new_commits:
+                                write_commits.append((n, {'commitmap_id': cmmap.id}))
                     bad_marks.append(cmmap.id)
                     continue
 
