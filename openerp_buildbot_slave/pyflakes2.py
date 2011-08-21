@@ -69,7 +69,13 @@ def check(codeString, filename):
         warns = errors = 0
         for warning in w.messages:
             print warning
-            if isinstance(warning, (UndefinedExport, UndefinedLocal, UndefinedName)):
+            if isinstance(warning, UndefinedName):
+                # Some undefined names may be legal, such as gettext's "_()"
+                if warning.message_args[0] in ('_', 'openerp_version' ):
+                    warns += 1
+                else:
+                    errors += 1
+            elif isinstance(warning, (UndefinedExport, UndefinedLocal, UndefinedName)):
                 errors += 1
             else:
                 warns += 1
