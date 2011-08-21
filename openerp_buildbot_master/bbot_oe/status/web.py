@@ -49,6 +49,12 @@ def get_args_int(args, name, default=0):
 
 _eml_re = re.compile(r'(.+) ?\<.+\> *$')
 
+def to_utf8(sst):
+    if isinstance(sst, unicode):
+        return sst.encode('utf-8')
+    else:
+        return sst
+
 def reduce_eml(aeml):
     """Print just the name of a committer, from email address format"""
     global _eml_re
@@ -56,7 +62,7 @@ def reduce_eml(aeml):
         m = _eml_re.match(aeml.strip())
         if m:
             return m.group(1)
-        return repr(aeml)
+        return to_utf8(aeml)
     except Exception:
         pass
     return aeml
@@ -206,7 +212,7 @@ class LatestBuilds(HtmlResource):
                     revision = "-"
                     if list(build.getResponsibleUsers()):
                         for who in build.getResponsibleUsers():
-                            commiter += "%s" % html.escape(reduce_eml(who))
+                            commiter += html.escape(reduce_eml(ustr(who)))
                     else:
                         commiter += "-"
                     revision = revision_id(ss)
