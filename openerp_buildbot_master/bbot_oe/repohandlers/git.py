@@ -115,7 +115,7 @@ class GitPoller_OE(GitMultiPoller):
 
             comments = revDict['subject'] + '\n\n' + revDict['body']
             d = self.master.addChange(
-                    author=revDict['name'],
+                    author=revDict['name'] or properties['author_name'],
                     revision=revDict['hash'],
                     files=[],
                     comments=comments,
