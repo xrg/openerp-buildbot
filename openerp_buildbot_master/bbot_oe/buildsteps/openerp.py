@@ -26,6 +26,7 @@ from buildbot.process.buildstep import LoggingBuildStep, LoggedRemoteCommand, Lo
 from buildbot.status.builder import SUCCESS, FAILURE, WARNINGS, EXCEPTION #, SKIPPED
 from buildbot.status.builder import TestResult
 from buildbot.process.properties import WithProperties
+from bbot_oe.step_iface import StepOE
 
 import re
 import logging
@@ -95,10 +96,11 @@ class BqiObserver(LogLineObserver):
     def outLineReceived(self, line):
         if self.finished:
             return
-     
+
         if line.startswith('bqi.state> set context'):
             testname = line[21:]
             self.numTests += 1
+            self.step.setDescription(testname)
             self.step.setProgress('tests', self.numTests)
 
 ports_pool = None
@@ -115,14 +117,14 @@ class unique_dbnames(object):
         self.__count += 1
         return 'test-db-%s%x' % (self.__uniq, self.__count)
 
-class OpenERPTest(LoggingBuildStep):
+class OpenERPTest(StepOE, LoggingBuildStep):
     name = 'OpenERP-Test'
     step_name = 'OpenERP-Test'
     flunkOnFailure = True
     warnOnWarnings = True
 
     def describe(self, done=False,success=False,warn=False,fail=False):
-        if done:
+        if done: # TODO
             if success:
                 return ['Your Commit Passed OpenERP Test !']
             if warn:
@@ -156,9 +158,8 @@ class OpenERPTest(LoggingBuildStep):
                     force_modules=None,
                     black_modules=None,
                     test_mode='full',
-                    server_series='v600',
                     do_warnings=None, lang=None, debug=False,
-                    repo_mode=WithProperties('%(repo_mode)s'),
+                    keeper_conf=None, part_subs=None, components=None,
                     **kwargs):
         LoggingBuildStep.__init__(self, **kwargs)
         if isinstance(black_modules, basestring):
@@ -170,24 +171,31 @@ class OpenERPTest(LoggingBuildStep):
         if isinstance(dbname, basestring) and '%' in dbname:
             dbname = WithProperties(dbname, random=self._get_random_dbname)
 
+        self.part_subs = part_subs
+        self.components = components
+        self.workdir = workdir
+        if keeper_conf is not None:
+            if not self.part_subs:
+                self.part_subs = keeper_conf['builder'].get('component_parts',[])
+            if not self.components:
+                self.components = keeper_conf['builder'].get('components', [])
+
         self.addFactoryArguments(workdir=workdir, dbname=dbname, addonsdir=addonsdir, 
                                 netport=netport, port=port, ftp_port=ftp_port, logfiles={},
                                 force_modules=(force_modules or []),
                                 black_modules=(black_modules or []),
                                 do_warnings=do_warnings, lang=lang,
-                                repo_mode=repo_mode,
+                                part_subs=self.part_subs, components=self.components,
                                 debug=debug,
-                                test_mode=test_mode,
-                                server_series=server_series)
+                                test_mode=test_mode,)
         self.args = {'port' :port, 'workdir':workdir, 'dbname': dbname, 
                     'netport':netport, 'addonsdir':addonsdir, 'logfiles':{},
                     'ftp_port': ftp_port,
                     'force_modules': (force_modules or []),
                     'black_modules': (black_modules or []),
                     'do_warnings': do_warnings, 'lang': lang,
-                    'test_mode': test_mode, 'server_series': server_series,
-                    'repo_mode': repo_mode, 'debug': debug }
-        description = ["Performing OpenERP Test..."]
+                    'test_mode': test_mode, 'debug': debug }
+        description = ["Performing OpenERP Test...",]
         self.description = description
         self.summaries = {}
         self.build_result = SUCCESS
@@ -195,36 +203,54 @@ class OpenERPTest(LoggingBuildStep):
         self.addLogObserver('stdio', BqiObserver())
         self.progressMetrics += ('tests',)
 
-    def _allModules(self, chg, repo_expr):
+    def setDescription(self, txt):
+        """ Sets the 2nd member of self.description to txt """
+        self.description = self.description[:1] + [txt]
+        
+    def _allModules(self, chg):
         """ Return the list of all the modules that must have changed
         """
-        rx = re.compile(repo_expr)
         ret = []
         for fi in chg.properties.getProperty('filesb',[]):
-            m = rx.match(fi['filename'])
-            if m:
-                ret.append(m.group(1))
+            for rx, subst in self.repo_reges:
+                m = rx.match(fi['filename'])
+                if m:
+                    ret.append(m.expand(subst))
+                    break
         return ret
 
     def start(self):
         self.logfiles = {}
+        self.repo_reges = []
+        for comp, rege_str, subst in self.part_subs:
+            if self.components.get(comp,{'is_rolling': False})['is_rolling']:
+                self.repo_reges.append((re.compile(rege_str), subst))
+
         global ports_pool, dbnames_pool
         if not ports_pool:
             # Effectively, the range of these ports will limit the number of
             # simultaneous databases that can be tested
-            min_port = self.build.getProperty('min_port',8200)
-            max_port = self.build.getProperty('max_port',8299)
-            port_spacing = self.build.getProperty('port_spacing',4)
+            min_port = self.build.getProperties().getProperty('min_port',8200)
+            max_port = self.build.getProperties().getProperty('max_port',8299)
+            port_spacing = self.build.getProperties().getProperty('port_spacing',4)
             ports_pool = Pool(iter(range(min_port, max_port, port_spacing)))
 
         if not dbnames_pool:
             dbnames_pool = Pool(unique_dbnames())
 
         if not self.args.get('addonsdir'):
-            if self.build.getProperty('addons_dir'):
+            if self.build.getProperties().getProperty('addons_dir',False):
                 self.args['addonsdir'] = self.build.getProperty('addons_dir')
             else:
-                self.args['addonsdir'] = '../addons/'
+                add_dirs = []
+                for cname, comp in self.components.items():
+                    if 'addons' in cname:
+                        add_dirs.append( '../' + comp['dest_path'])
+
+                if add_dirs:
+                    self.args['addonsdir'] = ','.join(add_dirs)
+                else:
+                    self.args['addonsdir'] = '../addons/'
         if not self.args.get('port'):
             self.args['port'] = self.get_free_port()
         if self.args.get('ftp_port') is None: # False will skip the arg
@@ -234,7 +260,6 @@ class OpenERPTest(LoggingBuildStep):
         if not self.args.get('workdir'):
             self.args['workdir'] = 'server'
         
-        self.args['repo_mode'] = self.build.render(self.args.get('repo_mode', ''))
 
         # try to find all modules that have changed:
         mods_changed = []
@@ -247,17 +272,8 @@ class OpenERPTest(LoggingBuildStep):
             all_modules = True
         else:
             more_mods = []
-            if self.args['repo_mode'] == 'server':
-                if self.args['server_series'] == 'srv-lib':
-                    repo_expr = r'openerp/addons/([^/]+)/.+$'
-                else:
-                    repo_expr = r'bin/addons/([^/]+)/.+$'
-            else:
-                if self.args['repo_mode'] != 'addons':
-                    log.msg("Repo mode is \"%s\"" % self.args['repo_mode'])
-                repo_expr = r'([^/]+)/.+$'
             for chg in self.build.allChanges():
-                more_mods.extend(self._allModules(chg, repo_expr))
+                more_mods.extend(self._allModules(chg))
                 if not more_mods:
                     log.err("No changed modules located")
             try:
@@ -266,7 +282,7 @@ class OpenERPTest(LoggingBuildStep):
                 olmods_found = []
                 for sbuild in self.build.builder.builder_status.generateFinishedBuilds(num_builds=10):
                     log.msg("Scanning back build %d" % sbuild.getNumber())
-                    if sbuild.getResult() == SUCCESS:
+                    if sbuild.getResults() == SUCCESS:
                         break
                     for sres in sbuild.getTestResults().values():
                         # RFC: should we perform tests for other failures
@@ -309,12 +325,9 @@ class OpenERPTest(LoggingBuildStep):
         
         # The general part of the b-q-i command
         root_path = 'bin/'
-        if self.args['server_series'] == 'srv-lib':
-            root_path = './'
         self.args['command']=["../../../base_quality_interrogation.py",
                             "--machine-log=stdout", '--root-path='+root_path,
                             "--homedir=../", "-c", '~/.openerp-bqirc-bbot',
-                            '--server-series=%s' % self.args['server_series'],
                             '-d', self.args['dbname']]
         if self.args.get('do_warnings', False):
             self.args['command'].append('-W%s' % self.args.get('do_warnings'))
@@ -593,9 +606,7 @@ class OpenERPTest(LoggingBuildStep):
         for qkey in quality_logs:
             self.addHTMLLog(qkey + '.qlog', quality_logs[qkey])
 
-        build_id = self.build.requests[0].id # FIXME when builds have their class
-        
-        self.build.builder.db.saveTResults(build_id, self.name,
+        self.build.builder.db.builds.saveTResults(self.build, self.name,
                                             self.build_result, t_results)
 
         if bqi_num_modules:
@@ -605,16 +616,6 @@ class OpenERPTest(LoggingBuildStep):
             orm_id = self.getProperty('orm_id') or '?'
         except KeyError:
             orm_id = '?'
-
-        if False and self.build_result == SUCCESS:
-            self.setProperty('failure_tag', 'openerp-buildsuccess-%s-%s' % \
-                            (orm_id, build_id) )
-
-        if self.build_result == FAILURE:
-            # Note: We only want to tag on failure, not on exception
-            # or skipped, which means buildbot (and not the commmit) failed
-            self.setProperty('failure_tag', 'openerp-buildfail-%s-%s' % \
-                            (orm_id, build_id) )
 
     def evaluateCommand(self, cmd):
         global ports_pool, dbnames_pool
@@ -643,6 +644,7 @@ class OpenERPTest(LoggingBuildStep):
         return res
 
 # Following Step are used in Migration builder
+#TODO: remove, it's broken already
 class StartServer(LoggingBuildStep):
     name = 'start_server'
     flunkOnFailure = False
