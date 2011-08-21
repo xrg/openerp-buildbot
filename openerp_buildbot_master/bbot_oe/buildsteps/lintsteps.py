@@ -32,14 +32,14 @@ class LintTest(LoggedOEmixin, LoggingBuildStep):
     flunkOnFailure = False
     warnOnFailure = True
 
-    known_strs = [ (r'Pyflakes failed for: (.+)$', FAILURE ),
-                   (r'Please correct warnings for (.+)$', WARNINGS),
-                   (r'Not ready to commit: (.+)$', FAILURE),
-                   (r'You used tabs in (.+)\. Please expand them', WARNINGS),
-                   (r'XmlLint failed for: (.+)$', FAILURE),
-                   # (r'No lint for (.+)$', SUCCESS ),
+    known_strs = [ (r'Pyflakes failed for: (?P<fname>.+)$', FAILURE, {'test_name': 'pyflakes', }),
+                   (r'Please correct warnings for (?P<fname>.+)$', WARNINGS, {'test_name': 'lint', }),
+                   (r'Not ready to commit: (?P<fname>.+)$', FAILURE, {'test_name': 'lint', }),
+                   (r'You used tabs in (?P<fname>.+)\. Please expand them', WARNINGS, {'test_name': 'whitespace', }),
+                   (r'XmlLint failed for: (?P<fname>.+)$', FAILURE, {'test_name': 'lint', }),
+                   # (r'No lint for (.+)$', SUCCESS , {'test_name': 'lint', }),
                    # Must come last:
-                   (r'([^:]+):[0-9]+: .+$', SUCCESS ),
+                   (r'(?P<fname>[^:]+):[0-9]+: (?P<msg>.+)$', SUCCESS , {'test_name': 'lint', }),
                 ]
 
     def describe(self, done=False,success=False,warn=False,fail=False):
