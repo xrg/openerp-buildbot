@@ -840,15 +840,55 @@ class server_thread(threading.Thread):
             self.log.warning("server does not listen HTTP at port %s" % self.port)
         return True
 
+def _find_local_series(srv_root):
+    """ Discover the release/series of the local server, before it starts
+    """
+    global logger
+    ret = 'v600'
+    logger.debug("Trying to determine series of server at %s", srv_root)
+    if os.path.isfile(os.path.join(srv_root,'release.py')):
+        # we are at 5.0, 6.0 or pg84 series
+        rfname = os.path.join(srv_root,'release.py')
+        try:
+            rel_dict = {}
+            execfile(rfname, rel_dict)
+            if rel_dict.get('major_version') == '5.0':
+                ret = 'v500'
+            elif rel_dict.get('major_version') == '6.0':
+                if 'server_options' in rel_dict \
+                        and ('engine-pg84' in rel_dict['server_options']):
+                    ret = 'pg84'
+                else:
+                    ret = 'v600'
+            else:
+                ret = rel_dict.get('major_version','??')
+        except Exception:
+            logger.exception('Cannot read version from "%s", no series', rfname)
+            pass
+    elif os.path.isfile(os.path.join(srv_root, '..', 'openerp','release.py')):
+        ret = 'srv-lib'
+    else:
+        raise ServerException("Cannot determine server series from %s" % srv_root)
+    
+    logger.info("Auto-detected server series: %s", ret)
+    return ret
+
 class local_server_thread(server_thread):
     def __init__(self, root_path, port, netport, addons_path, dbname, pyver=None, 
-                srv_mode='v600', timed=False, debug=False, do_warnings=False,
+                srv_mode='auto', timed=False, debug=False, do_warnings=False,
                 ftp_port=None, defines=False, pyargs=False,
                 config=None):
+        """
+            @param root_path is the path where the openerp-server script resides,
+                    typically the 'server/bin/' in all series so far. It will be
+                    fixed to point to 'server/openerp/' for the v6.1 series
+        """
         server_thread.__init__(self)
         self.root_path = root_path
+        if srv_mode == 'auto':
+            srv_mode = options['server_series'] = _find_local_series(root_path)
         if srv_mode == 'srv-lib':
-            self.root_path = os.path.join(self.root_path, 'openerp')
+            self.root_path = os.path.normpath(os.path.join(self.root_path, '..', 'openerp'))
         self.port = port
         # self.addons_path = addons_path
         self.args = [ 'python%s' %(pyver or ''),]
@@ -1253,7 +1293,7 @@ class remote_server_thread(server_thread):
     def run(self):
         self.log.info("Run")
         self.is_running = True
-        global opt, connect_dsn
+        global opt, options, connect_dsn
 
         try:
             # we open an independent connection to the server
@@ -1263,6 +1303,21 @@ class remote_server_thread(server_thread):
                 self.session = xml_session()
 
             self.session.open(**connect_dsn)
+            if options['server_series'] == 'auto':
+                self.log.debug('Determining remote server series')
+                ret = 'v600'
+                if self.session.server_version >= (6,1):
+                    ret = 'srv-lib'
+                elif self.session.server_version >= (6,0):
+                    if 'engine-pg84' in self.session.server_options:
+                        ret = 'pg84'
+                elif self.session.server_version >= (5,0):
+                    ret = 'v500'
+                else:
+                    ret = '??'
+                self.log.info("Auto-detected server series: %s", ret)
+                options['server_series'] = ret
+
             # when open suceeds, it means the server is running and reachable
             self.setup_remote_logs(connect_dsn)
             self.is_ready = True
@@ -1408,7 +1463,7 @@ class client_worker(object):
         self.super_passwd = options['super_passwd']
         self.series = options['server_series']
         self.do_demo = not opt.no_demo
-        self.has_os_times = self.series in ('pg84', 'v600', 'srv-lib') #TODO
+        self.has_os_times = self.series in ('pg84', 'v600', 'srv-lib')
         if opt.url:
             self._session_class = client_session
             self._proxy_class = client_proxy_class
@@ -3666,7 +3721,7 @@ parser.add_option("--no-tests", dest="no_tests", action="store_true", default=Fa
 parser.add_option("--language", dest="lang", help="Use that language as default for the new db")
 parser.add_option("--translate-in", dest="translate_in",
                      help="specify .po files to import translation terms")
-parser.add_option("--server-series", help="Specify argument syntax and options of the server.\nExamples: 'v600', 'pg84', 'srv-lib'")
+parser.add_option("--server-series", help="Specify argument syntax and options of the server. \nDefault: 'auto'\nExamples: 'v600', 'pg84', 'srv-lib', 'auto'")
 
 parser.add_option("--color", dest="console_color", action='store_true', default=False,
                     help="Use color at stdout/stderr logs")
@@ -3813,7 +3868,7 @@ options = {
     'pwd' : opt.pwd,
     'super_passwd': opt.super_passwd,
     'config': opt.config,
-    'server_series': opt.server_series or 'v600',
+    'server_series': opt.server_series or 'auto',
     'homedir': '~/'
 }
 
@@ -4053,6 +4108,8 @@ if opt.url:
     except ImportError:
         raise ImportError("openerp client library doesn't have remote logging utility")
 
+logger.info('start of script')
+
 if not opt.remote:
     server = local_server_thread(root_path=options['root-path'], port=options['port'],
                         netport=options['netport'], addons_path=options['addons-path'],
@@ -4065,7 +4122,6 @@ else:
     # connect to remote server!
     server = remote_server_thread()
 
-logger.info('start of script')
 try:
     mods = options['modules'] or []
     if opt.all_modules:
