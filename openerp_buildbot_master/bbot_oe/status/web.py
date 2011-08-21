@@ -316,8 +316,7 @@ class BuildsMatrix(StatusResourceBuilder):
         cxt['current'] = [self.builder(x, req) for x in b.getCurrentBuilds()]
 
         cxt['pending'] = []
-        wfd = defer.waitForDeferred(
-        b.getPendingBuildRequestStatuses())
+        wfd = defer.waitForDeferred( b.getPendingBuildRequestStatuses())
         yield wfd
         statuses = wfd.getResult()
         for pb in statuses:
@@ -330,6 +329,10 @@ class BuildsMatrix(StatusResourceBuilder):
 
             changes = []
 
+            wfd = defer.waitForDeferred(pb.getSubmitTime())
+            yield wfd
+            sbtime = wfd.getResult()
+
             if source.changes:
                 for c in source.changes:
                     changes.append({ 'url' : path_to_change(req, c),
@@ -340,8 +343,8 @@ class BuildsMatrix(StatusResourceBuilder):
                 reason = "no changes specified"
 
             cxt['pending'].append({
-                'when': time.strftime("%b %d %H:%M:%S", time.localtime(pb.getSubmitTime())),
-                'delay': util.formatInterval(util.now() - pb.getSubmitTime()),
+                'when': time.strftime("%b %d %H:%M:%S", time.localtime(sbtime)),
+                'delay': util.formatInterval(util.now() - sbtime),
                 'reason': reason,
                 'id': pb.brid,
                 'changes' : changes
