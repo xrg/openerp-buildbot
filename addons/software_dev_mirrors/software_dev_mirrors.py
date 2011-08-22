@@ -212,7 +212,16 @@ class software_dev_branch(osv.osv):
 
     def _fmt_branch(self, branch_bro, fixed_commit=False):
         res = super(software_dev_branch, self)._fmt_branch(branch_bro, fixed_commit=fixed_commit)
-        # print "res:", res
+        if branch_bro.is_imported:
+            res['is_imported'] = True
+            res.pop('local_branch', None)
+            # Fetch last hash
+            commit_obj = self.pool.get('software_dev.commit')
+            cids = commit_obj.search_read(branch_bro._cr, branch_bro._uid, [('branch_id', '=', branch_bro.id)],
+                    order='id desc', limit=1, fields=['hash'], context=branch_bro._context)
+            if cids:
+                res['last_head'] = cids[0]['hash']
+
         return res
 
 software_dev_branch()
