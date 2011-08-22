@@ -731,6 +731,23 @@
                     </tree>
                 </field>
                 <field name="description" colspan="4" />
+                <group colspan="4" col="6">
+                    <button string="Poll Sources"
+                                name="poll_sources"
+                                type="object"
+                                help="Mark this buildset as not-built, so that it gets another build"
+                                icon="gtk-go-forward" />
+                    <button string="Trigger Builds"
+                                name="trigger_builds"
+                                type="object"
+                                help="Mark this buildset as not-built, so that it gets another build"
+                                icon="gtk-go-forward" />
+                    <button string="Reconfigure Buildbot"
+                                name="trigger_reconfig"
+                                type="object"
+                                help="Mark this buildset as not-built, so that it gets another build"
+                                icon="gtk-go-forward" />
+                </group>
               </form>
           </field>
         </record>

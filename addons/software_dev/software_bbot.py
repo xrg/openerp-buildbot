@@ -180,7 +180,31 @@ class software_buildbot(osv.osv):
                                     context=context)
             proxy.triggerAllReconfig()
         return True
-    
+
+    def trigger_builds(self, cr, uid, ids, context=None):
+        """Trigger buildbot to rescan pending builds
+        """
+
+        bc_obj = self.pool.get('base.command.address')
+        for i in ids:
+            proxy = bc_obj.get_proxy(cr, uid, '%s:%d' % (self._name, i),
+                                    expires=date_eval('now +10sec'),
+                                    context=context)
+            proxy.triggerMasterRequests()
+        return True
+
+    def poll_sources(self, cr, uid, ids, context=None):
+        """Trigger buildbot to immediately poll changesources
+        """
+
+        bc_obj = self.pool.get('base.command.address')
+        for i in ids:
+            proxy = bc_obj.get_proxy(cr, uid, '%s:%d' % (self._name, i),
+                                    expires=date_eval('now +10sec'),
+                                    context=context)
+            proxy.pollAllSources()
+        return True
+
     def create(self, cr, uid, vals, context=None):
         res_id = super(software_buildbot, self).create(cr,uid,vals=vals, context=context)
         try:
