@@ -272,7 +272,13 @@ class GitFactory(RepoFactory):
             kwargs['branchSpecs'] = []
             for bs in pbr['branch_specs']:
                 branch = bs.get('branch_path', 'master')
-                t = ( branch, bs.get('local_branch', branch), { 'branch_id': bs['branch_id']})
+                props = dict(branch_id=bs['branch_id'] )
+                local_branch = bs.get('local_branch', branch)
+                if bs.get('is_imported', False):
+                    branch = False
+                if 'last_head' in bs:
+                    props['last_head'] = bs['last_head']
+                t = ( branch, local_branch, props )
                 kwargs['branchSpecs'].append(t)
 
             conf['change_source'].append(GitMultiPoller_OE(**kwargs))
