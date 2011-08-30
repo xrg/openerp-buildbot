@@ -145,7 +145,7 @@ class OpenERPTest(StepOE, LoggingBuildStep):
         else:
             return self.describe(True, fail=True)
 
-    def _get_random_dbname(self, props):
+    def _get_random_dbname(self, props=None):
         global dbnames_pool
         return dbnames_pool.borrow(True)
 
@@ -166,10 +166,6 @@ class OpenERPTest(StepOE, LoggingBuildStep):
             black_modules = black_modules.split(' ')
         if isinstance(force_modules, basestring):
             force_modules = force_modules.split(' ')
-        if not dbname:
-            dbname = '%(random)s'
-        if isinstance(dbname, basestring) and '%' in dbname:
-            dbname = WithProperties(dbname, random=self._get_random_dbname)
 
         self.part_subs = part_subs
         self.components = components
@@ -255,8 +251,10 @@ class OpenERPTest(StepOE, LoggingBuildStep):
             self.args['port'] = self.get_free_port()
         if self.args.get('ftp_port') is None: # False will skip the arg
             self.args['ftp_port'] = self.get_free_port()
-        self.args['dbname'] = self.build.render(self.args.get('dbname', False))
-        assert self.args['dbname'], "I can't go on without a dbname!"
+        if self.args.get('dbname', False):
+            self.args['dbname'] = self.build.render(self.args['dbname'])
+        else:
+            self.args['dbname'] = self._get_random_dbname()
         if not self.args.get('workdir'):
             self.args['workdir'] = 'server'
         
@@ -639,6 +637,7 @@ class OpenERPTest(StepOE, LoggingBuildStep):
         try:
             if 'test-db-' in self.args['dbname']:
                 dbnames_pool.free(self.args['dbname'])
+                del self.args['dbname']
         except RuntimeError, e:
             log.err("%s" % e)
         return res
