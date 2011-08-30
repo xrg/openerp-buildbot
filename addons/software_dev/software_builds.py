@@ -205,6 +205,8 @@ class software_buildseries(propertyMix, osv.osv):
                 help="If set, this series has random builds, not commits that follow each other"),
         
         'scheduler': fields.selection(schedulers, 'Scheduler', required=True),
+        'tstimer': fields.integer('Timer', 
+                help="Period, in seconds. For the on-change scheduler, the stabilization delay"),
         'package_id': fields.many2one('software_dev.package', 'Package', required=True),
         'branch_id': fields.many2one('software_dev.branch', 'Rolling branch', required=True,
                 help="One branch, that is used to test against different commits.",
@@ -260,7 +262,7 @@ class software_buildseries(propertyMix, osv.osv):
                     'branch_id': bldr.branch_id.id,
                     'properties': { 'sequence': bldr.sequence, },
                     'scheduler': bldr.scheduler,
-                    #'tstimer': None, # means one build per change
+                    'tstimer': bldr.tstimer, # False means one build per change
                     }
 
             if bldr.slave_ids:
