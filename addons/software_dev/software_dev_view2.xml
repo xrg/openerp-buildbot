@@ -1,0 +1,60 @@
+<?xml version="1.0"?>
+<openerp>
+    <data>
+	
+    <!-- Multibranch Build series -->
+        <record id="view_softdev_multibranch_form" model="ir.ui.view">
+	    <field name="inherit_id" ref="view_softdev_bseries_form" />
+	    <field name="name">Build Series (Multibranch)</field>
+            <field name="model">software_dev.buildseries.multibranch</field>
+	    <field name="type">form</field>
+            <field name="arch" type="xml">
+		<field name="branch_id" position="after">
+		    <field name="branch_ids" />
+		</field>
+          </field>
+        </record>
+
+        <record id="view_softdev_multibranch_tree" model="ir.ui.view">
+	    <field name="inherit_id" ref="view_softdev_bseries_tree" />
+	    <field name="name">Build Series (Multibranch)</field>
+            <field name="model">software_dev.buildseries.multibranch</field>
+            <field name="type">tree</field>
+            <field name="arch" type="xml">
+		<field name="branch_id" position="replace">
+		    <!-- -->
+		</field>
+          </field>
+        </record>
+
+        <record id="action_softdev_multibranch" model="ir.actions.act_window">
+          <field name="name">Build Series (Multibranch)</field>
+          <field name="type">ir.actions.act_window</field>
+            <field name="res_model">software_dev.buildseries.multibranch</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+         </record>
+
+	<!-- If we have inheriting views that pointed to a different model,
+	     we *must* list them explicitly in ir.actions.act_window .
+	     (especially for the pg84 server, due to the SQL view resolution)
+	-->
+        <record model="ir.actions.act_window.view" id="action_softdev_multibranch_tree">
+            <field name="view_mode">tree</field>
+            <field name="view_id" ref="view_softdev_multibranch_tree"/>
+            <field name="act_window_id" ref="action_softdev_multibranch"/>
+        </record>
+        <record model="ir.actions.act_window.view" id="action_softdev_multibranch_form">
+            <field name="view_mode">form</field>
+            <field name="view_id" ref="view_softdev_multibranch_form"/>
+            <field name="act_window_id" ref="action_softdev_multibranch"/>
+        </record>
+
+        <menuitem id="softdev_buildseries_multibranch"
+	    name="Build Series (Multibranch)"
+            action="action_softdev_multibranch"
+            parent="softdev_config_builds" sequence="32"
+            groups="project.group_project_manager" />
+
+   </data>
+</openerp>

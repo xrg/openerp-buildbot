@@ -23,7 +23,7 @@
 
 {
     'name': 'Software Development and Testing',
-    'version': '0.2',
+    'version': '0.3',
     'category': 'Generic Modules/Others',
     'description': """Integrate the software development procedures, automated
 builds and testing into the ERP.
@@ -37,6 +37,7 @@ builds and testing into the ERP.
         'security/software_security.xml',
         'security/ir.model.access.csv',
         'software_dev_view.xml',
+        'software_dev_view2.xml',
         'software_dev_data.xml',
         'wizard/quick_repo_view.xml',
         'wizard/commit2build.xml',

@@ -26,6 +26,7 @@ import software_code
 
 import software_bbot
 import software_builds
+import software_multibranch
 
 import software_results
 
