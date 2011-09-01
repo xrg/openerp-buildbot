@@ -70,7 +70,7 @@ class OpenObjectBzr(Bzr):
 
     def __init__(self, repourl=None, baseURL=None, proxy_url=None,
                  defaultBranch=None,workdir=None, mode='update', alwaysUseLatest=True,
-                 timeout=40*60, retry=None, **kwargs):
+                 timeout=40*60, retry=None, rolling=False, **kwargs):
         # LoggingBuildStep.__init__(self, **kwargs)
         Bzr.__init__(self, repourl=repourl, baseURL=baseURL,
                    defaultBranch=defaultBranch,workdir=workdir,mode=mode,alwaysUseLatest=alwaysUseLatest,timeout=timeout,
@@ -80,9 +80,10 @@ class OpenObjectBzr(Bzr):
         self.description = ["updating", "branch %s"%(repourl)]
         self.descriptionDone = ["updated", "branch %s"%(repourl)]
         self.args['proxy_url'] = proxy_url
-        self.addFactoryArguments(proxy_url=proxy_url)
+        self.addFactoryArguments(proxy_url=proxy_url, rolling=rolling)
         self.env_info = ''
         self.summaries = {}
+        self.rollling = rolling
         self.build_result = SUCCESS
 
     def computeSourceRevision(self, changes):
@@ -113,6 +114,7 @@ class OpenObjectBzr(Bzr):
         else:
             self.args['repourl'] = self.baseURL + self.branch # self.baseURL + branch
 
+        # TODO: rolling?
         if not self.alwaysUseLatest:
             if not self.args['repourl'].endswith(branch):
                 log.err("Repo url %s != %s" % (self.args['repourl'], branch))

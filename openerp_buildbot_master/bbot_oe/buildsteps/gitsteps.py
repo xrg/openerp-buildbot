@@ -22,6 +22,12 @@
 from buildbot.steps import source
 
 class GitStep(source.Git):
+    
+    def __init__(self, rolling=False, **kwargs):
+        source.Git.__init__(self, **kwargs)
+        self.addFactoryArguments(rolling=rolling)
+        self.rolling = rolling
+        
     def computeSourceRevision(self, changes):
         if not changes:
             return None
@@ -31,10 +37,10 @@ class GitStep(source.Git):
         return rev
 
     def startVC(self, branch, revision, patch):
-        # Override behaviour of Source.startVC and always use our branch
-        # That's because Sourcestamp/Change will know the 'remote' branch name
-        # while we need to issue a command for the local proxied one.
-        return source.Git.startVC(self, self.branch, revision, patch)
+        if not self.rolling:
+            # Override behaviour of Source.startVC and always use our branch
+            branch = self.branch
+        return source.Git.startVC(self, branch, revision, patch)
 
 exported_buildsteps = [GitStep, ]
 
