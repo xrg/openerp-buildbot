@@ -318,6 +318,7 @@ class software_buildseries(propertyMix, osv.osv):
                         'repourl': fetch_url , 'mode':'update',
                         'workdir': comp.dest_path,
                         'alwaysUseLatest': use_latest,
+                        'rolling': is_rolling,
                         }) )
                 elif rtype == 'git':
                     bret['steps'].append(('GitStep', {
@@ -325,6 +326,7 @@ class software_buildseries(propertyMix, osv.osv):
                         'branch': fetch_branch,
                         'workdir': comp.dest_path,
                         'alwaysUseLatest': use_latest,
+                        'rolling': is_rolling,
                         }) )
                 else:
                     raise NotImplementedError("Cannot handle %s repo" % rtype)

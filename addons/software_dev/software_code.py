@@ -709,7 +709,7 @@ class software_commit(propertyMix, osv.osv):
                 'links': [],
                 'revlink': False, # TODO
                 'revision': (cmt.branch_id.repo_id.rtype != 'git' and cmt.revno) or False,
-                'branch': cmt.branch_id.sub_url,
+                'branch': cmt.branch_id.get_local_url(context=context)[cmt.branch_id.id][1],
                 'repository': cmt.branch_id.repo_id.repo_url,
                 'project': False,
                 'category': False,
