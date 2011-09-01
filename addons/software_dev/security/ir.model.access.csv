@@ -8,7 +8,7 @@
 "access_bot_commit","software_dev.bot.commit","model_software_dev_commit","group_softdev_bot",1,1,1,0
 "access_bot_filechange","software_dev.bot.filechange","model_software_dev_filechange","group_softdev_bot",1,1,1,0
 "access_bot_slave","software_dev.bot.bbslave","model_software_dev_bbslave","group_softdev_bot",1,0,0,0
-"access_bot_bseries","software_dev.bot.bseries","model_software_dev_buildseries","group_softdev_bot",1,0,0,0
+"access_bot_bseries","software_dev.bot.bseries","model_software_dev_buildseries","group_softdev_user",1,0,0,0
 "access_bot_bseries","software_dev.bot.bseries","model_software_dev_buildseries","group_softdev_bot",1,1,1,0
 "access_bot_package","software_dev.bot.package","model_software_dev_package","group_softdev_bot",1,0,0,0
 "access_bot_component","software_dev.bot.component","model_software_dev_component","group_softdev_bot",1,0,0,0
@@ -33,3 +33,5 @@
 "access_bot_cmd_command","software_dev.bot.cmd_command","base_commands.model_base_command_command","group_softdev_bot",1,1,1,1
 "access_bot_hr_employee","hr_employee for bots","hr.model_hr_employee","group_softdev_bot",1,0,0,0
 "access_bot_partner_address","partner address for bots","base.model_res_partner_address","group_softdev_bot",1,0,0,0
+"access_bot_bseries_mbranch","software_dev.bot.bseries","model_software_dev_buildseries_multibranch","group_softdev_bot",1,1,1,0
+"access_bot_bseries_mbranch2","software_dev.bot.bseries","model_software_dev_buildseries_multibranch","group_softdev_user",1,1,1,0
