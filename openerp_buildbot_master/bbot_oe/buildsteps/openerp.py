@@ -26,7 +26,7 @@ from buildbot.process.buildstep import LoggingBuildStep, LoggedRemoteCommand, Lo
 from buildbot.status.builder import SUCCESS, FAILURE, WARNINGS, EXCEPTION #, SKIPPED
 from buildbot.status.builder import TestResult
 from buildbot.process.properties import WithProperties
-from bbot_oe.step_iface import StepOE
+from bbot_oe.step_iface import StepOE, ports_pool, dbnames_pool
 
 import re
 import logging
@@ -102,9 +102,6 @@ class BqiObserver(LogLineObserver):
             self.numTests += 1
             self.step.setDescription(testname)
             self.step.setProgress('tests', self.numTests)
-
-ports_pool = None
-dbnames_pool = None
 
 class unique_dbnames(object):
     """ A simple pseydo-iterator that will produce unique database names

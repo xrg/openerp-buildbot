@@ -213,4 +213,11 @@ class LoggedOEmixin(StepOE):
     def getText2(self, cmd, results):
         return self.last_msgs
 
+# Pools for openerp step. They are defined here, because this module
+# won't reload upon reconfiguration
+
+ports_pool = None
+dbnames_pool = None
+
+
 #eof
