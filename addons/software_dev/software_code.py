@@ -275,6 +275,8 @@ class software_branch(osv.osv):
         elif branch_bro.repo_id.local_prefix:
             dret['local_branch'] = branch_bro.repo_id.local_prefix + \
                 branch_bro.sub_url.replace('/','_').replace('~','').replace('@','_')
+
+        if branch_bro.repo_id.local_prefix:
             dret['remote_name'] = branch_bro.repo_id.local_prefix.rstrip('-_./+')
 
         if branch_bro.repo_id.rtype == 'bzr':
