@@ -323,12 +323,14 @@ class softdev_commit_mapping(osv.osv):
         errors = {}
         processed = 0
         skipped = 0
+        repo_forks = self.pool.get('software_dev.repo').\
+                get_all_forks(cr, uid, [repo_id], context=context)[repo_id]
         for mark, shash in marks_map.items():
             # Get the commit:
             new_commit_id = None
             commit_id = commit_obj.search_read(cr, uid,
                     [('hash', '=', shash),
-                    ('branch_id', 'in', [('repo_id', '=', repo_id)])],
+                    ('branch_id', 'in', [('repo_id', 'in', repo_forks)])],
                     fields=['commitmap_id'],
                     context=context)
             if not commit_id:
