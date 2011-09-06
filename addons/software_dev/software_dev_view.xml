@@ -136,6 +136,7 @@
                 <field name="name"/>
                 <field name="rtype"/>
                 <field name="host_id"/>
+                <field name="fork_of_id" />
                 <field name="proxy_location" />
                 <field name="slave_proxy_url" />
                 <field name="local_prefix" />

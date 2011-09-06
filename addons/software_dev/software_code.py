@@ -103,6 +103,10 @@ class software_repo(osv.osv):
         'repo_url': fields.function(_get_repo_url, string="Repo URL",
                     type="char", method=True, readonly=True, size=1024,
                     help="URL of the repository"),
+        'fork_of_id': fields.many2one('software_dev.repo', 'Fork of',
+                    domain=[('fork_of_id', '=', False)], # don't allow nested forking, make algos simpler
+                    select=True,
+                    help="If this repository is a fork of another registered one (share hashes etc.)"),
     }
 
     _defaults = {
@@ -142,6 +146,25 @@ class software_repo(osv.osv):
             return branch_obj.create(cr, uid, {'repo_id': rid,
                     'name': '::rest', 'sub_url': '::rest', 'is_imported': True,
                     'poll_interval': -1}, context=context)
+
+    def get_all_forks(self, cr, uid, ids, context=None):
+        """ Get list of all repos that belong to same fork group of ids[0]
+
+            @param ids list of repositories to traverse
+            @return dict ids=> lists
+                At each returned list, the first element is the master repo id
+                and each subsequent the ids of forks
+        """
+
+        ret = {}
+        for bro in self.browse(cr, uid, ids, context=context):
+            master_id = bro.id
+            if bro.fork_of_id:
+                master_id = bro.fork_of_id.id
+
+            ret[bro.id] = [master_id, ] + self.search(cr, uid, [('fork_of_id', '=', master_id)], context=context)
+
+        return ret
 
 software_repo()
 
@@ -241,14 +264,15 @@ class software_branch(osv.osv):
         dret['branch_id'] = branch_bro.id
         dret['repo_id'] = branch_bro.repo_id.id
         dret['rtype'] = branch_bro.repo_id.rtype
-        dret['branch_path'] = branch_bro.tech_code or \
-                (branch_bro.sub_url.replace('/','_').replace('~','').replace('@','_'))
+        dret['branch_path'] = branch_bro.sub_url.replace('/','_').replace('~','').replace('@','_')
         dret['repourl'] = branch_bro.repo_id.repo_url
         dret['fetch_url'] = branch_bro.fetch_url
         dret['poll_interval'] = branch_bro.poll_interval
 
         dret['workdir'] = branch_bro.repo_id.proxy_location
-        if branch_bro.repo_id.local_prefix:
+        if branch_bro.tech_code:
+            dret['local_branch'] = branch_bro.tech_code
+        elif branch_bro.repo_id.local_prefix:
             dret['local_branch'] = branch_bro.repo_id.local_prefix + \
                 branch_bro.sub_url.replace('/','_').replace('~','').replace('@','_')
             dret['remote_name'] = branch_bro.repo_id.local_prefix.rstrip('-_./+')
