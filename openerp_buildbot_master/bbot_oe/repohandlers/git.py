@@ -22,7 +22,7 @@
 from bbot_oe.repo_iface import RepoFactory
 from buildbot.changes.gitmultipoller import GitMultiPoller
 from twisted.internet import utils, defer
-from twisted.python import log
+from twisted.python import log, failure
 import os
 from buildbot.util import epoch2datetime
 
@@ -216,6 +216,30 @@ class GitPoller_OE(GitMultiPoller):
             yield wfd
             wfd.getResult()
         # end for
+
+    def _process_changes_failure(self, f):
+        log.msg('gitpoller@: repo poll failed')
+        log.err(f)
+        # eat the failure to continue along the defered chain - we still want to catch up
+        return None
+
+
+    def _catch_up_failure(self, f):
+        log.err(f)
+        log.msg('gitpoller@: please resolve issues in local repo: %s' % self.workdir)
+        # this used to stop the service, but this is (a) unfriendly to tests and (b)
+        # likely to leave the error message lost in a sea of other log messages
+
+    def _stop_on_failure(self, f, message=None):
+        "utility method to stop the service when a failure occurs"
+        if message:
+            log.err(f, message)
+        else:
+            log.err(f, "stop:")
+        if self.running:
+            d = defer.maybeDeferred(lambda : self.stopService())
+            d.addErrback(log.err, 'while stopping broken GitPoller service')
+        return None
 
 class GitMultiPoller_OE(GitPoller_OE):
     """ Enhanced subclass to fit OpenERP backend, record more data
