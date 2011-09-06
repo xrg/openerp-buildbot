@@ -110,6 +110,10 @@ class softdev_branch_collection(osv.osv):
                     continue
 
                 rp = bbra.repo_id
+                if rp.fork_of_id:
+                    rp = rp.fork_of_id
+                    if rp.id in repos_done:
+                        continue
                 if rp.rtype == 'git':
                     stepname = 'ExportGitMarks'
                 elif rp.rtype == 'bzr':
@@ -127,6 +131,8 @@ class softdev_branch_collection(osv.osv):
                     continue
 
                 rp = bbra.repo_id
+                if rp.fork_of_id:
+                    repos_done.add(rp.fork_of_id.id)
                 if rp.rtype == 'git':
                     stepname = 'FastExportGit'
                 elif rp.rtype == 'bzr':
@@ -152,6 +158,9 @@ class softdev_branch_collection(osv.osv):
                 # Step C.n for every remaining repo, fast-import that branch
                 for tbra in bcol.branch_ids:
                     rp = tbra.repo_id
+                    if rp.fork_of_id:
+                        # use only the original repos, not forked ones
+                        rp = rp.fork_of_id
                     if rp.id in repos_done:
                         continue
 
@@ -176,6 +185,10 @@ class softdev_branch_collection(osv.osv):
                     continue
 
                 rp = bbra.repo_id
+                if rp.fork_of_id:
+                    rp = rp.fork_of_id
+                    if rp.id in repos_done:
+                        continue
                 if rp.rtype == 'git':
                     stepname = 'ImportGitMarks'
                 elif rp.rtype == 'bzr':
