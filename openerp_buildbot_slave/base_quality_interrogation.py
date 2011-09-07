@@ -3834,19 +3834,25 @@ def mkpasswd(nlen):
         ret += rnd.choice(crange)
     return ret
 
-if (not opt.pwd) and opt.ask_passwd:
+if opt.ask_passwd:
     import getpass
-    opt.pwd = getpass.getpass("Enter the password for %s@%s [%s]: " % \
+    new_pwd = getpass.getpass("Enter the password for %s@%s [%s]: " % \
         (opt.login or 'admin', opt.db_name, opt.pwd and '****' or ''))
+    if new_pwd:
+        opt.pwd = new_pwd
+    del new_pwd
 elif opt.pwd is None:
     opt.pwd = 'admin'
 elif opt.pwd and opt.pwd == "@":
     opt.pwd = mkpasswd(8)
 
-if (not opt.super_passwd) and opt.ask_passwd:
+if opt.ask_passwd:
     import getpass
-    opt.super_passwd = getpass.getpass("Enter the password for super-user[%s]: " % \
+    new_pwd = getpass.getpass("Enter the password for super-user[%s]: " % \
         (opt.super_passwd and '*****' or ''))
+    if new_pwd:
+        opt.super_passwd = new_pwd
+    del new_pwd
 elif opt.super_passwd is None:
     opt.super_passwd = 'admin'
 elif opt.super_passwd and opt.super_passwd == "@":
