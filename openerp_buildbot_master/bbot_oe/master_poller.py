@@ -114,6 +114,35 @@ class MasterPoller(service.MultiService):
         return d
 
     @call_with_master
+    def pollSources(self, master, sources):
+        """ Poll selected repositories (by url)
+
+            @param sources list of repo-urls to match existing changesources
+        """
+        assert isinstance(sources, list)
+        try:
+            deds = []
+            for csource in master.change_svc:
+                repourl = getattr(csource, 'repourl', None)
+                if not repourl:
+                    continue
+                if not repourl in sources:
+                    continue
+                if not csource._loop:
+                    continue
+                cl = csource._loop
+                if not (cl.running and cl.call):
+                    continue
+
+                d = defer.maybeDeferred(cl.f, *cl.a, **cl.kw)
+                d.addCallback(lambda result: cl._reschedule())
+
+            d = defer.gatherResults(deds)
+            return d
+        except Exception, e:
+            log.err('Cannot trigger polls: %s' % e)
+
+    @call_with_master
     def pollAllSources(self, master, res=None):
         try:
             # The twisted.internet.task.LoopingCall holds the function and args
