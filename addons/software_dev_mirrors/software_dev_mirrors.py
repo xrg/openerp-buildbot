@@ -230,8 +230,11 @@ class software_dev_branch(osv.osv):
             res.pop('local_branch', None)
             # Fetch last hash
             commit_obj = self.pool.get('software_dev.commit')
+            # Sometimes the order of commits may be in a mess. Then, 'date desc' is
+            # a bit safer. 'id desc' makes sure we pick the latest of double-converted
+            # commits
             cids = commit_obj.search_read(branch_bro._cr, branch_bro._uid, [('branch_id', '=', branch_bro.id)],
-                    order='id desc', limit=1, fields=['hash'], context=branch_bro._context)
+                    order='date desc, id desc', limit=1, fields=['hash'], context=branch_bro._context)
             if cids:
                 res['last_head'] = cids[0]['hash']
 
