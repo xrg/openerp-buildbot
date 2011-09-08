@@ -88,7 +88,7 @@ class software_buildbot(osv.osv):
                             old_branch = old.copy()
                             for fld in group_fields:
                                 old_branch.pop(fld, None)
-                            for fld in ('local_branch', 'branch_id', 'branch_path'):
+                            for fld in ('local_branch', 'branch_id', 'branch_path', 'last_head'):
                                 old.pop(fld, None)
                             old['mode'] = 'multibranch'
                             old['branch_specs'] = [ old_branch,]
