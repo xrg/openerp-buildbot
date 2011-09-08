@@ -251,6 +251,8 @@ class software_branch(osv.osv):
         for b in self.browse(cr, uid, ids, context=context):
             if not b.repo_id.slave_proxy_url:
                 res[b.id] = (b.fetch_url, b.sub_url)
+            elif b.tech_code:
+                res[b.id] = (b.repo_id.slave_proxy_url, b.tech_code)
             else:
                 res[b.id] = (b.repo_id.slave_proxy_url, (b.repo_id.local_prefix or '') + b.sub_url)
         return res
