@@ -21,7 +21,7 @@
 ##############################################################################
 
 from tools.translate import _
-from osv import fields, osv
+from osv import fields, osv, expression
 from datetime import datetime
 import time
 from properties import propertyMix
@@ -543,19 +543,37 @@ class software_commit(propertyMix, osv.osv):
         assert branch_id # or discover it from repository + branch
 
         cr.execute('LOCK TABLE "%s" IN SHARE ROW EXCLUSIVE MODE;' % self._table, debug=self._debug)
-        cmts = self.search_read(cr, uid, [('hash','=', extra.get('hash', False))],
+        sdomain = [('hash','=', extra.get('hash', False))]
+        if cdict.get('revision'):
+            # also search by revno+branch_id
+            sdomain = expression.or_join(sdomain, [('branch_id', '=', branch_id), ('revno', '=', cdict['revision'])])
+        cmts = self.search_read(cr, uid, sdomain,
                         fields=['ctype', 'branch_id', 'hash'], context=context)
         if cmts:
             # This is the case where buildbot attempts to send us a commit
             # for a second time
-            assert len(cmts) == 1
+            
             for cmt in cmts:
                 assert cmt['hash']
                 if cmt['ctype'] == 'incomplete':
+                    assert not cid, 'Duplicate entry! May bork the algorithm'
                     cid = cmt['id']
                     # and let code below fill the incomplete commit
-                # TODO: what if it belongs to the 'rest' branch and we need to update?
+                elif cmt['hash'] != extra.get('hash', False):
+                    # must have matched revno + branch_id
+                    alt_revno = '[%s]' % cdict['revision']
+                    old2_ids = self.search(cr, uid, [('branch_id', '=', branch_id),
+                            ('revno', '=', alt_revno )], context=context)
+                    if old2_ids:
+                        alt_revno = '[%s:%d]' % (cdict['revision'], cmt['id'])
+                    # move old commit out of the way, let rest of algo insert
+                    # the new commit as usual
+                    if self._debug:
+                        osv.orm._logger.debug('%s: moving commit %d to %s, because we have new (branch_id, revno) = (%d, %s) pair', 
+                            self._name, cmt['id'], alt_revno, branch_id, cdict['revision'])
+                    self.write(cr, uid, cmt['id'], {'revno': alt_revno}, context=context)
                 elif branch_id and cmt['branch_id'][0] != branch_id:
+                    # what if it belongs to the 'rest' branch and we need to update?
                     # we need the boolean result, no need to read()
                     brs = self.pool.get('software_dev.branch').search(cr, uid,
                                 [('id','=', cmt['branch_id'][0]), ('sub_url', '=','::rest')],
