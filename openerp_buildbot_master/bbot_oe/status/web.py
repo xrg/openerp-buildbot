@@ -299,7 +299,7 @@ class BuildsMatrix(StatusResourceBuilder):
             values['test_results'].setdefault(name0,[]).append( {
                                 'name': tres.name ,
                                 'results': tres.results, 
-                                'text': tres.text })
+                                'text': ustr(tres.text) })
         # TODO: perhaps filter?
         return values
 
