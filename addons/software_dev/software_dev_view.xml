@@ -477,6 +477,7 @@
                 <newline/>
                 <group string="Source" colspan="2" col="2">
                     <field name="package_id"/>
+                    <field name="branch_component" />
                     <field name="branch_id" />
                     <field name="scheduler" />
                     <field name="tstimer" attrs="{'invisible': [('scheduler', 'in', ('dependent','none'))]}" />
