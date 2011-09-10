@@ -220,6 +220,11 @@ class GitPoller_OE(GitMultiPoller):
     def _process_changes_failure(self, f):
         log.err(f, 'gitpoller: repo poll failed')
         # eat the failure to continue along the defered chain - we still want to catch up
+        self.master.db.sendMessage('Git poll:',
+                        'Git poller for %s at %s cannot process changes.',
+                        (self.repourl, self.workdir),
+                        instance=f)
+
         return None
 
 
@@ -227,16 +232,17 @@ class GitPoller_OE(GitMultiPoller):
         log.err(f, 'gitpoller: please resolve issues in local repo: %s' % self.workdir)
         # this used to stop the service, but this is (a) unfriendly to tests and (b)
         # likely to leave the error message lost in a sea of other log messages
+        self.master.db.sendMessage('Git catch up:',
+                        'Git poller for %s at %s cannot catch up.',
+                        (self.repourl, self.workdir),
+                        instance=f)
 
     def _stop_on_failure(self, f, message=None):
         "utility method to stop the service when a failure occurs"
-        if False and isinstance(f, failure.Failure):
-            log.err(None, "Stop: %s" % (f.getErrorMessage()))
-            # TODO decode the 'instance' with Failure etc.
-        elif message:
-            log.err(f, message)
-        else:
-            log.err(f, "stop:")
+        self.master.db.sendMessage('Stopping gitpoller:',
+                        '%s, git poller for %s had to stop. ',
+                        (message or 'Error', self.repourl),
+                        instance=f)
         if self.running:
             d = defer.maybeDeferred(lambda : self.stopService())
             d.addErrback(log.err, 'while stopping broken GitPoller service')
