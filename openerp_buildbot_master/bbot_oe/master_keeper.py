@@ -240,6 +240,11 @@ class Keeper(object):
                             args.append(None)
                         args.append(v)
 
+                # properties with '%' must be rendered, too
+                for k in kwargs.keys():
+                    if k.startswith('%'):
+                        kwargs[k[1:]] = WithProperties(kwargs.pop(k))
+
                 klass = dic_steps[bstep[0]]
                 self.logger.debug("Adding step %s([%r],%r)", bstep[0], args, kwargs)
                 if issubclass(klass, StepOE ):
