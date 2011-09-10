@@ -24,6 +24,7 @@ from buildbot.status.builder import SUCCESS, FAILURE, WARNINGS #, EXCEPTION, SKI
 from buildbot.status.builder import TestResult
 from openerp_libclient.tools import ustr
 import re
+from twisted.python import log as twisted_log
 
 """ BuildStep interface classes
 
@@ -176,6 +177,14 @@ class LoggedOEmixin(StepOE):
                     last_msgs = [msg,] # and discard lower msgs
                 elif sev == severity:
                     last_msgs.append(msg)
+
+                if fdict.get('call'):
+                    try:
+                        fn = fdict['call']
+                        fn(self, line, module, mgd, fdict)
+                    except Exception:
+                        twisted_log.err(None, "failed to call %r" % fdict['call'])
+                        pass
 
                 if fdict.get('short', False):
                     tline = msg
