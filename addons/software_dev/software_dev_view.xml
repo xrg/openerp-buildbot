@@ -725,6 +725,7 @@
               <form>
                 <field name="name"/>
                 <field name="tech_code"/>
+                <field name="user_id" />
                 <field name="http_url" />
                 <field name="http_port" />
                 <field name="attribute_ids" colspan="4">

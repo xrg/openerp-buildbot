@@ -31,6 +31,7 @@ class software_buildbot(osv.osv):
 
     _columns = {
         'builder_id': fields.many2one('software_dev.builder', 'Builder', required=True, readonly=True, ondelete='cascade'),
+        'user_id': fields.many2one('res.users', 'Responsible User'),
         'tech_code': fields.char('Code', size=64, required=True, select=1),
         'attribute_ids': fields.one2many('software_dev.battr', 'bbot_id', 'Attributes'),
         'http_port': fields.integer('Http port', help="Port to run the buildbot status server at"),
