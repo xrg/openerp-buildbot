@@ -26,6 +26,7 @@
 from buildbot.steps.shell import ShellCommand
 from buildbot.process.buildstep import RemoteShellCommand
 from bbot_oe.step_iface import LoggedOEmixin
+from buildbot.process.properties import WithProperties
 from buildbot.status.builder import SUCCESS, FAILURE, WARNINGS #, EXCEPTION, SKIPPED
 
 
@@ -52,7 +53,7 @@ class RpmBuild2(LoggedOEmixin, ShellCommand):
 
             Conforms to the special API of LoggedOEmixin.createSummary()
         """
-        rpm_key = fdict.get('rpm_key', 'RPM')
+        rpm_key = fdict.get('rpm_key', 'RPMs')
         current_rpms = []
         if self.build.hasProperty(rpm_key):
             current_rpms = self.build.getProperty(rpm_key)
@@ -124,5 +125,52 @@ class RpmBuild2(LoggedOEmixin, ShellCommand):
         self.checkForOldSlaveAndLogfiles()
         self.startCommand(cmd)
 
-exported_buildsteps = [RpmBuild2, ]
+class RpmLint2(LoggedOEmixin, ShellCommand):
+    name = "RPM Lint Test"
+    description = ["Checking for RPM/SPEC issues"]
+    descriptionDone = ["Finished checking RPM/SPEC issues"]
+    haltOnFailure = False
+    warnOnFailure = True
+
+    renderables = [ 'specfile' ]
+    _command = ['/usr/bin/rpmlint' ]
+
+    known_strs = [  (r'(?P<fname>.+?): W: spelling-error (?P<msg>.+)$', WARNINGS,
+                            {'module_from_fname': True, 'short': True, 'test_name': 'rpm spelling' }),
+                    (r'(?P<fname>.+?): W: (?P<msg>.+)$', WARNINGS,
+                            {'module_from_fname': True, 'short': True, 'test_name': 'rpmlint' }),
+                    (r'(?P<fname>.+?): E: (?P<msg>.+)$', FAILURE,
+                            {'module_from_fname': True, 'short': True, 'test_name': 'rpmlint' }),
+                    (r'.*', SUCCESS),
+                 ]
+
+    def __init__(self,  workdir=None, specfile=None, rpmfiles='RPMs',
+                part_subs=None, keeper_conf=None, command=_command, **kwargs):
+        """ performs an RPM Lint check at specfile + rpmfiles
+
+            @param rpmfiles the key to the RPMs property, will be looked up
+                in self.build.properties
+            @param specfile is a single filename
+        """
+        kwargs.setdefault('logEnviron', False)
+        ShellCommand.__init__(self, command=command, workdir=workdir, **kwargs)
+        LoggedOEmixin.__init__(self, workdir=workdir, part_subs=part_subs, keeper_conf=keeper_conf, **kwargs)
+        self.remote_kwargs['workdir'] = self.workdir
+        self.specfile = specfile
+        self.rpmfiles = rpmfiles
+        self.addFactoryArguments(specfile=specfile, workdir=self.workdir, rpmfiles=rpmfiles)
+
+    def start(self):
+        if self.specfile:
+            self.command.append(self.specfile)
+
+        if self.remote_kwargs.get('workdir') is None:
+            self.remote_kwargs['workdir'] = self.workdir
+
+        if self.rpmfiles and self.build.hasProperty(self.rpmfiles):
+            self.command += self.build.getProperty(self.rpmfiles)
+
+        return ShellCommand.start(self)
+
+exported_buildsteps = [RpmBuild2, RpmLint2 ]
 #eof
