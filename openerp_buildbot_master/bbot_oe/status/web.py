@@ -222,7 +222,11 @@ class LatestBuilds(HtmlResource):
                 if not label:
                     label = "#%d" % build.getNumber()
                 tftime = time.strftime('%a %d, %H:%M:%S', time.localtime(build.getTimes()[1]))
-                ttitle = 'Test at: %s\n%s' %(ustr(tftime), html.escape(ustr(' '.join(build.getText()))))
+                try:
+                    btext = map(ustr, build.getText())
+                except Exception:
+                    btext = ['???']
+                ttitle = 'Test at: %s\n%s' %(ustr(tftime), html.escape(' '.join(btext)))
                 class_b = "build%s" % build_get_class(build)
                 
                 build_cxt.update({ 'label': label, 'commiter': commiter,
