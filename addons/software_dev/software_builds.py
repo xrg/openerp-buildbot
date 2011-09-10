@@ -327,6 +327,8 @@ class software_buildseries(propertyMix, osv.osv):
                         'workdir': comp.dest_path,
                         'alwaysUseLatest': use_latest,
                         'rolling': is_rolling,
+                        'shallow': branch_bro.repo_id.shallow,
+                        'submodules': branch_bro.repo_id.submodules,
                         }) )
                 else:
                     raise NotImplementedError("Cannot handle %s repo" % rtype)

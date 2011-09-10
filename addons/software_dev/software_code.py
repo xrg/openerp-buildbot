@@ -107,9 +107,14 @@ class software_repo(osv.osv):
                     domain=[('fork_of_id', '=', False)], # don't allow nested forking, make algos simpler
                     select=True,
                     help="If this repository is a fork of another registered one (share hashes etc.)"),
+        'shallow': fields.boolean('Shallow', help="Try to use shallow copies at buildslaves"),
+        'submodules': fields.boolean('Submodules', required=True,
+                    help="This repository contains submodules"),
     }
 
     _defaults = {
+        'shallow': False,
+        'submodules': False,
     }
 
     def get_rest_branch(self, cr, uid, ids, context=None):
