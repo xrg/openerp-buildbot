@@ -46,6 +46,20 @@ class RpmBuild2(LoggedOEmixin, ShellCommand):
     flunkOnFailure = 1
     description = ["RPMBUILD"]
     descriptionDone = ["RPMBUILD"]
+
+    def _wrote_rpm(self, line, module, mgroupdict, fdict):
+        """ Called to register an RPM written
+
+            Conforms to the special API of LoggedOEmixin.createSummary()
+        """
+        rpm_key = fdict.get('rpm_key', 'RPM')
+        current_rpms = []
+        if self.build.hasProperty(rpm_key):
+            current_rpms = self.build.getProperty(rpm_key)
+
+        current_rpms.append(mgroupdict['msg'].strip())
+        self.build.setProperty(rpm_key, source=self.name, value=current_rpms)
+
     known_strs = [  (r'Processing files: *(?P<fname>.+?) *$', SUCCESS,
                                 {'module_persist': True, 'module_from_fname': True} ),
                     (r'Provides:  *(?P<msg>.+)$', SUCCESS, {'test_name': 'provides'}),
@@ -54,7 +68,8 @@ class RpmBuild2(LoggedOEmixin, ShellCommand):
                     (r'Obsoletes: *(?P<msg>.+)$', SUCCESS, {'test_name': 'obsoletes'}),
                     (r'Conflicts: *(?P<msg>.+)$', SUCCESS, {'test_name': 'conflicts'}),
                     (r'Checking for unpackaged', SUCCESS,{'test_name': 'post_check'}),
-                    (r'Wrote: *(?P<msg>.+)$', SUCCESS, {'test_name': 'out_rpms'}),
+                    (r'Wrote: *(?P<msg>.+)$', SUCCESS, {'test_name': 'out_rpms',
+                                                        'call': _wrote_rpm}),
                     (r'Executing\(%(?P<test_name>[^\)]+)', SUCCESS),
                     (r'RPM build errors: *(?P<msg>.+)$', FAILURE),
                     (r'Finding +Provides:', SUCCESS, {'test_name': 'rest'}),
