@@ -618,10 +618,19 @@
             <field name="type">form</field>
             <field name="arch" type="xml">
               <form>
-                <field name="sequence" />
                 <field name="name"/>
+                <field name="sequence" />
                 <!-- <field name="test_id" /> -->
-                <field name="attribute_ids" colspan="4"/>
+                <field name="attribute_ids" nolabel="1" colspan="4">
+                    <tree string="Parameters" editable="bottom">
+                        <field name="name"/>
+                        <field name="value"/>
+                    </tree>
+                    <form>
+                        <field name="name"/>
+                        <field name="value"/>
+                    </form>
+                </field>
               </form>
           </field>
         </record>
