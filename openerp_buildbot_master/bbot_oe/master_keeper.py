@@ -15,6 +15,7 @@ from twisted.python import log
 import logging
 from buildbot.buildslave import BuildSlave
 from buildbot.process import factory
+from buildbot.process.properties import WithProperties
 from scheduler import ChangeFilter_OE, ChangeFilter2_OE
 from buildbot.schedulers import basic, timed, dependent
 from buildbot import manhole
@@ -219,18 +220,31 @@ class Keeper(object):
            
             for bstep in bld['steps']:
                 assert bstep[0] in dic_steps, "Unknown step %s" % bstep[0]
+                args = []
                 kwargs = bstep[1].copy()
-                # TODO manipulate some of them
                 if 'locks' in kwargs:
                    pass # TODO
                 if 'keeper' in kwargs:
                     kwargs['keeper'] = self
+                if '0' in kwargs.keys():
+                    # we have positional arguments
+                    tmp_list = []
+                    for k in kwargs.keys():
+                        if k.startswith('%') and k[1:].isdigit():
+                            tmp_list.append((int(k[1:]), WithProperties(kwargs.pop(k))))
+                        elif k.isdigit():
+                            tmp_list.append((int(k),kwargs.pop(k)))
+                    tmp_list.sort(key=lambda l: l[0])
+                    for i, v in tmp_list:
+                        while len(args) < i:
+                            args.append(None)
+                        args.append(v)
 
                 klass = dic_steps[bstep[0]]
-                self.logger.debug("Adding step %s(%r)", bstep[0], kwargs)
+                self.logger.debug("Adding step %s([%r],%r)", bstep[0], args, kwargs)
                 if issubclass(klass, StepOE ):
                     kwargs['keeper_conf'] = dict(builder=bld, step_extra=bstep[2:])
-                fact.addStep(klass(**kwargs))
+                fact.addStep(klass(*args, **kwargs))
             
             c['builders'].append({
                 'name' : bld['name'],
