@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from datetime import datetime
-from twisted.python import log
+from twisted.python import log, failure
 from twisted.internet import defer, threads
 from twisted.internet import reactor
 from twisted.application import internet,service
@@ -935,6 +935,49 @@ class OERPConnector(util.ComparableMixin, service.MultiService):
         self.master.botmaster.maybeStartBuildsForAllBuilders()
         return d
 
+
+    def sendMessage(self, title, message, args=None, priority=1, instance=None):
+        """ Send a notification to the administrator
+
+            This may use the db to send a special request, so that the
+            admin doesn't have to read the logs
+
+            @param title The message title
+            @param message the message body (text)
+            @param args may replace delimiters (%s) in message
+            @param instance If available, a twisted.python.failure.Failure
+                instance, which will be decoded and appended to message
+            @param priority 0=Low, 1=Normal, 2=High, just like res.request
+
+        """
+        final_message = message
+        if args and '%' in message:
+            final_message = message % args
+
+        if instance and priority >= 1:
+            log.err(instance, final_message)
+        else:
+            print final_message
+
+        if 'user_id' in self.master.properties:
+            try:
+                request_obj = rpc.RpcProxy('res.request')
+                if instance is not None:
+                    if not title:
+                        title = instance.getErrorMessage()
+                    elif title.strip().endswith(':'):
+                        title += instance.getErrorMessage()
+                    else:
+                        final_message += '\n\n' + instance.getErrorMessage()
+
+                    final_message += '\n\n' + instance.getBriefTraceback()
+
+                req_id = request_obj.create({'act_to': self.master.properties['user_id'],
+                        'name': title, 'body': final_message, 'priority': str(priority)})
+                assert req_id
+                request_obj.request_send([req_id])
+            except Exception, e:
+                log.err(failure.Failure(e), 'Cannot send request')
 
     # TODO must go to results obj.
     def saveStatResults(self, changes, file_stats):

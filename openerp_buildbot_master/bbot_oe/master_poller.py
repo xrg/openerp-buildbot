@@ -199,4 +199,18 @@ class MasterPoller(service.MultiService):
         except Exception, e:
             log.err('Cannot rescan commits: %s' % e)
 
+    @call_with_master
+    def ping(self, master, request=False, email=False):
+        """ Respond with all possible ways, test async connectivity
+
+            @param request Send a res.request
+            @param email try to send an email TODO
+        """
+
+        log.msg(None, 'pong')
+
+        if request:
+            master.db.sendMessage('pong', 'Pong to poller request', priority=0)
+        return 'pong'
+
 #eof

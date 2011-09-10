@@ -157,6 +157,8 @@ class Keeper(object):
         bbot_data = bbot_obj.read(self.bbot_id)
         if bbot_data['http_url']:
             c['buildbotURL'] = bbot_data['http_url']
+        if bbot_data.get('user_id'):
+            c['properties']['user_id'] = bbot_data['user_id'][0]
 
         bbot_attr_obj = rpc.RpcProxy('software_dev.battr')
         if True:
