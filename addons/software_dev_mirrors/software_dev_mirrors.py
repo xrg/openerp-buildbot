@@ -145,7 +145,7 @@ class softdev_branch_collection(osv.osv):
                                 (bbra.sub_url.replace('/','_').replace('~','').replace('@','_'))
                 fi_file = 'import-%s.fi' % branch_name
                 local_branch = False
-                if rp.local_prefix:
+                if (not bbra.tech_code) and rp.local_prefix:
                     local_branch = rp.local_prefix + \
                                 bbra.sub_url.replace('/','_').replace('~','').replace('@','_')
                 bret['steps'].append((stepname, { 'name': sname, 'repo_id': rp.id,
