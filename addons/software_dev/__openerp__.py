@@ -42,6 +42,7 @@ builds and testing into the ERP.
         'wizard/quick_repo_view.xml',
         'wizard/commit2build.xml',
         'wizard/resolve_incomplete.xml',
+        'wizard/poll_wizard.xml',
     ],
     'api_depends': ['engine-pg84', 'exec_dict', 'search-browse',
             'virtual-fns', 'search-read', 'browse-browse',
