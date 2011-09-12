@@ -132,7 +132,7 @@ class MasterPoller(service.MultiService):
                     continue
                 cl = csource._loop
                 if not (cl.running and cl.call):
-                    continue
+                    csource.startService()
 
                 d = defer.maybeDeferred(cl.f, *cl.a, **cl.kw)
                 d.addCallback(lambda result: cl._reschedule())
