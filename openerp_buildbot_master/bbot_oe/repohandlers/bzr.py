@@ -225,7 +225,6 @@ def _generate_change2(repository, new_revid, old_revid,
     change['properties'] = props
     return change
 
-
 class BzrPoller(buildbot.changes.base.PollingChangeSource,
                 buildbot.util.ComparableMixin):
 
@@ -238,7 +237,7 @@ class BzrPoller(buildbot.changes.base.PollingChangeSource,
                     allHistory=False, repourl=None):
         """
             @param fetch_url the remote url to fetch the branch from
-            @param branch_path ?? (used as the branch name in Change())
+            @param branch_path the remote name of the branch
             @param workdir if specified, the local proxy of the branch to poll
             @param local_branch the name of the branch within workdir
             @param poll_interval is in seconds, so default poll_interval is 10
@@ -272,6 +271,7 @@ class BzrPoller(buildbot.changes.base.PollingChangeSource,
             self.last_revision = last_revision
 
         self.branch_dir = None # to be filled after init
+        self.error_count = 0
 
     def _get_url(self):
         # bzr+ssh://bazaar.launchpad.net/~launchpad-pqm/launchpad/devel/
@@ -283,6 +283,7 @@ class BzrPoller(buildbot.changes.base.PollingChangeSource,
 
     def startService(self):
         twisted.python.log.msg("BzrPoller(%s) starting" % self.fetch_url)
+        self.error_count = 0
         d = self.initRepository()
         buildbot.changes.base.PollingChangeSource.startService(self)
         return d
@@ -332,7 +333,12 @@ class BzrPoller(buildbot.changes.base.PollingChangeSource,
         return d
 
     def describe(self):
-        return "BzrPoller watching %s" % self.fetch_url
+        status = ""
+        if not self.master:
+            status = ' [STOPPED by master]'
+        elif (not getattr(self, '_loop')) or not self._loop.running:
+            status = ' [STOPPED] '
+        return "BzrPoller watching %s%s" % (self.fetch_url, status)
 
     @deferredLocked('initLock')
     def poll(self):
@@ -340,6 +346,7 @@ class BzrPoller(buildbot.changes.base.PollingChangeSource,
         if self.branch_dir:
             d.addCallback(self._update_branch)
         d.addCallback(self._get_changes)
+        d.addErrback(self._poll_failure)
         return d
 
     @deferredLocked('updateLock')
@@ -391,17 +398,33 @@ class BzrPoller(buildbot.changes.base.PollingChangeSource,
                 wfd.getResult()
         self.historic_mode = False
 
-    def _stop_on_failure(self, f):
+    def _stop_on_failure(self, f, message=None):
         "utility method to stop the service when a failure occurs"
         d = defer.maybeDeferred(lambda : self.running and self.stopService())
         d.addErrback(twisted.python.log.err, 'while stopping broken BzrPoller service')
-        if f and isinstance(f, Failure) and isinstance(f.value, EnvironmentError):
-            twisted.python.log.err("Stopping BzrPoller: %s" % f.value.args[0])
-            # don't return, we handled it already
-            return None
+        
+        self.master.db.sendMessage('Stopping bzr poller:',
+                        '%s, bzr poller for %s had to stop. ',
+                        (message or 'Error', self.fetch_url),
+                        instance=f)
+
+        return None
+
+    def _poll_failure(self, f):
+        twisted.python.log.err(f, 'bzr poller: please resolve issues in local repo: %s' % self.workdir)
+        # this used to stop the service, but this is (a) unfriendly to tests and (b)
+        # likely to leave the error message lost in a sea of other log messages
+        self.master.db.sendMessage('Bzr poll:',
+                        'Bzr poller for %s at %s cannot poll branch.',
+                        (self.fetch_url, self.workdir),
+                        instance=f)
+        if self.error_count >= 5:
+            self.error_count = 0
+            d = defer.maybeDeferred(lambda : self.running and self.stopService())
+            d.addErrback(twisted.python.log.err, 'while stopping broken BzrPoller service')
         else:
-            twisted.python.log.err("Stopping BzrPoller")
-            return f
+            self.error_count += 1
+
 
     def _convert_nonzero_to_failure(self, res):
         "utility method to handle the result of getProcessOutputAndValue"
