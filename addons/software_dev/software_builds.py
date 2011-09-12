@@ -329,6 +329,7 @@ class software_buildseries(propertyMix, osv.osv):
                         'rolling': is_rolling,
                         'shallow': branch_bro.repo_id.shallow,
                         'submodules': branch_bro.repo_id.submodules,
+                        'progress': True,
                         }) )
                 else:
                     raise NotImplementedError("Cannot handle %s repo" % rtype)
