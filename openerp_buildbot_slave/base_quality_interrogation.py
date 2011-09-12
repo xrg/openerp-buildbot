@@ -2695,6 +2695,7 @@ class CmdPrompt(object):
         readline.set_completer(self._complete)
         readline.parse_and_bind('tab: complete')
         readline.set_completer_delims('')
+        readline.set_history_length(opt.history_length)
         global opt
         if opt.inter_history and os.path.exists(opt.inter_history):
             readline.read_history_file(opt.inter_history)
@@ -3736,6 +3737,8 @@ parser.add_option("-n", "--dry-run", dest="dry_run", action='store_true', defaul
 
 parser.add_option("--inter-history", dest="inter_history",
                     help="Interactive history file")
+parser.add_option("--history-length", dest="history_length", type="int", default=2000,
+                    help="Maximum lines to keep in history.")
 
 pgroup = optparse.OptionGroup(parser, 'Config-File options',
                 " These options help run this script with pre-configured settings.")
