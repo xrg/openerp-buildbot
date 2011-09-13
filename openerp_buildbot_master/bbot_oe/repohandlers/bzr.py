@@ -411,7 +411,8 @@ class BzrPoller(buildbot.changes.base.PollingChangeSource,
         return None
 
     def _poll_failure(self, f):
-        twisted.python.log.err(f, 'bzr poller: please resolve issues in local repo: %s' % self.workdir)
+        twisted.python.log.err(f, 'bzr poller: please resolve issues in local repo: %s' % \
+                self.repo_dir or self.repourl)
         # this used to stop the service, but this is (a) unfriendly to tests and (b)
         # likely to leave the error message lost in a sea of other log messages
         self.master.db.sendMessage('Bzr poll:',
