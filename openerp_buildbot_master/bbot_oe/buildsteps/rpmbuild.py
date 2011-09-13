@@ -72,7 +72,7 @@ class RpmBuild2(LoggedOEmixin, ShellCommand):
                     (r'Wrote: *(?P<msg>.+)$', SUCCESS, {'test_name': 'out_rpms',
                                                         'call': _wrote_rpm}),
                     (r'Executing\(%(?P<test_name>[^\)]+)', SUCCESS),
-                    (r'RPM build errors: *(?P<msg>.+)$', FAILURE),
+                    (r'RPM build errors: *(?P<msg>.+)$', FAILURE, {'test_name': 'rest'}),
                     (r'Finding +Provides:', SUCCESS, {'test_name': 'rest'}),
                     (r'Finding +Requires:', SUCCESS, {'test_name': 'rest'}),
                     (r'warning: (?P<msg>.+)$', WARNINGS),
