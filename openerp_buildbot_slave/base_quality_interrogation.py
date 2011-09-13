@@ -2695,8 +2695,8 @@ class CmdPrompt(object):
         readline.set_completer(self._complete)
         readline.parse_and_bind('tab: complete')
         readline.set_completer_delims('')
-        readline.set_history_length(opt.history_length)
         global opt
+        readline.set_history_length(opt.history_length)
         if opt.inter_history and os.path.exists(opt.inter_history):
             readline.read_history_file(opt.inter_history)
 
