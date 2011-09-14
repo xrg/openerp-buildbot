@@ -46,6 +46,7 @@ class verify_marks(osv.osv_memory):
         repo_obj = self.pool.get('software_dev.repo')
         good_marks = []
         bad_marks = {}
+        bad_marks_flat = []
         unlink_marks = []
         write_commits = []
         wspace_re = re.compile('\s+')
@@ -54,10 +55,14 @@ class verify_marks(osv.osv_memory):
                 return abro.id
             else:
                 return False
-        
+
+        def set_bad_mark(mark, reason):
+            bad_marks.setdefault(reason,[]).append(mark)
+            bad_marks_flat.append(mark)
+
         def root_repo_of(branch_bro):
             """ Returns the id of the topmost repo of branch
-            
+
                 Considers fork repositories.
             """
             r = branch_bro.repo_id
@@ -84,6 +89,7 @@ class verify_marks(osv.osv_memory):
                         ('collection_id', '=', sbro.collection_id.id)],
                     context=context):
                 cdict = None
+                has_unknown = False
                 if remain is not None and remain <= 0:
                     break
 
@@ -128,7 +134,8 @@ class verify_marks(osv.osv_memory):
                         if new_commits:
                             for n in new_commits:
                                 write_commits.append((n, {'commitmap_id': cmmap.id}))
-                    bad_marks.setdefault('bad-missing',[]).append(cmmap.id)
+
+                    set_bad_mark(cmmap.id,'bad-missing')
                     debug("Mark #%d %s has too few commits", cmmap.id, cmmap.mark)
                     remain -= 1
                     continue
@@ -137,16 +144,18 @@ class verify_marks(osv.osv_memory):
                 for cmt in cmmap.commit_ids:
                     if remain is not None:
                         if remain <= 0:
+                            has_unknown = True
                             break
                         remain -= 1
                     if cmt.ctype == 'incomplete':
+                        has_unknown = True
                         continue
                     cmt_repo = root_repo_of(cmt.branch_id)
                     if cmt_repo not in repos:
-                        bad_marks.setdefault('bad',[]).append(cmmap.id)
+                        set_bad_mark(cmmap.id,'bad')
                         break
                     elif cmt_repo in repos_done:
-                        bad_marks.setdefault('bad',[]).append(cmmap.id)
+                        set_bad_mark(cmmap.id,'bad',[])
                         break
                     repos_done.append(cmt_repo)
                     del cmt_repo
@@ -163,6 +172,13 @@ class verify_marks(osv.osv_memory):
                         for par in cmt.contained_commit_ids:
                             cdict['parents'].append(id_of(par.commitmap_id))
                         cdict['parents'].sort()
+                        is_bad = False
+                        for par in cdict['parents']:
+                            if par in bad_marks_flat or par in unlink_marks:
+                                set_bad_mark(cmmap.id,'bad-parents')
+                                is_bad = True
+                        if is_bad:
+                            break
                         continue
 
                     if cmt.date != cdict['date']:
@@ -192,9 +208,9 @@ class verify_marks(osv.osv_memory):
                     parents = []
                     if cmt.parent_id:
                         parents.append(id_of(cmt.parent_id.commitmap_id))
-                        for par in cmt.contained_commit_ids:
-                            parents.append(id_of(par.commitmap_id))
-                        parents.sort()
+                    for par in cmt.contained_commit_ids:
+                        parents.append(id_of(par.commitmap_id))
+                    parents.sort()
                     if parents != cdict['parents']:
                         bad_marks.setdefault('bad-parents',[]).append(cmmap.id)
                         debug("Mark #%d %s parents differ %r != %r", 
@@ -202,11 +218,13 @@ class verify_marks(osv.osv_memory):
                         break
 
                     #end for
-                good_marks.append(cmmap.id)
+                else:
+                    if not has_unknown:
+                        good_marks.append(cmmap.id)
                 # end for
 
-        _logger.debug('verify_marks: processed: %d good, %d bad', len(good_marks),
-                    sum([len(bm) for bm in bad_marks.values()]))
+        _logger.debug('verify_marks: processed: %d good, %d bad, %d unlink', 
+                len(good_marks), len(bad_marks_flat), len(unlink_marks))
         if write_commits:
             for cid, vals in write_commits:
                 commit_obj.write(cr, uid, [cid], vals, context=context)
@@ -215,10 +233,8 @@ class verify_marks(osv.osv_memory):
         if good_marks:
             cmtmap_obj.write(cr, uid, good_marks,{'verified': 'ok'}, context=context)
         if bad_marks:
-            all_bad_marks = []
             for reason, cids in bad_marks.items():
                 cmtmap_obj.write(cr, uid, cids,{'verified': reason}, context=context)
-                all_bad_marks += cids
             if context is None:
                 context = {}
 
@@ -229,7 +245,7 @@ class verify_marks(osv.osv_memory):
                 'view_mode': 'tree,form',
                 'res_model': 'software_dev.mirrors.commitmap',
                 #'views': [(resource_id,'form')],
-                'domain': [('id', 'in', all_bad_marks)],
+                'domain': [('id', 'in', bad_marks_flat)],
                 'type': 'ir.actions.act_window',
                 #'target': 'new',
             }
