@@ -360,6 +360,38 @@
           </field>
         </record>
 
+         <record id="view_softdev_commit_search" model="ir.ui.view">
+            <field name="name">Commit Search</field>
+            <field name="model">software_dev.commit</field>
+            <field name="type">search</field>
+            <field name="arch" type="xml">
+                <search string="Commits Search">
+                    <group col="6" colspan="4">
+                        <field name="branch_id"/>
+                        <field name="revno"/>
+                        <!-- For hash, we only match the beginning, let the index be used -->
+                        <field name="hash" filter_domain="[('hash','=ilike',self +'%%')]" />
+                    </group>
+                    <newline/>
+                    <group expand="0" string="More..." colspan="4" col="10" >
+                        <filter icon="terp-check" name="is_incomplete" string="Incomplete" domain="[('ctype', '=', 'incomplete')]" />
+                        <field name="date" />
+                        <field name="comitter_id" />
+                        <field name="subject" />
+                        <field name="description" />
+                    </group>
+                    <newline />
+                    <group expand="0" string="Group By..." colspan="4" col="4" groups="base.group_extended">
+                        <!--<filter icon="terp-check" name="is_template" string="Templates" domain="[('is_template', '=', True)]"/>-->
+                        <!--<filter icon="terp-check" name="is_build" string="Build" domain="[('is_build', '=', True)]"/>-->
+                        <filter string="Branch" icon="terp-stock_effects-object-colorize" domain="[]" context="{'group_by':'branch_id'}"/>
+                        <filter string="Comitter" icon="terp-stock_effects-object-colorize" domain="[]" context="{'group_by':'comitter_id'}"/>
+                    </group>
+                </search>
+
+            </field>
+        </record>
+
         <record id="action_softdev_commit" model="ir.actions.act_window">
           <field name="name">Code Commits</field>
           <field name="type">ir.actions.act_window</field>
