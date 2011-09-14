@@ -33,10 +33,16 @@ class verify_marks(osv.osv_memory):
     _columns = {
         'collection_id': fields.many2one('software_dev.mirrors.branch_collection',
                 'Branch Collection', required=True),
+        'marks_set': fields.selection([('unknown','Unknown marks only'),
+                ('bad', 'Unknown or bad marks'), ('all', 'All marks, again')],
+                string="Marks to iterate", required=True),
         'limit': fields.integer('Limit',
                 help='If set, only resolve up to that many marks'),
         }
 
+    _defaults = {
+        'marks_set': 'unknown',
+    }
 
     def verify_marks(self, cr, uid, ids, context=None):
         """ The actual algorithm. Scan all the marks of some collection.
@@ -85,9 +91,14 @@ class verify_marks(osv.osv_memory):
             repos = set([a[0] for a in all_repos.values()])
             remain = sbro.limit or None
 
-            for cmmap in cmtmap_obj.browse(cr, uid, [('verified','=', 'unknown'),
-                        ('collection_id', '=', sbro.collection_id.id)],
-                    context=context):
+            marks_domain = [('collection_id', '=', sbro.collection_id.id)]
+            if sbro.marks_set == 'bad':
+                marks_domain.append(('verified','!=', 'ok'))
+            elif sbro.marks_set == 'all':
+                pass
+            else: # unknown, default
+                marks_domain.append(('verified','=', 'unknown'))
+            for cmmap in cmtmap_obj.browse(cr, uid, marks_domain, context=context):
                 cdict = None
                 has_unknown = False
                 if remain is not None and remain <= 0:

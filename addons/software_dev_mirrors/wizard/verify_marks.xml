@@ -9,6 +9,7 @@
 	    <field name="arch" type="xml">
 		<form string="Verify Marks">
 		    <field name="collection_id" colspan="4" />
+		    <field name="marks_set" />
 		    <field name="limit" />
 		    <separator colspan="4"/>
 		    <group col="2" colspan="4">
