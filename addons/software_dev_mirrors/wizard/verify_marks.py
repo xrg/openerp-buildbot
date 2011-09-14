@@ -107,11 +107,13 @@ class verify_marks(osv.osv_memory):
                 if len(cmmap.commit_ids) == 0:
                     unlink_marks.append(cmmap.id)
                     debug("Unlink empty %d", cmmap.id)
-                    remain -= 1
+                    if remain is not None:
+                        remain -= 1
                     continue
                 if len(cmmap.commit_ids) == 1 and len(repos) > 1:
                     if not cmmap.mark.startswith(':'):
-                        remain -= 1
+                        if remain is not None:
+                            remain -= 1
                         # a special fix case: if the mark is not prepended by colon
                         # and we can find the one prepended, update the commit
                         new_cmmaps = cmtmap_obj.search(cr, uid, \
@@ -148,7 +150,8 @@ class verify_marks(osv.osv_memory):
 
                     set_bad_mark(cmmap.id,'bad-missing')
                     debug("Mark #%d %s has too few commits", cmmap.id, cmmap.mark)
-                    remain -= 1
+                    if remain is not None:
+                        remain -= 1
                     continue
 
                 repos_done = []
