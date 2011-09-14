@@ -43,7 +43,9 @@ class verify_marks(osv.osv_memory):
         """
         cmtmap_obj = self.pool.get('software_dev.mirrors.commitmap')
         commit_obj = self.pool.get('software_dev.commit')
-        bad_marks = []
+        repo_obj = self.pool.get('software_dev.repo')
+        good_marks = []
+        bad_marks = {}
         unlink_marks = []
         write_commits = []
         wspace_re = re.compile('\s+')
@@ -52,6 +54,18 @@ class verify_marks(osv.osv_memory):
                 return abro.id
             else:
                 return False
+        
+        def root_repo_of(branch_bro):
+            """ Returns the id of the topmost repo of branch
+            
+                Considers fork repositories.
+            """
+            r = branch_bro.repo_id
+            if r.fork_of_id:
+                return r.fork_of_id.id
+            else:
+                return r.id
+
         _logger = osv.orm._logger
         def debug(msg, *args):
             if not self._debug:
@@ -59,10 +73,16 @@ class verify_marks(osv.osv_memory):
             _logger.debug('verify_marks: '+msg, *args)
 
         for sbro in self.browse(cr, uid, ids, context=context):
-            repos = set([ b.repo_id.id for b in sbro.collection_id.branch_ids])
+            all_repos = repo_obj.get_all_forks(cr, uid, 
+                    osv.orm.browse_record_list([ b.repo_id 
+                                for b in sbro.collection_id.branch_ids], context=context),
+                            context=context)
+            repos = set([a[0] for a in all_repos.values()])
             remain = sbro.limit or None
 
-            for cmmap in cmtmap_obj.browse(cr, uid, [('collection_id', '=', sbro.collection_id.id)], context=context):
+            for cmmap in cmtmap_obj.browse(cr, uid, [('verified','=', 'unknown'),
+                        ('collection_id', '=', sbro.collection_id.id)],
+                    context=context):
                 cdict = None
                 if remain is not None and remain <= 0:
                     break
@@ -70,9 +90,11 @@ class verify_marks(osv.osv_memory):
                 if len(cmmap.commit_ids) == 0:
                     unlink_marks.append(cmmap.id)
                     debug("Unlink empty %d", cmmap.id)
+                    remain -= 1
                     continue
                 if len(cmmap.commit_ids) == 1 and len(repos) > 1:
                     if not cmmap.mark.startswith(':'):
+                        remain -= 1
                         # a special fix case: if the mark is not prepended by colon
                         # and we can find the one prepended, update the commit
                         new_cmmaps = cmtmap_obj.search(cr, uid, \
@@ -89,20 +111,26 @@ class verify_marks(osv.osv_memory):
                     if len(cmmap.commit_ids) >= 1:
                         srepos = repos.copy()
                         for cmt in cmmap.commit_ids:
-                            srepos.remove(cmt.branch_id.repo_id.id)
+                            srepos.remove(root_repo_of(cmt.branch_id))
                         commit0 = cmmap.commit_ids[0]
+                        other_repos = []
+                        for sr in srepos:
+                            if sr in srepos:
+                                continue
+                            other_repos += all_repos[sr]
                         new_commits = commit_obj.search(cr, uid,\
                                     [('date','=', commit0.date), ('subject', '=', commit0.subject),
                                     ('comitter_id', 'in', [('userid', '=', commit0.comitter_id.userid)]),
-                                    ('branch_id', 'in', [('repo_id', 'in', list(srepos))]),
+                                    ('branch_id', 'in', [('repo_id', 'in', other_repos)]),
                                     ('commitmap_id','=', False)],
                                     context=context)
                         del commit0
                         if new_commits:
                             for n in new_commits:
                                 write_commits.append((n, {'commitmap_id': cmmap.id}))
-                    bad_marks.append(cmmap.id)
+                    bad_marks.setdefault('bad-missing',[]).append(cmmap.id)
                     debug("Mark #%d %s has too few commits", cmmap.id, cmmap.mark)
+                    remain -= 1
                     continue
 
                 repos_done = []
@@ -113,12 +141,12 @@ class verify_marks(osv.osv_memory):
                         remain -= 1
                     if cmt.ctype == 'incomplete':
                         continue
-                    cmt_repo = cmt.branch_id.repo_id.id
+                    cmt_repo = root_repo_of(cmt.branch_id)
                     if cmt_repo not in repos:
-                        bad_marks.append(cmmap.id)
+                        bad_marks.setdefault('bad',[]).append(cmmap.id)
                         break
                     elif cmt_repo in repos_done:
-                        bad_marks.append(cmmap.id)
+                        bad_marks.setdefault('bad',[]).append(cmmap.id)
                         break
                     repos_done.append(cmt_repo)
                     del cmt_repo
@@ -138,7 +166,7 @@ class verify_marks(osv.osv_memory):
                         continue
 
                     if cmt.date != cdict['date']:
-                        bad_marks.append(cmmap.id)
+                        bad_marks.setdefault('bad-date',[]).append(cmmap.id)
                         debug("Mark #%d %s dates differ", cmmap.id, cmmap.mark)
                         break
                     elif cmt.subject.strip() != cdict['subject'].strip():
@@ -149,7 +177,7 @@ class verify_marks(osv.osv_memory):
                         # Bzr has a bad habit of allowing ugly subjects. Try harder
                         # to match those against email-normalized Git ones
                         if sub1[:64] != sub2[:64]:
-                            bad_marks.append(cmmap.id)
+                            bad_marks.setdefault('bad-sub',[]).append(cmmap.id)
                             debug('Mark #%d %s subjects differ "%s" != "%s" ', 
                                     cmmap.id, cmmap.mark, sub1[:64], sub2[:64])
                             break
@@ -157,7 +185,7 @@ class verify_marks(osv.osv_memory):
                     if (cmt.comitter_id.userid != cdict['comitter'][0]) and \
                             (id_of(cmt.comitter_id.employee_id) != cdict['comitter'][1]) and \
                             (id_of(cmt.comitter_id.partner_address_id) != cdict['comitter'][2]):
-                        bad_marks.append(cmmap.id)
+                        bad_marks.setdefault('bad-author',[]).append(cmmap.id)
                         debug("Mark #%d %s authors differ", cmmap.id, cmmap.mark)
                         break
                     
@@ -168,27 +196,32 @@ class verify_marks(osv.osv_memory):
                             parents.append(id_of(par.commitmap_id))
                         parents.sort()
                     if parents != cdict['parents']:
-                        bad_marks.append(cmmap.id)
+                        bad_marks.setdefault('bad-parents',[]).append(cmmap.id)
                         debug("Mark #%d %s parents differ %r != %r", 
                                 cmmap.id, cmmap.mark, parents, cdict['parents'])
                         break
 
                     #end for
+                good_marks.append(cmmap.id)
                 # end for
 
+        _logger.debug('verify_marks: processed: %d good, %d bad', len(good_marks),
+                    sum([len(bm) for bm in bad_marks.values()]))
         if write_commits:
             for cid, vals in write_commits:
                 commit_obj.write(cr, uid, [cid], vals, context=context)
         if unlink_marks:
             cmtmap_obj.unlink(cr, uid, unlink_marks, context=context)
+        if good_marks:
+            cmtmap_obj.write(cr, uid, good_marks,{'verified': 'ok'}, context=context)
         if bad_marks:
-            #mod_obj = self.pool.get('ir.model.data')
+            all_bad_marks = []
+            for reason, cids in bad_marks.items():
+                cmtmap_obj.write(cr, uid, cids,{'verified': reason}, context=context)
+                all_bad_marks += cids
             if context is None:
                 context = {}
-            #imd_views = mod_obj.search_read(cr, uid, [('model','=','ir.ui.view'),
-            #        ('module','=', 'software_dev'),
-            #        ('name','=','')], context=context)
-            #resource_id = mod_obj.read(cr, uid, model_data_ids, fields=['res_id'], context=context)[0]['res_id']
+
             return {
                 'name': _('Bad Marks'),
                 'context': context,
@@ -196,7 +229,7 @@ class verify_marks(osv.osv_memory):
                 'view_mode': 'tree,form',
                 'res_model': 'software_dev.mirrors.commitmap',
                 #'views': [(resource_id,'form')],
-                'domain': [('id', 'in', bad_marks)],
+                'domain': [('id', 'in', all_bad_marks)],
                 'type': 'ir.actions.act_window',
                 #'target': 'new',
             }

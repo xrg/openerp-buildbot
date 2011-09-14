@@ -299,7 +299,17 @@ class softdev_commit_mapping(osv.osv):
                 string="Branch Collection", required=True ),
         'commit_ids': fields.one2many('software_dev.commit', 'commitmap_id',
                 string="Commits"),
+        'verified': fields.selection([('unknown','Unknown'),('ok', 'OK'),
+                ('bad','Bad'), ('bad-author', 'Author mismatch'),('bad-sub','Subject mismatch'),
+                ('bad-date', 'Date mismatch'), ('bad-parents', 'Parents mismatch'),
+                ('bad-missing', 'Missing commits')],
+                string="Verified", required=True,
+                help="Holds the result of the marks verification procedure"),
         }
+
+    _defaults = {
+        'verified': 'unknown',
+    }
 
     _sql_constraints = [ ('unique_mark', 'UNIQUE(mark, collection_id)', "Marks must be unique per collection")]
 

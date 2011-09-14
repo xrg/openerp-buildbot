@@ -94,6 +94,7 @@
               <form>
                 <field name="mark"/>
                 <field name="collection_id" />
+                <field name="verified" />
                 <field name="commit_ids" colspan="4" />
               </form>
           </field>
@@ -107,11 +108,12 @@
               <tree>
                 <field name="mark"/>
                 <field name="collection_id" />
+                <field name="verified" />
               </tree>
           </field>
         </record>
 
-	<record id="view_softdev_cmap_search" model="ir.ui.view">
+        <record id="view_softdev_cmap_search" model="ir.ui.view">
           <field name="name">Commit Maps</field>
             <field name="model">software_dev.mirrors.commitmap</field>
             <field name="type">search</field>
@@ -119,6 +121,7 @@
               <search>
                 <field name="mark"/>
                 <field name="collection_id" />
+                <field name="verified" />
               </search>
           </field>
         </record>
