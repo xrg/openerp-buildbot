@@ -21,6 +21,7 @@
 
 from osv import osv, fields
 from tools.translate import _
+import re
 
 class verify_marks(osv.osv_memory):
     """ Request buildbot to scan incomplete commits
@@ -45,6 +46,18 @@ class verify_marks(osv.osv_memory):
         bad_marks = []
         unlink_marks = []
         write_commits = []
+        wspace_re = re.compile('\s+')
+        def id_of(abro):
+            if abro:
+                return abro.id
+            else:
+                return False
+        _logger = osv.orm._logger
+        def debug(msg, *args):
+            if not self._debug:
+                return
+            _logger.debug('verify_marks: '+msg, *args)
+
         for sbro in self.browse(cr, uid, ids, context=context):
             repos = set([ b.repo_id.id for b in sbro.collection_id.branch_ids])
             remain = sbro.limit or None
@@ -56,6 +69,7 @@ class verify_marks(osv.osv_memory):
 
                 if len(cmmap.commit_ids) == 0:
                     unlink_marks.append(cmmap.id)
+                    debug("Unlink empty %d", cmmap.id)
                     continue
                 if len(cmmap.commit_ids) == 1 and len(repos) > 1:
                     if not cmmap.mark.startswith(':'):
@@ -88,6 +102,7 @@ class verify_marks(osv.osv_memory):
                             for n in new_commits:
                                 write_commits.append((n, {'commitmap_id': cmmap.id}))
                     bad_marks.append(cmmap.id)
+                    debug("Mark #%d %s has too few commits", cmmap.id, cmmap.mark)
                     continue
 
                 repos_done = []
@@ -110,17 +125,53 @@ class verify_marks(osv.osv_memory):
 
                     if not cdict:
                         # the first of the commits
-                        cdict = dict(date=cmt.date, subject=cmt.subject)
+                        cdict = dict(date=cmt.date, subject=cmt.subject, 
+                            description=cmt.description, parents=[],
+                            comitter=(cmt.comitter_id.userid, 
+                                    id_of(cmt.comitter_id.employee_id),
+                                    id_of(cmt.comitter_id.partner_address_id)) )
+                        if cmt.parent_id:
+                            cdict['parents'].append(id_of(cmt.parent_id.commitmap_id))
+                        for par in cmt.contained_commit_ids:
+                            cdict['parents'].append(id_of(par.commitmap_id))
+                        cdict['parents'].sort()
                         continue
 
                     if cmt.date != cdict['date']:
                         bad_marks.append(cmmap.id)
+                        debug("Mark #%d %s dates differ", cmmap.id, cmmap.mark)
                         break
                     elif cmt.subject.strip() != cdict['subject'].strip():
+                        sub1 = cmt.subject.strip() + ' '+ cmt.description.strip()
+                        sub2 = cdict['subject'].strip() + ' ' + cdict['description'].strip()
+                        sub1 = wspace_re.sub(' ', sub1)
+                        sub2 = wspace_re.sub(' ', sub2)
+                        # Bzr has a bad habit of allowing ugly subjects. Try harder
+                        # to match those against email-normalized Git ones
+                        if sub1[:64] != sub2[:64]:
+                            bad_marks.append(cmmap.id)
+                            debug('Mark #%d %s subjects differ "%s" != "%s" ', 
+                                    cmmap.id, cmmap.mark, sub1[:64], sub2[:64])
+                            break
+                    
+                    if (cmt.comitter_id.userid != cdict['comitter'][0]) and \
+                            (id_of(cmt.comitter_id.employee_id) != cdict['comitter'][1]) and \
+                            (id_of(cmt.comitter_id.partner_address_id) != cdict['comitter'][2]):
                         bad_marks.append(cmmap.id)
+                        debug("Mark #%d %s authors differ", cmmap.id, cmmap.mark)
                         break
-
-                    # TODO: compare authors, parent commits
+                    
+                    parents = []
+                    if cmt.parent_id:
+                        parents.append(id_of(cmt.parent_id.commitmap_id))
+                        for par in cmt.contained_commit_ids:
+                            parents.append(id_of(par.commitmap_id))
+                        parents.sort()
+                    if parents != cdict['parents']:
+                        bad_marks.append(cmmap.id)
+                        debug("Mark #%d %s parents differ %r != %r", 
+                                cmmap.id, cmmap.mark, parents, cdict['parents'])
+                        break
 
                     #end for
                 # end for
