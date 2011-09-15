@@ -200,10 +200,10 @@ class verify_marks(osv.osv_memory):
                         debug("Mark #%d %s dates differ", cmmap.id, cmmap.mark)
                         break
                     elif cmt.subject.strip() != cdict['subject'].strip():
-                        sub1 = cmt.subject.strip() + ' '+ cmt.description.strip()
-                        sub2 = cdict['subject'].strip() + ' ' + cdict['description'].strip()
-                        sub1 = wspace_re.sub(' ', sub1)
-                        sub2 = wspace_re.sub(' ', sub2)
+                        sub1 = cmt.subject + ' '+ cmt.description
+                        sub2 = cdict['subject'] + ' ' + cdict['description']
+                        sub1 = wspace_re.sub(' ', sub1.strip())
+                        sub2 = wspace_re.sub(' ', sub2.strip())
                         # Bzr has a bad habit of allowing ugly subjects. Try harder
                         # to match those against email-normalized Git ones
                         if sub1[:64] != sub2[:64]:
