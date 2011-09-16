@@ -176,8 +176,8 @@ class verify_marks(osv.osv_memory):
 
                     if not cdict:
                         # the first of the commits
-                        cdict = dict(date=cmt.date, subject=cmt.subject, 
-                            description=cmt.description, parents=[],
+                        cdict = dict(date=cmt.date, subject=cmt.subject or '',
+                            description=cmt.description or '', parents=[],
                             comitter=(cmt.comitter_id.userid, 
                                     id_of(cmt.comitter_id.employee_id),
                                     id_of(cmt.comitter_id.partner_address_id)) )
@@ -200,7 +200,7 @@ class verify_marks(osv.osv_memory):
                         debug("Mark #%d %s dates differ", cmmap.id, cmmap.mark)
                         break
                     elif cmt.subject.strip() != cdict['subject'].strip():
-                        sub1 = cmt.subject + ' '+ cmt.description
+                        sub1 = cmt.subject + ' '+ (cmt.description or '')
                         sub2 = cdict['subject'] + ' ' + cdict['description']
                         sub1 = wspace_re.sub(' ', sub1.strip())
                         sub2 = wspace_re.sub(' ', sub2.strip())
