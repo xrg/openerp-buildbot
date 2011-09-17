@@ -34,7 +34,8 @@ class verify_marks(osv.osv_memory):
         'collection_id': fields.many2one('software_dev.mirrors.branch_collection',
                 'Branch Collection', required=True),
         'marks_set': fields.selection([('unknown','Unknown marks only'),
-                ('bad', 'Unknown or bad marks'), ('all', 'All marks, again')],
+                ('bad', 'Unknown or bad marks'), ('all', 'All marks, again'),
+                ('missing', 'Recompute missing only')],
                 string="Marks to iterate", required=True),
         'limit': fields.integer('Limit',
                 help='If set, only resolve up to that many marks'),
@@ -96,6 +97,8 @@ class verify_marks(osv.osv_memory):
                 marks_domain.append(('verified','!=', 'ok'))
             elif sbro.marks_set == 'all':
                 pass
+            elif sbro.marks_set == 'missing':
+                marks_domain.append(('verified','=', 'bad-missing'))
             else: # unknown, default
                 marks_domain.append(('verified','=', 'unknown'))
             for cmmap in cmtmap_obj.browse(cr, uid, marks_domain, context=context):
@@ -134,19 +137,38 @@ class verify_marks(osv.osv_memory):
                         commit0 = cmmap.commit_ids[0]
                         other_repos = []
                         for sr in srepos:
-                            if sr in srepos:
-                                continue
                             other_repos += all_repos[sr]
+                        debug("other repos: %r", other_repos)
+                        if commit0.parent_id:
+                            parent_rule = []
+                            if commit0.parent_id.commitmap_id:
+                                parent_rule = [('parent_id', 'in', \
+                                        [ pcmt.id for pcmt in commit0.parent_id.commitmap_id.commit_ids ])]
+                                debug("parent rule: %r", parent_rule)
+                        else:
+                            parent_rule = ('parent_id', '=', False)
+                        if sbro.marks_set != 'missing':
+                            cmmap_rule = [('commitmap_id','=', False)]
+                        else:
+                            cmmap_rule = ['|', ('commitmap_id','=', False), \
+                                    ('commitmap_id', 'in', [('verified','in', \
+                                            ('bad-missing', 'bad-parents')),]) ]
                         new_commits = commit_obj.search(cr, uid,\
-                                    [('date','=', commit0.date), ('subject', '=', commit0.subject),
+                                    [('date','=', commit0.date), ('subject', 'like', commit0.subject[:10].strip()),
                                     ('comitter_id', 'in', [('userid', '=', commit0.comitter_id.userid)]),
-                                    ('branch_id', 'in', [('repo_id', 'in', other_repos)]),
-                                    ('commitmap_id','=', False)],
+                                    ('branch_id', 'in', [('repo_id', 'in', other_repos)])] \
+                                    + parent_rule + cmmap_rule,
                                     context=context)
                         del commit0
                         if new_commits:
                             for n in new_commits:
                                 write_commits.append((n, {'commitmap_id': cmmap.id}))
+                            if len(new_commits) >= len(repos) - 1:
+                                set_bad_mark(cmmap.id, 'unknown')
+                                debug("Mark #%d %s rescued %d commits", cmmap.id, cmmap.mark, len(new_commits))
+                                if remain is not None:
+                                    remain -= 1
+                                continue
 
                     set_bad_mark(cmmap.id,'bad-missing')
                     debug("Mark #%d %s has too few commits", cmmap.id, cmmap.mark)
