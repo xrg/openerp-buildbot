@@ -417,7 +417,7 @@ class BzrPoller(buildbot.changes.base.PollingChangeSource,
         # likely to leave the error message lost in a sea of other log messages
         self.master.db.sendMessage('Bzr poll:',
                         'Bzr poller for %s at %s cannot poll branch.',
-                        (self.fetch_url, self.workdir),
+                        (self.fetch_url, self.repo_dir or self.repourl),
                         instance=f)
         if self.error_count >= 5:
             self.error_count = 0
