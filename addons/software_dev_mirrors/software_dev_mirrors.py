@@ -93,6 +93,7 @@ class softdev_branch_collection(osv.osv):
                     'properties': { 'group': 'Mirroring' }, # 'sequence': bldr.sequence, },
                     'scheduler': bcol.scheduler,
                     'tstimer': bcol.tstimer,
+                    'locks': [{'name': 'mirror-lock-'+bcol.name, 'type': 'master' },], # 'maxCount': 1
                     }
 
             bret['slavenames'] = [ sl.tech_code \
