@@ -154,7 +154,7 @@ class OpenERPTest(StepOE, LoggingBuildStep):
                     netport=None, port=None, ftp_port=None,
                     force_modules=None,
                     black_modules=None,
-                    test_mode='full',
+                    test_mode='full', distinct=False,
                     do_warnings=None, lang=None, debug=False,
                     keeper_conf=None, part_subs=None, components=None,
                     **kwargs):
@@ -172,6 +172,7 @@ class OpenERPTest(StepOE, LoggingBuildStep):
                 self.part_subs = keeper_conf['builder'].get('component_parts',[])
             if not self.components:
                 self.components = keeper_conf['builder'].get('components', [])
+            distinct = keeper_conf['builder'].get('is_distinct', False)
 
         self.addFactoryArguments(workdir=workdir, dbname=dbname, addonsdir=addonsdir, 
                                 netport=netport, port=port, ftp_port=ftp_port, logfiles={},
@@ -180,7 +181,7 @@ class OpenERPTest(StepOE, LoggingBuildStep):
                                 do_warnings=do_warnings, lang=lang,
                                 part_subs=self.part_subs, components=self.components,
                                 debug=debug,
-                                test_mode=test_mode,)
+                                test_mode=test_mode, distinct=distinct)
         self.args = {'port' :port, 'workdir':workdir, 'dbname': dbname, 
                     'netport':netport, 'addonsdir':addonsdir, 'logfiles':{},
                     'ftp_port': ftp_port,
@@ -195,6 +196,7 @@ class OpenERPTest(StepOE, LoggingBuildStep):
 
         self.addLogObserver('stdio', BqiObserver())
         self.progressMetrics += ('tests',)
+        self.distinct = distinct
 
     def setDescription(self, txt):
         """ Sets the 2nd member of self.description to txt """
@@ -272,8 +274,10 @@ class OpenERPTest(StepOE, LoggingBuildStep):
                 if not more_mods:
                     log.err("No changed modules located")
             try:
+                if self.distinct:
+                    raise StopIteration()
                 if self.args['test_mode'] == 'changed-only':
-                    raise Exception('Skipped')
+                    raise StopIteration('Skipped')
                 olmods_found = []
                 for sbuild in self.build.builder.builder_status.generateFinishedBuilds(num_builds=10):
                     log.msg("Scanning back build %d" % sbuild.getNumber())
@@ -295,6 +299,8 @@ class OpenERPTest(StepOE, LoggingBuildStep):
                         log.msg("Found these modules that failed last time: %s" % \
                                 ','.join(olmods_found))
                         break #don't look further back in the history
+            except StopIteration:
+                pass
             except Exception, e:
                 log.err("Could not figure old failures: %s" % e)
             mods_changed.extend(set(more_mods))
@@ -305,12 +311,6 @@ class OpenERPTest(StepOE, LoggingBuildStep):
                 if mc in self.args['black_modules']:
                     todel.append(mc)
                     continue
-                # We no longer have access to the slave dirs.
-                #if not os.path.isdir(os.path.join(full_addons, mc)):
-                    #todel.append(mc)
-                #elif not (os.path.isfile(os.path.join(full_addons, mc,'__openerp__.py')) \
-                    #or os.path.isfile(os.path.join(full_addons, mc,'__terp__.py'))):
-                    #todel.append(mc)
             for td in todel:
                 if td in mods_changed: # prevent double-deletions
                     mods_changed.remove(td)
