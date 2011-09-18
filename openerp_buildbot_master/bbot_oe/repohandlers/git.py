@@ -275,7 +275,7 @@ class GitFactory(RepoFactory):
         if 'remote_name' in pbr:
             kwargs['remoteName'] = pbr['remote_name']
 
-        if 'workdir' in pbr:
+        if pbr.get('workdir',False):
             kwargs['workdir'] = os.path.expanduser(pbr['workdir'])
 
         pbr_mode = pbr.get('mode', 'branch')

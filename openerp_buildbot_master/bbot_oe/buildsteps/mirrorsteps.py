@@ -159,7 +159,7 @@ class FastExportGit(_GitMarksProcessor, MasterShellCommand):
         _GitMarksProcessor.__init__(self, **kwargs)
         kwargs.pop('command', None)
         if not kwargs.get('path'):
-            kwargs['path'] = os.path.expanduser(kwargs.get('repo_dir'))
+            kwargs['path'] = os.path.expanduser(kwargs.get('repo_dir') or '')
         MasterShellCommand.__init__(self, command=None, **kwargs)
         self.addFactoryArguments(branch_name=branch_name, local_branch=local_branch, fi_file=fi_file)
         self.branch_name = branch_name
