@@ -18,6 +18,7 @@ from buildbot.process import factory
 from buildbot.process.properties import WithProperties
 from scheduler import ChangeFilter_OE, ChangeFilter2_OE
 from buildbot.schedulers import basic, timed, dependent
+from buildbot import locks
 from buildbot import manhole
 from .status import web, mail, logs
 from .step_iface import StepOE
@@ -145,12 +146,37 @@ class Keeper(object):
         c['change_source']=[]
         c['status'] = []
         c['properties'] = { 'bbot_id': self.bbot_id }
+        all_locks = {}
         
         c_mail = {}
         tmpconf = { 'proxied_bzrs': {}, # map the remote branches to local ones.
             'poller_kwargs': {},
             }
 
+        def parse_locks(locklist):
+            """ Convert the list of locks to real objects
+            """
+            if not locklist:
+                return []
+            lret = []
+            for ldef in locklist:
+                laccess = 'exclusive'
+                if 'access_mode' in ldef:
+                    laccess = ldef['access_mode']
+                if 'maxCount' in ldef:
+                    laccess = 'counting'
+                if ldef['name'] not in all_locks:
+                    lkwargs = ldef.copy()
+                    for lk in ('name', 'access_mode', 'type'):
+                        lkwargs.pop(lk, None)
+                    if ldef.get('type') == 'master':
+                        klass = locks.MasterLock
+                    else:
+                        klass = locks.SlaveLock
+                    ldef['name'] = klass(ldef['name'], **lkwargs)
+                lret.append(ldef['name'].access(laccess))
+            return lret
+        
         reload(buildsteps)
         reload(repohandlers)
         
@@ -217,13 +243,15 @@ class Keeper(object):
         for bld in builders:
             fact = factory.BuildFactory()
             props = bld.get('properties', {})
+            # parse them before the steps:
+            build_locks = parse_locks(bld.get('locks',False))
            
             for bstep in bld['steps']:
                 assert bstep[0] in dic_steps, "Unknown step %s" % bstep[0]
                 args = []
                 kwargs = bstep[1].copy()
                 if 'locks' in kwargs:
-                   pass # TODO
+                   kwargs['locks'] = parse_locks(kwargs.pop('locks'))
                 if 'keeper' in kwargs:
                     kwargs['keeper'] = self
                 if '0' in kwargs.keys():
@@ -259,6 +287,7 @@ class Keeper(object):
                 'properties': props,
                 'mergeRequests': False,
                 'category': props.get('group', None),
+                'locks': build_locks,
             })
 
             cfilt = None
