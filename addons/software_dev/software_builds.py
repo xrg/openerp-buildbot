@@ -263,6 +263,7 @@ class software_buildseries(propertyMix, osv.osv):
                     'properties': { 'sequence': bldr.sequence, },
                     'scheduler': bldr.scheduler,
                     'tstimer': bldr.tstimer, # False means one build per change
+                    'is_distinct': bldr.is_distinct,
                     }
 
             if bldr.slave_ids:
