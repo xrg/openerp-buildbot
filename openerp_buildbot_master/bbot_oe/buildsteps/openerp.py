@@ -193,6 +193,7 @@ class OpenERPTest(StepOE, LoggingBuildStep):
         self.description = description
         self.summaries = {}
         self.build_result = SUCCESS
+        self.last_msgs = [self.name,]
 
         self.addLogObserver('stdio', BqiObserver())
         self.progressMetrics += ('tests',)
@@ -578,6 +579,8 @@ class OpenERPTest(StepOE, LoggingBuildStep):
                     if bexc:
                         bqi_rest.logs['stdout'].append(bexc)
 
+            self.last_msgs = [self.name,] + [ b[0] for b in blame_list[:3]]
+            
         if 'stdio' in logkeys:
             logkeys.remove('stdio')
         if len(logkeys):
@@ -640,6 +643,9 @@ class OpenERPTest(StepOE, LoggingBuildStep):
         except RuntimeError, e:
             log.err("%s" % e)
         return res
+
+    def getText2(self, cmd, results):
+        return self.last_msgs
 
 # Following Step are used in Migration builder
 #TODO: remove, it's broken already
