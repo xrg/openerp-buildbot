@@ -315,6 +315,7 @@ class software_buildseries(propertyMix, osv.osv):
                 fetch_url, fetch_branch = branch_bro.get_local_url(context=context)[branch_bro.id]
                 if rtype == 'bzr':
                     bret['steps'].append(('OpenObjectBzr', {
+                        'name': 'Bzr for %s' % comp.name,
                         'repourl': fetch_url , 'mode':'update',
                         'workdir': comp.dest_path,
                         'alwaysUseLatest': use_latest,
@@ -322,6 +323,7 @@ class software_buildseries(propertyMix, osv.osv):
                         }) )
                 elif rtype == 'git':
                     bret['steps'].append(('GitStep', {
+                        'name': 'Git for %s' % comp.name,
                         'repourl': fetch_url, 'mode':'update',
                         'branch': fetch_branch,
                         'workdir': comp.dest_path,
