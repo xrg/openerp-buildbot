@@ -357,7 +357,9 @@ class OpenERPTest(StepOE, LoggingBuildStep):
             self.args['command'] += ['--', 'install-module']  #+ [ modules...]
             if self.args['test_mode'] == 'check-quality':
                 self.args['command'] += ['--', 'check-quality' ] # + [modules]
-            elif self.args['test_mode'] == 'check-fvg':
+            elif self.args['test_mode'] == 'no-check-fvg':
+                pass
+            else:
                 self.args['command'] += ['--', 'fields-view-get' ]
         
         self.args['command'] += ['--', '+drop-db']
