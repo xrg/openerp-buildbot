@@ -110,6 +110,8 @@ class software_repo(osv.osv):
         'shallow': fields.boolean('Shallow', help="Try to use shallow copies at buildslaves"),
         'submodules': fields.boolean('Submodules', required=True,
                     help="This repository contains submodules"),
+        'deploy_key': fields.char("Deployment key", size=64,
+                    help="If set, passed to the scripts that may operate on this repository"),
     }
 
     _defaults = {

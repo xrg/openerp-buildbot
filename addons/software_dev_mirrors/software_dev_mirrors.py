@@ -201,7 +201,33 @@ class softdev_branch_collection(osv.osv):
                 repos_done.add(rp.id)
 
             # Step E: push some data upstream, if needed
-            # TODO
+            repos_done = {}
+            for bbra in bcol.branch_ids:
+                if not bbra.is_imported:
+                    continue
+                rp = bbra.repo_id
+                if rp.id not in repos_done:
+                    if rp.deploy_key:
+                        repos_done[rp.id] = dict(rname=rp.name, ik=rp.deploy_key,
+                                    rhost=rp.rtype,url=rp.repo_url,
+                                    localurl=rp.proxy_location, branches=[])
+                        if rp.host_id.host_family:
+                            repos_done[rp.id]['rhost'] += ':' + rp.host_id.host_family
+                    else:
+                        repos_done[rp.id] = False
+                        continue
+                elif not repos_done[rp.id]:
+                    continue
+                repos_done[rp.id]['branches'].append('%s:%s' %(bbra.tech_code or bbra.sub_url,bbra.sub_url))
+            
+            for rb in repos_done.values():
+                sname = "Push to %s" % rb['rname']
+                bret['steps'].append(('MasterShellCommand', {'name': sname,
+                        'warnOnFailure': True, 'haltOnFailure': False,
+                        'command': ['push-branches.sh','-T', rb['rhost'], '-I', rb['ik'],
+                                '-U', rb['url'], '-L', rb['localurl'] ] \
+                                + rb['branches'] }
+                                    ))
             ret.append(bret)
         return ret
 
