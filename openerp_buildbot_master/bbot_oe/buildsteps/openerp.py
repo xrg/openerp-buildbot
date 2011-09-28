@@ -284,6 +284,11 @@ class OpenERPTest(StepOE, LoggingBuildStep):
                     log.msg("Scanning back build %d" % sbuild.getNumber())
                     if sbuild.getResults() == SUCCESS:
                         break
+                    our_branch = self.build.getProperties().getProperty('branch', False)
+                    if our_branch and sbuild.getProperties().getProperty('branch', False) != our_branch:
+                        log.msg("skipping build %s because it refers to %s branch, not %s" % \
+                                ( sbuild.getNumber(), sbuild.getProperties().getProperty('branch', False), our_branch))
+                        continue
                     for sres in sbuild.getTestResults().values():
                         # RFC: should we perform tests for other failures
                         # like flakes etc?
