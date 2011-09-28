@@ -23,10 +23,10 @@
 #from buildbot.status.builder import SUCCESS, FAILURE, WARNINGS, EXCEPTION, SKIPPED
 from bbot_oe.step_iface import StepOE
 from  buildbot.steps import shell as bs
-
+from  buildbot.steps import master as bm
 
 class ShellCommand(StepOE, bs.ShellCommand):
-    """Step to perform lint-check on changed files
+    """ Slave shell command
     """
     name = 'Command'
     flunkOnFailure = False
@@ -49,5 +49,23 @@ class ShellCommand(StepOE, bs.ShellCommand):
         StepOE.setDefaultWorkdir(self, workdir)
         self.remote_kwargs['workdir'] = self.workdir
 
-exported_buildsteps = [ShellCommand, ]
+class MasterShellCommand(StepOE, bm.MasterShellCommand):
+    """Shell command to run at the master side
+    """
+    name = 'Master Command'
+    flunkOnFailure = False
+    warnOnFailure = True
+
+    def __init__(self, *args, **kwargs):
+        """ Initialize, with args being the command items
+        
+            the ShellCommand class will render properties in *args for us
+        """
+        StepOE.__init__(self, keeper_conf=kwargs.pop('keeper_conf', None), **kwargs)
+        kw2 = kwargs.copy()
+        if args:
+            kw2['command'] = [a or '' for a in args]
+        bm.MasterShellCommand.__init__(self, **kw2)
+
+exported_buildsteps = [ShellCommand, MasterShellCommand ]
 #eof
