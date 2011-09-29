@@ -649,6 +649,9 @@ class server_thread(threading.Thread):
         self.regparser('web-services',
                 re.compile(r'starting (.+) service at ([0-9a-f\.\:\[\]]+) port ([0-9]+)'),
                 self.setListening)
+        self.regparser('wsgi',
+                re.compile(r'(.+) service \(.+\) running on ([0-9a-f\.\:\[\]]+):([0-9]+)'),
+                self.setListening)
         self.regparser('init',re.compile(r'module (.+):'), self.unsetTestContext)
         
         self.regparser('init',re.compile(r'module (.+): creating or updating database tables'),
@@ -1404,6 +1407,8 @@ class xml_session(object):
         return uid
 
     def call(self, obj, method, args, auth_level='db', notify=True):
+        if obj.startswith('/'):
+            obj = obj[1:]
         conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/' + obj)
         if auth_level == 'pub':
             pass
