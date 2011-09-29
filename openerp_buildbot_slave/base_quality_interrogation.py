@@ -1832,11 +1832,14 @@ class client_worker(object):
         ret = False
         try:
             form_presses = { 'init': 'start', 'next': 'start',  'config': 'end',  'start': 'end'}
-            wiz_id = self.rpc_call('/wizard', 'create', 'module.upgrade.simple', notify=False)
-            datas = {}
-            if wiz_id:
-                ret = self.run_wizard(wiz_id, form_presses, datas, notify=False)
-            return True
+            if self.series not in ('v600', 'pg84', 'srv-lib'):
+                wiz_id = self.rpc_call('/wizard', 'create', 'module.upgrade.simple', notify=False)
+                datas = {}
+                if wiz_id:
+                    ret = self.run_wizard(wiz_id, form_presses, datas, notify=False)
+                return ret
+            else:
+                self.log.debug("Skipping pre-6.0 upgrade wizard on %s server", self.series)
         except xmlrpclib.Fault, e:
             if e.faultCode == 'wizard.module.upgrade.simple':
                 self.log.debug("Could not find the old-style wizard for module upgrade, trying the new one")
