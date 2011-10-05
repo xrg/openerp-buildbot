@@ -62,7 +62,7 @@ def reduce_eml(aeml):
         m = _eml_re.match(aeml.strip())
         if m:
             return m.group(1)
-        return to_utf8(aeml)
+        return aeml
     except Exception:
         pass
     return aeml
