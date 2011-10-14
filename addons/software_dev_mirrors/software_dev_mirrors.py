@@ -221,6 +221,8 @@ class softdev_branch_collection(osv.osv):
                 repos_done[rp.id]['branches'].append('%s:%s' %(bbra.tech_code or bbra.sub_url,bbra.sub_url))
             
             for rb in repos_done.values():
+                if not rb:
+                    continue
                 sname = "Push to %s" % rb['rname']
                 bret['steps'].append(('MasterShellCommand', {'name': sname,
                         'warnOnFailure': True, 'haltOnFailure': False,
