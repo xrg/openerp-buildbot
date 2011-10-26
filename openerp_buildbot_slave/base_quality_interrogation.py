@@ -5,6 +5,7 @@
 #    OpenERP, Open Source Management Solution
 #    Copyright (C) 2004-2009 Tiny SPRL (<http://tiny.be>).
 #    Copyright (C) 2010-2011 OpenERP SA. (http://www.openerp.com)
+#    Copyright (C) 2011 P. Christeas <xrg@hellug.gr>
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU Affero General Public License as
@@ -858,11 +859,12 @@ def _find_local_series(srv_root):
             if rel_dict.get('major_version') == '5.0':
                 ret = 'v500'
             elif rel_dict.get('major_version') == '6.0':
-                if 'server_options' in rel_dict \
-                        and ('engine-pg84' in rel_dict['server_options']):
-                    ret = 'pg84'
-                else:
-                    ret = 'v600'
+                ret = 'v600'
+                if 'server_options' in rel_dict:
+                    if 'engine-f3' in rel_dict['server_options']:
+                        ret = 'f3'
+                    elif 'engine-pg84' in rel_dict['server_options']:
+                        ret = 'pg84'
             else:
                 ret = rel_dict.get('major_version','??')
         except Exception:
@@ -1312,7 +1314,9 @@ class remote_server_thread(server_thread):
                 if self.session.server_version >= (6,1):
                     ret = 'srv-lib'
                 elif self.session.server_version >= (6,0):
-                    if 'engine-pg84' in self.session.server_options:
+                    if 'engine-f3' in self.session.server_options:
+                        ret = 'f3'
+                    elif 'engine-pg84' in self.session.server_options:
                         ret = 'pg84'
                 elif self.session.server_version >= (5,0):
                     ret = 'v500'
@@ -1468,7 +1472,7 @@ class client_worker(object):
         self.super_passwd = options['super_passwd']
         self.series = options['server_series']
         self.do_demo = not opt.no_demo
-        self.has_os_times = self.series in ('pg84', 'v600', 'srv-lib')
+        self.has_os_times = self.series in ('f3', 'pg84', 'v600', 'srv-lib')
         if opt.url:
             self._session_class = client_session
             self._proxy_class = client_proxy_class
@@ -1832,7 +1836,7 @@ class client_worker(object):
         ret = False
         try:
             form_presses = { 'init': 'start', 'next': 'start',  'config': 'end',  'start': 'end'}
-            if self.series not in ('v600', 'pg84', 'srv-lib'):
+            if self.series not in ('v600', 'pg84', 'f3', 'srv-lib'):
                 wiz_id = self.rpc_call('/wizard', 'create', 'module.upgrade.simple', notify=False)
                 datas = {}
                 if wiz_id:
@@ -1950,7 +1954,7 @@ class client_worker(object):
         if self.series in ('v600', 'srv-lib'):
             # the obj_list is broken in XML-RPC1 for v600
             obj_list = [] # = self._execute(obj_conn, 'obj_list', self.dbname, uid, self.pwd)
-        elif self.series == 'pg84':
+        elif self.series in ('pg84', 'f3'):
             obj_list = self.rpc_call('/object', 'obj_list', auth_level='root')
             self.log.debug("Got these %d objects: %r ...", len(obj_list), obj_list[:20])
         
@@ -2809,7 +2813,7 @@ class CmdPrompt(object):
                 print "Command 'debug object ...' is only available at orm level!"
                 return
             argo = args and args[0] or 'on'
-            if self._client.series in ('pg84',):
+            if self._client.series in ('pg84', 'f3'):
                 self._client.execute_common('root', 'set_obj_debug', self._client.dbname, self.cur_orm, (argo == 'on') and 1 or 0)
             else:
                 print "Cannot change the ORM log level for %s server" % self._client.series
@@ -2992,7 +2996,7 @@ class CmdPrompt(object):
             elif args[0] == 'get':
                 res = None
                 if args[1] == 'loglevel':
-                    if self._client.series == 'pg84':
+                    if self._client.series in ('pg84', 'f3'):
                         ret = self._client.execute_common('root', 'get_loglevel', *args[2:])
                     else:
                         ret = self._client.execute_common('root', 'get_loglevel')
@@ -3023,7 +3027,7 @@ class CmdPrompt(object):
                     print_sql_stats(ret)
                     ret = 'OK'
                 elif args[1] == 'log-levels':
-                    if self._client.series == 'pg84':
+                    if self._client.series in ('pg84', 'f3'):
                         ret = self._client.execute_common('root', 'get_loglevel', '*')
                     else:
                         print "Command not supported for %s server series" % self._client.server_series
@@ -3730,7 +3734,7 @@ parser.add_option("--no-tests", dest="no_tests", action="store_true", default=Fa
 parser.add_option("--language", dest="lang", help="Use that language as default for the new db")
 parser.add_option("--translate-in", dest="translate_in",
                      help="specify .po files to import translation terms")
-parser.add_option("--server-series", help="Specify argument syntax and options of the server. \nDefault: 'auto'\nExamples: 'v600', 'pg84', 'srv-lib', 'auto'")
+parser.add_option("--server-series", help="Specify argument syntax and options of the server. \nDefault: 'auto'\nExamples: 'v600', 'pg84', 'srv-lib', 'f3', 'auto'")
 
 parser.add_option("--color", dest="console_color", action='store_true', default=False,
                     help="Use color at stdout/stderr logs")
