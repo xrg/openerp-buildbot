@@ -702,7 +702,7 @@ class server_thread(threading.Thread):
                 try:
                     faultLines = exc.faultString.rstrip().split('\n')
                     lfl = len(faultLines)-1
-                    
+
                     while lfl > 0:
                         if not faultLines[lfl]:
                             lfl -= 1
@@ -721,10 +721,16 @@ class server_thread(threading.Thread):
                         if '--' in sstr:
                             stype = 'osv.%s' % (sstr.split('--')[1].strip())
                             emsg = ' '.join(faultLines[lfl+1:])
-                    
+                        elif stype == 'except_orm' and ('\n' in emsg) \
+                                and ('--' in emsg.split('\n', 1)[0]):
+                            ses, emsg = emsg.split('\n', 1)
+                            ssev, stype = ses.split('--', 1)
+                            stype = 'osv.' + stype.strip()
+                            sdict['severity'] = ssev.strip()
+
                     if stype:
                         sdict['Exception type'] = stype
-                    
+
                     # now, use the parsers to get even more useful information
                     # from the exception string. They should return a dict
                     # of keys to append to our blame info.
@@ -753,7 +759,7 @@ class server_thread(threading.Thread):
                     self.log.debug("Cannot parse xmlrpc exception: %s" % exc.faultString, exc_info=True)
             elif isinstance(exc, RpcServerException):
                 try:
-                    emsg = "%s" % exc.code
+                    emsg = exc.get_details()
                     faultLines = exc.backtrace.split('\n')
                     lfl = len(faultLines)-1
                     
@@ -775,6 +781,9 @@ class server_thread(threading.Thread):
                         if '--' in sstr:
                             stype = 'osv.%s' % (sstr.split('--')[1].strip())
                             emsg = ' '.join(faultLines[lfl+1:])
+                        elif stype == 'except_orm' and exc.type:
+                            stype = 'osv.' + exc.code
+                            sdict['severity'] = exc.type
                     
                     sdict['Exception type'] = stype or exc.type
                     
@@ -1815,13 +1824,11 @@ class client_worker(object):
                 # recover from an exception.
                 module_obj.button_install([mid,])
             except xmlrpclib.Fault, e:
-                logger.error('xmlrpc exception: %s', reduce_homedir(e.faultCode.strip()))
-                logger.error('xmlrpc +: %s', reduce_homedir(e.faultString.rstrip()))
                 server.dump_blame(e, ekeys={ 'context': '%s.install' % mod_names[mid],
-                            'module': mod_names[mid], 'severity': 'error'})
+                            'module': mod_names[mid]})
             except RpcException, e:
                 server.dump_blame(e, ekeys={ 'context': '%s.install' % mod_names[mid],
-                            'module': mod_names[mid], 'severity': 'error'})
+                            'module': mod_names[mid]})
 
         server.state_dict['severity'] = 'blocking'
         ret = self._modules_upgrade()
