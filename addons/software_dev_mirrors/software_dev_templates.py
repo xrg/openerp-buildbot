@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 ##############################################################################
 #
-#    OpenERP, Open Source Software Development Solution
+#    OpenERP, Open Source Management Solution
+#    Copyright (C) 2010 OpenERP SA. (http://www.openerp.com)
 #    Copyright (C) 2011 P. Christeas <xrg@hellug.gr>
 #
 #    This program is free software: you can redistribute it and/or modify
@@ -19,9 +20,24 @@
 #
 ##############################################################################
 
-import software_dev_mirrors
-import software_dev_templates
-import wizard
+from osv import fields, osv, expression
 
-# eof
+class soft_dev_branch_tmpl(osv.osv):
+    _name = 'software_dev.branch.template'
+    _inherit = 'software_dev.branch'
+    
+    _columns = {
+        'browse_url': None,
+        'fetch_url': None,
+        'is_imported': None,
+        'active': fields.boolean('Active', required=True),
+    }
 
+    _defaults = {
+        'active': True,
+        'is_imported': None,
+    }
+
+soft_dev_branch_tmpl()
+
+#eof
