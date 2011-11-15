@@ -27,15 +27,15 @@ class soft_dev_branch_tmpl(osv.osv):
     _inherit = 'software_dev.branch'
     
     _columns = {
-        'browse_url': None,
-        'fetch_url': None,
-        'is_imported': None,
+        # 'browse_url': None,
+        # 'fetch_url': None,
+        # 'is_imported': None,
         'active': fields.boolean('Active', required=True),
     }
 
     _defaults = {
-        'active': True,
-        'is_imported': None,
+        #'active': True,
+        #'is_imported': None,
     }
 
 soft_dev_branch_tmpl()
