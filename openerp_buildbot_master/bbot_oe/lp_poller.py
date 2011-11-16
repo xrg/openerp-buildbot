@@ -4,6 +4,7 @@
 #
 #    OpenERP, Open Source Management Solution
 #    Copyright (C) 2011 OpenERP SA (www.openerp.com)
+#    Copyright (C) 2011, written by P. Christeas <xrg@hellug.gr>
 #    Parts of this file are taken from the buildbot project, GPL2,
 #    to which this code links anyway.
 #
@@ -25,20 +26,20 @@
 import os
 import fnmatch
 import datetime
-
-from twisted.application import service
-from twisted.internet import defer, task, reactor
-from twisted.python import log
-
-from buildbot import util
+from time import sleep
+import logging
+import optparse
 
 from openerp_libclient import rpc
+from openerp_libclient.extra import options
+from openerp_libclient.extra.loopthread import LoopThread
 
 from launchpadlib.launchpad import Launchpad
 from launchpadlib.credentials import Credentials, UnencryptedFileCredentialStore, RequestTokenAuthorizationEngine
 from lazr.restfulclient.errors import HTTPError
 
-class MS_Service(service.Service, util.ComparableMixin):
+
+class MS_Service(object):
     """Provide others with authenticated Launchpad connections
     
         Will take care of authentication tokens, etc.
@@ -50,12 +51,12 @@ class MS_Service(service.Service, util.ComparableMixin):
     _creds_file = os.path.expanduser("~/.launchpadlib/buildbot-creds")
     _try_auth_loop = None
     _lp_server = 'production'
-    _app_name = 'test.openobject.com'
+    _app_name = 'test.openerp.hellug.gr'
     _afac = None
-    __instance = None
 
-    def describe(self):
-        pass
+    def __init__(self):
+        self._logger = logging.getLogger('lp-service')
+        self.user_id = None
 
     def _open_auth(self):
         """ Load existing credentials or request new ones
@@ -67,28 +68,28 @@ class MS_Service(service.Service, util.ComparableMixin):
         if self._credentials:
             return
 
-        def _poll_req_auth_2():
-            d = defer.maybeDeferred(self._poll_request_auth)
-            d.addErrback(log.err, 'while waiting Launchpad Authorization')
-            return d
-
         self._credentials = Credentials(self._app_name)
         try:
             request_token_info = self._credentials.get_request_token(web_root=self._lp_server)
         except Exception, e:
-            log.err("Cannot get authentication token, will not connect to LP at all: %s" % e)
+            self._logger.error("Cannot get authentication token, will not connect to LP at all: %s", e)
             return
 
-        self._try_auth_loop = task.LoopingCall(_poll_req_auth_2)
-        log.msg("LP: Please go to %s and authorize me!" % request_token_info)
-        self._try_auth_loop.start(self.auth_poll_interval)
+        self._try_auth_loop = LoopThread(self.auth_poll_interval, target=self._poll_request_auth)
+        
+        # Send a request to the user!
+        self._logger.info("LP: Please go to %s and authorize me!", request_token_info)
+        self.sendMessage("Authorization required for LP",
+                "LP: Please go to %s and authorize me!",
+                args=(request_token_info,))
+        self._try_auth_loop.start()
 
     def _poll_request_auth(self):
-        log.msg("LP: Still waiting auth for: %s" % self._credentials._request_token)
+        self._logger.info("LP: Still waiting auth for: %s", self._credentials._request_token)
     
         try:
             self._credentials.exchange_request_token_for_access_token( web_root=self._lp_server)
-            log.msg("LP: I have authentication!")
+            self._logger.info("LP: I have authentication!")
             
             self._cstore.save(self._credentials, self._afac.unique_consumer_id)
 
@@ -99,7 +100,6 @@ class MS_Service(service.Service, util.ComparableMixin):
             return
 
     def startService(self):
-        service.Service.startService(self)
 
         if os.path.isdir(self._cachedir) and not os.path.exists(os.path.join(self._cachedir, 'CACHEDIR.TAG')):
             fd = open(os.path.join(self._cachedir, 'CACHEDIR.TAG'), 'wb')
@@ -107,75 +107,107 @@ class MS_Service(service.Service, util.ComparableMixin):
             fd.close()
 
         self._afac = RequestTokenAuthorizationEngine(self._lp_server, self._app_name)
-        reactor.callWhenRunning(self._open_auth)
+        self._open_auth()
+        if self._try_auth_loop:
+            self._try_auth_loop.join()
 
     def stopService(self):
         if self._try_auth_loop:
             self._try_auth_loop.stop()
-        return service.Service.stopService(self)
+            self._try_auth_loop.join()
 
     def get_Launchpad(self):
         if not self._credentials.access_token:
-            log.err('Launchpad authentication is not ready yet!')
+            self._logger.error('Launchpad authentication is not ready yet!')
             raise RuntimeError("Please authenticate first! See logs for token.")
         return Launchpad(credentials=self._credentials, credential_store=self._cstore,
                 authorization_engine=self._afac, service_root=self._lp_server,
                 cache=self._cachedir)
-    
-    @classmethod
-    def startInstance(cls):
-        cls.__instance = cls()
-        cls.__instance.startService()
 
-    @classmethod
-    def stopInstance(cls):
-        if cls.__instance:
-            cls.__instance.stopService()
-            cls.__instance = None
+    def sendMessage(self, title, message, args=None, priority=1):
+        """ Send a notification to the administrator
 
-    @classmethod
-    def get_LP(cls):
-        return cls.__instance.get_Launchpad()
+            This may use the db to send a special request, so that the
+            admin doesn't have to read the logs
 
-class MS_Scanner(service.Service, util.ComparableMixin):
+            @param title The message title
+            @param message the message body (text)
+            @param args may replace delimiters (%s) in message
+            @param priority 0=Low, 1=Normal, 2=High, just like res.request
+
+        """
+        final_message = message
+        if args and '%' in message:
+            final_message = message % args
+
+        if self.user_id:
+            try:
+                request_obj = rpc.RpcProxy('res.request')
+                
+                req_id = request_obj.create({'act_to': self.user_id,
+                        'name': title, 'body': final_message, 'priority': str(priority)})
+                assert req_id
+                request_obj.request_send([req_id])
+            except Exception, e:
+                self._logger.exception('Cannot send request')
+
+class MS_BranchScanner(LoopThread):
     """
     Class that scans MS site for changes in our branches.
     """
-
-    pollInterval = 2520
-    "time (in seconds) between calls to C{poll}"
 
     _loop = None
     _lp = None
     pass_count = 0
 
-    def describe(self):
-        pass
-
-    def scan(self):
+    def __init__(self, service, period=1800):
+        assert isinstance(service, MS_Service)
+        LoopThread.__init__(self, period=1800)
+        self._logger = logging.getLogger('lp-scanner')
+        self.service = service
+        self.days_recent = 30
+        self.days_old = 90
+    
+    def loop_once(self):
         global cachedir
         if self._lp is None:
-            self._lp = MS_Service.get_LP()
+            self._lp = self.service.get_Launchpad()
         
-        bseries_obj = rpc.RpcProxy('software_dev.buildseries')
-        tmpl_ids = bseries_obj.search([('is_template','=', True)])
-        if not tmpl_ids:
-            log.msg('No template branches found to scan with')
+        branch_obj = rpc.RpcProxy('software_dev.branch')
+        btmpl_obj = rpc.RpcProxy('software_dev.branch.template')
+        repo_obj = rpc.RpcProxy('software_dev.repo')
+        
+        templates = btmpl_obj.search_read([('repo_id.host_id.host_family','=', 'lp')])
+        if not templates:
+            self._logger.warning('No template branches found to scan with')
             return
-        
-        templates = bseries_obj.read(tmpl_ids, ['name', 'target_path', 'branch_url', 'builder_id'])
+
+        proj_id_map = {}
         
         projects = set()
-        # here start the assumptions:
-        for t in templates:
-            if t['target_path'] == 'server':
-                projects.add('openobject-server')
-            elif t['target_path'] in ('addons', 'extra_addons'):
-                projects.add('openobject-addons')
-            # and nothing else
+        
+        for tmpl in templates:
+            if tmpl['repo_id'][0] not in proj_id_map:
+                res = repo_obj.read(tmpl['repo_id'][0], ['base_url'])
+                if not res:
+                    raise RuntimeError("Cannot find base_url of repo #%d" % tmpl['repo_id'][0])
+                proj_id_map[tmpl['repo_id'][0]] = res['base_url']
+            
+            tmpl['project'] = str(proj_id_map[tmpl['repo_id'][0]])
+            
+            if tmpl['sub_url'].startswith('~'):
+                tmpl['pattern'] = 'lp:' + tmpl['sub_url']
+            elif '@' in tmpl['sub_url']:
+                luser, lurl = tmpl['sub_url'].split('@', 1)
+                tmpl['pattern'] = 'lp:~%s/%s/%s'% (luser, tmpl['project'], lurl)
+            else:
+                tmpl['pattern'] = 'lp:' + tmpl['project'] + '/'+ tmpl['sub_url']
+            
+            tmpl['pattern'] = str(tmpl['pattern'])
+            projects.add(tmpl['project'])
 
-        min_tstamp = datetime.datetime.now() - datetime.timedelta(days=30)
-        old_tstamp = datetime.datetime.now() - datetime.timedelta(days=90)
+        min_tstamp = datetime.datetime.now() - datetime.timedelta(days=self.days_recent)
+        # old_tstamp = datetime.datetime.now() - datetime.timedelta(days=self.days_old)
         
         get_kwargs = {}
         if (self.pass_count % 20) == 0:
@@ -189,85 +221,125 @@ class MS_Scanner(service.Service, util.ComparableMixin):
         for projname in projects:
             project = self._lp.projects[projname]
             assert project, projname
-            log.msg('Scanning branches in %s' % project.name)
+            self._logger.info('Scanning branches in %s', project.name)
             for br in project.getBranches(**get_kwargs):
                 if br.private:
                     continue
+                self._logger.debug('Processing branch: %s = %s', br.name, br.bzr_identity)
                 for tmpl in templates:
-                    if fnmatch.fnmatch(br.bzr_identity, tmpl['branch_url']):
-                        log.msg('Matched branch %s against template #%d' % (br.bzr_identity, tmpl['id']))
-                        old_ids = bseries_obj.search([('branch_url','=', br.bzr_identity), 
-                                            ('builder_id', '=', tmpl['builder_id'][0])])
+                    if fnmatch.fnmatch(br.bzr_identity, tmpl['pattern']):
+                        self._logger.debug('Matched branch %s against template #%d',
+                                    br.bzr_identity, tmpl['id'])
+                        old_branches = branch_obj.search_read( [ \
+                                            ('repo_id', '=', tmpl['repo_id'][0]),
+                                            ('fetch_url','=', 'lp:' + br.bzr_identity)],
+                                            fields=['fetch_url', 'poll_interval', 'branch_collection_id'])
         
+                        self._logger.debug("old branches: %r", [b['id'] for b in old_branches])
+                        # TODO remove in f3: (with fn field search)
+                        old_branches = filter(lambda b: \
+                                b['fetch_url'] == br.bzr_identity, \
+                                old_branches)
+                        
+                        assert len(old_branches) <= 1
                         if br.lifecycle_status not in ('Experimental', 'Development', 'Mature'):
-                            log.msg("Branch %s is %s, found it in %r" %(br.bzr_identity, br.lifecycle_status, old_ids))
-                            if not old_ids:
+                            self._logger.debug("Branch %s is %s, found it in %r",
+                                        br.bzr_identity, br.lifecycle_status,
+                                        old_branches)
+                            if not old_branches:
                                 break
-                            full_off = (br.date_last_modified.date() <= old_tstamp.date())
+                            # full_off = (br.date_last_modified.date() <= old_tstamp.date())
 
-                            old_res = bseries_obj.read(old_ids, ['poll_interval', 'is_build'])
-                            for bser in old_res:
-                                if not bser['is_build']:
-                                    # already deactivated
-                                    old_ids.remove(bser['id'])
-                                elif full_off:
-                                    pass
-                                elif bser['poll_interval'] < 0:
-                                    # already stopped polling
-                                    old_ids.remove(bser['id'])
-
+                            old_ids = [ b['id'] for b in old_branches \
+                                    if b['poll_interval'] >= 0 or b['branch_collection_id'] ]
+                            
                             if not old_ids:
                                 # list may (probably) be empty by now
                                 break
 
-                            if not full_off:
-                                log.msg('Deactivating polling for branches %s' % old_ids)
-                                bseries_obj.write(old_ids,{'poll_interval': -1 })
-                            else:
-                                log.msg('Fully deactivating branches %s' % old_ids)
-                                bseries_obj.write(old_ids,{'poll_interval': -1, 'is_build': False })
+                            self._logger.info('Deactivating branches %s', old_ids)
+                            branch_obj.write(old_ids, {'poll_interval': -1, 'branch_collection_id': False })
                             break
 
-                        if old_ids:
-                            log.msg('Branch already there with id %r, continuing' % old_ids)
+                        if old_branches:
+                            self._logger.debug('Branch already there with id %d, continuing', 
+                                    old_branches[0]['id'])
                             break # we shall not match against rest of templates
-                        
-                        namedict = {'name': br.name, 'lp': br.bzr_identity, 'unique_name': br.unique_name }
-                        defaults = { 'is_template': False, 'branch_url': br.bzr_identity,
-                                    'name': tmpl['name'] % namedict,
-                                   }
+
                         if old_mode and br.date_last_modified.date() < min_tstamp.date():
-                            log.msg("No need to register old %s branch %s" % (br.lifecycle_status, br.bzr_identity))
+                            self._logger.debug("No need to register old %s branch %s", 
+                                    br.lifecycle_status, br.bzr_identity)
                             break
+
+                        namedict = dict(name=br.name, lp=br.bzr_identity, \
+                                unique_name=br.unique_name, user='')
+
+                        # Break down the identity to elements:
+                        if br.bzr_identity.startswith('lp:~'):
+                            nusr, nproj, nname = br.bzr_identity[4:].split('/',2)
+                            assert nproj == tmpl['project']
+                            namedict.update(dict(user=nusr, branch_name=nname))
+                            sub_url = '%s@%s' % (nusr, nname)
+                        elif br.bzr_identity.startswith('lp:' + tmpl['project']+ '/'):
+                            namedict['branch_name'] = br.bzr_identity[len(tmpl['project'])+4:]
+                            sub_url = namedict['branch_name']
+                        else:
+                            self._logger.error("Cannot decode bzr identity: %s", br.bzr_identity)
+                            break
+                        
+                        self._logger.debug("Namedict for %s: %r", br.name, namedict)
+                        vals = { 'name': tmpl['name'] % namedict,
+                                 'description': tmpl['description'],
+                                 'poll_interval': tmpl['poll_interval'],
+                                 'sub_url': sub_url,
+                                 'repo_id': tmpl['repo_id'][0],
+                                 'branch_collection_id': tmpl['branch_collection_id'] \
+                                                    and tmpl['branch_collection_id'][0],
+                                 }
+                        
+                        if tmpl['tech_code']:
+                            vals['tech_code'] = tmpl['tech_code'] % namedict
+                        
                         if br.description:
-                            defaults['description'] = br.description,
-                        nbranch = bseries_obj.copy(tmpl['id'], defaults)
-                        log.msg('Registered new branch %s at #%d' % (defaults['name'], nbranch))
+                            vals['description'] = br.description,
+                        nbranch = branch_obj.create(vals)
+                        self._logger.info('Registered new branch %s at #%d' % (vals['name'], nbranch))
                         break
 
-    def startService(self):
-        service.Service.startService(self)
-        def do_err(why):
-            log.err("Error while scanning Launchpad")
-            log.err(why)
-            # invalidate the LP handler, let it reconnect
-            self._lp = None
-            
-        def do_poll():
-            d = defer.maybeDeferred(self.scan)
-            d.addErrback(do_err)
-            return d
+def custom_options(parser):
+    assert isinstance(parser, optparse.OptionParser)
 
-        # delay starting the loop until the reactor is running
-        def start_loop():
-            self._loop = task.LoopingCall(do_poll)
-            self._loop.start(self.pollInterval)
-        reactor.callWhenRunning(start_loop)
+    pgroup = optparse.OptionGroup(parser, "LP poller options")
+    pgroup.add_option('-t', '--poll-interval', type=int,
+                    help="Polling Interval")
+    parser.add_option_group(pgroup)
 
-    def stopService(self):
-        if self._loop:
-            self._loop.stop()
-        del self._lp
-        return service.Service.stopService(self)
+if __name__ == "__main__":
+    options.init(config=os.path.expanduser('~/.openerp/lp_poller.conf'), have_args=False)
 
+    log = logging.getLogger('main')
+    log.info("Init. Connecting...")
+
+    rpc.openSession(**options.connect_dsn)
+
+    if not rpc.login():
+        raise Exception("Could not login!")
+    log.info("Connected.")
+    
+    mssvc = MS_Service()
+    mssvc.startService()
+    log.info('Connected to LP')
+    scanner = MS_BranchScanner(service=mssvc) # TODO interval
+    
+    scanner.start()
+
+    try:
+        while True:
+            sleep(120)
+    except KeyboardInterrupt:
+        pass
+    scanner.stop()
+    mssvc.stopService()
+
+    log.info('Exiting')
 #eof
