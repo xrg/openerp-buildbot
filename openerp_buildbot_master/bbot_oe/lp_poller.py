@@ -170,6 +170,7 @@ class MS_BranchScanner(LoopThread):
     
     def loop_once(self):
         global cachedir
+        self._logger.debug("Start of polling")
         if self._lp is None:
             self._lp = self.service.get_Launchpad()
         
@@ -225,26 +226,27 @@ class MS_BranchScanner(LoopThread):
             for br in project.getBranches(**get_kwargs):
                 if br.private:
                     continue
-                self._logger.debug('Processing branch: %s = %s', br.name, br.bzr_identity)
+                bzr_identity = br.bzr_identity
+                self._logger.debug('Processing branch: %s = %s', br.name, bzr_identity)
                 for tmpl in templates:
-                    if fnmatch.fnmatch(br.bzr_identity, tmpl['pattern']):
+                    if fnmatch.fnmatch(bzr_identity, tmpl['pattern']):
                         self._logger.debug('Matched branch %s against template #%d',
-                                    br.bzr_identity, tmpl['id'])
+                                    bzr_identity, tmpl['id'])
                         old_branches = branch_obj.search_read( [ \
                                             ('repo_id', '=', tmpl['repo_id'][0]),
-                                            ('fetch_url','=', 'lp:' + br.bzr_identity)],
+                                            ('fetch_url','=', 'lp:' + bzr_identity)],
                                             fields=['fetch_url', 'poll_interval', 'branch_collection_id'])
         
-                        self._logger.debug("old branches: %r", [b['id'] for b in old_branches])
+                        # self._logger.debug("old branches: %r", [b['id'] for b in old_branches])
                         # TODO remove in f3: (with fn field search)
                         old_branches = filter(lambda b: \
-                                b['fetch_url'] == br.bzr_identity, \
+                                b['fetch_url'] == bzr_identity, \
                                 old_branches)
                         
                         assert len(old_branches) <= 1
                         if br.lifecycle_status not in ('Experimental', 'Development', 'Mature'):
                             self._logger.debug("Branch %s is %s, found it in %r",
-                                        br.bzr_identity, br.lifecycle_status,
+                                        bzr_identity, br.lifecycle_status,
                                         old_branches)
                             if not old_branches:
                                 break
@@ -268,23 +270,23 @@ class MS_BranchScanner(LoopThread):
 
                         if old_mode and br.date_last_modified.date() < min_tstamp.date():
                             self._logger.debug("No need to register old %s branch %s", 
-                                    br.lifecycle_status, br.bzr_identity)
+                                    br.lifecycle_status, bzr_identity)
                             break
 
-                        namedict = dict(name=br.name, lp=br.bzr_identity, \
+                        namedict = dict(name=br.name, lp=bzr_identity, \
                                 unique_name=br.unique_name, user='')
 
                         # Break down the identity to elements:
-                        if br.bzr_identity.startswith('lp:~'):
-                            nusr, nproj, nname = br.bzr_identity[4:].split('/',2)
+                        if bzr_identity.startswith('lp:~'):
+                            nusr, nproj, nname = bzr_identity[4:].split('/',2)
                             assert nproj == tmpl['project']
                             namedict.update(dict(user=nusr, branch_name=nname))
                             sub_url = '%s@%s' % (nusr, nname)
-                        elif br.bzr_identity.startswith('lp:' + tmpl['project']+ '/'):
-                            namedict['branch_name'] = br.bzr_identity[len(tmpl['project'])+4:]
+                        elif bzr_identity.startswith('lp:' + tmpl['project']+ '/'):
+                            namedict['branch_name'] = bzr_identity[len(tmpl['project'])+4:]
                             sub_url = namedict['branch_name']
                         else:
-                            self._logger.error("Cannot decode bzr identity: %s", br.bzr_identity)
+                            self._logger.error("Cannot decode bzr identity: %s", bzr_identity)
                             break
                         
                         self._logger.debug("Namedict for %s: %r", br.name, namedict)
@@ -305,6 +307,7 @@ class MS_BranchScanner(LoopThread):
                         nbranch = branch_obj.create(vals)
                         self._logger.info('Registered new branch %s at #%d' % (vals['name'], nbranch))
                         break
+        self._logger.debug("End of poll, sleeping...")
 
 def custom_options(parser):
     assert isinstance(parser, optparse.OptionParser)
