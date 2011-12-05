@@ -291,7 +291,8 @@ class software_branch(osv.osv):
         if branch_bro.repo_id.rtype == 'bzr':
             # Fetch last revision
             commit_obj = self.pool.get('software_dev.commit')
-            cids = commit_obj.search_read(branch_bro._cr, branch_bro._uid, [('branch_id', '=', branch_bro.id)],
+            cids = commit_obj.search_read(branch_bro._cr, branch_bro._uid,
+                    [('branch_id', '=', branch_bro.id),('revno','not like','[')],
                     order='id desc', limit=1, fields=['revno'], context=branch_bro._context)
             if cids:
                 dret['last_revision'] = int(cids[0]['revno'])
