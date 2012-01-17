@@ -48,8 +48,13 @@ def custom_options(parser):
     pgroup.add_option('--collection', '-C', help="Collection id or name")
     pgroup.add_option('--limit', type=int, default=10, 
                     help="Only attempt so many bad marks")
+    pgroup.add_option('-n', '--num-loops', type=int, default=1, 
+                    help="repeat loop so many times")
     pgroup.add_option('--git-marks', help="Load additional git marks")
     pgroup.add_option('--bzr-marks', help="Load additional bzr marks")
+    pgroup.add_option('--active', dest="do_write",
+                    action="store_true", default=False,
+                    help="write back to the database"),
     parser.add_option_group(pgroup)
 
 options.init(options_prepare=custom_options,
@@ -201,14 +206,12 @@ def bzr_marks_import(filename):
         bzr_marks2.setdefault(revid,[]).append(mark)
     f.close()
 
-if __name__ == "__main__":
-    if options.opts.git_marks:
-        git_marks_import(options.opts.git_marks)
-        log.info("loaded %d git marks", len(git_marks2))
-    if options.opts.bzr_marks:
-        bzr_marks_import(options.opts.bzr_marks)
-        log.info("loaded %d bzr marks", len(bzr_marks2))
-
+def main_loop():
+    """ A processing loop, that may clear some marks
+    """
+  
+    do_write = options.opts.do_write
+    did_something = False
     for bad_mark in marks_obj.search_read([('collection_id', '=', coll_id), ('verified', 'not in', ('ok', 'unknown'))],
                 fields=['mark', 'commit_ids', 'verified'],
                 order='id', limit=options.opts.limit):
@@ -219,17 +222,33 @@ if __name__ == "__main__":
             if not len(commits):
                 log.info("Mark %s must be deleted!")
             else:
+                handled = False
                 for c in commits.values():
                     if c['rtype'] == 'git':
                         alts = git_marks2.get(c['hash'], [])
                         if len(alts) > 1 or bad_mark['mark'] not in alts:
                             log.info("Located alternatives for %s: %r", bad_mark['mark'], alts)
+                            handled = True
                     elif c['rtype'] == 'bzr':
                         alts = bzr_marks2.get(c['hash'], [])
                         if len(alts) > 1 or bad_mark['mark'] not in alts:
                             log.info("Located alternatives for %s: %r", bad_mark['mark'], alts)
+                            handled = True
                     else:
                         log.warning("No rtype for commit %d !", c['id'])
+                
+                if not handled:
+                    # second check: walk one child down and see if it is a leaf node
+                    children = commit_obj.search_read([('parent_id','in', bad_mark['commit_ids']),
+                            ('commitmap_id','!=', False)], fields=['commitmap_id', 'hash', 'branch_id'])
+                    if not children:
+                        log.info("Mark %s is a leaf, can be pruned!", bad_mark['mark'])
+                        handled = True
+                        if do_write:
+                            marks_obj.unlink(bad_mark['id'])
+                            did_something = True
+                
+                
         elif bad_mark['verified'] == 'bad-parents':
             commits = get_commits(bad_mark['commit_ids'])
             for cmt in commits.values():
@@ -239,8 +258,45 @@ if __name__ == "__main__":
             
                 log.debug('Commit %d has parents: %r', cmt['id'], cmt['parent_marks'])
             
+            first_commit = commits.pop(commits.keys()[0])
+            common_marks = []
+            for mark_id in first_commit['parent_marks']:
+                for cmt in commits.values():
+                    if mark_id not in cmt['parent_marks']:
+                        break
+                else:
+                    common_marks.append(mark_id)
+            
+            diffs = {}
+            for mark_id in first_commit['parent_marks']:
+                if mark_id not in common_marks:
+                    diffs.setdefault(first_commit['id'],[]).append(mark_id[1])
+            
+            for cmt in commits.values():
+                for mark_id in cmt['parent_marks']:
+                    if mark_id not in common_marks:
+                        diffs.setdefault(cmt['id'],[]).append(mark_id[1])
+            log.info("Mismatch of parents for %s : %r", bad_mark['mark'], diffs)
+            
         else:
             log.warning("Cannot handle %s mark: %s!", bad_mark['verified'], bad_mark['mark'])
 
-    log.info('Exiting')
+    return did_something
+
+if __name__ == "__main__":
+    if options.opts.git_marks:
+        git_marks_import(options.opts.git_marks)
+        log.info("loaded %d git marks", len(git_marks2))
+    if options.opts.bzr_marks:
+        bzr_marks_import(options.opts.bzr_marks)
+        log.info("loaded %d bzr marks", len(bzr_marks2))
+
+    npass = 1
+    while npass < options.opts.num_loops:
+        log.info("Recover loop %d", npass)
+        if not main_loop():
+            break
+        npass += 1
+
+    log.info('Exiting after %d loops', npass)
 #eof
