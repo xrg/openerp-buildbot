@@ -390,6 +390,7 @@ class softdev_commit_mapping(osv.osv):
                         skipped += 1 # it's already there
                     elif commit_id[0]['commitmap_id'][0] < known_marks[mark]:
                         # strange case: we update to the highest mark (number)
+                        self.write(cr, uid, commit_id[0]['commitmap_id'][0], {'verified': 'unknown'}, context=context)
                         commit_obj.write(cr, uid, [commit_id[0]['id']], {'commitmap_id': known_marks[mark]}, context=context)
                         processed += 1
                     else:
