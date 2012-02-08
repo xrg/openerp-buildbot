@@ -5,7 +5,7 @@
 #    OpenERP, Open Source Management Solution
 #    Copyright (C) 2004-2009 Tiny SPRL (<http://tiny.be>).
 #    Copyright (C) 2010-2011 OpenERP SA. (http://www.openerp.com)
-#    Copyright (C) 2011 P. Christeas <xrg@hellug.gr>
+#    Copyright (C) 2011-2012 P. Christeas <xrg@hellug.gr>
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU Affero General Public License as
@@ -519,7 +519,11 @@ class server_thread(threading.Thread):
                     a tuple(bqi-class, log_level, string ) to log.
         @param multiline If true, this output can span multiple lines
         """
-        self._parsers.setdefault(section, []).append( (regex, funct, multiline) )
+        if isinstance(section, tuple):
+            for sec in section:
+                self._parsers.setdefault(sec, []).append( (regex, funct, multiline) )
+        else:
+            self._parsers.setdefault(section, []).append( (regex, funct, multiline) )
 
     def regparser_exc(self, etype, erege, funct):
         self._exc_parsers.append( (etype, erege, funct))
@@ -641,31 +645,37 @@ class server_thread(threading.Thread):
         self._lports = {}
 
     def _init_parsers(self):
-        self.regparser('web-services', 
-                'the server is running, waiting for connections...', 
+        self.regparser('web-services',
+                'the server is running, waiting for connections...',
                 self.setRunning)
-        self.regparser('server', 
-                'OpenERP server is running, waiting for connections...', 
+        self.regparser(('server', 'openerp'), 
+                'OpenERP server is running, waiting for connections...',
                 self.setRunning)
         self.regparser('web-services',
                 re.compile(r'starting (.+) service at ([0-9a-f\.\:\[\]]+) port ([0-9]+)'),
                 self.setListening)
-        self.regparser('wsgi',
+        self.regparser(('wsgi', 'openerp.wsgi'),
                 re.compile(r'(.+) service \(.+\) running on ([0-9a-f\.\:\[\]]+):([0-9]+)'),
                 self.setListening)
-        self.regparser('init',re.compile(r'module (.+):'), self.unsetTestContext)
-        
-        self.regparser('init',re.compile(r'module (.+): creating or updating database tables'),
+        self.regparser(('init', 'openerp.modules.loading'),
+                re.compile(r'module (.+):'), self.unsetTestContext)
+
+        self.regparser(('init', 'openerp.modules.loading'),
+                re.compile(r'module (.+): creating or updating database tables'),
                 self.setModuleLoading)
-        self.regparser('init', re.compile(r'module (.+): loading objects$'),
+        self.regparser(('init', 'openerp.modules.loading'),
+                re.compile(r'module (.+): loading objects$'),
                 self.setClearContext)
-        self.regparser('init', 'updating modules list', self.setClearContext)
+        self.regparser(('init', 'openerp.modules.loading'),
+                'updating modules list', self.setClearContext)
         self.regparser('init', re.compile(r'.*\: Assertions report:$', re.DOTALL),
                 self.setClearContext)
 
-        self.regparser('init', re.compile(r'module (.+): registering objects$'),
+        self.regparser(('init', 'openerp.modules.loading'),
+                re.compile(r'module (.+): registering objects$'),
                 self.setModuleLoading2)
-        self.regparser('init',re.compile(r'module (.+): loading (.+)$'),
+        self.regparser(('init', 'openerp.modules.loading'),
+                re.compile(r'module (.+): loading (.+)$'),
                 self.setModuleFile)
         self.regparser('tests.*', re.compile(r'.*', re.DOTALL), self.setTestContext, multiline=True)
         self.regparser('report', re.compile(r'rml_except: (.+)', re.DOTALL), self.reportExcept, multiline=True)
@@ -879,6 +889,8 @@ def _find_local_series(srv_root):
         except Exception:
             logger.exception('Cannot read version from "%s", no series', rfname)
             pass
+    elif os.path.isfile(os.path.join(srv_root, '..', 'openerp','loglevels.py')):
+        ret = 'v610'
     elif os.path.isfile(os.path.join(srv_root, '..', 'openerp','release.py')):
         ret = 'srv-lib'
     else:
@@ -901,7 +913,7 @@ class local_server_thread(server_thread):
         self.root_path = root_path
         if srv_mode == 'auto':
             srv_mode = options['server_series'] = _find_local_series(root_path)
-        if srv_mode == 'srv-lib':
+        if srv_mode in ('srv-lib', 'v610'):
             self.root_path = os.path.normpath(os.path.join(self.root_path, '..', 'openerp'))
         self.port = port
         # self.addons_path = addons_path
@@ -933,7 +945,7 @@ class local_server_thread(server_thread):
 
         # TODO: secure transport, persistent ones.
         http_if = opt.http_interface or '127.0.0.1'
-        if srv_mode in ('v600', 'srv-lib'):
+        if srv_mode in ('v600', 'srv-lib', 'v610'):
             self.args.append('--xmlrpc-interface=%s' % http_if)
             self.args.append('--xmlrpc-port=%s' % port )
             self.args.append('--no-xmlrpcs')
@@ -975,7 +987,11 @@ class local_server_thread(server_thread):
         self._io_bufs = {} # Buffers for stdin, stdio processing
 
         # Regular expressions:
-        self.linere = re.compile(r'\[(.*)\] ([A-Z_]+):([\w\.-]+):(.*)$', re.DOTALL)
+        if srv_mode == 'v610':
+            self.linere = re.compile(r'([0-9\-]* [0-9\:\,]*) (?:[0-9]+) ([A-Z_]+) (?:[a-z_\?]+ )?([\w\.-]+): ?(.*)$', re.DOTALL)
+            ColoredFormatter.linere = self.linere
+        else:
+            self.linere = ColoredFormatter.linere
         self.linewere = re.compile(r'(.*\.py):([0-9]+): ([A-Za-z]*Warning): (.*)$', re.DOTALL)
         
         self.log_sout = logging.getLogger('server.stdout')
@@ -1321,7 +1337,7 @@ class remote_server_thread(server_thread):
                 self.log.debug('Determining remote server series')
                 ret = 'v600'
                 if self.session.server_version >= (6,1):
-                    ret = 'srv-lib'
+                    ret = 'v610'
                 elif self.session.server_version >= (6,0):
                     if 'engine-f3' in self.session.server_options:
                         ret = 'f3'
@@ -1481,7 +1497,7 @@ class client_worker(object):
         self.super_passwd = options['super_passwd']
         self.series = options['server_series']
         self.do_demo = not opt.no_demo
-        self.has_os_times = self.series in ('f3', 'pg84', 'v600', 'srv-lib')
+        self.has_os_times = self.series in ('f3', 'pg84', 'v600', 'srv-lib', 'v610')
         if opt.url:
             self._session_class = client_session
             self._proxy_class = client_proxy_class
@@ -1843,7 +1859,7 @@ class client_worker(object):
         ret = False
         try:
             form_presses = { 'init': 'start', 'next': 'start',  'config': 'end',  'start': 'end'}
-            if self.series not in ('v600', 'pg84', 'f3', 'srv-lib'):
+            if self.series not in ('v600', 'pg84', 'f3', 'srv-lib', 'v610'):
                 wiz_id = self.rpc_call('/wizard', 'create', 'module.upgrade.simple', notify=False)
                 datas = {}
                 if wiz_id:
@@ -1958,7 +1974,7 @@ class client_worker(object):
         ost_start = self.get_ostimes()
         ost_self_start = os.times()
         
-        if self.series in ('v600', 'srv-lib'):
+        if self.series in ('v600', 'srv-lib', 'v610'):
             # the obj_list is broken in XML-RPC1 for v600
             obj_list = [] # = self._execute(obj_conn, 'obj_list', self.dbname, uid, self.pwd)
         elif self.series in ('pg84', 'f3'):
