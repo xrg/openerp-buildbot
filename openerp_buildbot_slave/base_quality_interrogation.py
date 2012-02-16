@@ -2665,7 +2665,7 @@ class CmdPrompt(object):
     avail_cmds = { 0: [ 'help', 'debug', 'quit', 'db', 'console',
                         'orm', 'module', 'translation', 'server', 'test',
                         'import', 'login', 'describe', 'comment',
-                        'subscription', ],
+                        'subscription', 'report' ],
                 'orm': ['help', 'obj_info', 'describe', 'comment',
                         'do', 'res_id',
                         'print', 'with',
@@ -2705,6 +2705,7 @@ class CmdPrompt(object):
                     'translation': ['import', 'export', 'load', 'sync' ],
                     'comment': [],
                     'subscription': ['wait', 'async_wait', 'publish'],
+                    'report': ['list', 'create', 'get', 'stop'],
                     }
 
     help = '''
@@ -3661,6 +3662,150 @@ class CmdPrompt(object):
         else:
             print "Unknown sub-command:", cmd
             return
+
+    def _cmd_report(self, cmd, *args):
+        """Create, retrieve or kill report jobs
+
+    Usage:
+        report list
+        report create [-w|--wait] [-o fname] res.something.report(id[, data[,context]])
+        report get [-o <filename>]
+        report stop <rid>
+
+    Arguments:
+        -o <filename> Filename to save report file to
+        <rid>       report ID, as returned by 'get'
+        <timeout>   Seconds to wait for report to be killed. After that, a "get"
+                    or a second "kill" will have to be issued again.
+        """
+        args = list(args)
+        try:
+            if cmd == 'list':
+                print "Reports:"
+                num = 0
+                for r in self._client.rpc_call('/report', 'report_list', auth_level='db'):
+                    num += 1
+                    print "    %d  %40s  %s" % (r[0], r[1], r[2] and 'running' or 'finished')
+                print "%d reports found" % num
+            elif cmd == 'create':
+                wait_mode = False
+                fname = False
+                help_syntax = "Syntax: create res.partner.report(ids[, data[, context]])"
+
+                if args and (args[0] == '-w' or args[0] == '--wait'):
+                    args.pop(0)
+                    wait_mode = True
+
+                if args and args[0] == '-o':
+                    args.pop(0)
+                    if not args:
+                        raise ValueError("Must supply a filename argument to '-o'")
+                    fname = args.pop(0)
+
+                if not args:
+                    raise ValueError(help_syntax)
+                astr = ' '.join(args)
+                if not '(' in astr:
+                    raise ValueError(help_syntax)
+                try:
+                    astr = astr.strip()
+                    report_name, aexpr = astr.split('(',1)
+                    aexpr = '(' + aexpr
+                    aexpr = eval(aexpr, {'this': self._last_res}, {})
+                except Exception, e:
+                    print 'Tried to eval "%s"' % aexpr
+                    print "Exception:", e
+                    return
+                if not isinstance(aexpr, tuple):
+                    aexpr = (aexpr,)
+                ids = []
+                data = {}
+                context = {}
+                if len(aexpr):
+                    ids = aexpr[0]
+                    if not isinstance(ids, (tuple, list)):
+                        self._logger.warning("Report: ids should better be a list!")
+                        # But let's see what happens if it isn't ;)
+                if len(aexpr) > 1:
+                    data = aexpr[1]
+                    if not isinstance(data, dict):
+                        self._logger.warning("Report: data should better be a dict!")
+                if len(aexpr) > 2:
+                    context = aexpr[2]
+                    if not isinstance(context, dict):
+                        self._logger.warning("Report: context should better be a dict!")
+                rid = self._client.rpc_call('/report', 'report', report_name, ids, data, context, auth_level='db')
+                self._logger.info("Got report with id: %s", rid)
+                return self.__report_get(int(rid), fname=fname, timeout=(wait_mode and 10.0))
+            elif cmd == 'get':
+                fname = False
+                if args and args[0] == '-o':
+                    args.pop(0)
+                    if not args:
+                        raise ValueError("Must supply a filename argument to '-o'")
+                    fname = args.pop(0)
+                if not args:
+                    raise ValueError("Must supply the report ID")
+                if not args[0].isdigit():
+                    raise ValueError("Report ID must be an integer!")
+                return self.__report_get(int(args[0]), fname)
+            elif cmd == 'stop':
+                if not args:
+                    raise ValueError("Must supply the report ID")
+                r = self._client.rpc_call('/report', 'report_stop',int(args[0]), auth_level='db')
+                if r:
+                    self._logger.info('Report stopped, you should get it now')
+                else:
+                    self._logger.info('Report was already finished')
+
+        except xmlrpclib.Fault, e:
+            if isinstance(e.faultCode, (int, long)):
+                e.faultCode = str(e.faultCode)
+            print 'xmlrpc exception: %s' % reduce_homedir( e.faultCode.strip())
+            print 'xmlrpc +: %s' % reduce_homedir(e.faultString.rstrip())
+            return
+        except RpcException, e:
+            print "Failed report", e
+            return
+        except Exception, e:
+            print "Failed report:", e
+            return
+
+    def __report_get(self, rid, fname=False, timeout=False):
+        
+        self._logger.debug("Trying to get report #%d", rid)
+        
+        t = time.time()
+        while True:
+            res = self._client.rpc_call('/report', 'report_get', rid, auth_level='db')
+            if not (res and isinstance(res, dict)):
+                self._logger.warning("Strange, report_get returned: %r", res)
+                break
+            if res.get('state') != True:
+                if (not timeout) or (time.time() - t >= timeout):
+                    self._logger.info("After %.2f sec, report is %s", 
+                            time.time() - t, res.get('state', '<unknown>'))
+                    break
+                else:
+                    time.sleep(1.0)
+                    continue
+            if not 'result' in res:
+                self._logger.warning("Report returned no 'result' in dict!")
+                break
+            self._logger.info('Got %s report after %.2fsec, %d bytes', \
+                    res.get('format', 'undefined'), time.time() - t, len(res['result']))
+            if fname:
+                self._logger.debug("Trying to write report to file \"%s\"", fname)
+                if res.get('code') == 'zlib':
+                    raise NotImplementedError("zlib")
+                rfp = open(fname, 'wb')
+                try:
+                    rfp.write(base64.decodestring(res['result']))
+                except TypeError, e:
+                    self._logger.error("Cannot decode report result: %s", e)
+                rfp.close()
+                self._logger.info("Report written to file \"%s\"", fname)
+            break
 
 usage = """%prog command [options]
 
