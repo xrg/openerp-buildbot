@@ -146,15 +146,16 @@ class verify_marks(osv.osv_memory):
                                         [ pcmt.id for pcmt in commit0.parent_id.commitmap_id.commit_ids ])]
                                 debug("parent rule: %r", parent_rule)
                         else:
-                            parent_rule = ('parent_id', '=', False)
+                            parent_rule = [('parent_id', '=', False),]
                         if sbro.marks_set != 'missing':
                             cmmap_rule = [('commitmap_id','=', False)]
                         else:
                             cmmap_rule = ['|', ('commitmap_id','=', False), \
                                     ('commitmap_id', 'in', [('verified','in', \
                                             ('bad-missing', 'bad-parents')),]) ]
+                        cmt0_subject = commit0.subject or ''
                         new_commits = commit_obj.search(cr, uid,\
-                                    [('date','=', commit0.date), ('subject', 'like', commit0.subject[:10].strip()),
+                                    [('date','=', commit0.date), ('subject', 'like', cmt0_subject[:10].strip()),
                                     ('comitter_id', 'in', [('userid', '=', commit0.comitter_id.userid)]),
                                     ('branch_id', 'in', [('repo_id', 'in', other_repos)])] \
                                     + parent_rule + cmmap_rule,
