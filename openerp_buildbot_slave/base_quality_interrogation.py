@@ -884,6 +884,8 @@ def _find_local_series(srv_root):
                         ret = 'f3'
                     elif 'engine-pg84' in rel_dict['server_options']:
                         ret = 'pg84'
+            elif rel_dict.get('major_version') == '6.9':
+                ret = 'f3'
             else:
                 ret = rel_dict.get('major_version','??')
         except Exception:
@@ -956,7 +958,7 @@ class local_server_thread(server_thread):
             # FIXME: server doesn't support this!
             #if ftp_port:
             #    self.args.append('--ftp_server_port=%d' % int(ftp_port))
-        elif srv_mode == 'pg84':
+        elif srv_mode in ('pg84', 'f3'):
             self.args.append('--httpd-interface=%s' % http_if )
             self.args.append('--httpd-port=%s' % port )
             self.args.append('--no-httpds')
@@ -1337,7 +1339,10 @@ class remote_server_thread(server_thread):
                 self.log.debug('Determining remote server series')
                 ret = 'v600'
                 if self.session.server_version >= (6,1):
-                    ret = 'v610'
+                    if 'engine-f3' in self.session.server_options:
+                        ret = 'f3'
+                    else:
+                        ret = 'v610'
                 elif self.session.server_version >= (6,0):
                     if 'engine-f3' in self.session.server_options:
                         ret = 'f3'
