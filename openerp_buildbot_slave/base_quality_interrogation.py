@@ -972,6 +972,8 @@ class local_server_thread(server_thread):
             if defines:
                 for d in defines:
                     self.args.append('-D%s' % d)
+            if srv_mode == 'f3':
+                self.args.append('-Ddebug.introspection=True')
         else:
             raise RuntimeError("Invalid server mode %s" % srv_mode)
 
@@ -2589,7 +2591,33 @@ class CmdPrompt(object):
         if not self.cur_orm:
             return self._complete_orm_cmd(text, state)
         else:
+            try:
+                pos = []
+                methods = self._client.rpc_call('/object', 'method_list', self._client.dbname, self.cur_orm, auth_level='root')
+                # self._logger.debug("methods: %r", methods)
+                for m in methods:
+                    if m.startswith(text):
+                        pos.append(m)
+                return pos
+            except Exception:
+                self._logger.debug('Cannot list methods:', exc_info=True)
+                return []
+
+    def _complete_do_cmd(self, text, state):
+        if not self.cur_orm:
             return []
+        else:
+            try:
+                pos = []
+                methods = self._client.rpc_call('/object', 'method_list', self._client.dbname, self.cur_orm, auth_level='root')
+                # self._logger.debug("methods: %r", methods)
+                for m in methods:
+                    if m.startswith(text):
+                        pos.append(m)
+                return pos
+            except Exception:
+                self._logger.debug('Cannot list methods:', exc_info=True)
+                return []
 
     def _complete_print(self, text, state):
         pos = []
@@ -2688,7 +2716,7 @@ class CmdPrompt(object):
                     'module': _complete_module_cmd,
                     'orm': _complete_orm_cmd,
                     'describe': _complete_describe_cmd,
-                    'do': [],
+                    'do': _complete_do_cmd,
                     'table': [], # TODO
                     'print': _complete_print,
                     'with': _complete_print,
@@ -3309,6 +3337,19 @@ class CmdPrompt(object):
         if self.cur_orm:
             model = self.cur_orm
             obj = self.cur_orm_obj
+            if args:
+                if len(args) > 1:
+                    print "Too many arguments!"
+                    return
+                try:
+                    info = self._client.rpc_call('/object', 'method_explain', self._client.dbname, self.cur_orm, args[0], auth_level='root')
+                    print 'def %s:' % info['pretty']
+                    print '    ' + info.get('doc','').replace('\n', '\n    ')
+                    if 'ctype' in info:
+                        print '\n    ORM conformance: %s' % info['ctype']
+                except Exception:
+                    self._logger.exception("Cannot explain: %s.%s", self.cur_orm, args[0])
+                return
         elif args:
             model = args[0]
             obj = self._client.orm_proxy(model)
