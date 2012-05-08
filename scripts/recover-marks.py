@@ -230,13 +230,13 @@ def main_loop():
                 for c in commits.values():
                     if c['rtype'] == 'git':
                         alts = git_marks2.get(c['hash'], [])
-                        if len(alts) > 1 or bad_mark['mark'] not in alts:
+                        if len(alts) > 1 and bad_mark['mark'] not in alts:
                             log.info("Located alternatives for %s: %r", bad_mark['mark'], alts)
                             handled = True
                         c['alt_marks'] = alts
                     elif c['rtype'] == 'bzr':
                         alts = bzr_marks2.get(c['hash'], [])
-                        if len(alts) > 1 or bad_mark['mark'] not in alts:
+                        if len(alts) > 1 and bad_mark['mark'] not in alts:
                             log.info("Located alternatives for %s: %r", bad_mark['mark'], alts)
                             handled = True
                         c['alt_marks'] = alts

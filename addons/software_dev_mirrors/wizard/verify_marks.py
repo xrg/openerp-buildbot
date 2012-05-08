@@ -192,7 +192,7 @@ class verify_marks(osv.osv_memory):
                         set_bad_mark(cmmap.id,'bad')
                         break
                     elif cmt_repo in repos_done:
-                        set_bad_mark(cmmap.id,'bad',[])
+                        set_bad_mark(cmmap.id,'bad')
                         break
                     repos_done.append(cmt_repo)
                     del cmt_repo

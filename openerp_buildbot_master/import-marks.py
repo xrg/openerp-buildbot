@@ -53,6 +53,9 @@ parser.add_option("-R", "--repo-id", dest="repo_id", type="int", help="Id of rep
 
 parser.add_option('--force', action="store_true", default=False,
                     help="Force import when bzr even bad marks exist")
+parser.add_option('--reset-old', dest="reset_old", 
+                    action="store_true", default=False,
+                    help="Only re-import old ones, don't push new"),
 (opt, args) = parser.parse_args()
 
 def die(msg, *args):
@@ -168,7 +171,11 @@ for fname in args:
         else:
             raise Exception("Unknown repository type: %s" % rtype)
         
-        res = cmmap_obj.feed_marks(opt.repo_id, rev_ids)
+        context = {}
+        if opt.reset_old:
+            context['old_marks_only'] = True
+            context['double_marks'] = 'older'
+        res = cmmap_obj.feed_marks(opt.repo_id, rev_ids, context=context)
 
         if not res:
             logger.warning("No result from feed_marks()")

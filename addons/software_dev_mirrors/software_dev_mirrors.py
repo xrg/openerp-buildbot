@@ -24,6 +24,27 @@ from osv import fields, osv
 from datetime import datetime
 from software_dev.software_builds import schedulers
 
+def int_mark(sst):
+    """Convert a mark notation ':123' to an integer 123
+    """
+    if sst.startswith(':'):
+        sst = sst[1:]
+    return int(sst)
+
+def _mark_cmp(markA, markB, mode):
+    """ Compare 2 marks, see which is older/newer
+    """
+    if mode == 'skip':
+        return False
+    elif mode == 'newer':
+        return (int_mark(markA[1]) < int_mark(markB[1]))
+    elif mode == 'older':
+        return (int_mark(markA[1]) > int_mark(markB[1]))
+    elif mode == 'id-newer':
+        return (markA[0] < markB[0])
+    else:
+        raise NotImplementedError
+
 class softdev_branch_collection(osv.osv):
     """ A branch collection defines the mirroring of one repo to another
 
@@ -348,6 +369,8 @@ class softdev_commit_mapping(osv.osv):
             @param repo_id a repository these marks come from
             @param a map of mark:hash entries (against the repository)
         """
+        if context is None:
+            context = {}
 
         commit_obj = self.pool.get('software_dev.commit')
         col_id = self.pool.get('software_dev.mirrors.branch_collection').\
@@ -369,6 +392,7 @@ class softdev_commit_mapping(osv.osv):
         skipped = 0
         repo_forks = self.pool.get('software_dev.repo').\
                 get_all_forks(cr, uid, [repo_id], context=context)[repo_id]
+        double_marks = context.get('double_marks', 'skip')
         for mark, shash in marks_map.items():
             # Get the commit:
             new_commit_id = None
@@ -388,11 +412,18 @@ class softdev_commit_mapping(osv.osv):
                 if commit_id and commit_id[0]['commitmap_id']:
                     if commit_id[0]['commitmap_id'][0] == known_marks[mark]:
                         skipped += 1 # it's already there
-                    elif commit_id[0]['commitmap_id'][0] < known_marks[mark]:
-                        # strange case: we update to the highest mark (number)
-                        self.write(cr, uid, commit_id[0]['commitmap_id'][0], {'verified': 'unknown'}, context=context)
-                        commit_obj.write(cr, uid, [commit_id[0]['id']], {'commitmap_id': known_marks[mark]}, context=context)
-                        processed += 1
+                    elif _mark_cmp(commit_id[0]['commitmap_id'], (known_marks[mark], mark), double_marks):
+                        # strange case: we update to the new mark
+                        for cmt in self.browse(cr, uid, known_marks[mark], context=context).commit_ids:
+                            # but first search if old mark already has a commit!
+                            # TODO: replace with a simple search([('id', '=', known_marks[mark]),('commit_ids.branch_id.repo_id.id', '=', 'repo_id')]) in F3
+                            if cmt.branch_id.repo_id.id == repo_id:
+                                errors.setdefault('mark-conflict', []).append(mark)
+                                break
+                        else:
+                            self.write(cr, uid, commit_id[0]['commitmap_id'][0], {'verified': 'unknown'}, context=context)
+                            commit_obj.write(cr, uid, [commit_id[0]['id']], {'commitmap_id': known_marks[mark]}, context=context)
+                            processed += 1
                     else:
                         errors.setdefault('double-mapped',[]).append(shash)
                 else:
@@ -411,6 +442,8 @@ class softdev_commit_mapping(osv.osv):
                             cmt_id = new_commit_id
                         commit_obj.write(cr, uid, [cmt_id], {'commitmap_id': known_marks[mark]}, context=context)
                         processed += 1
+            elif context.get('old_marks_only', False):
+                errors.setdefault('skipped-new', []).append(mark)
             else:
                 # it's a new one
                 if commit_id:
