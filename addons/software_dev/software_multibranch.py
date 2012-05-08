@@ -29,7 +29,7 @@ class software_multibranchseries(osv.osv):
     _inherits = { 'software_dev.buildseries': 'buildseries_id' }
     
     _columns = {
-        'buildseries_id': fields.many2one('software_dev.buildseries', 'Build Series', required=True, select=True),
+        'buildseries_id': fields.many2one('software_dev.buildseries', 'Build Series', required=True, select=True, ondelete="cascade"),
         'branch_ids': fields.many2many('software_dev.branch', 'buildseries_branch_rel', 'series_id', 'branch_id',
             string='Branches'),
     }
