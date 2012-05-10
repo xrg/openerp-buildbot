@@ -46,6 +46,9 @@ def custom_options(parser):
     pgroup.add_option('--active', dest="do_write",
                     action="store_true", default=False,
                     help="write back to the database"),
+    pgroup.add_option('--keep-excess', dest="keep_excess",
+                    action="store_true", default=False,
+                    help="Keep excess commits at marks"),
     parser.add_option_group(pgroup)
 
 options.init(options_prepare=custom_options,
@@ -83,6 +86,40 @@ def branch2repo(branch_id):
         ret = res[0]['id']
     known_branches[branch_id] = ret
     return ret
+
+avail_marks = {}  # by collection
+def get_next_mark(mstart, coll_id):
+    """ Determine next available mark for collection.
+
+        @param mstart the mark to start from
+        @param coll_id the collection_id
+    """
+    global avail_marks
+
+    if mstart[0] == ':':
+        mstart = mstart[1:]
+
+    istart = int(mstart)
+
+    if not coll_id in avail_marks:
+        avail_marks[coll_id] = { 'free': [], 'next': istart + 1 }
+
+    if avail_marks[coll_id]['free']:
+        return avail_marks[coll_id]['free'].pop(0)
+    else:
+        n = max(avail_marks[coll_id]['next'], istart + 1)
+        while not avail_marks[coll_id]['free']:
+            pros =  [':%d' % (x + n) for x in range(25) ]
+            n += 25
+            for r in marks_obj.search_read([('mark', 'in', pros)], fields=['mark']):
+                pros.remove(r['mark'])
+            if not pros:
+                continue
+            avail_marks[coll_id]['free'] = pros[1:]
+            avail_marks[coll_id]['next'] = n
+            return pros[0]
+
+    raise RuntimeError("Why here?")
 
 def main_loop(chashes):
     log = logging.getLogger('algo')
@@ -144,11 +181,13 @@ def main_loop(chashes):
         # read them now, then decide about excess commits
         for rmark in marks_obj.read(mark2repos.keys()):
             m = rmark['id']
+            if m in known_marks:
+                continue
             mrs = mark2repos[m]
             to_add = []
             write_vals = {}
             if len(mrs) != max_known_repos:
-                log.info("Mark #%d has missing commits", m)
+                log.info("Mark #%d has missing commits: %d (%d stray)", m, len(mrs), len(stray))
                 num_issues += 1
                 write_vals['verified'] = 'bad-missing'
                 for rs in mrs:
@@ -160,10 +199,14 @@ def main_loop(chashes):
                         log.info("Commit #%d (= #%d) may belong to mark #%d. Hash: %s", cmtid, rs[1], m, cmthash)
                         to_add.append((r, cmtid, cmtdate, cmthash))
                         write_vals['verified'] = 'unknown'
+                if len(mrs) == 1 and write_vals['verified'] == 'bad-missing':
+                    # Push it back to stray and let it be matched against
+                    # others at next 'rmark' iteration
+                    stray.append(mrs[0])
             
             new_cmtids = [ r[1] for r in mrs]
             excess_cmtids = [ c for c in rmark['commit_ids'] if c not in new_cmtids]
-            if excess_cmtids:
+            if excess_cmtids and not options.opts.keep_excess:
                 log.info("Excess commits %r must be removed from mark #%d", excess_cmtids, m)
                 rmark['commit_ids'] = new_cmtids
                 write_vals.setdefault('commit_ids', []).extend([(3, x) for x in excess_cmtids])
@@ -183,9 +226,28 @@ def main_loop(chashes):
                 pass
 
         if stray:
-            log.warning("Must associate stray commits: %r", stray)
-            # FIXME
+            log.info("Must associate stray commits: %r", [s[1] for s in stray])
             num_issues += 1
+            old_stray = stray
+            stray = []
+            while len(old_stray) > 1:
+                p = old_stray.pop()
+                for o in old_stray:
+                    if p[0] != o[0] and p[2] == o[2]:
+                        new_mark = get_next_mark(mark['mark'], mark['collection_id'][0])
+                        log.info("Stray commits #%d and #%d may match. Assign new mark %s.", p[1], o[1], new_mark)
+                        if do_write:
+                            marks_obj.create({'collection_id': mark['collection_id'][0],
+                                    'mark': new_mark, 'verified': 'unknown',
+                                    'commit_ids': [(6,0, [p[1], o[1]])] })
+                        old_stray.remove(o)
+                        break
+                else:
+                    stray.append(p)
+            stray.extend(old_stray)
+            
+        if stray:
+            log.warning("Stray commits remaining: %r", stray)
 
         if ms:
             # replace with corrected commits
@@ -197,6 +259,8 @@ def main_loop(chashes):
         # continue loop
     
     log.info("Finished loop after %d calls", lloop)
+    if pending_marks:
+        log.info("Next stop: mark #%d %s", pending_marks[0]['id'], pending_marks[0]['mark'])
     # end def
 
 if __name__ == "__main__":
