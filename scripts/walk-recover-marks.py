@@ -39,14 +39,10 @@ def custom_options(parser):
     assert isinstance(parser, optparse.OptionParser)
 
     pgroup = optparse.OptionGroup(parser, "Other options")
-    #pgroup.add_option('-t', '--poll-interval', type=int,
-    #                help="Polling Interval")
     pgroup.add_option('--limit', type=int, default=1000, 
                     help="Only attempt so many marks")
-    #pgroup.add_option('-n', '--num-loops', type=int, default=1, 
-    #                help="repeat loop so many times")
-    #pgroup.add_option('--git-marks', help="Load additional git marks")
-    #pgroup.add_option('--bzr-marks', help="Load additional bzr marks")
+    pgroup.add_option('--limit-issues', type=int, default=None, 
+                    help="Stop at that many issues")
     pgroup.add_option('--active', dest="do_write",
                     action="store_true", default=False,
                     help="write back to the database"),
@@ -101,6 +97,7 @@ def main_loop(chashes):
     llimit = options.opts.limit
     lloop = 0
     max_known_repos = 2
+    num_issues = 0
 
     while pending_marks:
         if lloop >= llimit:
@@ -121,13 +118,19 @@ def main_loop(chashes):
             if com['ctype'] == 'incomplete':
                 log.warning('Hit incomplete commit %d %s for branch %d %s', 
                         com['id'], com['hash'][:12], com['branch_id'][0], com['branch_id'][1])
+                num_issues += 1
             else:
                 r = branch2repo(com['branch_id'][0])
                 if r in got_repos:
                     log.error('Mark #%d %s has multiple commits for repo %d', mark['id'], mark['mark'], r)
                     # TODO something
+                    num_issues += 1
                 got_repos.add(r)
-                parents = [com['parent_id'][0],] + com['contained_commit_ids']
+                parents = []
+                if com['parent_id']:
+                    parents.append(com['parent_id'][0])
+                if com['contained_commit_ids']:
+                    parents += com['contained_commit_ids']
                 for cmt in commit_obj.read(parents, ['hash', 'commitmap_id', 'date']):
                     if not cmt['commitmap_id']:
                         log.info("Located unmarked commit #%d %s", cmt['id'], cmt['hash'][:12])
@@ -146,6 +149,8 @@ def main_loop(chashes):
             write_vals = {}
             if len(mrs) != max_known_repos:
                 log.info("Mark #%d has missing commits", m)
+                num_issues += 1
+                write_vals['verified'] = 'bad-missing'
                 for rs in mrs:
                     for r, cmtid, cmtdate, cmthash in stray:
                         if r == rs[0]:
@@ -154,6 +159,7 @@ def main_loop(chashes):
                             continue
                         log.info("Commit #%d (= #%d) may belong to mark #%d. Hash: %s", cmtid, rs[1], m, cmthash)
                         to_add.append((r, cmtid, cmtdate, cmthash))
+                        write_vals['verified'] = 'unknown'
             
             new_cmtids = [ r[1] for r in mrs]
             excess_cmtids = [ c for c in rmark['commit_ids'] if c not in new_cmtids]
@@ -168,7 +174,7 @@ def main_loop(chashes):
                 rmark['commit_ids'] += [ c[1] for c in to_add]
 
             if do_write and write_vals:
-                write_vals['verified'] = 'unknown'
+                write_vals.setdefault('verified', 'unknown')
                 marks_obj.write(rmark['id'], write_vals)
             if m not in known_marks:
                 ms.append(rmark)
@@ -179,14 +185,18 @@ def main_loop(chashes):
         if stray:
             log.warning("Must associate stray commits: %r", stray)
             # FIXME
+            num_issues += 1
 
         if ms:
             # replace with corrected commits
             pending_marks.extend(ms)
         known_marks.append(mark['id'])
         
+        if options.opts.limit_issues and num_issues >= options.opts.limit_issues:
+            break
         # continue loop
-        
+    
+    log.info("Finished loop after %d calls", lloop)
     # end def
 
 if __name__ == "__main__":
