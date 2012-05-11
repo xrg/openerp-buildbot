@@ -48,11 +48,13 @@ def custom_options(parser):
                     help="write back to the database"),
     pgroup.add_option('--keep-excess', dest="keep_excess",
                     action="store_true", default=False,
-                    help="Keep excess commits at marks"),
+                    help="Keep excess commits at marks")
+    pgroup.add_option('--no-stray', default=None,
+                    help="Stop at stray commits: single|double|pass ")
     parser.add_option_group(pgroup)
 
 options.init(options_prepare=custom_options,
-        config='~/.openerp/buildbot.conf', have_args=True,
+        config='~/.openerp/buildbot.conf',
         config_section=())
 
 log = logging.getLogger('main')
@@ -71,6 +73,7 @@ known_marks = []
 known_branches = {}
 
 do_write = options.opts.do_write
+no_stray = options.opts.no_stray
 
 def branch2repo(branch_id):
     if branch_id in known_branches:
@@ -141,7 +144,14 @@ def main_loop(chashes):
             break
         lloop += 1
         
+        if lloop % 1000 == 0:
+            log.info("At loop %d, done %d marks", lloop, len(known_marks))
+        
         mark = pending_marks.pop(0)
+        if mark['id'] in known_marks:
+            log.debug("Skipping known mark #%d", mark['id'])
+            continue
+
         log.debug("Processing %s mark #%d %s (%d)...", mark['verified'], mark['id'], mark['mark'], len(mark['commit_ids']))
         if len(mark['commit_ids']) < max_known_repos:
             log.info("Mark #%d %s is missing commits!",  mark['id'], mark['mark'])
@@ -248,8 +258,12 @@ def main_loop(chashes):
             
         if stray:
             log.warning("Stray commits remaining: %r", stray)
+            if no_stray == 'single' or (no_stray == 'double' and len(stray) > 1):
+                log.info("Stray are parents of mark #%d %s, commits: %r",
+                    mark['id'], mark['mark'], mark['commit_ids'])
+                break
 
-        if ms:
+        if ms and not (stray and no_stray == 'pass'):
             # replace with corrected commits
             pending_marks.extend(ms)
         known_marks.append(mark['id'])
