@@ -51,11 +51,15 @@ def custom_options(parser):
                     help="Keep excess commits at marks")
     pgroup.add_option('--no-stray', default=None,
                     help="Stop at stray commits: single|double|pass ")
+    pgroup.add_option('--fake-strays', dest="fake_strays",
+                    action="append", default=[],
+                    help="Monkey-create fake marks for stray commits at repo ID"),
     parser.add_option_group(pgroup)
 
 options.init(options_prepare=custom_options,
         config='~/.openerp/buildbot.conf',
         config_section=())
+        # FIXME: move defaults here
 
 log = logging.getLogger('main')
 rpc.openSession(**options.connect_dsn)
@@ -74,6 +78,11 @@ known_branches = {}
 
 do_write = options.opts.do_write
 no_stray = options.opts.no_stray
+
+fake_strays = map(int, options.opts.fake_strays)
+
+if no_stray and fake_strays:
+    raise Exception("Fake strays cannot be combined with no-stray")
 
 def branch2repo(branch_id):
     if branch_id in known_branches:
@@ -209,7 +218,8 @@ def main_loop(chashes):
                         log.info("Commit #%d (= #%d) may belong to mark #%d. Hash: %s", cmtid, rs[1], m, cmthash)
                         to_add.append((r, cmtid, cmtdate, cmthash))
                         write_vals['verified'] = 'unknown'
-                if len(mrs) == 1 and write_vals['verified'] == 'bad-missing':
+                if len(mrs) == 1 and write_vals['verified'] == 'bad-missing' \
+                        and mrs[0][0] not in fake_strays:
                     # Push it back to stray and let it be matched against
                     # others at next 'rmark' iteration
                     stray.append(mrs[0])
@@ -247,15 +257,28 @@ def main_loop(chashes):
                         new_mark = get_next_mark(mark['mark'], mark['collection_id'][0])
                         log.info("Stray commits #%d and #%d may match. Assign new mark %s.", p[1], o[1], new_mark)
                         if do_write:
-                            marks_obj.create({'collection_id': mark['collection_id'][0],
+                            mid = marks_obj.create({'collection_id': mark['collection_id'][0],
                                     'mark': new_mark, 'verified': 'unknown',
                                     'commit_ids': [(6,0, [p[1], o[1]])] })
+                            known_marks.append(mid)
                         old_stray.remove(o)
                         break
                 else:
                     stray.append(p)
             stray.extend(old_stray)
             
+        if stray and fake_strays:
+            for p in stray:
+                if p[0] in fake_strays:
+                    new_mark = get_next_mark(mark['mark'], mark['collection_id'][0])
+                    log.info("Stray commit #%d will be asigned fake mark %s.", p[1], new_mark)
+                    if do_write:
+                        mid = marks_obj.create({'collection_id': mark['collection_id'][0],
+                                'mark': new_mark, 'verified': 'unknown',
+                                'commit_ids': [(6,0, [p[1],])] })
+                        known_marks.append(mid)
+                    stray.remove(p)
+
         if stray:
             log.warning("Stray commits remaining: %r", stray)
             if no_stray == 'single' or (no_stray == 'double' and len(stray) > 1):
