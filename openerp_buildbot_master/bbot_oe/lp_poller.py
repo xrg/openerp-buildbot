@@ -223,6 +223,9 @@ class MS_BranchScanner(LoopThread):
             project = self._lp.projects[projname]
             assert project, projname
             self._logger.info('Scanning branches in %s', project.name)
+            
+            itbranches = {} # by template id/bzr_identity
+            # First loop: just locate the interesting branches in bzr:
             for br in project.getBranches(**get_kwargs):
                 if br.private:
                     continue
@@ -232,17 +235,26 @@ class MS_BranchScanner(LoopThread):
                     if fnmatch.fnmatch(bzr_identity, tmpl['pattern']):
                         self._logger.debug('Matched branch %s against template #%d',
                                     bzr_identity, tmpl['id'])
-                        old_branches = branch_obj.search_read( [ \
-                                            ('repo_id', '=', tmpl['repo_id'][0]),
-                                            ('fetch_url','=', 'lp:' + bzr_identity)],
-                                            fields=['fetch_url', 'poll_interval', 'branch_collection_id'])
-        
+                        itbranches.setdefault(tmpl['repo_id'][0], {})\
+                                [str(bzr_identity)] = (br, tmpl)
+
+            self._logger.debug('Searching %d branches in %d repos',
+                        sum(map(len, itbranches.values())), len(itbranches))
+            # Second loop: update the interesting branches in OpenERP
+            for tr, ibranches in itbranches.items():
+                all_branches = branch_obj.search_read( [ \
+                                    ('repo_id', '=', tr),
+                                    ('fetch_url','in', ibranches.keys())],
+                                    fields=['fetch_url', 'poll_interval', 'branch_collection_id'])
+
+                self._logger.debug("Found %d branches for repo %d", len(all_branches), tr)
+                for bzr_identity, brt in ibranches.items():
+                        br, tmpl = brt
                         # self._logger.debug("old branches: %r", [b['id'] for b in old_branches])
-                        # TODO remove in f3: (with fn field search)
                         old_branches = filter(lambda b: \
                                 b['fetch_url'] == bzr_identity, \
-                                old_branches)
-                        
+                                all_branches)
+                        self._logger.debug("%d old branches for %s", len(old_branches), bzr_identity)
                         assert len(old_branches) <= 1
                         if br.lifecycle_status not in ('Experimental', 'Development', 'Mature'):
                             self._logger.debug("Branch %s is %s, found it in %r",
@@ -254,7 +266,7 @@ class MS_BranchScanner(LoopThread):
 
                             old_ids = [ b['id'] for b in old_branches \
                                     if b['poll_interval'] >= 0 or b['branch_collection_id'] ]
-                            
+
                             if not old_ids:
                                 # list may (probably) be empty by now
                                 break
@@ -275,6 +287,7 @@ class MS_BranchScanner(LoopThread):
 
                         namedict = dict(name=br.name, lp=bzr_identity, \
                                 unique_name=br.unique_name, user='')
+                        
 
                         # Break down the identity to elements:
                         if bzr_identity.startswith('lp:~'):
