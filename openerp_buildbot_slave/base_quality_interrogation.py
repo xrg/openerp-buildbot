@@ -4514,13 +4514,13 @@ try:
                     print "Remember, the 'admin' password is \"%s\" and the super-user \"%s\"" % \
                             (opt.pwd, opt.super_passwd)
                 cmdp = CmdPrompt(client)
-                try:
-                    while True and server.is_running:
+                while server.is_running:
+                    try:
                         r = cmdp.handle()
                         if not r:
                             break
-                except KeyboardInterrupt:
-                    logger.info("Keyboard interrupt, exiting")
+                    except KeyboardInterrupt:
+                        logger.info("Keyboard interrupt")
 
                 cmdp.finish()
 
