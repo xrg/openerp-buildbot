@@ -196,6 +196,9 @@ class MasterPoller(service.MultiService):
                         commSpecs=[(c, {'branch_id': branch_id}) for c in commits],
                         standalone=standalone)
                 return d # break the loop
+
+            raise agent_commands.CommandFailureException('Warning!', \
+                    'No changesource like "%s" available to rescan commits!' % repourl)
         except Exception, e:
             log.err('Cannot rescan commits: %s' % e)
 
