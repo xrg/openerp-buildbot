@@ -198,6 +198,28 @@
           </field>
         </record>
 
+        <record id="view_softdev_branch_search" model="ir.ui.view">
+            <field name="name">Branches Search</field>
+            <field name="model">software_dev.branch</field>
+            <field name="type">search</field>
+            <field name="arch" type="xml">
+                <search string="Branches Search">
+                    <group col="6" colspan="4">
+                        <field name="name"/>
+                        <field name="repo_id"/>
+                        <!-- For hash, we only match the beginning, let the index be used -->
+                        <field name="sub_url" />
+			<field name="tech_code" />
+                    </group>
+                    <newline/>
+                    <group expand="0" string="Group By..." colspan="4" col="4" groups="base.group_extended">
+                        <filter string="Repository" icon="terp-stock_effects-object-colorize" domain="[]" context="{'group_by':'repo_id'}"/>
+                    </group>
+                </search>
+
+            </field>
+        </record>
+
         <record id="action_softdev_branch" model="ir.actions.act_window">
           <field name="name">Code branches</field>
           <field name="type">ir.actions.act_window</field>
