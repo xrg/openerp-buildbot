@@ -3438,6 +3438,23 @@ class CmdPrompt(object):
         if help_flds:
             print_lexicon(help_flds, title="Help Strings:", sort_fn=self._col_sorted)
             print
+        if self._client.series in ('f3',):
+            try:
+                wkf_list = self._client.rpc_call('/object', 'list_workflow', self._client.dbname, model, auth_level='root')
+                server._io_flush()
+                if wkf_list:
+                    print "Workflows:"
+                    for w in wkf_list:
+                        print "    ", w
+            except xmlrpclib.Fault, e:
+                print 'xmlrpc exception: %s' % reduce_homedir( e.faultCode.strip())
+                print 'xmlrpc +: %s' % reduce_homedir(e.faultString.rstrip())
+                return
+            except RpcException, e:
+                print "Failed workflow:", e.args[-1]
+                return
+            except Exception:
+                self._logger.warning("Cannot inspect workflow of %s:", model, exc_info=True)
         return
 
     def _eval_local(self, aexpr):
