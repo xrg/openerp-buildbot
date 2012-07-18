@@ -3736,6 +3736,13 @@ class CmdPrompt(object):
             try:
                 self._client.rpc_call('/subscription', 'wait', expression, auth_level='db')
                 self._logger.info("Subscription triggered: %s", expression)
+            except xmlrpclib.Fault, e:
+                print 'xmlrpc exception: %s' % reduce_homedir( e.faultCode.strip())
+                print 'xmlrpc +: %s' % reduce_homedir(e.faultString.rstrip())
+                return
+            except RpcException, e:
+                print "Failed wait:", e.args[-1]
+                return
             except Exception:
                 self._logger.warning("Problem while waiting:", exc_info=True)
 
