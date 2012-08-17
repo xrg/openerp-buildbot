@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 ##############################################################################
-#    
+#
 #    OpenERP, Open Source Management Solution
 #    Copyright (C) 2004-2009 Tiny SPRL (<http://tiny.be>).
 #    Copyright (C) 2010-2011 OpenERP SA. (http://www.openerp.com)
@@ -39,6 +39,7 @@ import base64
 import subprocess
 import select
 import string
+import shlex
 import random
 import re
 import zipfile
@@ -130,18 +131,18 @@ def xmlescape(sstr):
 
 class XMLStreamHandler(logging.FileHandler):
     """ An xml-like logging handler, writting stream into a file.
-    
+
     Note that we don't use any xml dom class here, because we want
-    our output to be immediately streamed into a file. Upon any 
+    our output to be immediately streamed into a file. Upon any
     crash of the script, the partial xml will be useful.
     """
     def __init__(self, filename, encoding='UTF-8'):
-        logging.FileHandler.__init__(self, filename, mode='w', 
+        logging.FileHandler.__init__(self, filename, mode='w',
                 encoding=encoding, delay=False)
         # now, open the file and write xml prolog
         self.formatter = XMLFormatter()
         self.stream.write('<?xml version="1.0", encoding="%s" ?>\n<log>' % encoding)
-        
+
     def close(self):
         # write xml epilogue
         self.stream.write('</log>\n')
@@ -153,10 +154,10 @@ class XMLStreamHandler(logging.FileHandler):
 class XMLFormatter(logging.Formatter):
     """ A special formatter that will output all fields in an xml-like
     struct """
-    
+
     def format(self, record):
         """ Put everything in xml format """
-        
+
         s = '<rec name="%s" level="%s" time="%s" >' % \
             (record.name, record.levelno, record.created)
 
@@ -180,20 +181,20 @@ class XMLFormatter(logging.Formatter):
 
 class MachineFormatter(logging.Formatter):
     """ Machine-parseable log output, in plain text stream.
-    
+
     In order to have parsers analyze the output of the logs, have
     the following format:
         logger[|level]> msg...
         + msg after newline
         :@ First exception line
         :+ second exception line ...
-    
+
     It should be simple and well defined for the other side.
     """
-    
+
     def format(self, record):
         """ Format to stream """
-        
+
         levelstr = ''
         if record.levelno != logging.INFO:
             levelstr = '|%d' % record.levelno
@@ -280,7 +281,7 @@ class ColoredFormatter(logging.Formatter):
             m = self.linere.match(res)
             if m:
                 ln = COLOR_MAPPING.get('stdout.' + m.group(2), False)
-                
+
                 if ln:
                     fg_color, bg_color, bold = ln
                     if bold:
@@ -307,7 +308,7 @@ class ColoredFormatter(logging.Formatter):
 def print_sql_stats(stats):
     """ Print the result of get_sql_stats
     """
-    
+
     columns = []
     col_vals = {}
     all_sum = 0
@@ -332,9 +333,9 @@ def print_sql_stats(stats):
             else:
                 print "      - ",
         print " %d" % line_sum
-    
+
     print "                   Total :",
-    all_sum = 0 
+    all_sum = 0
     for col in columns:
         print " %6d " % col_vals[col],
         all_sum +=  col_vals[col]
@@ -510,7 +511,7 @@ def print_lexicon(kdic, title=None, sort_fn=None, indent=4):
     return None
 
 class server_thread(threading.Thread):
-    
+
     def regparser(self, section, regex, funct, multiline=False):
         """ Register a parser for server's output.
         @param section the name of the logger that we try to match, can be *
@@ -557,20 +558,20 @@ class server_thread(threading.Thread):
         self._set_log_context("%s.%s" % (mobj.group(1),
                             self.state_dict['module-mode']))
         self.state_dict['module-file'] = None
-    
+
     def setModuleLoading2(self, section, level, mobj):
         self.state_dict['module'] = mobj.group(1)
-        
+
         # By the 'registering objects' message we just know that the
         # module is present in the server.
         # So, reset state, mark module as present
         self.state_dict['module-phase'] = 'reg'
         self.state_dict['module-file'] = None
         self.state_dict.setdefault('regd-modules',[]).append(mobj.group(1))
-        
+
         #self._set_log_context("%s.%s" % (mobj.group(1),
         #                    self.state_dict['module-mode']))
-    
+
     def setModuleFile(self, section, level, mobj):
         if mobj.group(2) == 'objects':
             return
@@ -581,7 +582,7 @@ class server_thread(threading.Thread):
         self.state_dict['module-file'] = mobj.group(2)
         self.log.debug("We are processing: %s/%s", self.state_dict['module'],
                 self.state_dict['module-file'])
-    
+
     def setTestContext(self, section, level, mobj):
         self.state_dict['module'] = section.split('.',1)[1]
         # self.state_dict['module-mode'] = 'test' # no, leave it
@@ -590,7 +591,7 @@ class server_thread(threading.Thread):
         if level == 'ERROR':
             self.dump_blame(ekeys={ 'Exception': mobj.group(0).split('\n')[0]})
         elif level == 'WARNING':
-            sdic = { 'severity': 'warning', 
+            sdic = { 'severity': 'warning',
                     'Message': mobj.group(0).replace('\n',' '),
                    }
             self.dump_blame(ekeys=sdic)
@@ -626,7 +627,7 @@ class server_thread(threading.Thread):
             pass
 
     def cursorHanging(self, section, level, mobj):
-        self.dump_blame(ekeys={ 'severity': 'warning', 
+        self.dump_blame(ekeys={ 'severity': 'warning',
                     'module-file': reduce_homedir(mobj.group(1)),
                     'module-line': mobj.group(2),
                     'Message': 'Cursor not explicitly closed'})
@@ -648,7 +649,7 @@ class server_thread(threading.Thread):
         self.regparser('web-services',
                 'the server is running, waiting for connections...',
                 self.setRunning)
-        self.regparser(('server', 'openerp'), 
+        self.regparser(('server', 'openerp'),
                 'OpenERP server is running, waiting for connections...',
                 self.setRunning)
         self.regparser('web-services',
@@ -681,21 +682,21 @@ class server_thread(threading.Thread):
         self.regparser('report', re.compile(r'rml_except: (.+)', re.DOTALL), self.reportExcept, multiline=True)
         self.regparser('report', re.compile(r'Exception at: (.+)', re.DOTALL), self.reportExcept, multiline=True)
         self.regparser('db.cursor', re.compile(r'Cursor not closed explicitly.*Cursor was created at (.+.py):([0-9]+)$', re.DOTALL), self.cursorHanging, multiline=True)
-        
+
         self.regparser_exc('XMLSyntaxError', re.compile(r'line ([0-9]+), column ([0-9]+)'),
                             lambda etype, ematch: { 'file-line': ematch.group(1), 'file-col': ematch.group(2)} )
 
     def dump_blame(self, exc=None, ekeys=None):
         """Dump blame information for sth that went wrong
-        
+
         @param exc the exception object, if available
         @param ekeys extra blame keys to dump
         """
         blog = logging.getLogger('bqi.blame')
-        
-        
+
+
         sdict = self.state_dict.copy()
-        
+
         if exc:
             emsg = ''
             if isinstance(exc, xmlrpclib.Fault):
@@ -754,7 +755,7 @@ class server_thread(threading.Thread):
                                 mm = erege.search(sstr)
                             if not mm:
                                 continue
-                        
+
                             # we have a match here
                             red = funct(etype, mm)
                             if isinstance(red, dict):
@@ -764,7 +765,7 @@ class server_thread(threading.Thread):
                             break # don't process other handlers
                     else:
                         self.log.debug("No exception parser for %s: %s", stype, sstr)
-                
+
                 except Exception:
                     self.log.debug("Cannot parse xmlrpc exception: %s" % exc.faultString, exc_info=True)
             elif isinstance(exc, RpcServerException):
@@ -772,7 +773,7 @@ class server_thread(threading.Thread):
                     emsg = exc.get_details()
                     faultLines = exc.backtrace.split('\n')
                     lfl = len(faultLines)-1
-                    
+
                     while lfl > 0:
                         if not faultLines[lfl]:
                             lfl -= 1
@@ -781,7 +782,7 @@ class server_thread(threading.Thread):
                             lfl -= 1
                             continue
                         break
-                    
+
                     if lfl < 0:
                         stype = ''
                         sstr = '\n'.join(faultLines[-2])
@@ -794,9 +795,9 @@ class server_thread(threading.Thread):
                         elif stype == 'except_orm' and exc.type:
                             stype = 'osv.' + exc.code
                             sdict['severity'] = exc.type
-                    
+
                     sdict['Exception type'] = stype or exc.type
-                    
+
                     # now, use the parsers to get even more useful information
                     # from the exception string. They should return a dict
                     # of keys to append to our blame info.
@@ -810,7 +811,7 @@ class server_thread(threading.Thread):
                                 mm = erege.search(sstr)
                             if not mm:
                                 continue
-                        
+
                             # we have a match here
                             red = funct(etype, mm)
                             if isinstance(red, dict):
@@ -820,7 +821,7 @@ class server_thread(threading.Thread):
                             break # don't process other handlers
                     else:
                         self.log.debug("No exception parser for %s: %s", stype, sstr)
-                
+
                 except Exception:
                     self.log.debug("Cannot parse rpc exception: %s" % exc, exc_info=True)
             elif len(exc.args):
@@ -897,12 +898,12 @@ def _find_local_series(srv_root):
         ret = 'srv-lib'
     else:
         raise ServerException("Cannot determine server series from %s" % srv_root)
-    
+
     logger.info("Auto-detected server series: %s", ret)
     return ret
 
 class local_server_thread(server_thread):
-    def __init__(self, root_path, port, netport, addons_path, dbname, pyver=None, 
+    def __init__(self, root_path, port, netport, addons_path, dbname, pyver=None,
                 srv_mode='auto', timed=False, debug=False, do_warnings=False,
                 ftp_port=None, defines=False, pyargs=False,
                 config=None):
@@ -941,7 +942,7 @@ class local_server_thread(server_thread):
             self.args += [ '--log-level=debug' ]
         else:
             self.args += [ '--log-level=test' ]
-            
+
         if config:
             self.args += [ '-c', config ]
 
@@ -997,7 +998,7 @@ class local_server_thread(server_thread):
         else:
             self.linere = ColoredFormatter.linere
         self.linewere = re.compile(r'(.*\.py):([0-9]+): ([A-Za-z]*Warning): (.*)$', re.DOTALL)
-        
+
         self.log_sout = logging.getLogger('server.stdout')
         self.log_serr = logging.getLogger('server.stderr')
 
@@ -1009,7 +1010,7 @@ class local_server_thread(server_thread):
 
         for fd in self._io_bufs.keys():
             r = self._io_bufs[fd]
-        
+
             r = r.rstrip("\n")
 
             if not r:
@@ -1045,7 +1046,7 @@ class local_server_thread(server_thread):
                 olog = self.log_sout
             else:
                 olog = self.log_serr
-            if m and m.group(2) in ('DEBUG', 'DEBUG_RPC', 'DEBUG_SQL', 
+            if m and m.group(2) in ('DEBUG', 'DEBUG_RPC', 'DEBUG_SQL',
                                 'DEBUG_RPC_ANSWER'):
                 olog.debug(r)
             else:
@@ -1055,14 +1056,14 @@ class local_server_thread(server_thread):
             self._io_bufs[fd] = ''
 
         return # end of _io_flush()
-        
+
     def _io_read(self, fd, fd_obj):
         """ Read data from fd_obj into _io_bufs[fd] and process
         """
         rl = fd_obj.readline()
         if not rl:
             return
-        
+
         mmatch = ematch = None
         if fd_obj is self.proc.stderr:
             ematch = self.linewere.match(rl)
@@ -1089,15 +1090,15 @@ class local_server_thread(server_thread):
         elif ematch:
             self._io_flush()
             self._io_err_process(fd, ematch, True)
-        
+
         self._io_bufs[fd] += rl # with trailing newline
 
     def _io_process(self, fd, mmatch, first_try):
-        """Process an input log line mmatch, from fd 
-        
+        """Process an input log line mmatch, from fd
+
             @return if the line has been processed.
         """
-        
+
         may_process = False # Need to process now.
         parsers = []
         pkeys = ['*', mmatch.group(3) ]
@@ -1105,7 +1106,7 @@ class local_server_thread(server_thread):
             pkeys.append( mmatch.group(3).split('.', 1)[0]+'.*')
         for pk in pkeys:
             parsers.extend(self._parsers.get(pk,[]))
-        
+
         pmatches = [] # we will put all matched parsers here.
         for regex, funct, multiline in parsers:
             if isinstance(regex, basestring):
@@ -1121,13 +1122,13 @@ class local_server_thread(server_thread):
                     pmatches.append((regex, funct, mm) )
 
         # Finished matching here.
-        
+
         if (not pmatches) or not may_process:
             return False
-        
+
         # When just one of the parsers is positive, we have to
         # process all of them now, because won't buffer for multiline.
-        
+
         for regex, funct, mm in pmatches:
             if callable(funct):
                 funct(mmatch.group(3), mmatch.group(2), mm or mmatch.group(4))
@@ -1151,12 +1152,12 @@ class local_server_thread(server_thread):
 
     def _io_err_process(self, fd, ematch, first_try):
         """Process a stderr log line ematch, from fd == stderr
-        
+
             @return if the line has been processed.
         """
         if (not first_try):
             return False
-  
+
         logger = logging.getLogger('bqi.blame')
         elines = ematch.group(4).split('\n')
         if len(elines) > 1 and elines[1:]:
@@ -1165,7 +1166,7 @@ class local_server_thread(server_thread):
             csnip = ''
         filename = reduce_homedir(ematch.group(1))
         logger.warning("Message: %s\nseverity: pywarn\nmodule-file: %s\nfile-line: %s\nException Type: %s%s",
-                    elines[0], filename, ematch.group(2), 
+                    elines[0], filename, ematch.group(2),
                     ematch.group(3), csnip)
 
         return True
@@ -1207,7 +1208,7 @@ class local_server_thread(server_thread):
                 os.kill(self.proc.pid, signal.SIGTERM)
             else:
                 self.proc.terminate()
-            
+
             i = 0
             while self.proc.returncode is None:
                 i += 1
@@ -1228,7 +1229,7 @@ class local_server_thread(server_thread):
 
             self.log.info('Terminated.')
 
-        
+
     def run(self):
         try:
             self.log.info("will run: %s", ' '.join(self.args))
@@ -1242,10 +1243,10 @@ class local_server_thread(server_thread):
             pob.register(self.proc.stderr)
             fdd = { self.proc.stdout.fileno(): self.proc.stdout ,
                     self.proc.stderr.fileno(): self.proc.stderr }
-                    
+
             self._io_bufs = { self.proc.stdout.fileno(): '',
                     self.proc.stderr.fileno(): '' }
-        
+
             while True:
                 self.proc.poll()
                 if self.proc.returncode is not None:
@@ -1255,7 +1256,7 @@ class local_server_thread(server_thread):
                 for fd, event in p:
                     if event == select.POLLIN:
                         self._io_read(fd, fdd[fd])
-        
+
             self._io_flush()
             self.is_ready = False
             self.log.info("Finished server with: %d", self.proc.returncode)
@@ -1269,7 +1270,7 @@ class RemLogHandler(object):
     def __init__(self, parent):
         self.parent = parent
         self.log_sout = logging.getLogger('server.stdout')
-    
+
     def handle(self, rec):
         parsers = []
         pkeys = ['*', rec.name ]
@@ -1277,7 +1278,7 @@ class RemLogHandler(object):
             pkeys.append( rec.name.split('.', 1)[0]+'.*')
         for pk in pkeys:
             parsers.extend(self.parent._parsers.get(pk,[]))
-        
+
         pmatches = [] # we will put all matched parsers here.
         for regex, funct, multiline in parsers:
             if isinstance(regex, basestring):
@@ -1289,7 +1290,7 @@ class RemLogHandler(object):
                     pmatches.append((regex, funct, mm) )
 
         # Finished matching here.
-        
+
         for regex, funct, mm in pmatches:
             if callable(funct):
                 funct(rec.name, rec.levelname, mm or rec.msg)
@@ -1308,7 +1309,7 @@ class RemLogHandler(object):
                     log_args = []
 
                 self.log.info(funct, *log_args)
-        
+
         tf = time.strftime('%Y-%m-%d %H:%M:%S')
         if rec.level > logging.DEBUG:
             self.log_sout.info('[%s] %s:%s:%s', tf, rec.levelname, rec.name, rec.msg)
@@ -1327,7 +1328,7 @@ class remote_server_thread(server_thread):
         else:
             self.args = [ "Connect to dsn: %r" % connect_dsn ]
         self._init_parsers()
-    
+
     def run(self):
         self.log.info("Run")
         self.is_running = True
@@ -1385,10 +1386,10 @@ class remote_server_thread(server_thread):
             self.session.logout()
         self._must_stop = True
         pass
-    
+
     def _io_flush(self):
         pass
-    
+
     def setup_remote_logs(self, dsn):
         self._logs_trans = None
         def _loop_get_logs():
@@ -1433,17 +1434,17 @@ class xml_session(object):
         self.super_passwd = None
         self.dbname = None
         self.uri = None
-    
+
     def open(self, proto, **kwargs):
         assert proto == 'http', "Built-in client cannot handle %s protocol" % proto
         global logger
-        
+
         self.uri = 'http://%s:%s' % (kwargs['host'], kwargs['port'])
         self.user = kwargs['user']
         self.passwd = kwargs['passwd']
         self.dbname = kwargs['dbname']
         self.super_passwd = kwargs.get('superpass', 'admin')
-        
+
         # do a trivial connectivity check:
         try:
             conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/db')
@@ -1453,7 +1454,7 @@ class xml_session(object):
             logger.error("Cannot connect to server: %s", e)
             logger.debug("Cannot connect:", exc_info=True)
             raise ClientException(e.faultString)
-        
+
     def login(self):
         conn = xmlrpclib.ServerProxy(self.uri + '/xmlrpc/common')
         uid = conn.login(self.dbname, self.user, self.passwd)
@@ -1505,10 +1506,10 @@ class bqi_RPCFunction(object):
 
 class client_worker(object):
     """ This object will connect to a server and perform the various tests.
-    
+
         It holds some common options.
     """
-    
+
     def __init__(self, uri, options):
         global server
         global opt
@@ -1517,7 +1518,7 @@ class client_worker(object):
             self.log.error("Server not ready, cannot work client")
             raise RuntimeError()
         self.uri = uri
-        
+
         self.dbname = options['dbname']
         self.super_passwd = options['super_passwd']
         self.series = options['server_series']
@@ -1530,7 +1531,7 @@ class client_worker(object):
             self._session_class = xml_session
             self._proxy_class = bqi_RPCProxy
             self._session_kwargs = {}
-        
+
         self.session = self._session_class(**client_kwargs)
         self.session.open(**connect_dsn)
 
@@ -1546,7 +1547,7 @@ class client_worker(object):
 
     def _execute(self, connector, method, *args):
         raise RuntimeError()
-    
+
     def rpc_call(self, obj, method, *args, **kwargs):
         auth_level = kwargs.pop('auth_level', 'db')
         notify = kwargs.pop('notify', True)
@@ -1558,7 +1559,7 @@ class client_worker(object):
         res = self.session.call(obj, method=method, args=args, auth_level=auth_level, notify=notify)
         self.log.debug("Command '%s' returned from server", method)
         return res
-    
+
     def execute_common(self, level, func, *args):
         server.state_dict['severity'] = 'warning'
         print "execute: %r %r" % (func, args)
@@ -1575,7 +1576,7 @@ class client_worker(object):
             tmpdsn['passwd'] = passwd
             session = self._session_class(**client_kwargs)
             session.open(**tmpdsn)
-        
+
         uid = session.login()
         if uid:
             if session is not self.session:
@@ -1664,7 +1665,7 @@ class client_worker(object):
         qual_obj = self.orm_proxy('module.quality.check')
         final = {}
         qlog = logging.getLogger('bqi.qlogs')
-        
+
         self.log.debug("Checking quality of modules %s", ', '.join(modules))
         for module in modules:
             qualityresult = {}
@@ -1689,8 +1690,8 @@ class client_worker(object):
                 html += "</ul>"
                 html += "%s"%(detail_html)
                 html += "</div></body></html>"
-                
-                qlog.info('Module: "%s", score: %s\n%s', quality_result['name'], 
+
+                qlog.info('Module: "%s", score: %s\n%s', quality_result['name'],
                         quality_result['final_score'], html)
             except xmlrpclib.Fault, e:
                 self.log.error('xmlrpc exception: %s', reduce_homedir(e.faultCode.strip()))
@@ -1825,14 +1826,14 @@ class client_worker(object):
         self.log.debug("Installing modules: %s", ', '.join(modules))
         server.state_dict['module-mode'] = 'install'
         module_obj = self.orm_proxy('ir.module.module')
-        
+
         bad_mids = module_obj.search([('name','in',modules), ('state','=','uninstallable')])
         module_ids = module_obj.search([('name','in',modules)])
         if not module_ids:
             self.log.error("Cannot find any of [%s] modules to install!",
                             ', '.join(modules))
             return False
-        
+
         # Read the names of modules, so that we can identify them.
         mod_names_res = module_obj.read(module_ids, ['name'])
         mod_names = {}
@@ -1840,7 +1841,7 @@ class client_worker(object):
             mod_names[mr['id']] = mr['name']
 
         # self.log.debug("Module names: %r", mod_names)
-        
+
         if bad_mids:
             bad_names = ', '.join([ mod_names[id] for id in bad_mids])
             self.log.warning("Following modules are not installable: %s", bad_names)
@@ -1856,7 +1857,7 @@ class client_worker(object):
                         'Message': 'The following modules are not found: %s' % \
                             ', '.join(missing_mos)
                         })
-        
+
         for mid in module_ids:
             if mid in bad_mids:
                 continue
@@ -1876,7 +1877,7 @@ class client_worker(object):
         server.clear_context()
         return ret
 
-        
+
     def _modules_upgrade(self):
         """ Perform the modules upgrade wizard, for ones previously selected
         """
@@ -1913,13 +1914,13 @@ class client_worker(object):
 
         ret = wiz_obj.upgrade_module([wiz_id,], {})
         self.log.debug("Upgrade wizard returned: %r", ret)
-        
+
         assert ret, "The upgrade wizard must return some dict, like redirect to the config view"
         return True
 
     def run_wizard(self, wiz_id, form_presses, datas, notify=False):
         """ Simple Execute of a wizard, press form_presses until end.
-        
+
             This tries to go through a wizard, by trying the states found
             in form_presses. If form_presses = { 'start': 'foo', 'foo': 'end'}
             then the 'foo' button(=state) will be pressed at 'start', then
@@ -1927,7 +1928,7 @@ class client_worker(object):
             If it sucessfully reaches the 'end', then the wizard will have
             passed.
         """
-        
+
         state = 'init'
         log = logging.getLogger("bqi.wizard") #have a separate one.
         i = 0
@@ -1938,7 +1939,7 @@ class client_worker(object):
             if i > 100:
                 log.error("Wizard abort after %d steps", i)
                 raise RuntimeError("Too many wizard steps")
-            
+
             next_state = 'end'
             if res['type'] == 'form':
                 if state in form_presses:
@@ -1971,7 +1972,7 @@ class client_worker(object):
         module_obj = self.orm_proxy('ir.module.module')
         module_ids = module_obj.search([('name','in',modules)])
         module_obj.button_upgrade(module_ids)
-        
+
         server.state_dict['severity'] = 'blocking'
         ret = self._modules_upgrade()
         server.clear_context()
@@ -1982,7 +1983,7 @@ class client_worker(object):
         module_obj = self.orm_proxy('ir.module.module')
         module_ids = module_obj.search([('name','in',modules)])
         module_obj.button_uninstall(module_ids)
-        
+
         server.state_dict['severity'] = 'warning'
         ret = self._modules_upgrade()
         server.clear_context()
@@ -1990,7 +1991,7 @@ class client_worker(object):
 
     def fields_view_get(self):
         """ This test tries to retrieve fields of all the pooler (orm) objects.
-        
+
         It checks the orm.fields_view_get() of each orm, because that function
         involves an important part of the ORM logic.
         """
@@ -1998,33 +1999,33 @@ class client_worker(object):
         server.state_dict['severity'] = 'error'
         ost_start = self.get_ostimes()
         ost_self_start = os.times()
-        
+
         if self.series in ('v600', 'srv-lib', 'v610'):
             # the obj_list is broken in XML-RPC1 for v600
             obj_list = [] # = self._execute(obj_conn, 'obj_list', self.dbname, uid, self.pwd)
         elif self.series in ('pg84', 'f3'):
             obj_list = self.rpc_call('/object', 'obj_list', auth_level='root')
             self.log.debug("Got these %d objects: %r ...", len(obj_list), obj_list[:20])
-        
+
         # Get the models from the ir.model object
         ir_model_obj = self.orm_proxy('ir.model')
         ir_model_ids = ir_model_obj.search([])
-        
+
         # also, look for model references in ir.model.data
         imd_obj = self.orm_proxy('ir.model.data')
         imd_ids = imd_obj.search([('model','=','ir.model')])
         imd_res = imd_obj.read(imd_ids, ['module', 'name', 'res_id'])
-        
+
         model_tbl = {}
         for it in imd_res:
             if it['res_id'] not in ir_model_ids:
                 server.dump_blame(None, ekeys={ 'context': '%s.check' % it['module'],
-                            'module': it['module'], 'severity': 'error', 
+                            'module': it['module'], 'severity': 'error',
                             'Exception': 'Model %s.%s referenced in ir.model.data but %s not exist in ir.model!' % \
                                     (it['module'], it['name'], it['res_id'])})
                 continue
             model_tbl[it['res_id']] = (it['module'], it['name'])
-        
+
         model_res = ir_model_obj.read(ir_model_ids, ['name', 'model'])
         ost_for = self.get_ostimes(ost_start)
         self.log.debug("Resolved the list of models in User: %.3f, Sys: %.3f, Real: %.3f",
@@ -2043,12 +2044,12 @@ class client_worker(object):
                 ost = self.get_ostimes(ost)
                 if not fvg:
                     server.dump_blame(None, {'context': '%s.check' % (module or 'custom'),
-                            'module': module or '', 'severity': 'error', 
+                            'module': module or '', 'severity': 'error',
                             'Message': 'No form view for model %s' % mod['model'] })
                 else:
                     if ((ost[4] or 0.0) > 1.5 or (ost[0] or 0.0) > 0.6) and self.has_os_times:
                         server.dump_blame(None, {'context': '%s.check' % (module or 'custom'),
-                            'module': module or '', 'severity': 'warning', 
+                            'module': module or '', 'severity': 'warning',
                             'Message': 'Form view model %s is slow (u%.3f, r%.3f), please optimize' % \
                                         (mod['model'], ost[0], ost[4] )})
                     else:
@@ -2064,7 +2065,7 @@ class client_worker(object):
                 server.dump_blame(e, ekeys={ 'context': '%s.check' % (module or 'custom'),
                             'module': module or '', 'severity': 'error',
                             'Message': '%s.fields_view_get() is broken' % mod['model'] })
-        
+
         # Statistics:
         ost = self.get_ostimes(ost_for)
         self.log.info("Got %d views in u%.3f, r%.3f", len(model_res), ost[0], ost[4])
@@ -2087,10 +2088,10 @@ class client_worker(object):
         model_res = ir_model_obj.read(ir_model_ids, ['model'])
 
         return [ mod['model'] for mod in model_res]
-        
+
     def get_orm_keys(self, model):
         server.clear_context()
-        
+
         model_obj = self.orm_proxy(model)
         server.state_dict['severity'] = 'warning'
         fks = model_obj.fields_get_keys()
@@ -2104,9 +2105,9 @@ class client_worker(object):
 
         wiz_id = False
         ret = False
-        
+
         # If we want to support v5, ever, we shall put the clasic wizard code here
-        
+
         try:
             upd_wiz = self.orm_proxy('base.module.update')
             wiz_id = upd_wiz.create({})
@@ -2114,7 +2115,7 @@ class client_worker(object):
             raise ServerException("No usable wizard for module update found, cannot continue")
 
         upd_wiz.update_module([wiz_id,], {})
-        
+
         ret = upd_wiz.read([wiz_id,])
 
         if ret:
@@ -2148,7 +2149,7 @@ class client_worker(object):
 
     def export_trans(self, *args):
         """Export translations"""
-        
+
         import tarfile
         lang = False
         out_fname = None
@@ -2182,7 +2183,7 @@ class client_worker(object):
                 args = args[2:]
             else:
                 break
-        
+
         if not (out_fname or sourcedirs or dest_dir or just_print):
             self.log.error("Must specify either an output filename or sourcedirs mode")
             return False
@@ -2199,12 +2200,12 @@ class client_worker(object):
                 format = 'csv'
             else:
                 format = 'po'
-                
+
         if all_modules:
             mod_domain = [('state', '=','installed'),]
         else:
             mod_domain = [('name', 'in', args[:]), ('state', '=','installed')]
-            
+
         server.clear_context()
         server.state_dict['severity'] = 'warning'
         server.state_dict['context'] = 'i18n.export'
@@ -2216,7 +2217,7 @@ class client_worker(object):
             return False
 
         wiz_id = False
-        self.log.info("Exporting %s translations, %d modules", 
+        self.log.info("Exporting %s translations, %d modules",
                         lang or 'template', len(mod_ids))
             #server.state_dict['context'] = 'i18n.load.%s' % lang
         ble_obj = self.orm_proxy('base.language.export')
@@ -2303,7 +2304,7 @@ class client_worker(object):
         server.clear_context()
         server.state_dict['severity'] = 'warning'
         server.state_dict['context'] = 'i18n.load'
-        
+
         overwrite = True
         if args:
             if args[0] == '-f':
@@ -2318,16 +2319,16 @@ class client_worker(object):
 
         wiz_id = False
         ret = False
-        
+
         # If we want to support v5, ever, we shall put the clasic wizard code here
-        
+
         bli_obj = self.orm_proxy('base.language.install')
         for lang in args:
             self.log.info("Loading translation for %s", lang)
             server.state_dict['context'] = 'i18n.load.%s' % lang
             wiz_id = bli_obj.create({'lang': lang, 'overwrite': overwrite})
             bli_obj.lang_install([wiz_id,])
-            
+
         server.clear_context()
         return True
 
@@ -2337,23 +2338,23 @@ class client_worker(object):
         server.clear_context()
         server.state_dict['severity'] = 'warning'
         server.state_dict['context'] = 'i18n.sync'
-        
+
         for l in args:
             if l.startswith('-'):
                 raise ValueError("Syntax error in arguments")
 
         wiz_id = False
         ret = False
-        
+
         # If we want to support v5, ever, we shall put the clasic wizard code here
-        
+
         but_obj = self.orm_proxy('base.update.translations')
         for lang in args:
             self.log.info("Syncing translation terms for %s", lang)
             server.state_dict['context'] = 'i18n.sync.%s' % lang
             wiz_id = but_obj.create({'lang': lang})
             but_obj.act_update([wiz_id,])
-            
+
         server.clear_context()
         return True
 
@@ -2470,7 +2471,7 @@ class client_worker(object):
             fd.close()
 
             bmi_obj = self.orm_proxy('base_module_record.import')
-            wiz_id = bmi_obj.create( {'module_id': module_ids[0], 
+            wiz_id = bmi_obj.create( {'module_id': module_ids[0],
                      'format': ltype2,
                      'mode': (test_mode and 'test') or 'init',
                      'model_id': (model and ir_model_ids[0]) or False,
@@ -2500,9 +2501,9 @@ class client_worker(object):
 
     def gen_account_moves(self, howmany):
         """Generate a (large) number of account moves.
-        
+
         Original by Borja López Soilán (Pexego), 2009
-        
+
         Small OpenERP function that will create lots of account moves
         on the selected database, that can later be used for
         testing the renumber wizard.
@@ -2511,19 +2512,19 @@ class client_worker(object):
         move_ids = []
         howmany = int(howmany)
         assert howmany > 0, "Must give a positive number"
-        
+
         server.clear_context()
         server.state_dict['severity'] = 'warning'
         journal_obj = self.orm_proxy('account.journal')
         journal_ret = journal_obj.search([('type', '=', 'sale')])
         if not journal_ret:
             raise ClientException("Must have one journal of type 'sale' to use")
-        
+
         journal_id = journal_ret[0]
-        
+
         account_obj = self.orm_proxy('account.account')
         account_move_obj = self.orm_proxy('account.move')
-        
+
         acc_1 = account_obj.search([('name', 'ilike', 'Cash')])
         acc_2 = account_obj.search([('name', 'ilike', 'Expenses')])
         if not (acc_1 and acc_2):
@@ -2571,7 +2572,7 @@ class client_worker(object):
                         (ost[0], ost[1], ost[4], ost[0] / howmany))
         # Validate all the moves
         account_move_obj.button_validate(move_ids, {})
-        
+
         ost = self.get_ostimes(ost)
         self.log.info("Moves validated at: User: %.3f, Sys: %.3f, Real: %.3f" % (ost[0], ost[1], ost[4]))
         return True
@@ -2604,7 +2605,7 @@ class CmdPrompt(object):
             if obj.startswith(text):
                 pos.append(obj)
         return pos
-        
+
     def _complete_describe_cmd(self, text, state):
         if not self.cur_orm:
             return self._complete_orm_cmd(text, state)
@@ -2670,7 +2671,7 @@ class CmdPrompt(object):
         def __complete_list(li):
             rprev = ''
             if len(args) > 1:
-                rprev = ' '.join(args[:-1]) 
+                rprev = ' '.join(args[:-1])
             if rprev and rprev[-1] != ' ':
                 rprev += ' '
             for l in li:
@@ -2726,7 +2727,7 @@ class CmdPrompt(object):
                 }
     cmd_levelprompts = { 0: 'BQI', 'db': 'BQI DB', 'orm': 'BQI %(cur_orm)s',
                         'orm_id': 'BQI %(cur_orm)s#%(cur_res_id)d', }
-    sub_commands = { 'debug': ['on', 'off', 'server on', 'server off', 
+    sub_commands = { 'debug': ['on', 'off', 'server on', 'server off',
                                 'console on', 'console off', 'console silent',
                                 'object on', 'object off',],
                     'db': ['load', 'list', 'create', 'drop', 'set' ],
@@ -2740,7 +2741,7 @@ class CmdPrompt(object):
                     'with': _complete_print,
                     'import': _complete_import,
                     'help': [],
-                    'server': [ 'set loglevel', 'set loggerlevel', 
+                    'server': [ 'set loglevel', 'set loggerlevel',
                                 'set pgmode',
                                 'get loglevel', 'get log-levels',
                                 'get info', 'get about',
@@ -2779,7 +2780,7 @@ class CmdPrompt(object):
         self._eloc = {}
         self._logger = logging.getLogger('bqi.cli')
         import readline
-        
+
         readline.set_completer(self._complete)
         readline.parse_and_bind('tab: complete')
         readline.set_completer_delims('')
@@ -2793,7 +2794,7 @@ class CmdPrompt(object):
         import readline
         if opt.inter_history:
             readline.write_history_file(opt.inter_history)
-        
+
     def handle(self):
         """Display the prompt and handle one command
         """
@@ -2812,7 +2813,8 @@ class CmdPrompt(object):
                 server._io_flush()
                 return True
 
-            command_elements = command_line.split()
+            #command_elements = shlex.split(command_line) # won't work for expressions
+            command_elements = command_line.split(' ')
             if not command_elements:
                 return True
             command = command_elements[0]
@@ -2861,7 +2863,7 @@ class CmdPrompt(object):
         for ac in self.avail_cmds.get(self.__cmdlevel,[]):
             if ac.startswith(text[:len(ac)]):
                 possible.append(ac)
-        
+
         if len(possible) == 1 and self.sub_commands.has_key(possible[0]) and \
             len(text) > len(possible[0]):
             pos = possible[0]
@@ -2912,7 +2914,7 @@ class CmdPrompt(object):
             return
 
         print "Set debug to %s" % (argo)
-        
+
         log = logging.getLogger()
         lvl = logging.DEBUG
         if argo == 'on':
@@ -2934,7 +2936,7 @@ class CmdPrompt(object):
                 console_log_handler.setLevel(logging.INFO)
             log.setLevel(logging.DEBUG)
             self._client.execute_common('root', 'set_loglevel', 10)
-            
+
         server._io_flush()
 
     def _cmd_help(self, topic=None):
@@ -2961,11 +2963,11 @@ class CmdPrompt(object):
 
     def _cmd_comment(self, *args):
         """ Prints a comment on the console and logs
-        
+
         Useful for parsing the logs later, for automated procedures
         """
         self._logger.info("Comment: %s", ' '.join(args))
-        
+
     def _cmd_console(self, cmd=None, *args):
         global opt
         if cmd == 'width':
@@ -2987,7 +2989,7 @@ class CmdPrompt(object):
 
     def _cmd_db(self, *args):
         """List/Connect/Create or Drop a database
-        
+
             Usage:
                 db list
                 db load
@@ -3039,12 +3041,12 @@ class CmdPrompt(object):
         if not self.dbname:
             print "Currently NOT at database"
             return
-        
+
         pass # TODO
 
     def _cmd_server(self, *args):
         """Server-level operations or info
-        
+
         This command has several sub-commands:
             set loglevel <num|name>      Set the logging level. Name may only be supported
                                          at certain server versions
@@ -3094,7 +3096,7 @@ class CmdPrompt(object):
                 elif args[1] == 'os-time':
                     ret = self._client.execute_common('root', 'get_os_time')
                 elif args[1] == 'http-services':
-                    ret = self._client.execute_common('pub', 'list_http_services')
+                    ret = self._client.execute_common('pub', 'list_http_services', *args[2:3])
                 elif args[1] == 'pgmode':
                     ret = self._client.execute_common('root', 'get_pgmode')
                 elif args[1] == 'sqlcount':
@@ -3174,7 +3176,7 @@ class CmdPrompt(object):
 
     def _cmd_module(self, cmd, *args):
         """Perform operations on modules
-        
+
         Available ones are:
             info <mod>...         Get module information
             list                  List installed modules
@@ -3231,7 +3233,7 @@ class CmdPrompt(object):
 
     def _cmd_orm(self, model, res_id=None):
         """Select the ORM model to operate upon
-        
+
             An extra argument of the resource id can be supplied, too.
         """
         if not model:
@@ -3283,10 +3285,10 @@ class CmdPrompt(object):
             return
         self.cur_res_id = res_id
         self.__cmdlevel = 'orm_id'
-        
+
     def _cmd_do(self, *args):
         """Perform an ORM operation on an object.
-        
+
             Please specify a pythonic expression like "read(['name',])"
             If you are on a single resource, this will be added as a first
             list argument. Otherwise, you will need to specify the ids, too.
@@ -3392,7 +3394,7 @@ class CmdPrompt(object):
         help_flds = {}
         selection_flds = {}
         for field, props in self._col_sorted(res.items()):
-            crow = {'Field': field, 'String': props.pop('string'), 
+            crow = {'Field': field, 'String': props.pop('string'),
                     'Type': props.pop('type')}
             rest = []
             if 'size' in props:
@@ -3488,7 +3490,7 @@ class CmdPrompt(object):
 
     def _cmd_print(self, *args):
         """Print any part of the last result.
-        
+
         For every orm "do" command or so, the last result is stored in a
         register, namely 'this'. Write a pythonic expression to inspect
         this, like:
@@ -3503,10 +3505,10 @@ class CmdPrompt(object):
         res = self._eval_local(aexpr)
         print "Result:"
         print pretty_repr(res)
-        
+
     def _cmd_with(self, *args):
         """Narrow the last result
-        
+
         When the last result is a complex expression, it makes sense sometimes
         to "dive" into it and inspect a specific part:
             print len(this)
@@ -3526,7 +3528,7 @@ class CmdPrompt(object):
 
     def _cmd_table(self, *args):
         """Perform an ORM operation and present results as a table
-        
+
            Syntax of this command resembles the SQL select command:
               > table name, address, active from this
               > table name, address, active from read([1,2,3])
@@ -3534,7 +3536,7 @@ class CmdPrompt(object):
         if not self.cur_orm:
             print "Must be at an ORM level!"
             return
-        
+
         cols_str = ''
         while args:
             if args[0] == 'from':
@@ -3546,10 +3548,10 @@ class CmdPrompt(object):
             print "Syntax error, expected 'from' clause (lowercase)"
         if args[0] != 'from':
             print "Syntax error, expected 'from' clause."
-        
+
         args = args[1:]
         # we're just after the "from" clause
-        
+
         if not '(' in args[0]:
             # it is a local expression, like "this"
             aexpr = ' '.join(args)
@@ -3600,7 +3602,7 @@ class CmdPrompt(object):
     def _cmd_obj_info(self):
         """Obtain model info
         """
-        
+
         if not self.cur_orm:
             print "Must be at an ORM level!"
             return
@@ -3609,7 +3611,7 @@ class CmdPrompt(object):
 
     def _cmd_translation(self, *args):
         """import, export or load translations
-        
+
         Available modes:
             import  -f <file> [-l lang-code] [-L lang-name]
             export [-l <lang>] [-o file| --sourcedirs] [--all | <modules> ...]
@@ -3619,7 +3621,7 @@ class CmdPrompt(object):
         if (not args) or (args[0] not in ('import', 'export', 'load', 'sync')):
             print "One of import|export|load|sync must be specified"
             return
-        
+
         cmd = args[0]
         args = args[1:]
         try:
@@ -3647,7 +3649,7 @@ class CmdPrompt(object):
 
     def _cmd_test(self, cmd, *args):
         """Perform some predefined test
-        
+
         Available ones are:
             account-moves <N>           Generate N account moves
         """
@@ -3715,7 +3717,7 @@ class CmdPrompt(object):
         and use that instead of the previous login. All subsequent RPC
         calls will be executed as that user (hopefully).
         """
-        
+
         self._client._login(login, passwd)
 
     def _cmd_subscription(self, cmd, *args):
@@ -3867,9 +3869,9 @@ class CmdPrompt(object):
             return
 
     def __report_get(self, rid, fname=False, timeout=False):
-        
+
         self._logger.debug("Trying to get report #%d", rid)
-        
+
         t = time.time()
         while True:
             res = self._client.rpc_call('/report', 'report_get', rid, auth_level='db')
@@ -3878,7 +3880,7 @@ class CmdPrompt(object):
                 break
             if res.get('state') != True:
                 if (not timeout) or (time.time() - t >= timeout):
-                    self._logger.info("After %.2f sec, report is %s", 
+                    self._logger.info("After %.2f sec, report is %s",
                             time.time() - t, res.get('state', '<unknown>'))
                     break
                 else:
@@ -3911,15 +3913,15 @@ Basic Commands:
     install-module [<m> ...]    Install module
     upgrade-module [<m> ...]    Upgrade module
     import [args] <data-file>   Import data file directly into module
-    check-quality  [<m> ...]    Calculate quality and dump quality result 
+    check-quality  [<m> ...]    Calculate quality and dump quality result
                                 [ into quality_log.pck using pickle ]
     fields-view-get             Check fields_view_get of all pooler objects
-    multi <cmd> [<cmd> ...]     Execute several of the above commands, at a 
+    multi <cmd> [<cmd> ...]     Execute several of the above commands, at a
                                 single server instance.
     keep[-running]              Pause and keep the server running, waiting for Ctrl+C
     inter[active]               Display interactive b-q-i prompt
     login <user> <passwd>       Login again, switch user
-    
+
     translation-import -f <file> [-l lang-code] [-L lang-name]
                                 Import file as translation for language
     translation-export [-l <lang>] [-o file| --sourcedirs] [--all | <modules> ...]
@@ -3946,7 +3948,7 @@ parser.add_option("--all-modules", dest="all_modules", action='store_true', defa
                     help="Operate on all modules that are found on addons-path")
 parser.add_option("--black-modules", dest="black_modules", default=None,
                     help="Exclude these modules from all-modules scan (space-separated)")
-parser.add_option("--homedir", dest="homedir", default=None, 
+parser.add_option("--homedir", dest="homedir", default=None,
                 help="The directory, whose absolute path will be stripped from messages.")
 parser.add_option("--xml-log", dest="xml_log", help="A file to write xml-formatted log to")
 parser.add_option("--txt-log", dest="txt_log", help="A file to write plain log to, or 'stderr'")
@@ -4018,8 +4020,8 @@ parser.add_option("--history-length", dest="history_length", type="int", default
 pgroup = optparse.OptionGroup(parser, 'Config-File options',
                 " These options help run this script with pre-configured settings.")
 
-pgroup.add_option("-c", dest="conffile", 
-            help="Read configuration options for this script from file. " 
+pgroup.add_option("-c", dest="conffile",
+            help="Read configuration options for this script from file. "
             "Defaults to ~/.openerp-bqirc" )
 pgroup.add_option("--no-bqirc", dest="have_bqirc", action="store_false", default=True,
             help="Do not read ~/.openerp-bqirc , start with empty options.")
@@ -4067,7 +4069,7 @@ def parse_option_section(conf, items, allow_include=True):
             elif isinstance(getattr(copt, key), bool):
                 val = bool(val.lower() in ('1', 'true', 't', 'yes'))
             elif key in ('addons_path', 'root_path', 'homedir',
-                        'xml_log', 'txt_log', 'mach_log', 'inter_history', 
+                        'xml_log', 'txt_log', 'mach_log', 'inter_history',
                         'smtp_maildir'):
                 val = os.path.expanduser(val)
             if not getattr(copt, key):
@@ -4183,7 +4185,7 @@ def init_log():
     if opt.xml_log:
         hnd = XMLStreamHandler(opt.xml_log)
         log.addHandler(hnd)
-        
+
     if opt.txt_log:
         if opt.txt_log == 'stderr':
             seh = logging.StreamHandler()
@@ -4233,7 +4235,7 @@ if opt.have_bqirc and conf_filesread:
 
 def parse_cmdargs(args):
     """Parse the non-option arguments into an array of commands
-    
+
     The array has entries like ('cmd', [args...])
     Multiple commands may be specified either with the 'multi'
     command or with the '--' separator from the last cmd.
@@ -4270,7 +4272,7 @@ def parse_cmdargs(args):
         elif cmd2 in ('install-module', 'upgrade-module', 'check-quality',
                         'translation-import', 'translation-export',
                         'translation-load', 'translation-sync',
-                        'install-translation', 'import', 'login', 
+                        'install-translation', 'import', 'login',
                         'set-db', 'comment', 'get-times'):
             # Commands that take args
             cmd_args = []
@@ -4280,7 +4282,7 @@ def parse_cmdargs(args):
             ret.append((command, cmd_args))
         else:
             ret.append((command, []))
-        
+
     return ret
 
 cmdargs = parse_cmdargs(args)
@@ -4341,8 +4343,8 @@ def load_mod_info(mdir, module):
 
     return {}
 
-connect_dsn =  {'user': options['login'], 
-            'passwd': options['pwd'], 
+connect_dsn =  {'user': options['login'],
+            'passwd': options['pwd'],
             'superpass': options['super_passwd'],
             'dbname': options['dbname'],
             }
@@ -4354,7 +4356,7 @@ def parse_url_dsn(url):
         r'(?P<host>(?:[\w\-\.]+)|(?:\[[0-9a-fA-F:]+\]))'
         r'(?:\:(?P<port>[0-9]{1,5}))?$')
     uparts = urlparse.urlparse(url, allow_fragments=False)
-    
+
     if uparts.scheme:
         connect_dsn['proto'] = uparts.scheme
     if uparts.netloc:
@@ -4445,7 +4447,7 @@ try:
                 mods.append(mname)
         except Exception:
             logger.exception("Cannot scan modules:")
-    
+
     logging.getLogger('bqi.state').info("set num_modules %d", len(mods))
     if opt.dry_run:
         logger.info("Dry run! Here is what would happen:")
@@ -4517,7 +4519,7 @@ try:
                 ret = True
             elif cmd == 'get-times':
                 ost2 = client.get_ostimes(ost2)
-                logger.info("%s: User: %.3f, Sys: %.3f, Real: %.3f",  ' '.join(args), 
+                logger.info("%s: User: %.3f, Sys: %.3f, Real: %.3f",  ' '.join(args),
                         ost2[0], ost2[1], ost2[4])
                 ret = True
             elif cmd == 'keep' or cmd == 'keep-running':
@@ -4565,9 +4567,9 @@ try:
             logger.exception('exc:')
             server.dump_blame(e)
             ret = False
-        
+
         server.clear_context()
-        
+
         if (not ret) and ign_result:
             # like make's commands, '-' means ignore result
             logger.info("Command %s failed, but will continue.", cmd)
@@ -4575,7 +4577,7 @@ try:
 
         if not ret:
             logger.error("Command %s failed, stopping tests.", cmd)
-        
+
         # end for
 
     ost = client.get_ostimes(ost)
