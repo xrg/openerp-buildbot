@@ -3904,18 +3904,37 @@ class CmdPrompt(object):
                 self._logger.info("Report written to file \"%s\"", fname)
             break
 
-usage = """%prog command [options]
+usage = """%prog [options] -- command [opts] -- command [opts] ...
 
-Basic Commands:
-    start-server                Start Server
-    create-db                   Create new database
+DESCRIPTION
+
+Run or connect to a remote OpenERP server, execute commands, log the output
+and analyze any errors noted.
+In interactive mode, have a command-line prompt of possible actions against
+the OpenERP(-F3) server.
+
+SCRIPT COMMANDS
+    start-server                Start Server, wait until logs indicate that
+                                the database is loaded.
+    create-db                   Create new database (using default or 'set-db'
+                                options)
     drop-db                     Drop database
+    set-db [-U user] [-W pass] [-t|-T] <dbname>
+                                Switch database/user on the fly. Without
+                                stopping the server, the connection is reset
+                                to use a different dbname/user.
+                                -t sets the "with-demo-data" flag to ON
+                                -T sets the "with-demo-data" to OFF for new dbs
+
     install-module [<m> ...]    Install module
     upgrade-module [<m> ...]    Upgrade module
     import [args] <data-file>   Import data file directly into module
+    install-translation <lang>  Installs translations for that language
     check-quality  [<m> ...]    Calculate quality and dump quality result
-                                [ into quality_log.pck using pickle ]
-    fields-view-get             Check fields_view_get of all pooler objects
+                                [ into quality_log.pck using pickle ] [deprecated]
+    fields-view-get             Check fields_view_get of all pooler objects,
+                                useful to check that all views are valid. Also
+                                checks RPC streaming and performance.
     multi <cmd> [<cmd> ...]     Execute several of the above commands, at a
                                 single server instance.
     keep[-running]              Pause and keep the server running, waiting for Ctrl+C
@@ -3936,7 +3955,206 @@ Basic Commands:
                                 the logs.
 """
 
-parser = optparse.OptionParser(usage)
+prog_description  = """Commands are required, unless a 'commands=' setting is
+specified in the .bqirc file.
+
+Commands have their own options, and are thus separated by the '--' option.
+General options are different, cannot be mixed with commands.
+
+Commands may be preceded by the '-' prefix, meaning that they are allowed to
+fail, or the '+' prefix, meaning that they will run even if previous ones
+have failed. See examples.
+"""
+
+prog_epilog = """
+EXAMPLES
+
+(assuming you have put this script in your PATH as 'bqi.py')
+
+bqi.py -- start-server inter
+    # Launches a default session of the server, goes interactive
+
+bqi.py -s dev-branch -- -drop-db create-db install-module account crm \\
+        -- fields-view-get +drop-db
+    # meaning it will use the settings for "dev-branch" from the config
+    # file, attempt to drop an existing db (ignoring errors), create a
+    # new one, install the "crm" and "account" modules, test fetching
+    # all ir.ui.views and always drop the db on exit
+
+bqi.py -s dev-branch -s all-tests
+    # uses pre-configured "dev-branch" for the server settings and
+    # "all-tests" section containing commands to be executed
+
+bqi.py -s standard -R --url https://admin@my.server.com:8071 -d testdb \\
+        -- comment Connection ok. -- inter
+    # use "standard" settings from config, but go remote and connect to
+    # "my.server.com" instance, using SSL and 'testdb' database. Then
+    # go into interactive mode.
+
+LOGGING
+
+bqi has a logging system which aims both at recording the complete server
+proceedings and at simplifying the notable messages for the developer.
+
+The logging system presents the messages at two possible streams, (like
+the 'tee' Unix utility), the console and a log file. The formatting of the
+two streams can be different (pretty formatting for console, mechanical
+formatting for the file). Bqi can color-code the console logs, using a
+configurable scheme.
+
+Messages from the server can always be logged verbatim. But bqi can also
+filter them and present them in a more comprehensible format. Bqi operates
+a set of Regexp conditions on the lines, identifies patterns and *repeats*
+the messages in shorter format. In particular, it can decode exception traces
+and identify the OpenERP module, line of code and conditions under which
+the error has occured.
+
+When launching an OpenERP server, bqi pipes the STDIN and STDOUT through
+its logging system. Note that bqi tries to group multiple lines together,
+so it may have a lag at printing STDOUT messages (or even display them
+after an RPC call is complete, after the server STDERR logs).
+
+When connected to a remote OpenERP pg84/F3 server, bqi can utilize the
+remote logging module (see: "remote_logs") to fetch the logs from the
+server.
+
+BQI itself produces a log file that is machine-parsable and contains the
+full logs of the server, plus all the messages from this script. Streams
+are separated by the pythonic loggers, namely "server.stdout" and 
+"server.stderr" for the server, "bqi.*" for this script
+
+Available loggers:
+
+    bqi                 Generic BQI messages
+    bqi.blame           Exceptions and errors in dict format
+    bqi.cli             Command-Line messages
+    bqi.client          Messages from the client connection protocol
+    bqi.qlogs           Check-quality function messages
+    bqi.state           Machine-readable state (context) messages
+                        These can define variables in a supervising script.
+    bqi.wizard          Messages from wizard operations
+    server.stderr       STDERR of the OpenERP server
+    server.stdout       STDOUT of the OpenERP server
+    srv.thread          Messages from the subprocess thread launching
+                        the server
+
+CONNECTION PROTOCOL
+
+bqi can connect to the OpenERP server either with the builtin XML-RPCv1
+implementation, or with the 'openerp_libclient' external library. The
+latter is activated if you specify the '--url' option. Using libclient
+you can test more than the standard XML protocol (eg. SSL, Net-RPC, JSON).
+
+The openerp_libclient library needs only be installed in your Python path.
+
+INTERACTIVE MODE
+
+Apart from executing a set of commands, BQI can run in interactive mode,
+where it will display a CLI prompt. That's the 'inter' command and will
+finish as soon as the CLI is exited (ie. you can schedule a few more
+commands after the CLI).
+
+CLI uses a pseydo-parser, which allows python expressions to be written
+for the RPC arguments.
+
+Interactive mode exposes a few more commands not available in the program
+arguments mode.
+
+All interactive mode commands are self-documented through the 'help' command,
+most of them offer completion at the Tab button. Please test them!
+
+CONFIGURATION FILE
+
+All BQI options and commands can also be specified in a configuration file,
+namely ~/.openerp-bqirc (can be overriden with the -c option).
+
+This file is INI-formatted and can contain sections, which can include each
+other. This way you can have several variations of the configuration you
+may use. Sections can be selected using the '-s' option, and more than one
+can be specified, in a cascading logic.
+
+All options (as mentioned above; except the Config-File ones) can be used
+in the bqirc, and their keys are the long-format options s/-/_/ . Options
+specified as command arguments do override the config ones.
+
+As in the INI specification, multiline options can better be written using
+the ':' rather than the '=' notation.
+
+EXAMPLE CONFIGURATION
+
+This file can be used as your .openerp-bqirc :
+
+    [general]
+    ; This is the section that will always load. We want all our
+    ; tests to follow these rules:
+    port = 8169
+    ftp_port=8923
+    mach_log = openerp-test.log
+    ; Have a machine-format log to a "openerp-test.log" file in the
+    ; directory we run the bqi from.
+    txt_log = stdout
+    ; Also display all logs, bare, to the console. Strongly advised.
+    inter_history = ~/.openerp_bqi_history
+    console_color = True
+    console_nodebug = True
+    default_section = official
+
+    [official]
+    db_name= test_bqi_off
+    server_series=v600
+    homedir=~/build/openerp-official/
+    mach_log = test-bqi-off.log
+    ; We override the general setting for the log
+
+    addons_path=~/build/openerp-official/addons
+    root_path=~/build/openerp-official/server/bin/
+
+    [foobar-branch]
+    db_name= test_bqi_foobar
+    server_series=v600
+    homedir=~/stage/repos/openerp/foobar/
+    mach_log = ~/logs/test-bqi-foobar.log
+    addons_path=%(homedir)s/addons
+
+    [test-start]
+    ; just a description of a test
+    commands = start-server create-db
+
+
+NOTES
+
+The BQI script is one huge file. This is intentional. The script must be
+self-contained and require as little as possible from external libraries,
+no installation.
+
+The BQI sript is intended for developers. It's not a end-user UI, does
+not try to be user-friendly at all.
+
+REPORTING BUGS
+
+Please report all bugs to P. Christeas <xrg@hellug.gr> or post them at
+Github: https://github.com/xrg/openerp-buildbot
+
+COPYRIGHT
+
+This B-Q-I script is copyright 2012 by P. Christeas <xrg@hellug.gr>.
+Original code was written by TinyERP/OpenERP SA and developed until 2011
+under their premises.
+This script is licensed under the Affero GPL v3.
+"""
+
+class OurHelpFormatter(optparse.IndentedHelpFormatter):
+    """ Override the textwrap behavior of the parent class
+    """
+    def format_description(self, description):
+        return description or ""
+
+    def format_epilog(self, epilog):
+        return epilog or ""
+
+parser = optparse.OptionParser(usage=usage, formatter=OurHelpFormatter(),
+        description=prog_description, epilog=prog_epilog)
+
 parser.add_option("-R", "--remote", action="store_true", default=False,
                     help="Remote mode. Connect to running OpenERP server, rather than launching one"),
 parser.add_option("-H", "--url", default=None,
@@ -4287,7 +4505,7 @@ def parse_cmdargs(args):
 
 cmdargs = parse_cmdargs(args)
 if len(cmdargs) < 1:
-    parser.error("You have to specify a command!")
+    parser.error("You have to specify a command!\nPlease see 'bqi.py --help' for more info.")
 
 die(opt.translate_in and (not opt.db_name),
         "the translate-in option cannot be used without the database (-d) option")
