@@ -2764,8 +2764,16 @@ class CmdPrompt(object):
     help = '''
      OpenERP interactive client.
 
-     Available Commands:
-'''
+     You can control the server, the behavior of this script and perform trivial
+     ORM(+RPC) operations through this CLI.
+
+     The CLI operates at "levels", as indicated by the prompt, eg:
+
+        BQI> # basic level, where general commands are available
+        BQI res.partner> # ORM level, where operations on that model can be made
+
+     Available Commands (at this level):
+    '''
 
     def __init__(self, client=None):
         self._client = client
@@ -2884,6 +2892,27 @@ class CmdPrompt(object):
             return possible[state]
 
     def _cmd_debug(self, *args):
+        """Control the debugging level
+
+    Possible settings:
+
+        debug [on]              Activate debugging for both server and BQI
+        debug off               Deactivate debugging
+        debug server [on]       Set log-level=DEBUG for the server
+        debug server off        Set server log-level to INFO
+        debug console [on]      Enable debug messages on the BQI
+        debug console off       Stop BQI from handling debug messages
+        debug console silent    Log debug messages, but don't display them
+                                on the console. The log file will still keep
+                                them.
+
+        And, at the ORM level (on pg84+ server):
+
+        debug object [on|off]   Activate debugging for this ORM model.
+                                This will print detailed messages and SQL
+                                info for the operations of this model.
+                                It does NOT affect debugging of other models.
+        """
         argo = args and args[0] or 'on'
         args = args[1:]
         if argo == 'object':
@@ -2940,7 +2969,17 @@ class CmdPrompt(object):
         server._io_flush()
 
     def _cmd_help(self, topic=None):
-        """Print this help
+        """Print this help. Try also: help <command>
+
+    This is the "help help" page. You are right.
+
+    Commands at the BQI are self-explained, through their docstring
+    and their CLI-completion options. Try pressing the <Tab> key at
+    various occasions, to discover the potential of BQI.
+
+    Note: some of the features require the corresponding RPC calls
+    from the OpenERP server, which are implemented in pg84 and F3
+    series. Using another series may limit the available commands.
         """
         if topic:
             for cmd in self.avail_cmds[self.__cmdlevel]:
@@ -2969,6 +3008,13 @@ class CmdPrompt(object):
         self._logger.info("Comment: %s", ' '.join(args))
 
     def _cmd_console(self, cmd=None, *args):
+        """ Sets console properties
+
+    Supported properties (so far):
+
+        width   Sets the number of characters (columns) to use in
+                formatting tables.
+        """
         global opt
         if cmd == 'width':
             if args:
@@ -2979,29 +3025,29 @@ class CmdPrompt(object):
 
     def _cmd_quit(self):
         """Quit the interactive mode and continue bqi script
+
+            Note: this will NOT always quit the bqi script. If any command follows
+            the "inter[active]" one, it will be executed.
+
+            Equivalent to an EOF, pressing Ctrl+D at the prompt.
         """
         self.does_run = False
-
-    def _cmd_db_list(self):
-        """Lists the Databases accessible by the running server"""
-        print "Available DBs:"
-        pass #TODO
 
     def _cmd_db(self, *args):
         """List/Connect/Create or Drop a database
 
-            Usage:
-                db list
-                db load
-                db create
-                db drop
-                db set [-U user] [-W password] [-t|-T] <dbname>
+    Usage:
+        db list
+        db load
+        db create
+        db drop
+        db set [-U user] [-W password] [-t|-T] <dbname>
 
-            Note: at create, the demo-data and language settings come from bqi's
-                  command line
+    Note: at create, the demo-data and language settings come from bqi's
+            command line
 
-            db set switches the active database
-                   '-t' activates demo data, '-T' deactivates them
+    db set switches the active database
+            '-t' activates demo data, '-T' deactivates them
         """
         if not len(args):
             print "Usage: db {list|load|create|drop|set}"
@@ -3047,14 +3093,14 @@ class CmdPrompt(object):
     def _cmd_server(self, *args):
         """Server-level operations or info
 
-        This command has several sub-commands:
-            set loglevel <num|name>      Set the logging level. Name may only be supported
-                                         at certain server versions
-            set loggerlevel <logger> <num|name>  Set lever for some logger
-            check                        Perform the "check connectivity" test
-            stats                        Query the server for statistics info.
-            get ...                  Retrieve certain server settings ...
-            restart-logs                Restart the remote-logs connection
+    This command has several sub-commands:
+        set loglevel <num|name>     Set the logging level. Name may only
+                                    be supported at certain server versions
+        set loggerlevel <logger> <num|name>  Set lever for some logger
+        check                       Perform the "check connectivity" test
+        stats                       Query the server for statistics info.
+        get ...                     Retrieve certain server settings ...
+        restart-logs                Restart the remote-logs connection
         """
         #    restart                     Attempt to restart the server.
 
@@ -3154,12 +3200,17 @@ class CmdPrompt(object):
             server.dump_blame(e)
             ret = False
 
-    def _cmd_set(self):
-        """Get info about server, database, or orm object
-        """
+    #def _cmd_set(self):
+    #    """Get info about server, database, or orm object
+    #    """
 
     def _cmd_exit(self):
-        """Exit to upper command level """
+        """Exit to upper command level
+
+    Eg:
+        BQI.res.partner> exit
+        BQI> ...
+        """
         if self.__cmdlevel == 'orm_id':
             self.cur_res_id = None
             self.__cmdlevel = 'orm'
@@ -3177,12 +3228,13 @@ class CmdPrompt(object):
     def _cmd_module(self, cmd, *args):
         """Perform operations on modules
 
-        Available ones are:
-            info <mod>...         Get module information
-            list                  List installed modules
-            install <mod> ...     Install module(s)
-            upgrade <mod> ...     Upgrade module(s)
-            uninstall <mod> ...   Remove module(s)
+    Available ones are:
+        info <mod>...         Get module information
+        list                  List installed modules
+        install <mod> ...     Install module(s)
+        upgrade <mod> ...     Upgrade module(s)
+        uninstall <mod> ...   Remove module(s)
+        refresh-list          Re-Scan the addons path(s) for new modules
         """
         if cmd not in ('refresh-list', 'list') and not args:
             print 'Must supply some modules!'
@@ -3234,7 +3286,7 @@ class CmdPrompt(object):
     def _cmd_orm(self, model, res_id=None):
         """Select the ORM model to operate upon
 
-            An extra argument of the resource id can be supplied, too.
+    An extra argument of the resource id can be supplied, too.
         """
         if not model:
             print "Must select one orm model!"
@@ -3268,6 +3320,12 @@ class CmdPrompt(object):
 
     def _cmd_res_id(self, res_id):
         """Select a single resource of an ORM model
+
+    A shorthand to avoid specifying the ID at each operation:
+
+        BQI res.partner> do write(1, {...})
+        BQI res.partner> res_id 1
+        BQI res.partner#1> do write({...}) # equivalent to first
         """
         if not self.cur_orm:
             print "Must specify a model first!"
@@ -3278,7 +3336,7 @@ class CmdPrompt(object):
             print "id of orm must be integer!"
             return
         try:
-            self.cur_orm_obj('read', [res_id,], ['id',])
+            self.cur_orm_obj.read([res_id,], ['id',])
         except (xmlrpclib.Fault, RpcException):
             # TODO: fine-grain
             print "Record not found!"
@@ -3289,9 +3347,9 @@ class CmdPrompt(object):
     def _cmd_do(self, *args):
         """Perform an ORM operation on an object.
 
-            Please specify a pythonic expression like "read(['name',])"
-            If you are on a single resource, this will be added as a first
-            list argument. Otherwise, you will need to specify the ids, too.
+    Please specify a pythonic expression like "read(['name',])"
+    If you are on a single resource, this will be added as a first
+    list argument. Otherwise, you will need to specify the ids, too.
         """
         if not self.cur_orm:
             print "Must be at an ORM level!"
@@ -3357,8 +3415,8 @@ class CmdPrompt(object):
     def _cmd_describe(self, *args):
         """ Describe an ORM model, its fields [and properties]
 
-            Can be called either within the ORM, or like 'describe orm.model' from
-            the root level.
+    Can be called either within the ORM, or like 'describe orm.model' from
+    the root level.
         """
         model = None
         if self.cur_orm:
@@ -3491,11 +3549,11 @@ class CmdPrompt(object):
     def _cmd_print(self, *args):
         """Print any part of the last result.
 
-        For every orm "do" command or so, the last result is stored in a
-        register, namely 'this'. Write a pythonic expression to inspect
-        this, like:
-            print len(this)
-            print this[4]['foobar']
+    For every orm "do" command or so, the last result is stored in a
+    register, namely 'this'. Write a pythonic expression to inspect
+    this, like:
+        print len(this)
+        print this[4]['foobar']
         """
         if not args:
             # yes, an empty line ;)
@@ -3509,12 +3567,12 @@ class CmdPrompt(object):
     def _cmd_with(self, *args):
         """Narrow the last result
 
-        When the last result is a complex expression, it makes sense sometimes
-        to "dive" into it and inspect a specific part:
-            print len(this)
-            print this[3]
-            with this[3]
-            print this['foobar']
+    When the last result is a complex expression, it makes sense sometimes
+    to "dive" into it and inspect a specific part:
+        print len(this)
+        print this[3]
+        with this[3]
+        print this['foobar']
         """
         if not args:
             return
@@ -3529,9 +3587,11 @@ class CmdPrompt(object):
     def _cmd_table(self, *args):
         """Perform an ORM operation and present results as a table
 
-           Syntax of this command resembles the SQL select command:
-              > table name, address, active from this
-              > table name, address, active from read([1,2,3])
+    Syntax of this command resembles the SQL select command:
+        > table name, address, active from this
+        > table name, address, active from read([1,2,3])
+
+    Note: the syntax is case sensitive. Use small letters.
         """
         if not self.cur_orm:
             print "Must be at an ORM level!"
@@ -3612,11 +3672,11 @@ class CmdPrompt(object):
     def _cmd_translation(self, *args):
         """import, export or load translations
 
-        Available modes:
-            import  -f <file> [-l lang-code] [-L lang-name]
-            export [-l <lang>] [-o file| --sourcedirs] [--all | <modules> ...]
-            load [-f|-N] <lang>
-            sync <lang>
+    Available modes:
+        import  -f <file> [-l lang-code] [-L lang-name]
+        export [-l <lang>] [-o file| --sourcedirs] [--all | <modules> ...]
+        load [-f|-N] <lang>
+        sync <lang>
         """
         if (not args) or (args[0] not in ('import', 'export', 'load', 'sync')):
             print "One of import|export|load|sync must be specified"
@@ -3650,9 +3710,10 @@ class CmdPrompt(object):
     def _cmd_test(self, cmd, *args):
         """Perform some predefined test
 
-        Available ones are:
-            account-moves <N>           Generate N account moves
+    Available ones are:
+        account-moves <N>           Generate N account moves
         """
+        # TODO: could we implement/load more tests here?
         try:
             if cmd == 'account-moves':
                 self._client.gen_account_moves(args[0])
@@ -3672,7 +3733,7 @@ class CmdPrompt(object):
             return
 
     def _cmd_import(self, *args):
-        """Import a data file, through the base_module_import wizard.
+        """Import a data file, through the /base_module_import/ wizard.
 
     Usage:
         import [-m <module>] [-l {xml|csv|yaml}] [-t] [-U]
@@ -3723,14 +3784,14 @@ class CmdPrompt(object):
     def _cmd_subscription(self, cmd, *args):
         """ Wait for a subscription event
 
-        See: 'subscription' service at 'koo' module
+    See: 'subscription' service at 'koo' module
 
-        Usage:
-            subscription {wait|async_wait} expression
-            subscription publish expression
+    Usage:
+        subscription {wait|async_wait} expression
+        subscription publish expression
 
-        Details:
-            Waits for the server to fire the "expression" notification
+    Details:
+        Waits for the server to fire the "expression" notification
         """
 
         def _wait_fn(expression):
