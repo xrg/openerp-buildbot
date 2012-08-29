@@ -3001,14 +3001,14 @@ class CmdPrompt(object):
         print ""
 
     def _cmd_comment(self, *args):
-        """ Prints a comment on the console and logs
+        """Prints a comment on the console and logs
 
         Useful for parsing the logs later, for automated procedures
         """
         self._logger.info("Comment: %s", ' '.join(args))
 
     def _cmd_console(self, cmd=None, *args):
-        """ Sets console properties
+        """Sets console properties
 
     Supported properties (so far):
 
@@ -3026,10 +3026,10 @@ class CmdPrompt(object):
     def _cmd_quit(self):
         """Quit the interactive mode and continue bqi script
 
-            Note: this will NOT always quit the bqi script. If any command follows
-            the "inter[active]" one, it will be executed.
+    Note: this will NOT always quit the bqi script. If any command follows
+    the "inter[active]" one, it will be executed.
 
-            Equivalent to an EOF, pressing Ctrl+D at the prompt.
+    Equivalent to an EOF, pressing Ctrl+D at the prompt.
         """
         self.does_run = False
 
@@ -3397,7 +3397,7 @@ class CmdPrompt(object):
         self._last_res = res
 
     def _col_sorted(self, tups):
-        """ Sort a list of (fieldname, value) tuples
+        """Sort a list of (fieldname, value) tuples
 
         This is a special sort, because it considers some builtin columns
         and some frequently used ones will be sorted first
@@ -3413,9 +3413,9 @@ class CmdPrompt(object):
         return sorted(tups, key=lambda x: coldict.get(x[0], x[0]))
 
     def _cmd_describe(self, *args):
-        """ Describe an ORM model, its fields [and properties]
+        """Describe an ORM model, its fields [and properties]
 
-    Can be called either within the ORM, or like 'describe orm.model' from
+    Can be called either within the ORM, or like 'describe some.model' from
     the root level.
         """
         model = None
@@ -3588,10 +3588,15 @@ class CmdPrompt(object):
         """Perform an ORM operation and present results as a table
 
     Syntax of this command resembles the SQL select command:
-        > table name, address, active from this
-        > table name, address, active from read([1,2,3])
+        BQI some.model> table name, address, active from this
+        BQI some.model> table name, address, active from read([1,2,3])
+
+    and the equivalent of "SELECT * FROM sth;" :
+        BQI some.model> table * from search_read([])
 
     Note: the syntax is case sensitive. Use small letters.
+    Note2: in the example above, search_read() is only available at
+        specific server versions.
         """
         if not self.cur_orm:
             print "Must be at an ORM level!"
@@ -3670,7 +3675,7 @@ class CmdPrompt(object):
         print "Currently at: %s" % self.cur_orm
 
     def _cmd_translation(self, *args):
-        """import, export or load translations
+        """Import, export or load translations
 
     Available modes:
         import  -f <file> [-l lang-code] [-L lang-name]
@@ -3748,6 +3753,10 @@ class CmdPrompt(object):
         -U          No Update. Activate that flag for the data
         -d <model>  The model to import against. Needed for csv files,
                     unless the filename matches (eg. 'ir.model.access.csv')
+    
+    Note:
+        This command requires support from the server. You must have the
+        'base_module_import' addon installed!
         """
         if (not args):
             print "At least the filename is required"
@@ -3782,7 +3791,7 @@ class CmdPrompt(object):
         self._client._login(login, passwd)
 
     def _cmd_subscription(self, cmd, *args):
-        """ Wait for a subscription event
+        """Wait for a subscription event
 
     See: 'subscription' service at 'koo' module
 
@@ -3835,6 +3844,14 @@ class CmdPrompt(object):
         <rid>       report ID, as returned by 'get'
         <timeout>   Seconds to wait for report to be killed. After that, a "get"
                     or a second "kill" will have to be issued again.
+
+    Description:
+        At 5.0/6.x series servers, reports have had their own API, independent
+        from the ORM one. With this commands, the corresponding RPC calls are
+        issued.
+
+    Notes:
+        The 'report list' and 'report stop' are pg84/F3 extensions to the API.
         """
         args = list(args)
         try:
