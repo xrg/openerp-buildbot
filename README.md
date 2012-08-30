@@ -33,6 +33,24 @@ a code repository and involves an automated procedure:
  * mirroring of Git <-> Bzr repos
  * testing a variety of OpenERP setups (per branch, setup, set of tests)
 
+The B-Q-I script
+---
+
+./openerp_buildbot_slave/base_quality_interrogation.py
+
+This single file deserves a special mention, maybe a book on its own.
+
+It used to be under server/bin/addons of the OpenERP-server project, when
+I realized that a testing tool should not depend on the checkout of a
+server version. So, moved it here, where it remains persistent across server
+branches.
+
+This tool is a general-purpose testing Swiss-army-knife for OpenERP. Originally
+written to issue a hard-coded test against the server (in a destructive-nasty
+manner) but now changed almost entirely. Buildbot uses it, but BQI is designed
+to be used standalone, too. You *only* need that file in your development setup,
+please also find its documentation embedded in the file.
+
 
 Installation
 ---
@@ -94,4 +112,4 @@ Author
 ------
 
 Versions v1, v2 developed by OpenERP SA.
-v2.5, v3.x by Panos Christeas - [Twitter](http://twitter.com/#panos_xrg) [E-mail](xrg@hellug.gr)
+v2.5, v3.x by Panos Christeas - [Twitter](http://twitter.com/#panos_xrg) [E-mail](mailto:xrg@hellug.gr)
