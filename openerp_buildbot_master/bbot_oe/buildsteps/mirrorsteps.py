@@ -251,7 +251,7 @@ class ImportBzrMarks(_BzrMarksProcessor, _ImportMarksMixin, BuildStep):
 
     def _do_import(self):
         try:
-            marks = marks_file.import_marks(self.marks_fname)[0]
+            marks = marks_file.import_marks(self.marks_fname)
             bad_marks = []
             for m in marks:
                 if not m.startswith(':'):

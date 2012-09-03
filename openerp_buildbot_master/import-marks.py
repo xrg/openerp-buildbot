@@ -153,7 +153,7 @@ for fname in args:
             rev_ids = git_marks_import(fname)
 
         elif rtype == 'bzr':
-            rev_ids = marks_file.import_marks(fname)[0]
+            rev_ids = marks_file.import_marks(fname)
             bad_marks = []
             for m in rev_ids:
                 if not m.startswith(':'):
