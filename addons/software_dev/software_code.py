@@ -505,7 +505,7 @@ class software_commit(propertyMix, osv.osv):
                 help="Developers who have authored the code"),
         'change_ids': fields.one2many('software_dev.filechange', 'commit_id', 'Changes'),
         'stat_ids': fields.one2many('software_dev.changestats', 'commit_id', 'Statistics'),
-        'parent_id': fields.many2one('software_dev.commit', 'Parent commit'),
+        'parent_id': fields.many2one('software_dev.commit', 'Parent commit', select=True),
         # 'merge_id': fields.many2one('software_dev.commit', 'Commit to merge',
         #            help='If set, this is the second parent, which is merged with "Parent Commit"'),
         'contained_commit_ids': fields.many2many('software_dev.commit',

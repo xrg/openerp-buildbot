@@ -361,7 +361,7 @@ class software_buildset(propertyMix, osv.osv):
         'external_idstring': fields.char('Ext ID', size=256),
         'reason': fields.char('Reason', size=256),
 
-        'commit_id': fields.many2one('software_dev.commit', 'Commit', required=True),
+        'commit_id': fields.many2one('software_dev.commit', 'Commit', required=True, select=True),
         'submitted_at': fields.datetime('Submitted at', required=False, select=True),
         'complete': fields.boolean('Complete', required=True, select=True),
         'complete_at': fields.datetime('Complete At'),
@@ -409,6 +409,7 @@ def copy_none(*args, **kw):
 
 class software_buildrequest(osv.osv):
     _name = 'software_dev.buildrequest'
+    _function_field_browse = True
 
     _columns = {
         'builder_id': fields.many2one('software_dev.buildseries', 'Builder', required=True, select=True),
