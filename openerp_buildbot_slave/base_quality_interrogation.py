@@ -3500,7 +3500,7 @@ class CmdPrompt(object):
             print
         if self._client.series in ('f3',):
             try:
-                wkf_list = self._client.rpc_call('/object', 'list_workflow', self._client.dbname, model, auth_level='root')
+                wkf_list = self._client.rpc_call('/object', 'list_workflow', self._client.dbname, model, auth_level='root', notify=False)
                 server._io_flush()
                 if wkf_list:
                     print "Workflows:"
@@ -3509,10 +3509,11 @@ class CmdPrompt(object):
             except xmlrpclib.Fault, e:
                 print 'xmlrpc exception: %s' % reduce_homedir( e.faultCode.strip())
                 print 'xmlrpc +: %s' % reduce_homedir(e.faultString.rstrip())
-                return
             except RpcException, e:
-                print "Failed workflow:", e.args[-1]
-                return
+                if e.args[-1] == 'Access Error':
+                    print "Workflows:\n    (not available, please enable introspection)"
+                else:
+                    print "Failed workflow:", e.args[-1]
             except Exception:
                 self._logger.warning("Cannot inspect workflow of %s:", model, exc_info=True)
         return
