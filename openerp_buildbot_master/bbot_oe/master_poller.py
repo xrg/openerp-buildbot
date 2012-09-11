@@ -29,8 +29,9 @@ from twisted.application import service
 from buildbot.master import BuildMaster
 from twisted.internet import defer, reactor
 from twisted.python import log
-from openerp_libclient import agent_commands
+from openerp_libclient import agent_commands, rpc
 from twisted.internet.threads import blockingCallFromThread
+from twisted.internet.task import LoopingCall
 
 from functools import wraps
 
@@ -58,6 +59,7 @@ class MasterPoller(service.MultiService):
         service.MultiService.__init__(self)
         self.setName('master_poller')
         self._command_thread = None
+        self._rpc_thread = None
         
     def startService(self):
         service.MultiService.startService(self)
@@ -69,6 +71,9 @@ class MasterPoller(service.MultiService):
         if self._command_thread:
             self._command_thread.stop()
             self._command_thread = None
+        if self._rpc_thread:
+            self._rpc_thread.stop()
+            self._rpc_thread = None
 
     def getMaster(self):
         """ Discover the BotMaster instance
@@ -86,6 +91,9 @@ class MasterPoller(service.MultiService):
         if self._command_thread:
             self._command_thread.stop()
             self._command_thread = None
+        if self._rpc_thread:
+            self._rpc_thread.stop()
+            self._rpc_thread = None
         if not self.running:
             return
         master = self.getMaster()
@@ -97,6 +105,9 @@ class MasterPoller(service.MultiService):
                     agent_name=master.master_name, agent_incarnation=master.master_incarnation)
 
         self._command_thread.start()
+        if rpc.default_session:
+            self._rpc_thread = LoopingCall(rpc.default_session.loop_once)
+            self._rpc_thread.start(rpc.default_session.conn_expire/2.0, now=False)
         log.msg('Restart MasterPoller command thread')
         return
 
