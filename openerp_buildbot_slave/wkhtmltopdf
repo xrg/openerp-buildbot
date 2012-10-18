@@ -1,0 +1,5 @@
+#!/bin/bash
+
+echo "[$(date +'%Y-%m-%d %H:%M:%S')] WARNING:$(basename "$0"): using fake script with arguments $@" >&2
+
+#eof
