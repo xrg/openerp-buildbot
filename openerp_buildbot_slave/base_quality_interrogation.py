@@ -2752,6 +2752,7 @@ class CmdPrompt(object):
                                 'get sqlstats', 'reset sqlstats',
                                 'stats', 'check',
                                 'restart-logs',
+                                'get last', # 'get ormlogs',
                                 #'restart',
                                 ],
                     'test': ['account-moves',],
@@ -3158,6 +3159,12 @@ class CmdPrompt(object):
                         ret = self._client.execute_common('root', 'get_loglevel', '*')
                     else:
                         print "Command not supported for %s server series" % self._client.server_series
+                elif args[1] == 'last':
+                    pcols = ['login', 'name', 'active', 'date']
+                    ret = self._client.orm_proxy('res.users').search_read( \
+                            [('date', '!=', False)],0,False, 'date desc', pcols)
+                    print_table(ret, columns=pcols)
+                    return
                 else:
                     print "Wrong command"
                     return
