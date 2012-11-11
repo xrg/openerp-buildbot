@@ -271,6 +271,7 @@ class verify_marks(osv.osv_memory):
             cmtmap_obj.write(cr, uid, good_marks,{'verified': 'ok'}, context=context)
         if bad_marks:
             for reason, cids in bad_marks.items():
+                cids = list(set(filter(lambda i: i not in unlink_marks, cids)))
                 cmtmap_obj.write(cr, uid, cids,{'verified': reason}, context=context)
             if context is None:
                 context = {}
