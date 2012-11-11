@@ -305,41 +305,88 @@ class ColoredFormatter(logging.Formatter):
                 pass
         return res
 
-def print_sql_stats(stats):
+def seconds_print(usecs):
+    """ formats seconds into 6 chars 
+    """
+    formats = [ (1E9,  " %5ds "  ,  1E6),
+                (1E8,  " %5.1fs " , 1E6),
+                (1E6,  " %5.2fs ",  1E6),
+                (1E5,  " %.3fs ",   1E6),
+                (1E4,  " %2.1fms ", 1E3),
+                (1E2,  " %1.2fms ", 1E3),
+                (1E1, u" %2.1fμs ", 1.0),
+                (1E-1, u" %1.2fμs ", 1.0),
+                (1E-2, u" %2.1fns ", 1E-3),
+                (0.0, u" %1.2fns ", 1E-3)]
+        # isn't that fast enough for you, now?
+    for fmt in formats:
+        if usecs > fmt[0]:
+            return fmt[1] % (usecs / fmt[2])
+    return ' %.5g ' % usecs
+
+def print_sql_stats(stats, count_mode=True):
     """ Print the result of get_sql_stats
     """
 
     columns = []
     col_vals = {}
-    all_sum = 0
+    if count_mode in (True, 'count'):
+        zero = 0
+        val_print = lambda num: (" %6s " % num)
+        ccol = lambda cc: cc[0]
+    elif count_mode == 'time':
+        zero = 0.0
+        val_print = seconds_print
+        ccol = lambda cc: cc[1]
+    elif count_mode == 'avg':
+        zero = 0.0
+        val_print = seconds_print
+        ccol = lambda cc: cc[0] and (cc[1] / cc[0]) or False
+    else:
+        raise ValueError("Invalid count mode: %s" % count_mode)
+    all_sum = zero
     for lkey, line in stats.items():
         for col in line:
             if col not in columns:
-                col_vals[col] = 0
+                col_vals[col] = zero
                 columns.append(col[:8])
-    print " " * 26,
+    ol =  " " * 26
     for col in columns:
-        print "%8s" % col[:8],
-    print " Total"
+        ol += "%8s" % col[:8]
+    ol += "    Total"
+    print ol
+    print '-' * (len(ol) + 2)
+    out_lines = []
+    
     for lkey, line in stats.items():
-        print "%24s :" % lkey[:24],
-        line_sum = 0
+        line_str = u"%24s :" % lkey[:24]
+        line_sum = zero
         for col in columns:
-            cval = line.get(col,[False,])[0]
+            cval = ccol(line.get(col,[False,False]))
             if cval is not False:
                 line_sum += cval
-                print " %6s " % cval ,
+                line_str += val_print(cval)
                 col_vals[col] += cval
             else:
-                print "      - ",
-        print " %d" % line_sum
+                line_str += "      - "
+        line_str += '' + val_print(line_sum)
+        out_lines.append((line_str, line_sum))
 
-    print "                   Total :",
-    all_sum = 0
-    for col in columns:
-        print " %6d " % col_vals[col],
-        all_sum +=  col_vals[col]
-    print " %d" % all_sum
+    out_lines.sort(key=lambda ol: ol[1], reverse=True)
+    for ol in out_lines:
+        print ol[0]
+
+    
+    if count_mode != 'avg':
+        ol = "                   Total :"
+        all_sum = 0
+        for col in columns:
+            ol += val_print(col_vals[col])
+            all_sum += col_vals[col]
+        ol += val_print(all_sum)
+        print '-' * (len(ol) + 2)
+        print ol
+    # end print_sql_stats()
 
 def splitval(val, cw, do_pad=True):
     """ Split some column data at cw, respecting whitespace or newline
@@ -3151,8 +3198,14 @@ class CmdPrompt(object):
                 elif args[1] == 'garbage-stats':
                     ret = self._client.execute_common('root', 'get_garbage_stats')
                 elif args[1] == 'sqlstats':
+                    count_mode = True
+                    if len(args) > 2 :
+                        if args[2] == '-t':
+                            count_mode = 'time'
+                        elif args[2] == '-a':
+                            count_mode = 'avg'
                     ret = self._client.execute_common('root', 'get_sql_stats')
-                    print_sql_stats(ret)
+                    print_sql_stats(ret, count_mode)
                     ret = 'OK'
                 elif args[1] == 'log-levels':
                     if self._client.series in ('pg84', 'f3'):
