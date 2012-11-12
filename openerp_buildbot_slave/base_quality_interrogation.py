@@ -2761,10 +2761,15 @@ class CmdPrompt(object):
 
         return pos
 
+    def _complete_rpclist(self, text, state):
+        pos = [text, ]
+        args = text.split(' ')
+        return pos
+
     avail_cmds = { 0: [ 'help', 'debug', 'quit', 'db', 'console',
                         'orm', 'module', 'translation', 'server', 'test',
                         'import', 'login', 'describe', 'comment',
-                        'subscription', 'report' ],
+                        'subscription', 'report', 'rpclist' ],
                 'orm': ['help', 'obj_info', 'describe', 'comment',
                         'do', 'res_id',
                         'print', 'with',
@@ -2807,6 +2812,7 @@ class CmdPrompt(object):
                     'comment': [],
                     'subscription': ['wait', 'async_wait', 'publish'],
                     'report': ['list', 'create', 'get', 'stop'],
+                    'rpclist': _complete_rpclist,
                     }
 
     help = '''
@@ -4042,6 +4048,84 @@ class CmdPrompt(object):
                 rfp.close()
                 self._logger.info("Report written to file \"%s\"", fname)
             break
+
+    def _cmd_rpclist(self, *args):
+        """Create, retrieve or kill report jobs
+
+    Usage:
+        rpclist
+        rpclist [-g group] [-s service [-m method]]
+    
+    Description:
+        Introspect the server's RPC layer for available services and methods
+
+    Note:
+        The "rpclist" command requires an F3 extension to the server RPC API
+        """
+        args = list(args)
+        try:
+            group = service = method = False
+            while args:
+                if not args[0]:
+                    args = args[1:]
+                    continue
+
+                if args[0] == '-g' and not group:
+                    group = args[1]
+                    args = args[2:]
+                elif args[0] == '-s' and not service:
+                    service = args[1]
+                    args = args[2:]
+                elif args[0] == '-m' and not method:
+                    method = args[1]
+                    args = args[2:]
+                else:
+                    print "Incorrect argument: %s" % (args[0] )
+                    return
+            ret = self._client.rpc_call('/common', 'get_export_services', group, service, method, auth_level='root')
+            
+            if not ret:
+                print "No results"
+            else:
+                if 'groups' in ret:
+                    print "Groups:"
+                    for s in ret['groups']:
+                        print "    %s" % s
+                    print
+
+                if 'services' in ret:
+                    print "Services:"
+                    for s in ret['services']:
+                        print "    %s" % s
+                    print
+
+                if 'methods' in ret:
+                    print "Methods:"
+                    for a, ms in ret['methods'].items():
+                        print "    Authority: %s" % a
+                        for m in ms:
+                            print "        %s" % m
+                    print
+
+                    if 'service_method' in ret:
+                        print "    def %s:" % ret['service_method']
+                    if 'service_method_doc' in ret:
+                        print
+                        for line in ret['service_method_doc'].strip().split('\n'):
+                            print "        " + line
+
+        except xmlrpclib.Fault, e:
+            if isinstance(e.faultCode, (int, long)):
+                e.faultCode = str(e.faultCode)
+            print 'xmlrpc exception: %s' % reduce_homedir( e.faultCode.strip())
+            print 'xmlrpc +: %s' % reduce_homedir(e.faultString.rstrip())
+            return
+        except RpcException, e:
+            print "Failed rpclist", e
+            return
+        except Exception, e:
+            print "Failed rpclist:", e
+            return
 
 usage = """%prog [options] -- command [opts] -- command [opts] ...
 
