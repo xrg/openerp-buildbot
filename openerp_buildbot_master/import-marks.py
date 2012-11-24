@@ -56,6 +56,8 @@ parser.add_option('--force', action="store_true", default=False,
 parser.add_option('--reset-old', dest="reset_old", 
                     action="store_true", default=False,
                     help="Only re-import old ones, don't push new"),
+parser.add_option('--write-errors', action="store_true", default=False,
+                    help="Write errors to files")
 (opt, args) = parser.parse_args()
 
 def die(msg, *args):
@@ -146,6 +148,7 @@ rtype = repo_res[0]['rtype']
 logger.debug("Operating at a %s repo #%d", rtype, repo_res[0]['id'])
 
 cmmap_obj = rpc.RpcProxy('software_dev.mirrors.commitmap')
+commit_obj = rpc.RpcProxy('software_dev.commit')
 
 for fname in args:
     try:
@@ -189,8 +192,32 @@ for fname in args:
         logger.info("Marks imported: %s processed / %s skipped", res.get('processed', 0), res.get('skipped', 0))
         if res.get('errors'):
             logger.warning("Some errors reported: %s", ', '.join(res['errors'].keys()))
-            print "Errors:"
-            for e, r in res['errors'].items():
+            if opt.write_errors:
+                if 'double-mapped' in res['errors']:
+                    rev_map = dict( [ (k, i) for i, k in rev_ids.items()])
+                    # it's a list containing the hashes
+                    efname = fname + '.double-mapped'
+                    logger.info("Writting double-mapped list to %s", efname)
+                    fp = open(efname, 'wb')
+                    hashes = res['errors'].pop('double-mapped')
+                    other_marks = {}
+                    for eres in commit_obj.search_read([('hash', 'in', hashes), ('branch_id.repo_id', '=', opt.repo_id)], fields=['commitmap_id', 'hash']):
+                        other_marks[eres['hash']] = eres['commitmap_id'][1]
+                    for h in hashes:
+                        fp.write('%s %s %s\n' %(rev_map.get(h, '?'), h, other_marks.get(h, '?')))
+                    fp.close()
+                if 'mark-conflict' in res['errors']:
+                    efname = fname + '.conflict'
+                    logger.info("Writting conflicting marks list to %s", efname)
+                    fp = open(efname, 'wb')
+                    emarks = res['errors'].pop('mark-conflict')
+                    other_marks = {}
+                    for eres in commit_obj.search_read([('commitmap_id.mark', 'in', emarks), ('branch_id.repo_id', '=', opt.repo_id)], fields=['commitmap_id', 'hash']):
+                        other_marks[eres['commitmap_id'][1]] = eres['hash']
+                    for em in emarks:
+                        fp.write('%s %s %s\n' % (em, rev_ids.get(em,'?'), other_marks.get(em, '?')))
+                    fp.close()
+            for e, marks in res['errors'].items():
                 print "%s: %r" % (e, r)
             print
     except Exception:
