@@ -4098,6 +4098,10 @@ class CmdPrompt(object):
                     for s in ret['services']:
                         print "    %s" % s
                     print
+                    if ret.get('service_doc', False):
+                        for line in ret['service_doc'].strip().split('\n'):
+                            print "        " + line
+                        print
 
                 if 'methods' in ret:
                     print "Methods:"
