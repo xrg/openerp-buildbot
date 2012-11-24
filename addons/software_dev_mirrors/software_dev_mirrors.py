@@ -23,6 +23,7 @@ from tools.translate import _
 from osv import fields, osv
 from datetime import datetime
 from software_dev.software_builds import schedulers
+import logging
 
 def int_mark(sst):
     """Convert a mark notation ':123' to an integer 123
@@ -371,6 +372,7 @@ class softdev_commit_mapping(osv.osv):
         """
         if context is None:
             context = {}
+        logger = logging.getLogger('orm')
 
         commit_obj = self.pool.get('software_dev.commit')
         col_id = self.pool.get('software_dev.mirrors.branch_collection').\
@@ -384,6 +386,7 @@ class softdev_commit_mapping(osv.osv):
                     fields=['mark'], context=context):
             known_marks[res['mark']] = res['id']
 
+        logger.debug("%s: Loaded %d known marks for %d marks in map", self._name, len(known_marks), len(marks_map))
         branch_rest_id = self.pool.get('software_dev.repo').\
                         get_rest_branch(cr, uid, repo_id, context=context)
 
@@ -392,6 +395,7 @@ class softdev_commit_mapping(osv.osv):
         skipped = 0
         repo_forks = self.pool.get('software_dev.repo').\
                 get_all_forks(cr, uid, [repo_id], context=context)[repo_id]
+        logger.debug("%s: will look at %d forks of repository #%d", self._name, len(repo_forks), repo_id)
         double_marks = context.get('double_marks', 'skip')
         for mark, shash in marks_map.items():
             # Get the commit:
@@ -425,6 +429,8 @@ class softdev_commit_mapping(osv.osv):
                             commit_obj.write(cr, uid, [commit_id[0]['id']], {'commitmap_id': known_marks[mark]}, context=context)
                             processed += 1
                     else:
+                        logger.debug("%s: setting %s %.12s as double-mapped because known mark #%d differs from %d",
+                                self._name, mark, shash, known_marks[mark], commit_id[0]['commitmap_id'][0])
                         errors.setdefault('double-mapped',[]).append(shash)
                 else:
                     # the hard part: make sure the mark is not already referencing
@@ -448,6 +454,8 @@ class softdev_commit_mapping(osv.osv):
                 # it's a new one
                 if commit_id:
                     if commit_id[0]['commitmap_id']:
+                        logger.debug("%s: setting %s %.12s as double-mapped because recorded mark %r not in known marks",
+                                self._name, mark, shash, commit_id[0]['commitmap_id'])
                         errors.setdefault('double-mapped',[]).append(shash)
                         continue
                     cmt_id = commit_id[0]['id']
