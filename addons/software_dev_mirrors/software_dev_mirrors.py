@@ -397,6 +397,8 @@ class softdev_commit_mapping(osv.osv):
                 get_all_forks(cr, uid, [repo_id], context=context)[repo_id]
         logger.debug("%s: will look at %d forks of repository #%d", self._name, len(repo_forks), repo_id)
         double_marks = context.get('double_marks', 'skip')
+        bad_marks = set()
+        unknown_marks = set()
         for mark, shash in marks_map.items():
             # Get the commit:
             new_commit_id = None
@@ -423,21 +425,24 @@ class softdev_commit_mapping(osv.osv):
                             # TODO: replace with a simple search([('id', '=', known_marks[mark]),('commit_ids.branch_id.repo_id.id', '=', 'repo_id')]) in F3
                             if cmt.branch_id.repo_id.id == repo_id:
                                 errors.setdefault('mark-conflict', []).append(mark)
+                                bad_marks.add(cmt.id)
                                 break
                         else:
-                            self.write(cr, uid, commit_id[0]['commitmap_id'][0], {'verified': 'unknown'}, context=context)
+                            unknown_marks.add(commit_id[0]['commitmap_id'][0])
                             commit_obj.write(cr, uid, [commit_id[0]['id']], {'commitmap_id': known_marks[mark]}, context=context)
                             processed += 1
                     else:
                         logger.debug("%s: setting %s %.12s as double-mapped because known mark #%d differs from %d",
                                 self._name, mark, shash, known_marks[mark], commit_id[0]['commitmap_id'][0])
                         errors.setdefault('double-mapped',[]).append(shash)
+                        bad_marks.add(commit_id[0]['commitmap_id'][0])
                 else:
                     # the hard part: make sure the mark is not already referencing
                     # any commit at the same repo
                     for cmt in self.browse(cr, uid, known_marks[mark], context=context).commit_ids:
                         if cmt.branch_id.repo_id.id == repo_id:
                             errors.setdefault('mark-conflict', []).append(mark)
+                            bad_marks.add(cmt.id)
                             break
                     else:
                         # we're clear: existing mark doesn't have commit of our
@@ -457,6 +462,7 @@ class softdev_commit_mapping(osv.osv):
                         logger.debug("%s: setting %s %.12s as double-mapped because recorded mark %r not in known marks",
                                 self._name, mark, shash, commit_id[0]['commitmap_id'])
                         errors.setdefault('double-mapped',[]).append(shash)
+                        bad_marks.add(commit_id[0]['commitmap_id'][0])
                         continue
                     cmt_id = commit_id[0]['id']
                 else:
@@ -466,6 +472,10 @@ class softdev_commit_mapping(osv.osv):
                         'commit_ids': [(6,0, [cmt_id])] }, context=context)
                 processed += 1
 
+        if unknown_marks:
+            self.write(cr, uid, list(unknown_marks) , {'verified': 'unknown'}, context=context)
+        if bad_marks:
+            self.write(cr, uid, list(bad_marks) , {'verified': 'bad'}, context=context)
         return dict(processed=processed, skipped=skipped, errors=errors)
 
     def get_marks(self, cr, uid, repo_id, context=None):
