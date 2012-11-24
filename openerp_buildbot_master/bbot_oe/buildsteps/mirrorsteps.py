@@ -251,15 +251,19 @@ class ImportBzrMarks(_BzrMarksProcessor, _ImportMarksMixin, BuildStep):
 
     def _do_import(self):
         try:
-            marks = marks_file.import_marks(self.marks_fname)
+            marks_orig = marks_file.import_marks(self.marks_fname)
             bad_marks = []
-            for m in marks:
-                if not m.startswith(':'):
-                    if (':'+m) in marks:
+            marks = {}
+            for m, rev in marks_orig.items():
+                if m.startswith(':'):
+                    marks[m] = rev
+                else:
+                    if (':'+m) in marks_orig:
                         print "Invalid mark %s" % m
                         bad_marks.append(m)
                     else:
-                        marks[':'+m] = marks.pop(m)
+                        marks[':'+m] = rev
+            del marks_orig
             if bad_marks:
                 raise Exception("Bad marks found")
             self._do_feed_marks(marks)
