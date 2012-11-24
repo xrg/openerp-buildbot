@@ -153,24 +153,29 @@ for fname in args:
             rev_ids = git_marks_import(fname)
 
         elif rtype == 'bzr':
-            rev_ids = marks_file.import_marks(fname)
+            logger.info("import as bzr")
+            rev_ids_orig = marks_file.import_marks(fname)
             bad_marks = []
-            for m in rev_ids:
-                if not m.startswith(':'):
-                    if (':'+m) in rev_ids:
+            rev_ids = {}
+            for m, rev in rev_ids_orig.items():
+                if m.startswith(':'):
+                    rev_ids[m] = rev
+                else:
+                    if (':'+m) in rev_ids_orig:
                         logger.debug("Invalid mark %s", m)
                         bad_marks.append(m)
                     else:
-                        rev_ids[':'+m] = rev_ids.pop(m)
+                        rev_ids[':'+m] = rev
             if bad_marks and opt.force:
                 logger.warning("Skipping %d bad marks", len(bad_marks))
-                for m in set(bad_marks):
-                    rev_ids.pop(m)
             elif bad_marks:
                 raise Exception("Bad marks found")
+            del rev_ids_orig
         else:
             raise Exception("Unknown repository type: %s" % rtype)
-        
+        for m in rev_ids:
+                if not m.startswith(':'):
+                    raise RuntimeError(m)
         context = {}
         if opt.reset_old:
             context['old_marks_only'] = True
