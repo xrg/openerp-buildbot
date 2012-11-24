@@ -193,6 +193,7 @@ for fname in args:
         if res.get('errors'):
             logger.warning("Some errors reported: %s", ', '.join(res['errors'].keys()))
             if opt.write_errors:
+                repo_forks = repo_obj.get_all_forks([opt.repo_id])[str(opt.repo_id)]
                 if 'double-mapped' in res['errors']:
                     rev_map = dict( [ (k, i) for i, k in rev_ids.items()])
                     # it's a list containing the hashes
@@ -201,7 +202,7 @@ for fname in args:
                     fp = open(efname, 'wb')
                     hashes = res['errors'].pop('double-mapped')
                     other_marks = {}
-                    for eres in commit_obj.search_read([('hash', 'in', hashes), ('branch_id.repo_id', '=', opt.repo_id)], fields=['commitmap_id', 'hash']):
+                    for eres in commit_obj.search_read([('hash', 'in', hashes), ('branch_id.repo_id', 'in', repo_forks)], fields=['commitmap_id', 'hash']):
                         other_marks[eres['hash']] = eres['commitmap_id'][1]
                     for h in hashes:
                         fp.write('%s %s %s\n' %(rev_map.get(h, '?'), h, other_marks.get(h, '?')))
@@ -212,7 +213,7 @@ for fname in args:
                     fp = open(efname, 'wb')
                     emarks = res['errors'].pop('mark-conflict')
                     other_marks = {}
-                    for eres in commit_obj.search_read([('commitmap_id.mark', 'in', emarks), ('branch_id.repo_id', '=', opt.repo_id)], fields=['commitmap_id', 'hash']):
+                    for eres in commit_obj.search_read([('commitmap_id.mark', 'in', emarks), ('branch_id.repo_id', 'in', repo_forks)], fields=['commitmap_id', 'hash']):
                         other_marks[eres['commitmap_id'][1]] = eres['hash']
                     for em in emarks:
                         fp.write('%s %s %s\n' % (em, rev_ids.get(em,'?'), other_marks.get(em, '?')))
