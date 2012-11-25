@@ -225,7 +225,7 @@ class ExportBzrMarks(_BzrMarksProcessor, BuildStep):
         cmap_proxy = rpc.RpcProxy('software_dev.mirrors.commitmap')
         try:
             marks_map = cmap_proxy.get_marks(self.repo_id)
-            marks_file.export_marks(self.marks_fname, marks_map, {}) # TODO
+            marks_file.export_marks(self.marks_fname, marks_map) # TODO
             self.step_status.setText(["exported bzr marks", self.marks_fname])
             self.finished(SUCCESS)
         except Exception, e:
