@@ -485,17 +485,22 @@ class softdev_commit_mapping(osv.osv):
             @note This call may return a large set of resutls. It would be
             a little dangerous not to export them all in one go.
         """
+        logger = logging.getLogger('orm')
         col_id = self.pool.get('software_dev.mirrors.branch_collection').\
                     get_id_for_repo(cr, uid, repo_id, context=context)
+        
         if not col_id:
             raise osv.orm.except_orm(_('Setup Error'),
                 _('There is no branch collection for any branch of repository %d') % repo_id)
 
+        repo_forks = self.pool.get('software_dev.repo').\
+                get_all_forks(cr, uid, [repo_id], context=context)[repo_id]
+        logger.debug("%s: will look at %d forks of repository #%d", self._name, len(repo_forks), repo_id)
         res_marks = {}
         commit_obj = self.pool.get('software_dev.commit')
         for cres in commit_obj.search_read(cr, uid,
                     [   ('commitmap_id','in', [('collection_id', '=', col_id)]),
-                        ('branch_id', 'in', [('repo_id', '=', repo_id)])
+                        ('branch_id', 'in', [('repo_id', 'in', repo_forks)])
                     ],
                     fields=['hash', 'commitmap_id'],
                     context=context):
