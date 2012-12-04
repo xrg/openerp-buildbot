@@ -425,7 +425,7 @@ class softdev_commit_mapping(osv.osv):
                             # TODO: replace with a simple search([('id', '=', known_marks[mark]),('commit_ids.branch_id.repo_id.id', '=', 'repo_id')]) in F3
                             if cmt.branch_id.repo_id.id == repo_id:
                                 errors.setdefault('mark-conflict', []).append(mark)
-                                bad_marks.add(cmt.id)
+                                bad_marks.add(known_marks[mark])
                                 break
                         else:
                             unknown_marks.add(commit_id[0]['commitmap_id'][0])
@@ -442,7 +442,7 @@ class softdev_commit_mapping(osv.osv):
                     for cmt in self.browse(cr, uid, known_marks[mark], context=context).commit_ids:
                         if cmt.branch_id.repo_id.id == repo_id:
                             errors.setdefault('mark-conflict', []).append(mark)
-                            bad_marks.add(cmt.id)
+                            bad_marks.add(known_marks[mark])
                             break
                     else:
                         # we're clear: existing mark doesn't have commit of our
