@@ -2769,16 +2769,17 @@ class CmdPrompt(object):
     avail_cmds = { 0: [ 'help', 'debug', 'quit', 'db', 'console',
                         'orm', 'module', 'translation', 'server', 'test',
                         'import', 'login', 'describe', 'comment',
-                        'subscription', 'report', 'rpclist' ],
+                        'subscription', 'report', 'rpclist', 'objgraph', ],
                 'orm': ['help', 'obj_info', 'describe', 'comment',
                         'do', 'res_id',
                         'print', 'with',
                         'table',
                         'debug', 'exit',  ],
-                'orm_id': [ 'help', 'comment', 'do', 'print', 'describe', 'with', 'debug', 'exit', ]
+                'orm_id': [ 'help', 'comment', 'do', 'print', 'describe', 'with', 'debug', 'exit', ],
                 }
     cmd_levelprompts = { 0: 'BQI', 'db': 'BQI DB', 'orm': 'BQI %(cur_orm)s',
-                        'orm_id': 'BQI %(cur_orm)s#%(cur_res_id)d', }
+                        'orm_id': 'BQI %(cur_orm)s#%(cur_res_id)d',
+                       }
     sub_commands = { 'debug': ['on', 'off', 'server on', 'server off',
                                 'console on', 'console off', 'console silent',
                                 'object on', 'object off',],
@@ -2813,6 +2814,9 @@ class CmdPrompt(object):
                     'subscription': ['wait', 'async_wait', 'publish'],
                     'report': ['list', 'create', 'get', 'stop'],
                     'rpclist': _complete_rpclist,
+                    'objgraph': [ 'most_common_types', 'count', 'get_growth',
+                                'get_by_type', 'get_ref_chain', 'get_backref_chain',
+                                'reset_stats', 'print_at', ],
                     }
 
     help = '''
@@ -4131,6 +4135,35 @@ class CmdPrompt(object):
             print "Failed rpclist:", e
             return
 
+    def _cmd_objgraph(self, verb, *args):
+        """Fetch objgraph statistics from the running server
+        """
+        try:
+            kwargs = {'auth_level': 'root'}
+            res = self._client.rpc_call('/objgraph', verb, *args, **kwargs)
+            if res and isinstance(res, list):
+                if isinstance(res[0], list):
+                    max_a = max([ len(a[0]) for a in res])
+                    for a in res:
+                        print "%-*s" %(max_a, a[0]),
+                        print a[1:]
+                else:
+                    for a in res:
+                        print a
+            else:
+                print "Result:\n", pretty_repr(res)
+        except xmlrpclib.Fault, e:
+            if isinstance(e.faultCode, (int, long)):
+                e.faultCode = str(e.faultCode)
+            print 'xmlrpc exception: %s' % reduce_homedir( e.faultCode.strip())
+            print 'xmlrpc +: %s' % reduce_homedir(e.faultString.rstrip())
+            return
+        except RpcException, e:
+            print "Failed rpclist", e
+            return
+        except Exception, e:
+            print "Failed rpclist:", e
+            return
 usage = """%prog [options] -- command [opts] -- command [opts] ...
 
 DESCRIPTION
