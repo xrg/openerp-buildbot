@@ -4542,7 +4542,7 @@ def parse_option_section(conf, items, allow_include=True):
             args += val.replace('\n', ' -- ').split(' ')
         elif key in dir(copt):
             if isinstance(getattr(copt, key), list) or \
-                    (key in ('modules',)):
+                    (key in ('modules', 'defines')):
                 val = val.split(' ')
             elif isinstance(getattr(copt, key), bool):
                 val = bool(val.lower() in ('1', 'true', 't', 'yes'))
